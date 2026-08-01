@@ -61,7 +61,6 @@
 
         #loading { text-align: center; font-style: italic; color: #7f8c8d; }
 
-        /* --- MODAL UPDATE STATUS --- */
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
         .modal-content { background-color: #fff; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; border-top: 5px solid var(--warna-utama); }
         .btn-close-modal { background-color: #e74c3c; margin-top: 10px; }
@@ -82,13 +81,11 @@
         </div>
     </div>
 
-    <!-- MODAL POP-UP UPDATE STATUS -->
     <div id="modal-update" class="modal">
         <div class="modal-content">
             <h3 id="update-title" style="margin-top:0; color:var(--warna-utama);">Update Status Tiket</h3>
             <form id="form-update" onsubmit="submitUpdate(event)">
                 <input type="hidden" id="update-id">
-                
                 <label style="display:block; margin: 10px 0 5px; font-weight:bold; font-size:14px;">Status Pekerjaan</label>
                 <select id="update-status" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; margin-bottom:10px;" required onchange="cekKeterangan()">
                     <option value="Menunggu">Menunggu</option>
@@ -97,10 +94,8 @@
                     <option value="Cancel">Cancel (Dibatalkan)</option>
                     <option value="Selesai">Selesai (Closed)</option>
                 </select>
-                
                 <label style="display:block; margin: 10px 0 5px; font-weight:bold; font-size:14px;">Keterangan</label>
                 <textarea id="update-keterangan" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; font-family:inherit;" placeholder="Masukkan progres atau alasan..."></textarea>
-                
                 <button type="submit" id="btn-submit-update" class="btn-submit">Simpan Update</button>
                 <button type="button" class="btn-submit btn-close-modal" onclick="tutupModal()">Batal</button>
             </form>
@@ -123,7 +118,6 @@
             <button class="btn-action" style="background-color: #8e44ad;" onclick="togglePanel('user-management-container')">Manajemen User</button>
         </div>
 
-        <!-- PANEL MANAJEMEN USER (Tidak berubah) -->
         <div class="form-card" id="user-management-container">
             <h3>Manajemen Akses User</h3>
             <form onsubmit="simpanUserBaru(event)" style="background:#f9f9f9; padding:15px; border-radius:5px; margin-bottom:20px; border:1px solid #ddd;">
@@ -146,7 +140,6 @@
             </table>
         </div>
 
-        <!-- PANEL INPUT PEKERJAAN (Tidak berubah) -->
         <div class="form-card" id="form-container">
             <h3>Detail Pekerjaan SLA Baru</h3>
             <form id="form-sla" onsubmit="submitData(event)">
@@ -256,17 +249,13 @@
             } else { panel.style.display = 'none'; }
         }
 
-        // --- SISTEM UPDATE STATUS TIKET OLEH TEKNISI ---
         function bukaModalUpdate(id, statusSaatIni, keteranganSaatIni) {
             document.getElementById('update-id').value = id;
             document.getElementById('update-title').innerText = 'Update Status: ' + id;
-            
-            // Set data saat ini
             document.getElementById('update-status').value = statusSaatIni || 'Menunggu';
-            // Pastikan tidak menampilkan tulisan 'undefined'
             document.getElementById('update-keterangan').value = (keteranganSaatIni === 'undefined' || !keteranganSaatIni) ? '' : keteranganSaatIni;
             
-            cekKeterangan(); // Cek apakah wajib diisi
+            cekKeterangan(); 
             document.getElementById('modal-update').style.display = 'flex';
         }
 
@@ -313,7 +302,6 @@
             btn.innerText = 'Simpan Update'; btn.disabled = false;
         }
 
-        // --- MANAJEMEN USER (Kode tidak diubah, diringkas) ---
         function aktifkanEditUser(un) {
             const u = globalUsers.find(x => x.Username === un); if(!u) return;
             modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username;
@@ -323,12 +311,14 @@
             document.getElementById('btn-tambah-user').innerText = 'Update User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#f39c12';
             document.getElementById('btn-batal-edit').style.display = 'block'; document.getElementById('user-management-container').scrollIntoView();
         }
+
         function batalEditUser() {
             modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru';
             document.getElementById('new-nama').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = '';
             document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false;
             document.getElementById('btn-tambah-user').innerText = 'Simpan User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#3498db'; document.getElementById('btn-batal-edit').style.display = 'none';
         }
+
         async function simpanUserBaru(e) {
             e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value };
@@ -337,6 +327,7 @@
                 if(result.status==='sukses') { alert(modeEditUser?'Di-update!':'Ditambahkan!'); batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(); document.getElementById('loading').style.display='none'; }
             } catch(err) { alert('Error sistem.'); } btn.innerText = modeEditUser?'Update User':'Simpan User'; btn.disabled=false;
         }
+
         async function hapusUser(un) {
             if(un==='admin') { alert('Akun admin utama tidak boleh dihapus!'); return; }
             if(!confirm(`Yakin hapus ${un}?`)) return; document.getElementById('loading').style.display='block';
@@ -345,7 +336,6 @@
             } catch(err) {} document.getElementById('loading').style.display='none';
         }
 
-        // --- INPUT PEKERJAAN (Oleh Admin) ---
         async function submitData(e) {
             e.preventDefault(); const btnSubmit = document.getElementById('btn-submit-pekerjaan'); btnSubmit.innerText = 'Menyimpan...'; btnSubmit.disabled = true;
             const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
@@ -356,7 +346,6 @@
             } catch (error) {} btnSubmit.innerText = 'Simpan Pekerjaan'; btnSubmit.disabled = false;
         }
 
-        // --- MERENDER TAMPILAN APLIKASI ---
         function refreshLayar() {
             if (penggunaAktif.Role === 'admin') {
                 document.getElementById('admin-buttons-container').style.display = 'flex';
@@ -382,12 +371,24 @@
             container.innerHTML = ''; 
 
             let tiketDitampilkan = [];
+            
+            // LOGIKA FILTER YANG SUDAH DIPERBAIKI
             if (penggunaAktif.Role === 'admin') {
                 tiketDitampilkan = globalTickets;
             } else if (penggunaAktif.Role === 'teknisi') {
                 tiketDitampilkan = globalTickets.filter(ticket => {
-                    const kolomTeknisi = ticket['Teknisi'] || '';
-                    return kolomTeknisi.toLowerCase().includes(penggunaAktif['Nama Asli'].toLowerCase());
+                    const kolomTeknisi = (ticket['Teknisi'] || '').toLowerCase();
+                    const namaAsliUser = penggunaAktif['Nama Asli'].toLowerCase();
+                    
+                    // Pecah daftar nama teknisi berdasarkan koma, lalu bersihkan spasi
+                    const listTeknisiDiTiket = kolomTeknisi.split(',').map(nama => nama.trim());
+
+                    // Cek silang: Apakah nama di tiket bagian dari Nama User, atau sebaliknya?
+                    return listTeknisiDiTiket.some(namaTeknisi => 
+                        namaTeknisi === namaAsliUser ||
+                        namaAsliUser.includes(namaTeknisi) ||
+                        namaTeknisi.includes(namaAsliUser)
+                    );
                 });
             }
 
@@ -405,12 +406,10 @@
             tiketDitampilkan.slice().reverse().forEach(ticket => {
                 if (!ticket['ID Tiket']) return;
                 
-                // Pewarnaan Border Kiri (Logika SLA)
                 let statusClass = 'status-aman';
                 if (ticket['Status SLA'] === 'TERLAMBAT') { statusClass = 'status-terlambat'; } 
                 else if (ticket['Status SLA'] === 'TERPENUHI') { statusClass = 'status-terpenuhi'; }
 
-                // Pewarnaan Badge Status Pekerjaan
                 let textStatus = ticket['Status'] || 'Menunggu';
                 let badgeClass = 'badge-status'; 
                 if (textStatus === 'Selesai') badgeClass = 'badge-selesai';
@@ -420,10 +419,7 @@
                 let tenggatWaktu = new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID');
                 let namaSales = ticket['Sales'] ? ticket['Sales'] : '-';
                 
-                // Cek apakah ada keterangan
                 let htmlKeterangan = ticket['Keterangan'] ? `<p><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : '';
-
-                // Memastikan tanda kutip aman saat dikirim ke fungsi klik
                 let safeKeterangan = (ticket['Keterangan'] || '').replace(/'/g, "\\'");
 
                 const card = document.createElement('div');
@@ -436,12 +432,7 @@
                     <p><strong>Status:</strong> <span class="badge ${badgeClass}">${textStatus}</span></p>
                     <p><strong>Tenggat SLA:</strong> ${tenggatWaktu}</p>
                     ${htmlKeterangan}
-                    
-                    <!-- Tombol Update Khusus Teknisi / Admin -->
-                    <button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db;" 
-                        onclick="bukaModalUpdate('${ticket['ID Tiket']}', '${textStatus}', '${safeKeterangan}')">
-                        📝 Update Status
-                    </button>
+                    <button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db;" onclick="bukaModalUpdate('${ticket['ID Tiket']}', '${textStatus}', '${safeKeterangan}')">📝 Update Status</button>
                 `;
                 container.appendChild(card);
             });
