@@ -5,12 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard SLA Teknisi - Alfacom</title>
     <style>
-        :root {
-            --warna-utama: #264a9f; 
-            --warna-aksen: #1e3b7e; 
-            --warna-latar: #f4f7f6;
-        }
-
+        :root { --warna-utama: #264a9f; --warna-aksen: #1e3b7e; --warna-latar: #f4f7f6; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--warna-latar); color: #333; padding: 20px; margin: 0; }
         .container { max-width: 800px; margin: 0 auto; }
         
@@ -83,6 +78,7 @@
         </div>
     </div>
 
+    <!-- Modal Update Status -->
     <div id="modal-update" class="modal">
         <div class="modal-content">
             <h3 id="update-title" style="margin-top:0; color:var(--warna-utama);">Update Status Tiket</h3>
@@ -120,6 +116,7 @@
             <button class="btn-action" style="background-color: #8e44ad;" onclick="togglePanel('user-management-container')">Manajemen User</button>
         </div>
 
+        <!-- PANEL MANAJEMEN USER -->
         <div class="form-card" id="user-management-container">
             <h3>Manajemen Akses User</h3>
             <form onsubmit="simpanUserBaru(event)" style="background:#f9f9f9; padding:15px; border-radius:5px; margin-bottom:20px; border:1px solid #ddd;">
@@ -133,7 +130,7 @@
                     <option value="teknisi">Teknisi (Hanya lihat pekerjaannya)</option>
                 </select>
                 <button type="submit" id="btn-tambah-user" class="btn-submit" style="background-color: #3498db;">Simpan User</button>
-                <button type="button" id="btn-batal-edit" class="btn-submit btn-batal" style="display:none;" onclick="batalEditUser()">Batal Edit</button>
+                <button type="button" id="btn-batal-edit-user" class="btn-submit btn-batal" style="display:none;" onclick="batalEditUser()">Batal Edit User</button>
             </form>
             <h4>Daftar User Terdaftar</h4>
             <table>
@@ -142,8 +139,9 @@
             </table>
         </div>
 
+        <!-- PANEL INPUT/EDIT PEKERJAAN -->
         <div class="form-card" id="form-container">
-            <h3>Detail Pekerjaan SLA Baru</h3>
+            <h3 id="form-tiket-title">Detail Pekerjaan SLA Baru</h3>
             <form id="form-sla" onsubmit="submitData(event)">
                 <label>ID Tiket</label>
                 <input type="text" id="input-id" class="input-terkunci" readonly>
@@ -183,6 +181,7 @@
                     <label><input type="checkbox" value="Fauzan"> Fauzan</label>
                 </div>
                 <button type="submit" id="btn-submit-pekerjaan" class="btn-submit">Simpan Pekerjaan</button>
+                <button type="button" id="btn-batal-edit-tiket" class="btn-submit btn-batal" style="display:none;" onclick="batalEditTiket()">Batal Edit Pekerjaan</button>
             </form>
         </div>
 
@@ -197,6 +196,7 @@
         let globalUsers = [];
         let penggunaAktif = null;
         let modeEditUser = false;
+        let modeEditTiket = false; // Penanda khusus untuk mengedit tiket
 
         async function ambilSemuaData() {
             try {
@@ -217,15 +217,10 @@
             }
         }
 
-        // --- LOGIKA LOGIN YANG DIPERBARUI ---
         function prosesLogin(e) {
             e.preventDefault();
-            
-            // Ubah inputan username dari user menjadi huruf kecil semua
             const un = document.getElementById('username').value.trim().toLowerCase();
             const pw = document.getElementById('password').value;
-            
-            // Cocokkan dengan data di Google Sheets yang juga diubah menjadi huruf kecil sementara
             const cocok = globalUsers.find(u => {
                 const dbUsername = (u.Username || '').toLowerCase();
                 return dbUsername === un && u.Password == pw;
@@ -237,11 +232,8 @@
                 document.getElementById('app-wrapper').style.display = 'block';
                 document.getElementById('nama-login').innerText = `Masuk sebagai: ${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
                 refreshLayar();
-            } else { 
-                alert('Username atau Password salah!'); 
-            }
+            } else { alert('Username atau Password salah!'); }
         }
-        // ------------------------------------
 
         function prosesLogout() {
             penggunaAktif = null;
@@ -251,6 +243,7 @@
             document.getElementById('password').value = '';
             document.getElementById('form-container').style.display = 'none';
             document.getElementById('user-management-container').style.display = 'none';
+            batalEditTiket();
         }
 
         function togglePanel(panelId) {
@@ -259,6 +252,7 @@
                 document.getElementById('form-container').style.display = 'none';
                 document.getElementById('user-management-container').style.display = 'none';
                 panel.style.display = 'block';
+                if(panelId === 'form-container') batalEditTiket(); // Batal edit jika admin klik tombol "+ Input Pekerjaan"
             } else { panel.style.display = 'none'; }
         }
 
@@ -267,54 +261,119 @@
             document.getElementById('update-title').innerText = 'Update Status: ' + id;
             document.getElementById('update-status').value = statusSaatIni || 'Menunggu';
             document.getElementById('update-keterangan').value = (keteranganSaatIni === 'undefined' || !keteranganSaatIni) ? '' : keteranganSaatIni;
-            
             cekKeterangan(); 
             document.getElementById('modal-update').style.display = 'flex';
         }
 
-        function tutupModal() {
-            document.getElementById('modal-update').style.display = 'none';
-        }
+        function tutupModal() { document.getElementById('modal-update').style.display = 'none'; }
 
         function cekKeterangan() {
             const status = document.getElementById('update-status').value;
             const ket = document.getElementById('update-keterangan');
             if (status === 'Pending' || status === 'Cancel') {
-                ket.required = true;
-                ket.placeholder = "Wajib diisi! Masukkan alasan pending/cancel...";
+                ket.required = true; ket.placeholder = "Wajib diisi! Masukkan alasan pending/cancel...";
             } else {
-                ket.required = false;
-                ket.placeholder = "Opsional (Boleh dikosongkan)";
+                ket.required = false; ket.placeholder = "Opsional (Boleh dikosongkan)";
             }
         }
 
         async function submitUpdate(e) {
             e.preventDefault();
-            const btn = document.getElementById('btn-submit-update');
-            btn.innerText = 'Menyimpan...'; btn.disabled = true;
-
+            const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             const payload = {
-                action: 'updateTicket',
-                idTiket: document.getElementById('update-id').value,
-                status: document.getElementById('update-status').value,
-                keterangan: document.getElementById('update-keterangan').value
+                action: 'updateTicket', idTiket: document.getElementById('update-id').value,
+                status: document.getElementById('update-status').value, keterangan: document.getElementById('update-keterangan').value
             };
-
             try {
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
                 const result = await response.json();
                 if (result.status === 'sukses') {
-                    alert('Status berhasil diupdate!');
-                    tutupModal();
-                    document.getElementById('loading').style.display = 'block';
-                    await ambilSemuaData(); 
-                    document.getElementById('loading').style.display = 'none';
+                    alert('Status berhasil diupdate!'); tutupModal();
+                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none';
                 } else { alert('Gagal update: ' + result.pesan); }
             } catch(err) { alert('Error sistem.'); }
-            
             btn.innerText = 'Simpan Update'; btn.disabled = false;
         }
 
+        // --- SISTEM EDIT & HAPUS PEKERJAAN (KHUSUS ADMIN) ---
+        function aktifkanEditTiket(idTiket) {
+            const t = globalTickets.find(x => x['ID Tiket'] === idTiket);
+            if(!t) return;
+            modeEditTiket = true;
+            
+            // Tampilkan form dan sembunyikan yang lain
+            document.getElementById('form-container').style.display = 'block';
+            document.getElementById('user-management-container').style.display = 'none';
+            
+            // Ubah teks dan isi form
+            document.getElementById('form-tiket-title').innerText = 'Edit Pekerjaan: ' + idTiket;
+            document.getElementById('input-id').value = idTiket;
+            document.getElementById('input-sla').value = t['Target SLA (Jam)'];
+            document.getElementById('input-klien').value = t['Klien & Lokasi'];
+            document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan'];
+            document.getElementById('input-sales').value = t['Sales'] || '';
+            
+            // Centang otomatis teknisi yang ditugaskan
+            const teknisiArray = (t['Teknisi'] || '').split(',').map(n => n.trim());
+            document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => {
+                cb.checked = teknisiArray.includes(cb.value);
+            });
+
+            // Ubah tombol
+            document.getElementById('btn-submit-pekerjaan').innerText = 'Update Pekerjaan';
+            document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#f39c12';
+            document.getElementById('btn-batal-edit-tiket').style.display = 'block';
+            
+            // Gulir layar ke form
+            document.getElementById('form-container').scrollIntoView();
+        }
+
+        function batalEditTiket() {
+            modeEditTiket = false;
+            document.getElementById('form-tiket-title').innerText = 'Detail Pekerjaan SLA Baru';
+            document.getElementById('form-sla').reset();
+            
+            document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Pekerjaan';
+            document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#2ecc71';
+            document.getElementById('btn-batal-edit-tiket').style.display = 'none';
+            refreshLayar(); // Untuk mengembalikan ID Tiket ke angka otomatis selanjutnya
+        }
+
+        async function hapusTiket(idTiket) {
+            if(!confirm(`Yakin ingin MENGHAPUS pekerjaan ${idTiket} secara permanen? Data yang dihapus tidak bisa dikembalikan.`)) return;
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) });
+                const result = await res.json();
+                if(result.status === 'sukses') { alert('Pekerjaan berhasil dihapus!'); await ambilSemuaData(); } 
+                else { alert('Gagal menghapus: ' + result.pesan); }
+            } catch(err) { alert('Error sistem.'); }
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        async function submitData(e) {
+            e.preventDefault(); const btnSubmit = document.getElementById('btn-submit-pekerjaan'); btnSubmit.innerText = 'Menyimpan...'; btnSubmit.disabled = true;
+            const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
+            if (!t) { alert('Pilih minimal satu teknisi!'); btnSubmit.innerText = 'Simpan Pekerjaan'; btnSubmit.disabled = false; return; }
+            
+            const payload = { 
+                action: modeEditTiket ? 'editTicket' : 'addTicket', 
+                idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, 
+                klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, 
+                sales: document.getElementById('input-sales').value, teknisi: t 
+            };
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) }); const result = await res.json();
+                if (result.status === 'sukses') { 
+                    alert(modeEditTiket ? 'Pekerjaan berhasil diupdate!' : 'Pekerjaan berhasil disimpan!'); 
+                    batalEditTiket(); // Mengosongkan form & mengembalikan status mode edit
+                    document.getElementById('form-container').style.display = 'none';
+                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; 
+                } else { alert('Gagal: ' + result.pesan); }
+            } catch (error) { alert('Error sistem.'); } btnSubmit.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btnSubmit.disabled = false;
+        }
+
+        // --- MANAJEMEN USER ---
         function aktifkanEditUser(un) {
             const u = globalUsers.find(x => x.Username === un); if(!u) return;
             modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username;
@@ -322,20 +381,20 @@
             document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role;
             document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true;
             document.getElementById('btn-tambah-user').innerText = 'Update User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#f39c12';
-            document.getElementById('btn-batal-edit').style.display = 'block'; document.getElementById('user-management-container').scrollIntoView();
+            document.getElementById('btn-batal-edit-user').style.display = 'block'; document.getElementById('user-management-container').scrollIntoView();
         }
 
         function batalEditUser() {
             modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru';
             document.getElementById('new-nama').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = '';
             document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false;
-            document.getElementById('btn-tambah-user').innerText = 'Simpan User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#3498db'; document.getElementById('btn-batal-edit').style.display = 'none';
+            document.getElementById('btn-tambah-user').innerText = 'Simpan User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#3498db'; document.getElementById('btn-batal-edit-user').style.display = 'none';
         }
 
         async function simpanUserBaru(e) {
             e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value };
-            if (!modeEditUser && globalUsers.find(u => u.Username === payload.username)) { alert("Username sudah digunakan."); btn.innerText='Simpan User'; btn.disabled=false; return; }
+            if (!modeEditUser && globalUsers.find(u => (u.Username||'').toLowerCase() === payload.username.toLowerCase())) { alert("Username sudah digunakan."); btn.innerText='Simpan User'; btn.disabled=false; return; }
             try { const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) }); const result = await res.json();
                 if(result.status==='sukses') { alert(modeEditUser?'Di-update!':'Ditambahkan!'); batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(); document.getElementById('loading').style.display='none'; }
             } catch(err) { alert('Error sistem.'); } btn.innerText = modeEditUser?'Update User':'Simpan User'; btn.disabled=false;
@@ -343,22 +402,13 @@
 
         async function hapusUser(un) {
             if(un==='admin') { alert('Akun admin utama tidak boleh dihapus!'); return; }
-            if(!confirm(`Yakin hapus ${un}?`)) return; document.getElementById('loading').style.display='block';
+            if(!confirm(`Yakin hapus user ${un}?`)) return; document.getElementById('loading').style.display='block';
             try { const res = await fetch(apiUrl, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'deleteUser', username:un}) });
                 const result = await res.json(); if(result.status==='sukses') { alert('Dihapus!'); await ambilSemuaData(); }
             } catch(err) {} document.getElementById('loading').style.display='none';
         }
 
-        async function submitData(e) {
-            e.preventDefault(); const btnSubmit = document.getElementById('btn-submit-pekerjaan'); btnSubmit.innerText = 'Menyimpan...'; btnSubmit.disabled = true;
-            const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
-            if (!t) { alert('Pilih minimal satu teknisi!'); btnSubmit.innerText = 'Simpan Pekerjaan'; btnSubmit.disabled = false; return; }
-            const payload = { action: 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, teknisi: t };
-            try { const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) }); const result = await res.json();
-                if (result.status === 'sukses') { alert('Tersimpan!'); document.getElementById('form-sla').reset(); togglePanel('form-container'); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; }
-            } catch (error) {} btnSubmit.innerText = 'Simpan Pekerjaan'; btnSubmit.disabled = false;
-        }
-
+        // --- RENDER TAMPILAN ---
         function refreshLayar() {
             if (penggunaAktif.Role === 'admin') {
                 document.getElementById('admin-buttons-container').style.display = 'flex';
@@ -393,13 +443,12 @@
                     const namaAsliUser = penggunaAktif['Nama Asli'].toLowerCase();
                     const listTeknisiDiTiket = kolomTeknisi.split(',').map(nama => nama.trim());
                     return listTeknisiDiTiket.some(namaTeknisi => 
-                        namaTeknisi === namaAsliUser ||
-                        namaAsliUser.includes(namaTeknisi) ||
-                        namaTeknisi.includes(namaAsliUser)
+                        namaTeknisi === namaAsliUser || namaAsliUser.includes(namaTeknisi) || namaTeknisi.includes(namaAsliUser)
                     );
                 });
             }
 
+            // Atur ulang penomoran ID (Mencari ID terbesar)
             let maxId = 0;
             globalTickets.forEach(ticket => {
                 let idStr = ticket['ID Tiket'];
@@ -409,7 +458,8 @@
                 }
             });
             let nextId = 'TKT-' + String(maxId + 1).padStart(3, '0');
-            document.getElementById('input-id').value = nextId; 
+            // Jangan ubah ID di input form jika sedang mode Edit Pekerjaan
+            if (!modeEditTiket) { document.getElementById('input-id').value = nextId; }
 
             tiketDitampilkan.slice().reverse().forEach(ticket => {
                 if (!ticket['ID Tiket']) return;
@@ -430,6 +480,17 @@
                 let htmlKeterangan = ticket['Keterangan'] ? `<p><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : '';
                 let safeKeterangan = (ticket['Keterangan'] || '').replace(/'/g, "\\'");
 
+                // Tambahkan tombol Edit dan Hapus jika User adalah Admin
+                let htmlTombolAdmin = '';
+                if (penggunaAktif.Role === 'admin') {
+                    htmlTombolAdmin = `
+                        <div style="display:flex; gap:10px; margin-top:10px;">
+                            <button class="btn-action" style="flex:1; background-color:#f39c12; margin-bottom:0;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit Pekerjaan</button>
+                            <button class="btn-action" style="flex:1; background-color:#e74c3c; margin-bottom:0;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button>
+                        </div>
+                    `;
+                }
+
                 const card = document.createElement('div');
                 card.className = `card ${statusClass}`;
                 card.innerHTML = `
@@ -440,7 +501,9 @@
                     <p><strong>Status:</strong> <span class="badge ${badgeClass}">${textStatus}</span></p>
                     <p><strong>Tenggat SLA:</strong> ${tenggatWaktu}</p>
                     ${htmlKeterangan}
+                    
                     <button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db;" onclick="bukaModalUpdate('${ticket['ID Tiket']}', '${textStatus}', '${safeKeterangan}')">📝 Update Status</button>
+                    ${htmlTombolAdmin}
                 `;
                 container.appendChild(card);
             });
