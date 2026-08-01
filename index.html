@@ -37,8 +37,36 @@
         .form-card input, .form-card select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
         .input-terkunci { background-color: #e9ecef; color: #6c757d; cursor: not-allowed; font-weight: bold; }
         
-        .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #ccc; }
-        .checkbox-group label { display: flex; align-items: center; cursor: pointer; font-weight: normal; margin:0; }
+        /* --- PERBAIKAN BUG TAMPILAN CHECKBOX TEKNISI --- */
+        .checkbox-group { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 12px 10px; 
+            margin-bottom: 15px; 
+            background: #f9f9f9; 
+            padding: 15px; 
+            border-radius: 4px; 
+            border: 1px solid #ccc; 
+        }
+        .checkbox-group label { 
+            display: flex; 
+            align-items: flex-start; 
+            justify-content: flex-start; /* Memaksa elemen rata kiri */
+            text-align: left; 
+            cursor: pointer; 
+            font-weight: normal !important; 
+            margin: 0; 
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .checkbox-group input[type="checkbox"] { 
+            margin: 2px 10px 0 0 !important; /* Spasi konsisten HANYA di sebelah kanan kotak */
+            flex-shrink: 0; /* Mencegah kotak ikut mengecil */
+            width: 18px; 
+            height: 18px; 
+        }
+        /* ------------------------------------------------ */
+
         .btn-submit { background-color: #2ecc71; color: white; border: none; padding: 10px; width: 100%; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .btn-batal { background-color: #95a5a6; margin-top: 5px; }
 
@@ -175,7 +203,7 @@
                     <label><input type="checkbox" value="Abu Habibah"> Abu Habibah</label>
                     <label><input type="checkbox" value="Dafa"> Dafa</label>
                     <label><input type="checkbox" value="Ardi"> Ardi</label>
-                    <label><input type="checkbox" value="Alif"> Alif</label>
+                    <label><input type="checkbox" value="Abu Muhammad"> Abu Muhammad</label>
                     <label><input type="checkbox" value="Syawal"> Syawal</label>
                     <label><input type="checkbox" value="Mubarak"> Mubarak</label>
                     <label><input type="checkbox" value="Fauzan"> Fauzan</label>
@@ -372,18 +400,13 @@
 
             let tiketDitampilkan = [];
             
-            // LOGIKA FILTER YANG SUDAH DIPERBAIKI
             if (penggunaAktif.Role === 'admin') {
                 tiketDitampilkan = globalTickets;
             } else if (penggunaAktif.Role === 'teknisi') {
                 tiketDitampilkan = globalTickets.filter(ticket => {
                     const kolomTeknisi = (ticket['Teknisi'] || '').toLowerCase();
                     const namaAsliUser = penggunaAktif['Nama Asli'].toLowerCase();
-                    
-                    // Pecah daftar nama teknisi berdasarkan koma, lalu bersihkan spasi
                     const listTeknisiDiTiket = kolomTeknisi.split(',').map(nama => nama.trim());
-
-                    // Cek silang: Apakah nama di tiket bagian dari Nama User, atau sebaliknya?
                     return listTeknisiDiTiket.some(namaTeknisi => 
                         namaTeknisi === namaAsliUser ||
                         namaAsliUser.includes(namaTeknisi) ||
