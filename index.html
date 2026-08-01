@@ -37,35 +37,9 @@
         .form-card input, .form-card select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
         .input-terkunci { background-color: #e9ecef; color: #6c757d; cursor: not-allowed; font-weight: bold; }
         
-        /* --- PERBAIKAN BUG TAMPILAN CHECKBOX TEKNISI --- */
-        .checkbox-group { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 12px 10px; 
-            margin-bottom: 15px; 
-            background: #f9f9f9; 
-            padding: 15px; 
-            border-radius: 4px; 
-            border: 1px solid #ccc; 
-        }
-        .checkbox-group label { 
-            display: flex; 
-            align-items: flex-start; 
-            justify-content: flex-start; /* Memaksa elemen rata kiri */
-            text-align: left; 
-            cursor: pointer; 
-            font-weight: normal !important; 
-            margin: 0; 
-            font-size: 14px;
-            line-height: 1.4;
-        }
-        .checkbox-group input[type="checkbox"] { 
-            margin: 2px 10px 0 0 !important; /* Spasi konsisten HANYA di sebelah kanan kotak */
-            flex-shrink: 0; /* Mencegah kotak ikut mengecil */
-            width: 18px; 
-            height: 18px; 
-        }
-        /* ------------------------------------------------ */
+        .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #ccc; }
+        .checkbox-group label { display: flex; align-items: flex-start; justify-content: flex-start; text-align: left; cursor: pointer; font-weight: normal !important; margin: 0; font-size: 14px; line-height: 1.4; }
+        .checkbox-group input[type="checkbox"] { margin: 2px 10px 0 0 !important; flex-shrink: 0; width: 18px; height: 18px; }
 
         .btn-submit { background-color: #2ecc71; color: white; border: none; padding: 10px; width: 100%; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .btn-batal { background-color: #95a5a6; margin-top: 5px; }
@@ -243,11 +217,19 @@
             }
         }
 
+        // --- LOGIKA LOGIN YANG DIPERBARUI ---
         function prosesLogin(e) {
             e.preventDefault();
-            const un = document.getElementById('username').value.trim();
+            
+            // Ubah inputan username dari user menjadi huruf kecil semua
+            const un = document.getElementById('username').value.trim().toLowerCase();
             const pw = document.getElementById('password').value;
-            const cocok = globalUsers.find(u => u.Username === un && u.Password == pw);
+            
+            // Cocokkan dengan data di Google Sheets yang juga diubah menjadi huruf kecil sementara
+            const cocok = globalUsers.find(u => {
+                const dbUsername = (u.Username || '').toLowerCase();
+                return dbUsername === un && u.Password == pw;
+            });
 
             if (cocok) {
                 penggunaAktif = cocok;
@@ -255,8 +237,11 @@
                 document.getElementById('app-wrapper').style.display = 'block';
                 document.getElementById('nama-login').innerText = `Masuk sebagai: ${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
                 refreshLayar();
-            } else { alert('Username atau Password salah!'); }
+            } else { 
+                alert('Username atau Password salah!'); 
+            }
         }
+        // ------------------------------------
 
         function prosesLogout() {
             penggunaAktif = null;
