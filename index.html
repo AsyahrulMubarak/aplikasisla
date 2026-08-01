@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard SLA Teknisi - Alfacom</title>
+    <style>
+        /* Warna sudah disesuaikan dengan biru pada logo Alfacom */
+        :root {
+            --warna-utama: #264a9f; /* Biru utama logo */
+            --warna-aksen: #1e3b7e; /* Biru aksen yang sedikit lebih gelap */
+            --warna-latar: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--warna-latar);
+            color: #333;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        /* Pengaturan Header dan Logo */
+        .header-branding {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 280px; /* Ukuran diperbesar agar teks logo terbaca jelas */
+            height: auto;
+            margin-bottom: 15px;
+        }
+        .header-branding h2 {
+            margin: 0;
+            color: var(--warna-utama);
+            font-size: 22px;
+        }
+
+        .card {
+            background: #fff;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-left: 6px solid #ccc; 
+        }
+        
+        /* Pewarnaan otomatis status SLA */
+        .status-aman { border-left-color: #f1c40f; } 
+        .status-terpenuhi { border-left-color: #2ecc71; } 
+        .status-terlambat { border-left-color: #e74c3c; } 
+        
+        .card h3 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            color: var(--warna-utama);
+        }
+        .card p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            background-color: var(--warna-aksen);
+        }
+        #loading {
+            text-align: center;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Bagian Logo dan Judul Aplikasi -->
+        <div class="header-branding">
+            <!-- Memanggil file gambar depan_001.png -->
+            <img src="depan_001.png" alt="Logo Alfacom Multi Solution" class="logo">
+            <h2>Dashboard Penugasan & SLA</h2>
+        </div>
+
+        <div id="loading">Menarik data dari database...</div>
+        <div id="ticket-container"></div>
+    </div>
+
+    <script>
+        // URL Web App dari Google Apps Script
+        const apiUrl = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
+
+        async function fetchData() {
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                renderTickets(data);
+            } catch (error) {
+                document.getElementById('loading').innerText = 'Gagal memuat data. Pastikan koneksi internet aktif.';
+                console.error('Error:', error);
+            }
+        }
+
+        function renderTickets(tickets) {
+            const container = document.getElementById('ticket-container');
+            const loading = document.getElementById('loading');
+            
+            loading.style.display = 'none';
+            container.innerHTML = ''; 
+
+            tickets.forEach(ticket => {
+                if (!ticket['ID Tiket']) return;
+
+                let statusClass = 'status-aman';
+                if (ticket['Status SLA'] === 'TERLAMBAT') {
+                    statusClass = 'status-terlambat';
+                } else if (ticket['Status SLA'] === 'TERPENUHI') {
+                    statusClass = 'status-terpenuhi';
+                }
+
+                let tenggatWaktu = new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID');
+
+                const card = document.createElement('div');
+                card.className = `card ${statusClass}`;
+                card.innerHTML = `
+                    <h3>${ticket['ID Tiket']} - ${ticket['Klien & Lokasi']}</h3>
+                    <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
+                    <p><strong>Ditugaskan ke:</strong> ${ticket['Teknisi']}</p>
+                    <p><strong>Status Pekerjaan:</strong> <span class="badge">${ticket['Status']}</span></p>
+                    <p><strong>Tenggat SLA:</strong> ${tenggatWaktu}</p>
+                    <p><strong>Poin Kinerja:</strong> ${ticket['Poin Performa']}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        fetchData();
+    </script>
+
+</body>
+</html>
