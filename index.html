@@ -55,6 +55,11 @@
         .badge-selesai { background-color: #2ecc71; }
         .badge-pending { background-color: #e67e22; }
         .badge-cancel { background-color: #e74c3c; }
+        .badge-aman { background-color: #f1c40f; color: #fff;}
+
+        /* Kotak Detail Waktu/SLA */
+        .waktu-box { background: #f8f9fa; border: 1px dashed #ccc; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 13px; }
+        .waktu-box p { margin: 3px 0; }
 
         #loading { text-align: center; font-style: italic; color: #7f8c8d; }
 
@@ -145,8 +150,19 @@
             <form id="form-sla" onsubmit="submitData(event)">
                 <label>ID Tiket</label>
                 <input type="text" id="input-id" class="input-terkunci" readonly>
-                <label>Target SLA Pengerjaan (Dalam Jam)</label>
-                <input type="number" id="input-sla" required placeholder="Contoh: 4">
+                
+                <!-- FIELD SLA BARU -->
+                <div style="display: flex; gap:10px;">
+                    <div style="flex: 1;">
+                        <label>Target SLA Respon (Jam)</label>
+                        <input type="number" id="input-sla-respon" step="0.1" required placeholder="Contoh: 1">
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Target SLA Pengerjaan (Jam)</label>
+                        <input type="number" id="input-sla" step="0.1" required placeholder="Contoh: 4">
+                    </div>
+                </div>
+
                 <label>Nama Klien & Lokasi</label>
                 <input type="text" id="input-klien" required placeholder="Contoh: Gedung SPPG Kadia">
                 <label>Jenis Pekerjaan</label>
@@ -205,41 +221,23 @@
                 globalTickets = data.tickets;
                 globalUsers = data.users;
 
-                // --- SISTEM PENYIMPANAN SESI DENGAN BATAS 24 JAM ---
                 const savedSession = localStorage.getItem('sesiLoginSLA');
-                
-                // Menghapus riwayat versi aplikasi sebelumnya (agar tidak error)
-                localStorage.removeItem('penggunaAktif'); 
-
                 if (savedSession) {
                     const parsedSession = JSON.parse(savedSession);
-                    
-                    // Hitung selisih waktu (Sekarang - Waktu Login)
                     const currentTime = new Date().getTime();
                     const timeDiff = currentTime - parsedSession.loginTime;
-                    
-                    // 24 jam dalam milidetik (24 jam * 60 menit * 60 detik * 1000 milidetik)
                     const limit24Jam = 24 * 60 * 60 * 1000;
 
                     if (timeDiff > limit24Jam) {
-                        // Jika sudah lebih dari 24 jam, hapus sesi dan tolak login
                         localStorage.removeItem('sesiLoginSLA');
                         penggunaAktif = null;
                         alert('Sesi login Anda telah berakhir (lebih dari 24 jam). Silakan login kembali.');
                     } else {
-                        // Jika masih di bawah 24 jam, verifikasi ulang dengan database
                         const parsedUser = parsedSession.user;
                         const cekDB = globalUsers.find(u => u.Username === parsedUser.Username && u.Password === parsedUser.Password);
-                        
-                        if(cekDB) {
-                            penggunaAktif = cekDB; 
-                        } else {
-                            localStorage.removeItem('sesiLoginSLA');
-                            penggunaAktif = null;
-                        }
+                        if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; }
                     }
                 }
-                // ---------------------------------------------------
 
                 if(!penggunaAktif) {
                     document.getElementById('login-loading').style.display = 'none';
@@ -269,14 +267,8 @@
 
             if (cocok) {
                 penggunaAktif = cocok;
-                
-                // --- SIMPAN DATA USER & JAM LOGIN SAAT INI ---
-                const sessionData = {
-                    user: penggunaAktif,
-                    loginTime: new Date().getTime() // Waktu dihitung dalam hitungan milidetik
-                };
+                const sessionData = { user: penggunaAktif, loginTime: new Date().getTime() };
                 localStorage.setItem('sesiLoginSLA', JSON.stringify(sessionData));
-                // ---------------------------------------------
 
                 document.getElementById('login-wrapper').style.display = 'none';
                 document.getElementById('app-wrapper').style.display = 'block';
@@ -286,9 +278,8 @@
         }
 
         function prosesLogout() {
-            localStorage.removeItem('sesiLoginSLA'); // Hapus sesi
+            localStorage.removeItem('sesiLoginSLA');
             penggunaAktif = null;
-            
             document.getElementById('app-wrapper').style.display = 'none';
             document.getElementById('login-wrapper').style.display = 'flex';
             document.getElementById('username').value = '';
@@ -344,7 +335,6 @@
             btn.innerText = 'Simpan Update'; btn.disabled = false;
         }
 
-        // --- SISTEM EDIT & HAPUS PEKERJAAN (KHUSUS ADMIN) ---
         function aktifkanEditTiket(idTiket) {
             const t = globalTickets.find(x => x['ID Tiket'] === idTiket); if(!t) return;
             modeEditTiket = true;
@@ -352,6 +342,7 @@
             document.getElementById('user-management-container').style.display = 'none';
             document.getElementById('form-tiket-title').innerText = 'Edit Pekerjaan: ' + idTiket;
             document.getElementById('input-id').value = idTiket;
+            document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; // Data Respon
             document.getElementById('input-sla').value = t['Target SLA (Jam)'];
             document.getElementById('input-klien').value = t['Klien & Lokasi'];
             document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan'];
@@ -375,12 +366,12 @@
         }
 
         async function hapusTiket(idTiket) {
-            if(!confirm(`Yakin ingin MENGHAPUS pekerjaan ${idTiket} secara permanen? Data yang dihapus tidak bisa dikembalikan.`)) return;
+            if(!confirm(`Yakin MENGHAPUS pekerjaan ${idTiket}?`)) return;
             document.getElementById('loading').style.display = 'block';
             try {
                 const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) });
                 const result = await res.json();
-                if(result.status === 'sukses') { alert('Pekerjaan berhasil dihapus!'); await ambilSemuaData(); } 
+                if(result.status === 'sukses') { alert('Pekerjaan dihapus!'); await ambilSemuaData(); } 
                 else { alert('Gagal menghapus: ' + result.pesan); }
             } catch(err) { alert('Error sistem.'); }
             document.getElementById('loading').style.display = 'none';
@@ -390,17 +381,28 @@
             e.preventDefault(); const btnSubmit = document.getElementById('btn-submit-pekerjaan'); btnSubmit.innerText = 'Menyimpan...'; btnSubmit.disabled = true;
             const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
             if (!t) { alert('Pilih minimal satu teknisi!'); btnSubmit.innerText = 'Simpan Pekerjaan'; btnSubmit.disabled = false; return; }
-            const payload = { action: modeEditTiket ? 'editTicket' : 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, teknisi: t };
+            
+            const payload = { 
+                action: modeEditTiket ? 'editTicket' : 'addTicket', 
+                idTiket: document.getElementById('input-id').value, 
+                targetSLA: document.getElementById('input-sla').value, 
+                targetRespon: document.getElementById('input-sla-respon').value, // Payload SLA Respon
+                klien: document.getElementById('input-klien').value, 
+                pekerjaan: document.getElementById('input-pekerjaan').value, 
+                sales: document.getElementById('input-sales').value, 
+                teknisi: t 
+            };
+
             try { 
                 const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) }); const result = await res.json();
                 if (result.status === 'sukses') { 
-                    alert(modeEditTiket ? 'Pekerjaan berhasil diupdate!' : 'Pekerjaan berhasil disimpan!'); 
+                    alert(modeEditTiket ? 'Pekerjaan diupdate!' : 'Pekerjaan disimpan!'); 
                     batalEditTiket(); document.getElementById('form-container').style.display = 'none'; document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; 
                 } else { alert('Gagal: ' + result.pesan); }
             } catch (error) { alert('Error sistem.'); } btnSubmit.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btnSubmit.disabled = false;
         }
 
-        // --- MANAJEMEN USER ---
+        // --- MANAJEMEN USER (Diringkas) ---
         function aktifkanEditUser(un) {
             const u = globalUsers.find(x => x.Username === un); if(!u) return;
             modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username;
@@ -410,14 +412,12 @@
             document.getElementById('btn-tambah-user').innerText = 'Update User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#f39c12';
             document.getElementById('btn-batal-edit-user').style.display = 'block'; document.getElementById('user-management-container').scrollIntoView();
         }
-
         function batalEditUser() {
             modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru';
             document.getElementById('new-nama').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = '';
             document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false;
             document.getElementById('btn-tambah-user').innerText = 'Simpan User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#3498db'; document.getElementById('btn-batal-edit-user').style.display = 'none';
         }
-
         async function simpanUserBaru(e) {
             e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value };
@@ -426,7 +426,6 @@
                 if(result.status==='sukses') { alert(modeEditUser?'Di-update!':'Ditambahkan!'); batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(); document.getElementById('loading').style.display='none'; }
             } catch(err) { alert('Error sistem.'); } btn.innerText = modeEditUser?'Update User':'Simpan User'; btn.disabled=false;
         }
-
         async function hapusUser(un) {
             if(un==='admin') { alert('Akun admin utama tidak boleh dihapus!'); return; }
             if(!confirm(`Yakin hapus user ${un}?`)) return; document.getElementById('loading').style.display='block';
@@ -435,7 +434,7 @@
             } catch(err) {} document.getElementById('loading').style.display='none';
         }
 
-        // --- RENDER TAMPILAN ---
+        // --- RENDER TAMPILAN KARTU TIKET ---
         function refreshLayar() {
             if (penggunaAktif.Role === 'admin') {
                 document.getElementById('admin-buttons-container').style.display = 'flex';
@@ -489,6 +488,7 @@
             tiketDitampilkan.slice().reverse().forEach(ticket => {
                 if (!ticket['ID Tiket']) return;
                 
+                // Pewarnaan Border Kiri Berdasarkan SLA Pengerjaan Utama
                 let statusClass = 'status-aman';
                 if (ticket['Status SLA'] === 'TERLAMBAT') { statusClass = 'status-terlambat'; } 
                 else if (ticket['Status SLA'] === 'TERPENUHI') { statusClass = 'status-terpenuhi'; }
@@ -501,6 +501,19 @@
 
                 let tenggatWaktu = new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID');
                 let namaSales = ticket['Sales'] ? ticket['Sales'] : '-';
+                
+                // --- METRIK BARU: SLA RESPON & WAKTU SELESAI ---
+                let statusRespon = ticket['Status SLA Respon'] || '-';
+                let badgeRespon = 'badge-status';
+                if(statusRespon === 'GAGAL') badgeRespon = 'badge-cancel';
+                else if(statusRespon === 'TERPENUHI') badgeRespon = 'badge-selesai';
+                else if(statusRespon === 'AMAN') badgeRespon = 'badge-aman'; 
+
+                let batasRespon = ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-';
+                
+                // Tampilkan Waktu Selesai jika sudah ada (Selesai), atau '-' jika belum
+                let waktuSelesaiStr = ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>';
+                // ------------------------------------------------
                 
                 let htmlKeterangan = ticket['Keterangan'] ? `<p><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : '';
                 let safeKeterangan = (ticket['Keterangan'] || '').replace(/'/g, "\\'");
@@ -522,8 +535,16 @@
                     <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
                     <p><strong>Sales / Inputer:</strong> ${namaSales}</p>
                     <p><strong>Ditugaskan ke:</strong> ${ticket['Teknisi']}</p>
-                    <p><strong>Status:</strong> <span class="badge ${badgeClass}">${textStatus}</span></p>
-                    <p><strong>Tenggat SLA:</strong> ${tenggatWaktu}</p>
+                    <p><strong>Status Pekerjaan:</strong> <span class="badge ${badgeClass}">${textStatus}</span></p>
+                    
+                    <div class="waktu-box">
+                        <p><strong>⏰ SLA Respon (Terima Tugas):</strong> <span class="badge ${badgeRespon}">${statusRespon}</span></p>
+                        <p style="color:#7f8c8d; margin-bottom: 8px;">Batas: ${batasRespon}</p>
+                        
+                        <p><strong>⏰ SLA Pengerjaan (Deadline):</strong> ${tenggatWaktu}</p>
+                        <p><strong>✅ Waktu Selesai:</strong> ${waktuSelesaiStr}</p>
+                    </div>
+
                     ${htmlKeterangan}
                     
                     <button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db;" onclick="bukaModalUpdate('${ticket['ID Tiket']}', '${textStatus}', '${safeKeterangan}')">📝 Update Status</button>
