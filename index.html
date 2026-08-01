@@ -6,9 +6,10 @@
     <title>Dashboard SLA Teknisi - Alfacom</title>
     <style>
         :root { --warna-utama: #264a9f; --warna-aksen: #1e3b7e; --warna-latar: #f4f7f6; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--warna-latar); color: #333; padding: 20px; margin: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--warna-latar); color: #333; padding: 20px; padding-bottom: 80px; margin: 0; }
         .container { max-width: 800px; margin: 0 auto; }
         
+        /* LOGIN UI */
         #login-wrapper { display: flex; justify-content: center; align-items: center; height: 80vh; }
         .login-card { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; border-top: 5px solid var(--warna-utama); }
         .login-card img { max-width: 200px; margin-bottom: 20px; }
@@ -17,53 +18,70 @@
         #login-loading { font-style: italic; color: #7f8c8d; margin-bottom: 15px; }
 
         #app-wrapper { display: none; }
-        .header-branding { text-align: center; margin-bottom: 20px; }
-        .logo { max-width: 280px; height: auto; margin-bottom: 10px; }
-        .header-branding h2 { margin: 0; color: var(--warna-utama); font-size: 22px; }
-        .user-info { background: #e9ecef; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-weight: bold; }
-        .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer; }
+        
+        /* HEADER & LOGOUT */
+        .header-branding { text-align: center; margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; }
+        .logo { max-width: 200px; height: auto; margin-bottom: 10px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; }
+        .top-bar span { font-weight: bold; font-size: 14px; color: var(--warna-utama); }
+        .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
 
-        .btn-action { background-color: var(--warna-utama); color: white; border: none; padding: 10px 20px; font-size: 14px; border-radius: 5px; cursor: pointer; width: 48%; font-weight: bold; margin-bottom: 20px; }
-        .btn-action:hover { background-color: var(--warna-aksen); }
-        .admin-buttons { display: flex; justify-content: space-between; display: none; }
+        /* TAB PAGES */
+        .tab-page { display: none; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .form-card { background: #fff; padding: 20px; margin-bottom: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid var(--warna-utama); display: none; }
-        .form-card label { display: block; margin: 10px 0 5px; font-weight: bold; font-size: 14px; }
-        .form-card input, .form-card select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
+        /* BOTTOM NAVIGATION MENU */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
+        .nav-btn { flex: 1; padding: 10px 0; text-align: center; color: #95a5a6; cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; border-top: 3px solid transparent; }
+        .nav-btn .icon { font-size: 20px; margin-bottom: 3px; }
+        .nav-btn .text { font-size: 11px; font-weight: 600; }
+        .nav-btn.active { color: var(--warna-utama); border-top-color: var(--warna-utama); background: #f8f9fa; }
+        .nav-btn:hover { color: var(--warna-aksen); }
+
+        /* FORMS & TABLES */
+        .form-card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid var(--warna-utama); }
+        .form-card h3 { margin-top: 0; color: var(--warna-utama); }
+        .form-card label { display: block; margin: 10px 0 5px; font-weight: bold; font-size: 13px; }
+        .form-card input, .form-card select, .form-card textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
         .input-terkunci { background-color: #e9ecef; color: #6c757d; cursor: not-allowed; font-weight: bold; }
         
-        .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #ccc; }
-        .checkbox-group label { display: flex; align-items: flex-start; justify-content: flex-start; text-align: left; cursor: pointer; font-weight: normal !important; margin: 0; font-size: 14px; line-height: 1.4; }
-        .checkbox-group input[type="checkbox"] { margin: 2px 10px 0 0 !important; flex-shrink: 0; width: 18px; height: 18px; }
+        .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #ccc; }
+        .checkbox-group label { display: flex; align-items: flex-start; justify-content: flex-start; text-align: left; cursor: pointer; font-weight: normal !important; margin: 0; font-size: 13px; }
+        .checkbox-group input[type="checkbox"] { margin: 2px 10px 0 0 !important; flex-shrink: 0; width: 16px; height: 16px; }
 
-        .btn-submit { background-color: #2ecc71; color: white; border: none; padding: 10px; width: 100%; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .btn-submit { background-color: #2ecc71; color: white; border: none; padding: 12px; width: 100%; font-size: 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .btn-batal { background-color: #95a5a6; margin-top: 5px; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 8px; border: 1px solid #ddd; text-align: left; font-size: 13px; }
         th { background-color: #f4f7f6; }
-        .btn-edit-user { background-color: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 5px; }
-        .btn-delete-user { background-color: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .btn-edit-user { background-color: #f39c12; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 5px; margin-bottom: 5px; }
+        .btn-delete-user { background-color: #e74c3c; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
 
-        .card { background: #fff; padding: 15px 20px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 6px solid #ccc; }
+        /* TICKET CARDS */
+        .card { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 6px solid #ccc; position: relative; }
         .status-aman { border-left-color: #f1c40f; } .status-terpenuhi { border-left-color: #2ecc71; } .status-terlambat { border-left-color: #e74c3c; } 
-        .card h3 { margin: 0 0 10px 0; font-size: 18px; color: var(--warna-utama); }
-        .card p { margin: 5px 0; font-size: 14px; line-height: 1.4; }
-        .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; color: white; background-color: var(--warna-aksen); }
+        .card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--warna-utama); }
+        .card p { margin: 5px 0; font-size: 13px; line-height: 1.4; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; background-color: var(--warna-aksen); }
         
-        .badge-status { background-color: #3498db; }
-        .badge-selesai { background-color: #2ecc71; }
-        .badge-pending { background-color: #e67e22; }
-        .badge-cancel { background-color: #e74c3c; }
-        .badge-aman { background-color: #f1c40f; color: #fff;}
-
-        /* Kotak Detail Waktu/SLA */
-        .waktu-box { background: #f8f9fa; border: 1px dashed #ccc; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 13px; }
+        .badge-status { background-color: #3498db; } .badge-selesai { background-color: #2ecc71; } .badge-pending { background-color: #e67e22; } .badge-cancel { background-color: #e74c3c; } .badge-aman { background-color: #f1c40f; color: #fff;}
+        .waktu-box { background: #f8f9fa; border: 1px dashed #ccc; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 12px; }
         .waktu-box p { margin: 3px 0; }
 
-        #loading { text-align: center; font-style: italic; color: #7f8c8d; }
+        /* DASHBOARD PERFORMANCE CARD */
+        .perf-card { background:#fff; padding:15px; border-radius:8px; margin-bottom:12px; box-shadow:0 2px 5px rgba(0,0,0,0.05); }
+        .perf-header { display:flex; justify-content:space-between; align-items:center; }
+        .perf-name { margin:0; font-size:16px; color:#333; }
+        .perf-rate { font-weight:900; font-size:22px; }
+        .perf-stats { margin-top:10px; font-size:12px; color:#555; display:flex; justify-content:space-between; }
+        .progress-bg { width:100%; background:#ecf0f1; height:8px; border-radius:4px; margin-top:10px; overflow:hidden; }
+        .progress-bar { height:100%; transition: width 0.5s ease; }
 
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        #loading { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
         .modal-content { background-color: #fff; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; border-top: 5px solid var(--warna-utama); }
         .btn-close-modal { background-color: #e74c3c; margin-top: 10px; }
     </style>
@@ -73,8 +91,8 @@
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
-            <h3 style="color: var(--warna-utama); margin-top: 0;">Sistem Login SLA</h3>
-            <div id="login-loading">Menghubungkan ke server database...</div>
+            <h3 style="color: var(--warna-utama); margin-top: 0;">Login Aplikasi SLA</h3>
+            <div id="login-loading">Menghubungkan ke server...</div>
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
                 <input type="password" id="password" placeholder="Password" required>
@@ -83,126 +101,168 @@
         </div>
     </div>
 
-    <!-- Modal Update Status -->
+    <!-- MODAL UPDATE STATUS -->
     <div id="modal-update" class="modal">
         <div class="modal-content">
             <h3 id="update-title" style="margin-top:0; color:var(--warna-utama);">Update Status Tiket</h3>
             <form id="form-update" onsubmit="submitUpdate(event)">
                 <input type="hidden" id="update-id">
-                <label style="display:block; margin: 10px 0 5px; font-weight:bold; font-size:14px;">Status Pekerjaan</label>
-                <select id="update-status" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; margin-bottom:10px;" required onchange="cekKeterangan()">
+                <label>Status Pekerjaan</label>
+                <select id="update-status" required onchange="cekKeterangan()">
                     <option value="Menunggu">Menunggu</option>
                     <option value="On Progress">On Progress (Sedang Dikerjakan)</option>
                     <option value="Pending">Pending (Ditunda)</option>
                     <option value="Cancel">Cancel (Dibatalkan)</option>
                     <option value="Selesai">Selesai (Closed)</option>
                 </select>
-                <label style="display:block; margin: 10px 0 5px; font-weight:bold; font-size:14px;">Keterangan</label>
-                <textarea id="update-keterangan" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; font-family:inherit;" placeholder="Masukkan progres atau alasan..."></textarea>
+                <label>Keterangan</label>
+                <textarea id="update-keterangan" rows="3" placeholder="Masukkan progres atau alasan..."></textarea>
                 <button type="submit" id="btn-submit-update" class="btn-submit">Simpan Update</button>
                 <button type="button" class="btn-submit btn-close-modal" onclick="tutupModal()">Batal</button>
             </form>
         </div>
     </div>
 
+    <!-- APLIKASI UTAMA -->
     <div class="container" id="app-wrapper">
+        
+        <!-- HEADER KECIL -->
         <div class="header-branding">
             <img src="depan_001.png" alt="Logo Alfacom Multi Solution" class="logo">
-            <h2>Dashboard Penugasan & SLA</h2>
         </div>
-
-        <div class="user-info">
+        <div class="top-bar">
             <span id="nama-login">User</span>
             <button class="btn-logout" onclick="prosesLogout()">Keluar</button>
         </div>
 
-        <div class="admin-buttons" id="admin-buttons-container">
-            <button class="btn-action" onclick="togglePanel('form-container')">+ Input Pekerjaan</button>
-            <button class="btn-action" style="background-color: #8e44ad;" onclick="togglePanel('user-management-container')">Manajemen User</button>
+        <div id="loading" style="display:none;">Memproses data... Mohon tunggu.</div>
+
+        <!-- HALAMAN 1: DASHBOARD PERFORMA -->
+        <div id="page-dashboard" class="tab-page">
+            <h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px;">📊 Leaderboard Respon Teknisi</h3>
+            <p style="font-size: 12px; color: #7f8c8d; margin-top: -5px;">Kecepatan merespon tugas dari 'Menunggu' ke 'On Progress'.</p>
+            <div id="dashboard-content">
+                <!-- Card performa akan muncul di sini -->
+            </div>
         </div>
 
-        <!-- PANEL MANAJEMEN USER -->
-        <div class="form-card" id="user-management-container">
-            <h3>Manajemen Akses User</h3>
-            <form onsubmit="simpanUserBaru(event)" style="background:#f9f9f9; padding:15px; border-radius:5px; margin-bottom:20px; border:1px solid #ddd;">
-                <h4 id="form-user-title" style="margin-top:0;">Tambah User Baru</h4>
-                <input type="text" id="new-nama" placeholder="Nama Asli (Misal: Fauzan)" required>
-                <input type="text" id="new-username" placeholder="Username (Untuk Login)" required>
-                <input type="text" id="new-password" placeholder="Password" required>
-                <select id="new-role" required>
-                    <option value="" disabled selected>-- Pilih Hak Akses --</option>
-                    <option value="admin">Admin (Bisa akses semua)</option>
-                    <option value="teknisi">Teknisi (Hanya lihat pekerjaannya)</option>
-                </select>
-                <button type="submit" id="btn-tambah-user" class="btn-submit" style="background-color: #3498db;">Simpan User</button>
-                <button type="button" id="btn-batal-edit-user" class="btn-submit btn-batal" style="display:none;" onclick="batalEditUser()">Batal Edit User</button>
-            </form>
-            <h4>Daftar User Terdaftar</h4>
-            <table>
-                <thead><tr><th>Username</th><th>Nama Asli</th><th>Role</th><th>Aksi</th></tr></thead>
-                <tbody id="tabel-user-body"></tbody>
-            </table>
+        <!-- HALAMAN 2: DAFTAR TIKET -->
+        <div id="page-tiket" class="tab-page">
+            <h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px;">📋 Daftar Pekerjaan</h3>
+            <div id="ticket-container">
+                <!-- Kartu tiket akan muncul di sini -->
+            </div>
         </div>
 
-        <!-- PANEL INPUT/EDIT PEKERJAAN -->
-        <div class="form-card" id="form-container">
-            <h3 id="form-tiket-title">Detail Pekerjaan SLA Baru</h3>
-            <form id="form-sla" onsubmit="submitData(event)">
-                <label>ID Tiket</label>
-                <input type="text" id="input-id" class="input-terkunci" readonly>
+        <!-- HALAMAN 3: INPUT PEKERJAAN (HANYA ADMIN) -->
+        <div id="page-input" class="tab-page">
+            <div class="form-card" id="form-container">
+                <h3 id="form-tiket-title">➕ Input Pekerjaan SLA Baru</h3>
+                <form id="form-sla" onsubmit="submitData(event)">
+                    <label>ID Tiket</label>
+                    <input type="text" id="input-id" class="input-terkunci" readonly>
+                    
+                    <div style="display: flex; gap:10px;">
+                        <div style="flex: 1;">
+                            <label>SLA Respon (Jam)</label>
+                            <input type="number" id="input-sla-respon" step="0.1" required placeholder="Contoh: 1">
+                        </div>
+                        <div style="flex: 1;">
+                            <label>SLA Pengerjaan (Jam)</label>
+                            <input type="number" id="input-sla" step="0.1" required placeholder="Contoh: 4">
+                        </div>
+                    </div>
+
+                    <label>Nama Klien & Lokasi</label>
+                    <input type="text" id="input-klien" required placeholder="Contoh: Gedung SPPG Kadia">
+                    <label>Jenis Pekerjaan</label>
+                    <input type="text" id="input-pekerjaan" required placeholder="Contoh: Penambahan Kamera Tiandy">
+                    <label>Sales</label>
+                    <select id="input-sales" required>
+                        <option value="" disabled selected>-- Pilih Sales --</option>
+                        <option value="Abu Abid">Abu Abid</option>
+                        <option value="Abu Abdillah">Abu Abdillah</option>
+                        <option value="Muaz">Muaz</option>
+                        <option value="Ardi">Ardi</option>
+                        <option value="Abu Caca">Abu Caca</option>
+                        <option value="Ummu Abdillah">Ummu Abdillah</option>
+                        <option value="Ummu Abid">Ummu Abid</option>
+                        <option value="Ummu Maryam">Ummu Maryam</option>
+                        <option value="Ummu Ibrohim">Ummu Ibrohim</option>
+                        <option value="Abu Zakariah">Abu Zakariah</option>
+                        <option value="Ustadz Abu Anis">Ustadz Abu Anis</option>
+                    </select>
+                    <label>Ditugaskan Ke Teknisi (Bisa lebih dari satu)</label>
+                    <div class="checkbox-group" id="teknisi-group">
+                        <label><input type="checkbox" value="Muaz"> Muaz</label>
+                        <label><input type="checkbox" value="Abu Abid"> Abu Abid</label>
+                        <label><input type="checkbox" value="Abu Abdillah"> Abu Abdillah</label>
+                        <label><input type="checkbox" value="Abu Caca"> Abu Caca</label>
+                        <label><input type="checkbox" value="Abu Habibah"> Abu Habibah</label>
+                        <label><input type="checkbox" value="Dafa"> Dafa</label>
+                        <label><input type="checkbox" value="Ardi"> Ardi</label>
+                        <label><input type="checkbox" value="Alif"> Alif</label> <!-- Ini yang diubah -->
+                        <label><input type="checkbox" value="Syawal"> Syawal</label>
+                        <label><input type="checkbox" value="Mubarak"> Mubarak</label>
+                        <label><input type="checkbox" value="Fauzan"> Fauzan</label>
+                    </div>
+                    <button type="submit" id="btn-submit-pekerjaan" class="btn-submit">Simpan Pekerjaan</button>
+                    <button type="button" id="btn-batal-edit-tiket" class="btn-submit btn-batal" style="display:none;" onclick="batalEditTiket()">Batal Edit Pekerjaan</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- HALAMAN 4: MANAJEMEN USER (HANYA ADMIN) -->
+        <div id="page-user" class="tab-page">
+            <div class="form-card" id="user-management-container">
+                <h3 id="form-user-title">👥 Tambah User Baru</h3>
+                <form onsubmit="simpanUserBaru(event)">
+                    <label>Nama Asli (Sesuai di pilihan teknisi)</label>
+                    <input type="text" id="new-nama" placeholder="Misal: Syawal" required>
+                    <label>Username (Untuk Login)</label>
+                    <input type="text" id="new-username" placeholder="Tanpa spasi" required>
+                    <label>Password</label>
+                    <input type="text" id="new-password" placeholder="Password" required>
+                    <label>Hak Akses</label>
+                    <select id="new-role" required>
+                        <option value="" disabled selected>-- Pilih --</option>
+                        <option value="admin">Admin</option>
+                        <option value="teknisi">Teknisi</option>
+                    </select>
+                    <button type="submit" id="btn-tambah-user" class="btn-submit" style="background-color: #3498db;">Simpan User</button>
+                    <button type="button" id="btn-batal-edit-user" class="btn-submit btn-batal" style="display:none;" onclick="batalEditUser()">Batal Edit User</button>
+                </form>
                 
-                <!-- FIELD SLA BARU -->
-                <div style="display: flex; gap:10px;">
-                    <div style="flex: 1;">
-                        <label>Target SLA Respon (Jam)</label>
-                        <input type="number" id="input-sla-respon" step="0.1" required placeholder="Contoh: 1">
-                    </div>
-                    <div style="flex: 1;">
-                        <label>Target SLA Pengerjaan (Jam)</label>
-                        <input type="number" id="input-sla" step="0.1" required placeholder="Contoh: 4">
-                    </div>
+                <h3 style="margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">Daftar Terdaftar</h3>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead><tr><th>Username</th><th>Nama Asli</th><th>Role</th><th>Aksi</th></tr></thead>
+                        <tbody id="tabel-user-body"></tbody>
+                    </table>
                 </div>
-
-                <label>Nama Klien & Lokasi</label>
-                <input type="text" id="input-klien" required placeholder="Contoh: Gedung SPPG Kadia">
-                <label>Jenis Pekerjaan</label>
-                <input type="text" id="input-pekerjaan" required placeholder="Contoh: Penambahan Kamera Tiandy 4 Titik">
-                <label>Sales</label>
-                <select id="input-sales" required>
-                    <option value="" disabled selected>-- Pilih Sales --</option>
-                    <option value="Abu Abid">Abu Abid</option>
-                    <option value="Abu Abdillah">Abu Abdillah</option>
-                    <option value="Muaz">Muaz</option>
-                    <option value="Ardi">Ardi</option>
-                    <option value="Abu Caca">Abu Caca</option>
-                    <option value="Ummu Abdillah">Ummu Abdillah</option>
-                    <option value="Ummu Abid">Ummu Abid</option>
-                    <option value="Ummu Maryam">Ummu Maryam</option>
-                    <option value="Ummu Ibrohim">Ummu Ibrohim</option>
-                    <option value="Abu Zakariah">Abu Zakariah</option>
-                    <option value="Ustadz Abu Anis">Ustadz Abu Anis</option>
-                </select>
-                <label>Ditugaskan Kepada Teknisi (Bisa lebih dari satu)</label>
-                <div class="checkbox-group" id="teknisi-group">
-                    <label><input type="checkbox" value="Muaz"> Muaz</label>
-                    <label><input type="checkbox" value="Abu Abid"> Abu Abid</label>
-                    <label><input type="checkbox" value="Abu Abdillah"> Abu Abdillah</label>
-                    <label><input type="checkbox" value="Abu Caca"> Abu Caca</label>
-                    <label><input type="checkbox" value="Abu Habibah"> Abu Habibah</label>
-                    <label><input type="checkbox" value="Dafa"> Dafa</label>
-                    <label><input type="checkbox" value="Ardi"> Ardi</label>
-                    <label><input type="checkbox" value="Alif"> Alif</label>
-                    <label><input type="checkbox" value="Syawal"> Syawal</label>
-                    <label><input type="checkbox" value="Mubarak"> Mubarak</label>
-                    <label><input type="checkbox" value="Fauzan"> Fauzan</label>
-                </div>
-                <button type="submit" id="btn-submit-pekerjaan" class="btn-submit">Simpan Pekerjaan</button>
-                <button type="button" id="btn-batal-edit-tiket" class="btn-submit btn-batal" style="display:none;" onclick="batalEditTiket()">Batal Edit Pekerjaan</button>
-            </form>
+            </div>
         </div>
 
-        <div id="loading" style="display:none;">Memperbarui data...</div>
-        <div id="ticket-container"></div>
+        <!-- BOTTOM NAV BAR MENU -->
+        <div class="bottom-nav">
+            <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')">
+                <div class="icon">📊</div>
+                <div class="text">Dashboard</div>
+            </div>
+            <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')">
+                <div class="icon">📋</div>
+                <div class="text">Tiket SLA</div>
+            </div>
+            <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;">
+                <div class="icon">➕</div>
+                <div class="text">Input Baru</div>
+            </div>
+            <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:none;">
+                <div class="icon">👥</div>
+                <div class="text">User</div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -213,6 +273,20 @@
         let penggunaAktif = null;
         let modeEditUser = false;
         let modeEditTiket = false;
+
+        // FUNGSI NAVIGASI TAB MENU
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('page-' + tabId).style.display = 'block';
+            document.getElementById('nav-' + tabId).classList.add('active');
+
+            if(tabId === 'input' && !modeEditTiket) batalEditTiket();
+            if(tabId === 'user') batalEditUser();
+            
+            window.scrollTo(0,0);
+        }
 
         async function ambilSemuaData() {
             try {
@@ -225,13 +299,12 @@
                 if (savedSession) {
                     const parsedSession = JSON.parse(savedSession);
                     const currentTime = new Date().getTime();
-                    const timeDiff = currentTime - parsedSession.loginTime;
                     const limit24Jam = 24 * 60 * 60 * 1000;
 
-                    if (timeDiff > limit24Jam) {
+                    if ((currentTime - parsedSession.loginTime) > limit24Jam) {
                         localStorage.removeItem('sesiLoginSLA');
                         penggunaAktif = null;
-                        alert('Sesi login Anda telah berakhir (lebih dari 24 jam). Silakan login kembali.');
+                        alert('Sesi login telah berakhir (24 jam). Silakan login kembali.');
                     } else {
                         const parsedUser = parsedSession.user;
                         const cekDB = globalUsers.find(u => u.Username === parsedUser.Username && u.Password === parsedUser.Password);
@@ -245,10 +318,7 @@
                     document.getElementById('login-wrapper').style.display = 'flex';
                     document.getElementById('app-wrapper').style.display = 'none';
                 } else {
-                    document.getElementById('login-wrapper').style.display = 'none';
-                    document.getElementById('app-wrapper').style.display = 'block';
-                    document.getElementById('nama-login').innerText = `Masuk sebagai: ${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
-                    refreshLayar();
+                    masukKeAplikasi();
                 }
             } catch (error) {
                 document.getElementById('login-loading').innerText = 'Gagal memuat database.';
@@ -260,21 +330,32 @@
             e.preventDefault();
             const un = document.getElementById('username').value.trim().toLowerCase();
             const pw = document.getElementById('password').value;
-            const cocok = globalUsers.find(u => {
-                const dbUsername = (u.Username || '').toLowerCase();
-                return dbUsername === un && u.Password == pw;
-            });
+            const cocok = globalUsers.find(u => (u.Username || '').toLowerCase() === un && u.Password == pw);
 
             if (cocok) {
                 penggunaAktif = cocok;
-                const sessionData = { user: penggunaAktif, loginTime: new Date().getTime() };
-                localStorage.setItem('sesiLoginSLA', JSON.stringify(sessionData));
-
-                document.getElementById('login-wrapper').style.display = 'none';
-                document.getElementById('app-wrapper').style.display = 'block';
-                document.getElementById('nama-login').innerText = `Masuk sebagai: ${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
-                refreshLayar();
+                localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() }));
+                masukKeAplikasi();
             } else { alert('Username atau Password salah!'); }
+        }
+
+        function masukKeAplikasi() {
+            document.getElementById('login-wrapper').style.display = 'none';
+            document.getElementById('app-wrapper').style.display = 'block';
+            document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
+            
+            if (penggunaAktif.Role === 'admin') {
+                document.getElementById('nav-input').style.display = 'flex';
+                document.getElementById('nav-user').style.display = 'flex';
+            } else {
+                document.getElementById('nav-input').style.display = 'none';
+                document.getElementById('nav-user').style.display = 'none';
+            }
+
+            renderDashboard();
+            renderTickets();
+            renderTabelUser();
+            switchTab('dashboard'); 
         }
 
         function prosesLogout() {
@@ -282,44 +363,186 @@
             penggunaAktif = null;
             document.getElementById('app-wrapper').style.display = 'none';
             document.getElementById('login-wrapper').style.display = 'flex';
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('form-container').style.display = 'none';
-            document.getElementById('user-management-container').style.display = 'none';
+            document.getElementById('username').value = ''; document.getElementById('password').value = '';
             batalEditTiket();
         }
 
-        function togglePanel(panelId) {
-            const panel = document.getElementById(panelId);
-            if (panel.style.display === 'none' || panel.style.display === '') {
-                document.getElementById('form-container').style.display = 'none';
-                document.getElementById('user-management-container').style.display = 'none';
-                panel.style.display = 'block';
-                if(panelId === 'form-container') batalEditTiket();
-            } else { panel.style.display = 'none'; }
+        // --- RENDER DASHBOARD PERFORMA ---
+        function renderDashboard() {
+            const dashContainer = document.getElementById('dashboard-content');
+            dashContainer.innerHTML = '';
+
+            let stats = {};
+            globalUsers.forEach(u => {
+                if (u.Role === 'teknisi' && u['Nama Asli']) {
+                    stats[u['Nama Asli']] = { nama: u['Nama Asli'], tepat: 0, telat: 0, aman: 0, totalValid: 0 };
+                }
+            });
+
+            globalTickets.forEach(t => {
+                if(!t['ID Tiket']) return;
+                const teknisiArr = (t['Teknisi'] || '').split(',').map(n => n.trim());
+                const statusRespon = t['Status SLA Respon']; 
+
+                teknisiArr.forEach(nama => {
+                    if(!nama) return;
+                    let key = Object.keys(stats).find(k => k.toLowerCase() === nama.toLowerCase());
+                    if(!key) { stats[nama] = { nama: nama, tepat: 0, telat: 0, aman: 0, totalValid: 0 }; key = nama; }
+
+                    if(statusRespon === 'TERPENUHI') { stats[key].tepat++; stats[key].totalValid++; } 
+                    else if(statusRespon === 'GAGAL') { stats[key].telat++; stats[key].totalValid++; }
+                    else if(statusRespon === 'AMAN') { stats[key].aman++; } 
+                });
+            });
+
+            let arrStats = Object.values(stats);
+            arrStats.sort((a, b) => {
+                let rateA = a.totalValid > 0 ? (a.tepat / a.totalValid) : 0;
+                let rateB = b.totalValid > 0 ? (b.tepat / b.totalValid) : 0;
+                if (rateB !== rateA) return rateB - rateA;
+                return b.totalValid - a.totalValid; 
+            });
+
+            arrStats.forEach(s => {
+                let rate = s.totalValid > 0 ? Math.round((s.tepat / s.totalValid) * 100) : 0;
+                let color = rate >= 80 ? '#2ecc71' : (rate >= 50 ? '#f1c40f' : '#e74c3c');
+                if (s.totalValid === 0) color = '#bdc3c7'; 
+
+                let card = `
+                    <div class="perf-card" style="border-left:5px solid ${color};">
+                        <div class="perf-header">
+                            <h4 class="perf-name">${s.nama}</h4>
+                            <span class="perf-rate" style="color:${color};">${s.totalValid > 0 ? rate+'%' : '-'}</span>
+                        </div>
+                        <div class="perf-stats">
+                            <div>✅ Tepat Waktu: <strong>${s.tepat}</strong></div>
+                            <div>❌ Terlambat: <strong>${s.telat}</strong></div>
+                        </div>
+                        <div style="font-size:11px; color:#95a5a6; margin-top:5px;">⏳ Menunggu Direspon: ${s.aman} Tiket</div>
+                        <div class="progress-bg">
+                            <div class="progress-bar" style="width:${s.totalValid > 0 ? rate : 0}%; background:${color};"></div>
+                        </div>
+                    </div>
+                `;
+                dashContainer.innerHTML += card;
+            });
         }
 
-        function bukaModalUpdate(id, statusSaatIni, keteranganSaatIni) {
-            document.getElementById('update-id').value = id;
-            document.getElementById('update-title').innerText = 'Update Status: ' + id;
-            document.getElementById('update-status').value = statusSaatIni || 'Menunggu';
-            document.getElementById('update-keterangan').value = (keteranganSaatIni === 'undefined' || !keteranganSaatIni) ? '' : keteranganSaatIni;
-            cekKeterangan(); 
-            document.getElementById('modal-update').style.display = 'flex';
-        }
+        // --- RENDER KARTU TIKET ---
+        function renderTickets() {
+            const container = document.getElementById('ticket-container');
+            container.innerHTML = ''; 
 
-        function tutupModal() { document.getElementById('modal-update').style.display = 'none'; }
+            let tiketDitampilkan = [];
+            if (penggunaAktif.Role === 'admin') {
+                tiketDitampilkan = globalTickets;
+            } else if (penggunaAktif.Role === 'teknisi') {
+                tiketDitampilkan = globalTickets.filter(ticket => {
+                    const kolomTeknisi = (ticket['Teknisi'] || '').toLowerCase();
+                    const namaAsliUser = penggunaAktif['Nama Asli'].toLowerCase();
+                    const listTeknisiDiTiket = kolomTeknisi.split(',').map(nama => nama.trim());
+                    return listTeknisiDiTiket.some(namaTeknisi => namaTeknisi === namaAsliUser || namaAsliUser.includes(namaTeknisi) || namaTeknisi.includes(namaAsliUser));
+                });
+            }
 
-        function cekKeterangan() {
-            const status = document.getElementById('update-status').value;
-            const ket = document.getElementById('update-keterangan');
-            if (status === 'Pending' || status === 'Cancel') {
-                ket.required = true; ket.placeholder = "Wajib diisi! Masukkan alasan pending/cancel...";
-            } else {
-                ket.required = false; ket.placeholder = "Opsional (Boleh dikosongkan)";
+            let maxId = 0;
+            globalTickets.forEach(ticket => {
+                let idStr = ticket['ID Tiket'];
+                if (idStr && typeof idStr === 'string' && idStr.includes('-')) {
+                    let numPart = parseInt(idStr.split('-')[1]);
+                    if (!isNaN(numPart) && numPart > maxId) maxId = numPart; 
+                }
+            });
+            let nextId = 'TKT-' + String(maxId + 1).padStart(3, '0');
+            if (!modeEditTiket) { document.getElementById('input-id').value = nextId; }
+
+            tiketDitampilkan.slice().reverse().forEach(ticket => {
+                if (!ticket['ID Tiket']) return;
+                
+                let statusClass = 'status-aman';
+                if (ticket['Status SLA'] === 'TERLAMBAT') { statusClass = 'status-terlambat'; } 
+                else if (ticket['Status SLA'] === 'TERPENUHI') { statusClass = 'status-terpenuhi'; }
+
+                let textStatus = ticket['Status'] || 'Menunggu';
+                let badgeClass = 'badge-status'; 
+                if (textStatus === 'Selesai') badgeClass = 'badge-selesai';
+                else if (textStatus === 'Pending') badgeClass = 'badge-pending';
+                else if (textStatus === 'Cancel') badgeClass = 'badge-cancel';
+
+                let tenggatWaktu = new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID');
+                let namaSales = ticket['Sales'] ? ticket['Sales'] : '-';
+                
+                let statusRespon = ticket['Status SLA Respon'] || '-';
+                let badgeRespon = 'badge-status';
+                if(statusRespon === 'GAGAL') badgeRespon = 'badge-cancel';
+                else if(statusRespon === 'TERPENUHI') badgeRespon = 'badge-selesai';
+                else if(statusRespon === 'AMAN') badgeRespon = 'badge-aman'; 
+
+                let batasRespon = ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-';
+                let waktuSelesaiStr = ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>';
+                
+                let htmlKeterangan = ticket['Keterangan'] ? `<p style="margin-top:8px;"><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : '';
+                let safeKeterangan = (ticket['Keterangan'] || '').replace(/'/g, "\\'");
+
+                let htmlTombolAdmin = '';
+                if (penggunaAktif.Role === 'admin') {
+                    htmlTombolAdmin = `
+                        <div style="display:flex; gap:10px; margin-top:10px;">
+                            <button class="btn-action" style="flex:1; background-color:#f39c12; margin-bottom:0;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit</button>
+                            <button class="btn-action" style="flex:1; background-color:#e74c3c; margin-bottom:0;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button>
+                        </div>
+                    `;
+                }
+
+                const card = document.createElement('div');
+                card.className = `card ${statusClass}`;
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                        <h3 style="margin:0;">${ticket['ID Tiket']}</h3>
+                        <span class="badge ${badgeClass}" style="font-size:12px;">${textStatus}</span>
+                    </div>
+                    <p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p>
+                    <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
+                    <p><strong>Sales:</strong> ${namaSales}</p>
+                    <p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
+                    
+                    <div class="waktu-box">
+                        <p style="border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:5px;">
+                            <strong>⏰ SLA Respon (Terima Tugas):</strong> <span class="badge ${badgeRespon}">${statusRespon}</span><br>
+                            <span style="color:#7f8c8d;">Batas: ${batasRespon}</span>
+                        </p>
+                        <p><strong>⏰ SLA Pengerjaan (Deadline):</strong> ${tenggatWaktu}</p>
+                        <p><strong>✅ Waktu Selesai:</strong> ${waktuSelesaiStr}</p>
+                    </div>
+
+                    ${htmlKeterangan}
+                    
+                    <button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db;" onclick="bukaModalUpdate('${ticket['ID Tiket']}', '${textStatus}', '${safeKeterangan}')">📝 Update Status Teknisi</button>
+                    ${htmlTombolAdmin}
+                `;
+                container.appendChild(card);
+            });
+
+            if(tiketDitampilkan.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#7f8c8d; margin-top:40px;">Tidak ada pekerjaan untuk Anda saat ini.</p>';
             }
         }
 
+        // --- FUNGSI UPDATE STATUS TIKET OLEH TEKNISI ---
+        function bukaModalUpdate(id, statusSaatIni, keteranganSaatIni) {
+            document.getElementById('update-id').value = id;
+            document.getElementById('update-title').innerText = 'Status: ' + id;
+            document.getElementById('update-status').value = statusSaatIni || 'Menunggu';
+            document.getElementById('update-keterangan').value = (keteranganSaatIni === 'undefined' || !keteranganSaatIni) ? '' : keteranganSaatIni;
+            cekKeterangan(); document.getElementById('modal-update').style.display = 'flex';
+        }
+        function tutupModal() { document.getElementById('modal-update').style.display = 'none'; }
+        function cekKeterangan() {
+            const status = document.getElementById('update-status').value;
+            const ket = document.getElementById('update-keterangan');
+            if (status === 'Pending' || status === 'Cancel') { ket.required = true; ket.placeholder = "Wajib diisi! Masukkan alasan..."; } 
+            else { ket.required = false; ket.placeholder = "Opsional..."; }
+        }
         async function submitUpdate(e) {
             e.preventDefault();
             const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
@@ -328,21 +551,20 @@
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
                 const result = await response.json();
                 if (result.status === 'sukses') {
-                    alert('Status berhasil diupdate!'); tutupModal();
-                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none';
+                    tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none';
                 } else { alert('Gagal update: ' + result.pesan); }
             } catch(err) { alert('Error sistem.'); }
             btn.innerText = 'Simpan Update'; btn.disabled = false;
         }
 
+        // --- SISTEM EDIT, INPUT, DAN HAPUS PEKERJAAN (ADMIN) ---
         function aktifkanEditTiket(idTiket) {
             const t = globalTickets.find(x => x['ID Tiket'] === idTiket); if(!t) return;
             modeEditTiket = true;
-            document.getElementById('form-container').style.display = 'block';
-            document.getElementById('user-management-container').style.display = 'none';
-            document.getElementById('form-tiket-title').innerText = 'Edit Pekerjaan: ' + idTiket;
+            switchTab('input'); 
+            document.getElementById('form-tiket-title').innerText = '✏️ Edit Pekerjaan: ' + idTiket;
             document.getElementById('input-id').value = idTiket;
-            document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; // Data Respon
+            document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || '';
             document.getElementById('input-sla').value = t['Target SLA (Jam)'];
             document.getElementById('input-klien').value = t['Klien & Lokasi'];
             document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan'];
@@ -352,17 +574,17 @@
             document.getElementById('btn-submit-pekerjaan').innerText = 'Update Pekerjaan';
             document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#f39c12';
             document.getElementById('btn-batal-edit-tiket').style.display = 'block';
-            document.getElementById('form-container').scrollIntoView();
         }
 
         function batalEditTiket() {
             modeEditTiket = false;
-            document.getElementById('form-tiket-title').innerText = 'Detail Pekerjaan SLA Baru';
+            document.getElementById('form-tiket-title').innerText = '➕ Input Pekerjaan SLA Baru';
             document.getElementById('form-sla').reset();
             document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Pekerjaan';
             document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#2ecc71';
             document.getElementById('btn-batal-edit-tiket').style.display = 'none';
-            refreshLayar(); 
+            let maxId = 0; globalTickets.forEach(t => { let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; });
+            document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0');
         }
 
         async function hapusTiket(idTiket) {
@@ -371,8 +593,7 @@
             try {
                 const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) });
                 const result = await res.json();
-                if(result.status === 'sukses') { alert('Pekerjaan dihapus!'); await ambilSemuaData(); } 
-                else { alert('Gagal menghapus: ' + result.pesan); }
+                if(result.status === 'sukses') { await ambilSemuaData(); } else { alert('Gagal menghapus: ' + result.pesan); }
             } catch(err) { alert('Error sistem.'); }
             document.getElementById('loading').style.display = 'none';
         }
@@ -381,36 +602,33 @@
             e.preventDefault(); const btnSubmit = document.getElementById('btn-submit-pekerjaan'); btnSubmit.innerText = 'Menyimpan...'; btnSubmit.disabled = true;
             const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
             if (!t) { alert('Pilih minimal satu teknisi!'); btnSubmit.innerText = 'Simpan Pekerjaan'; btnSubmit.disabled = false; return; }
-            
-            const payload = { 
-                action: modeEditTiket ? 'editTicket' : 'addTicket', 
-                idTiket: document.getElementById('input-id').value, 
-                targetSLA: document.getElementById('input-sla').value, 
-                targetRespon: document.getElementById('input-sla-respon').value, // Payload SLA Respon
-                klien: document.getElementById('input-klien').value, 
-                pekerjaan: document.getElementById('input-pekerjaan').value, 
-                sales: document.getElementById('input-sales').value, 
-                teknisi: t 
-            };
-
+            const payload = { action: modeEditTiket ? 'editTicket' : 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, targetRespon: document.getElementById('input-sla-respon').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, teknisi: t };
             try { 
                 const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) }); const result = await res.json();
                 if (result.status === 'sukses') { 
                     alert(modeEditTiket ? 'Pekerjaan diupdate!' : 'Pekerjaan disimpan!'); 
-                    batalEditTiket(); document.getElementById('form-container').style.display = 'none'; document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; 
+                    batalEditTiket(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; switchTab('tiket');
                 } else { alert('Gagal: ' + result.pesan); }
             } catch (error) { alert('Error sistem.'); } btnSubmit.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btnSubmit.disabled = false;
         }
 
-        // --- MANAJEMEN USER (Diringkas) ---
+        // --- MANAJEMEN USER ---
+        function renderTabelUser() {
+            const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = '';
+            globalUsers.forEach(u => {
+                if(!u.Username) return;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u.Role.toUpperCase()}</td><td><button class="btn-edit-user" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-delete-user" onclick="hapusUser('${u.Username}')">Hapus</button></td>`;
+                tbody.appendChild(tr);
+            });
+        }
         function aktifkanEditUser(un) {
             const u = globalUsers.find(x => x.Username === un); if(!u) return;
             modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username;
-            document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-username').value = u.Username;
-            document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role;
+            document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role;
             document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true;
             document.getElementById('btn-tambah-user').innerText = 'Update User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#f39c12';
-            document.getElementById('btn-batal-edit-user').style.display = 'block'; document.getElementById('user-management-container').scrollIntoView();
+            document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0);
         }
         function batalEditUser() {
             modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru';
@@ -430,132 +648,8 @@
             if(un==='admin') { alert('Akun admin utama tidak boleh dihapus!'); return; }
             if(!confirm(`Yakin hapus user ${un}?`)) return; document.getElementById('loading').style.display='block';
             try { const res = await fetch(apiUrl, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'deleteUser', username:un}) });
-                const result = await res.json(); if(result.status==='sukses') { alert('Dihapus!'); await ambilSemuaData(); }
+                const result = await res.json(); if(result.status==='sukses') { await ambilSemuaData(); }
             } catch(err) {} document.getElementById('loading').style.display='none';
-        }
-
-        // --- RENDER TAMPILAN KARTU TIKET ---
-        function refreshLayar() {
-            if (penggunaAktif.Role === 'admin') {
-                document.getElementById('admin-buttons-container').style.display = 'flex';
-                renderTabelUser();
-            } else {
-                document.getElementById('admin-buttons-container').style.display = 'none';
-            }
-            renderTickets();
-        }
-
-        function renderTabelUser() {
-            const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = '';
-            globalUsers.forEach(u => {
-                if(!u.Username) return;
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u.Role.toUpperCase()}</td><td><button class="btn-edit-user" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-delete-user" onclick="hapusUser('${u.Username}')">Hapus</button></td>`;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function renderTickets() {
-            const container = document.getElementById('ticket-container');
-            container.innerHTML = ''; 
-
-            let tiketDitampilkan = [];
-            
-            if (penggunaAktif.Role === 'admin') {
-                tiketDitampilkan = globalTickets;
-            } else if (penggunaAktif.Role === 'teknisi') {
-                tiketDitampilkan = globalTickets.filter(ticket => {
-                    const kolomTeknisi = (ticket['Teknisi'] || '').toLowerCase();
-                    const namaAsliUser = penggunaAktif['Nama Asli'].toLowerCase();
-                    const listTeknisiDiTiket = kolomTeknisi.split(',').map(nama => nama.trim());
-                    return listTeknisiDiTiket.some(namaTeknisi => 
-                        namaTeknisi === namaAsliUser || namaAsliUser.includes(namaTeknisi) || namaTeknisi.includes(namaAsliUser)
-                    );
-                });
-            }
-
-            let maxId = 0;
-            globalTickets.forEach(ticket => {
-                let idStr = ticket['ID Tiket'];
-                if (idStr && typeof idStr === 'string' && idStr.includes('-')) {
-                    let numPart = parseInt(idStr.split('-')[1]);
-                    if (!isNaN(numPart) && numPart > maxId) maxId = numPart; 
-                }
-            });
-            let nextId = 'TKT-' + String(maxId + 1).padStart(3, '0');
-            if (!modeEditTiket) { document.getElementById('input-id').value = nextId; }
-
-            tiketDitampilkan.slice().reverse().forEach(ticket => {
-                if (!ticket['ID Tiket']) return;
-                
-                // Pewarnaan Border Kiri Berdasarkan SLA Pengerjaan Utama
-                let statusClass = 'status-aman';
-                if (ticket['Status SLA'] === 'TERLAMBAT') { statusClass = 'status-terlambat'; } 
-                else if (ticket['Status SLA'] === 'TERPENUHI') { statusClass = 'status-terpenuhi'; }
-
-                let textStatus = ticket['Status'] || 'Menunggu';
-                let badgeClass = 'badge-status'; 
-                if (textStatus === 'Selesai') badgeClass = 'badge-selesai';
-                else if (textStatus === 'Pending') badgeClass = 'badge-pending';
-                else if (textStatus === 'Cancel') badgeClass = 'badge-cancel';
-
-                let tenggatWaktu = new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID');
-                let namaSales = ticket['Sales'] ? ticket['Sales'] : '-';
-                
-                // --- METRIK BARU: SLA RESPON & WAKTU SELESAI ---
-                let statusRespon = ticket['Status SLA Respon'] || '-';
-                let badgeRespon = 'badge-status';
-                if(statusRespon === 'GAGAL') badgeRespon = 'badge-cancel';
-                else if(statusRespon === 'TERPENUHI') badgeRespon = 'badge-selesai';
-                else if(statusRespon === 'AMAN') badgeRespon = 'badge-aman'; 
-
-                let batasRespon = ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-';
-                
-                // Tampilkan Waktu Selesai jika sudah ada (Selesai), atau '-' jika belum
-                let waktuSelesaiStr = ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>';
-                // ------------------------------------------------
-                
-                let htmlKeterangan = ticket['Keterangan'] ? `<p><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : '';
-                let safeKeterangan = (ticket['Keterangan'] || '').replace(/'/g, "\\'");
-
-                let htmlTombolAdmin = '';
-                if (penggunaAktif.Role === 'admin') {
-                    htmlTombolAdmin = `
-                        <div style="display:flex; gap:10px; margin-top:10px;">
-                            <button class="btn-action" style="flex:1; background-color:#f39c12; margin-bottom:0;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit Pekerjaan</button>
-                            <button class="btn-action" style="flex:1; background-color:#e74c3c; margin-bottom:0;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button>
-                        </div>
-                    `;
-                }
-
-                const card = document.createElement('div');
-                card.className = `card ${statusClass}`;
-                card.innerHTML = `
-                    <h3>${ticket['ID Tiket']} - ${ticket['Klien & Lokasi']}</h3>
-                    <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
-                    <p><strong>Sales / Inputer:</strong> ${namaSales}</p>
-                    <p><strong>Ditugaskan ke:</strong> ${ticket['Teknisi']}</p>
-                    <p><strong>Status Pekerjaan:</strong> <span class="badge ${badgeClass}">${textStatus}</span></p>
-                    
-                    <div class="waktu-box">
-                        <p><strong>⏰ SLA Respon (Terima Tugas):</strong> <span class="badge ${badgeRespon}">${statusRespon}</span></p>
-                        <p style="color:#7f8c8d; margin-bottom: 8px;">Batas: ${batasRespon}</p>
-                        
-                        <p><strong>⏰ SLA Pengerjaan (Deadline):</strong> ${tenggatWaktu}</p>
-                        <p><strong>✅ Waktu Selesai:</strong> ${waktuSelesaiStr}</p>
-                    </div>
-
-                    ${htmlKeterangan}
-                    
-                    <button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db;" onclick="bukaModalUpdate('${ticket['ID Tiket']}', '${textStatus}', '${safeKeterangan}')">📝 Update Status</button>
-                    ${htmlTombolAdmin}
-                `;
-                container.appendChild(card);
-            });
-
-            if(tiketDitampilkan.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#7f8c8d;">Tidak ada pekerjaan untuk Anda saat ini.</p>';
-            }
         }
 
         // PANGGILAN PERTAMA
