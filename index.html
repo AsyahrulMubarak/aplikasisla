@@ -196,7 +196,7 @@
         let globalUsers = [];
         let penggunaAktif = null;
         let modeEditUser = false;
-        let modeEditTiket = false; // Penanda khusus untuk mengedit tiket
+        let modeEditTiket = false;
 
         async function ambilSemuaData() {
             try {
@@ -205,10 +205,51 @@
                 globalTickets = data.tickets;
                 globalUsers = data.users;
 
+                // --- SISTEM PENYIMPANAN SESI DENGAN BATAS 24 JAM ---
+                const savedSession = localStorage.getItem('sesiLoginSLA');
+                
+                // Menghapus riwayat versi aplikasi sebelumnya (agar tidak error)
+                localStorage.removeItem('penggunaAktif'); 
+
+                if (savedSession) {
+                    const parsedSession = JSON.parse(savedSession);
+                    
+                    // Hitung selisih waktu (Sekarang - Waktu Login)
+                    const currentTime = new Date().getTime();
+                    const timeDiff = currentTime - parsedSession.loginTime;
+                    
+                    // 24 jam dalam milidetik (24 jam * 60 menit * 60 detik * 1000 milidetik)
+                    const limit24Jam = 24 * 60 * 60 * 1000;
+
+                    if (timeDiff > limit24Jam) {
+                        // Jika sudah lebih dari 24 jam, hapus sesi dan tolak login
+                        localStorage.removeItem('sesiLoginSLA');
+                        penggunaAktif = null;
+                        alert('Sesi login Anda telah berakhir (lebih dari 24 jam). Silakan login kembali.');
+                    } else {
+                        // Jika masih di bawah 24 jam, verifikasi ulang dengan database
+                        const parsedUser = parsedSession.user;
+                        const cekDB = globalUsers.find(u => u.Username === parsedUser.Username && u.Password === parsedUser.Password);
+                        
+                        if(cekDB) {
+                            penggunaAktif = cekDB; 
+                        } else {
+                            localStorage.removeItem('sesiLoginSLA');
+                            penggunaAktif = null;
+                        }
+                    }
+                }
+                // ---------------------------------------------------
+
                 if(!penggunaAktif) {
                     document.getElementById('login-loading').style.display = 'none';
                     document.getElementById('login-form').style.display = 'block';
+                    document.getElementById('login-wrapper').style.display = 'flex';
+                    document.getElementById('app-wrapper').style.display = 'none';
                 } else {
+                    document.getElementById('login-wrapper').style.display = 'none';
+                    document.getElementById('app-wrapper').style.display = 'block';
+                    document.getElementById('nama-login').innerText = `Masuk sebagai: ${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
                     refreshLayar();
                 }
             } catch (error) {
@@ -228,6 +269,15 @@
 
             if (cocok) {
                 penggunaAktif = cocok;
+                
+                // --- SIMPAN DATA USER & JAM LOGIN SAAT INI ---
+                const sessionData = {
+                    user: penggunaAktif,
+                    loginTime: new Date().getTime() // Waktu dihitung dalam hitungan milidetik
+                };
+                localStorage.setItem('sesiLoginSLA', JSON.stringify(sessionData));
+                // ---------------------------------------------
+
                 document.getElementById('login-wrapper').style.display = 'none';
                 document.getElementById('app-wrapper').style.display = 'block';
                 document.getElementById('nama-login').innerText = `Masuk sebagai: ${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
@@ -236,7 +286,9 @@
         }
 
         function prosesLogout() {
+            localStorage.removeItem('sesiLoginSLA'); // Hapus sesi
             penggunaAktif = null;
+            
             document.getElementById('app-wrapper').style.display = 'none';
             document.getElementById('login-wrapper').style.display = 'flex';
             document.getElementById('username').value = '';
@@ -252,7 +304,7 @@
                 document.getElementById('form-container').style.display = 'none';
                 document.getElementById('user-management-container').style.display = 'none';
                 panel.style.display = 'block';
-                if(panelId === 'form-container') batalEditTiket(); // Batal edit jika admin klik tombol "+ Input Pekerjaan"
+                if(panelId === 'form-container') batalEditTiket();
             } else { panel.style.display = 'none'; }
         }
 
@@ -280,10 +332,7 @@
         async function submitUpdate(e) {
             e.preventDefault();
             const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
-            const payload = {
-                action: 'updateTicket', idTiket: document.getElementById('update-id').value,
-                status: document.getElementById('update-status').value, keterangan: document.getElementById('update-keterangan').value
-            };
+            const payload = { action: 'updateTicket', idTiket: document.getElementById('update-id').value, status: document.getElementById('update-status').value, keterangan: document.getElementById('update-keterangan').value };
             try {
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
                 const result = await response.json();
@@ -297,34 +346,21 @@
 
         // --- SISTEM EDIT & HAPUS PEKERJAAN (KHUSUS ADMIN) ---
         function aktifkanEditTiket(idTiket) {
-            const t = globalTickets.find(x => x['ID Tiket'] === idTiket);
-            if(!t) return;
+            const t = globalTickets.find(x => x['ID Tiket'] === idTiket); if(!t) return;
             modeEditTiket = true;
-            
-            // Tampilkan form dan sembunyikan yang lain
             document.getElementById('form-container').style.display = 'block';
             document.getElementById('user-management-container').style.display = 'none';
-            
-            // Ubah teks dan isi form
             document.getElementById('form-tiket-title').innerText = 'Edit Pekerjaan: ' + idTiket;
             document.getElementById('input-id').value = idTiket;
             document.getElementById('input-sla').value = t['Target SLA (Jam)'];
             document.getElementById('input-klien').value = t['Klien & Lokasi'];
             document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan'];
             document.getElementById('input-sales').value = t['Sales'] || '';
-            
-            // Centang otomatis teknisi yang ditugaskan
             const teknisiArray = (t['Teknisi'] || '').split(',').map(n => n.trim());
-            document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => {
-                cb.checked = teknisiArray.includes(cb.value);
-            });
-
-            // Ubah tombol
+            document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => { cb.checked = teknisiArray.includes(cb.value); });
             document.getElementById('btn-submit-pekerjaan').innerText = 'Update Pekerjaan';
             document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#f39c12';
             document.getElementById('btn-batal-edit-tiket').style.display = 'block';
-            
-            // Gulir layar ke form
             document.getElementById('form-container').scrollIntoView();
         }
 
@@ -332,11 +368,10 @@
             modeEditTiket = false;
             document.getElementById('form-tiket-title').innerText = 'Detail Pekerjaan SLA Baru';
             document.getElementById('form-sla').reset();
-            
             document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Pekerjaan';
             document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#2ecc71';
             document.getElementById('btn-batal-edit-tiket').style.display = 'none';
-            refreshLayar(); // Untuk mengembalikan ID Tiket ke angka otomatis selanjutnya
+            refreshLayar(); 
         }
 
         async function hapusTiket(idTiket) {
@@ -355,20 +390,12 @@
             e.preventDefault(); const btnSubmit = document.getElementById('btn-submit-pekerjaan'); btnSubmit.innerText = 'Menyimpan...'; btnSubmit.disabled = true;
             const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
             if (!t) { alert('Pilih minimal satu teknisi!'); btnSubmit.innerText = 'Simpan Pekerjaan'; btnSubmit.disabled = false; return; }
-            
-            const payload = { 
-                action: modeEditTiket ? 'editTicket' : 'addTicket', 
-                idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, 
-                klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, 
-                sales: document.getElementById('input-sales').value, teknisi: t 
-            };
+            const payload = { action: modeEditTiket ? 'editTicket' : 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, teknisi: t };
             try { 
                 const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) }); const result = await res.json();
                 if (result.status === 'sukses') { 
                     alert(modeEditTiket ? 'Pekerjaan berhasil diupdate!' : 'Pekerjaan berhasil disimpan!'); 
-                    batalEditTiket(); // Mengosongkan form & mengembalikan status mode edit
-                    document.getElementById('form-container').style.display = 'none';
-                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; 
+                    batalEditTiket(); document.getElementById('form-container').style.display = 'none'; document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; 
                 } else { alert('Gagal: ' + result.pesan); }
             } catch (error) { alert('Error sistem.'); } btnSubmit.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btnSubmit.disabled = false;
         }
@@ -448,7 +475,6 @@
                 });
             }
 
-            // Atur ulang penomoran ID (Mencari ID terbesar)
             let maxId = 0;
             globalTickets.forEach(ticket => {
                 let idStr = ticket['ID Tiket'];
@@ -458,7 +484,6 @@
                 }
             });
             let nextId = 'TKT-' + String(maxId + 1).padStart(3, '0');
-            // Jangan ubah ID di input form jika sedang mode Edit Pekerjaan
             if (!modeEditTiket) { document.getElementById('input-id').value = nextId; }
 
             tiketDitampilkan.slice().reverse().forEach(ticket => {
@@ -480,7 +505,6 @@
                 let htmlKeterangan = ticket['Keterangan'] ? `<p><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : '';
                 let safeKeterangan = (ticket['Keterangan'] || '').replace(/'/g, "\\'");
 
-                // Tambahkan tombol Edit dan Hapus jika User adalah Admin
                 let htmlTombolAdmin = '';
                 if (penggunaAktif.Role === 'admin') {
                     htmlTombolAdmin = `
@@ -513,6 +537,7 @@
             }
         }
 
+        // PANGGILAN PERTAMA
         ambilSemuaData();
     </script>
 </body>
