@@ -69,7 +69,7 @@
 
         .perf-card { background:#fff; padding:15px; border-radius:8px; margin-bottom:12px; box-shadow:0 2px 5px rgba(0,0,0,0.05); }
         .perf-header { border-bottom: 1px dashed #ccc; padding-bottom: 8px; margin-bottom: 12px; }
-        .perf-name { margin:0; font-size:18px; color:var(--warna-utama); }
+        .perf-name { margin:0; font-size:18px; color:var(--warna-utama); font-weight:bold; }
         .perf-stats { margin-top:5px; font-size:11px; color:#555; display:flex; justify-content:space-between; }
         .progress-bg { width:100%; background:#ecf0f1; height:8px; border-radius:4px; margin-top:8px; overflow:hidden; }
         .progress-bar { height:100%; transition: width 0.5s ease; }
@@ -136,10 +136,8 @@
                 <label>Keterangan / Progres Teknisi</label>
                 <textarea id="update-keterangan" placeholder="Ketik laporan atau progres pekerjaan di sini..."></textarea>
                 
-                <!-- TOMBOL BUKA/TUTUP BAT (BISA DICICIL) -->
                 <button type="button" id="btn-toggle-bat" class="btn-toggle-bat" onclick="toggleBAT()">📝 Buka / Cicil Form Berita Acara</button>
 
-                <!-- BAGIAN BERITA ACARA -->
                 <div id="berita-acara-section">
                     <h4>📑 BERITA ACARA TEKNISI</h4>
                     <span class="info-wajib" id="info-wajib-text">*Bisa dicicil setiap hari selama status On Progress</span>
@@ -356,25 +354,35 @@
             const dashContainer = document.getElementById('dashboard-content'); dashContainer.innerHTML = '';
             let stats = {};
             
-            // Inisialisasi Data Teknisi
+            // 1. Inisialisasi User (Gabungkan Syawal)
             globalUsers.forEach(u => { 
                 if (u.Role === 'teknisi' && u['Nama Asli']) {
-                    stats[u['Nama Asli']] = { 
-                        nama: u['Nama Asli'], 
-                        resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0,
-                        peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 
-                    }; 
+                    let namaAsli = u['Nama Asli'];
+                    if (namaAsli.toLowerCase() === 'syawal') namaAsli = 'Muhammad Syawal';
+
+                    if (!stats[namaAsli]) {
+                        stats[namaAsli] = { 
+                            nama: namaAsli, 
+                            resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0,
+                            peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 
+                        }; 
+                    }
                 }
             });
             
-            // Kalkulasi Data Tiket
+            // 2. Kalkulasi Tiket
             globalTickets.forEach(t => {
                 if(!t['ID Tiket']) return;
                 const statusRespon = t['Status SLA Respon']; 
                 const statusPengerjaan = t['Status SLA']; 
+                const statusTiket = t['Status'] || 'Menunggu';
                 
                 (t['Teknisi'] || '').split(',').forEach(nama => {
                     let n = nama.trim(); if(!n) return;
+                    
+                    // GABUNGKAN SYAWAL
+                    if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
+
                     let key = Object.keys(stats).find(k => k.toLowerCase() === n.toLowerCase());
                     if(!key) { 
                         stats[n] = { nama: n, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 }; 
@@ -386,26 +394,30 @@
                     else if(statusRespon === 'GAGAL') { stats[key].resp_telat++; stats[key].resp_total++; }
                     else if(statusRespon === 'AMAN') { stats[key].resp_aman++; } 
                     
-                    // Hitung SLA Pengerjaan (Deadline Selesai)
-                    if(statusPengerjaan === 'TERPENUHI') { stats[key].peng_tepat++; stats[key].peng_total++; } 
-                    else if(statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; }
-                    else if(statusPengerjaan === 'AMAN') { stats[key].peng_aman++; } 
+                    // Hitung SLA Pengerjaan (PENGECUALIAN UNTUK PENDING & CANCEL)
+                    if (statusTiket === 'Pending') {
+                        // Jika di-pending, abaikan status Google Sheets, kita anggap Berjalan/Menunggu
+                        stats[key].peng_aman++;
+                    } else if (statusTiket === 'Cancel') {
+                        // Jangan dihitung sebagai performa teknisi
+                    } else {
+                        if(statusPengerjaan === 'TERPENUHI') { stats[key].peng_tepat++; stats[key].peng_total++; } 
+                        else if(statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; }
+                        else if(statusPengerjaan === 'AMAN') { stats[key].peng_aman++; } 
+                    }
                 });
             });
             
-            // Render Kartu Performa
+            // 3. Tampilkan (Icon Dihilangkan)
             Object.values(stats).sort((a, b) => {
-                // Urutkan berdasarkan total tiket yang sudah valid (kombinasi respon & pengerjaan)
                 let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; 
                 let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0;
                 return rateB !== rateA ? rateB - rateA : (b.resp_total + b.peng_total) - (a.resp_total + a.peng_total); 
             }).forEach(s => {
-                // Persentase Respon
                 let rRate = s.resp_total > 0 ? Math.round((s.resp_tepat / s.resp_total) * 100) : 0; 
                 let rColor = rRate >= 80 ? '#2ecc71' : (rRate >= 50 ? '#f1c40f' : '#e74c3c'); 
                 if (s.resp_total === 0) rColor = '#bdc3c7'; 
                 
-                // Persentase Pengerjaan
                 let pRate = s.peng_total > 0 ? Math.round((s.peng_tepat / s.peng_total) * 100) : 0; 
                 let pColor = pRate >= 80 ? '#2ecc71' : (pRate >= 50 ? '#f1c40f' : '#e74c3c'); 
                 if (s.peng_total === 0) pColor = '#bdc3c7';
@@ -413,10 +425,9 @@
                 dashContainer.innerHTML += `
                 <div class="perf-card" style="border-top: 5px solid var(--warna-utama);">
                     <div class="perf-header">
-                        <h4 class="perf-name">👨‍🔧 ${s.nama}</h4>
+                        <h4 class="perf-name">${s.nama}</h4>
                     </div>
                     
-                    <!-- Bagian SLA Respon -->
                     <div style="margin-bottom: 20px;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="font-weight:bold; font-size:13px; color:#555;">⚡ Performa Respon</span>
@@ -430,7 +441,6 @@
                         <div class="progress-bg"><div class="progress-bar" style="width:${s.resp_total > 0 ? rRate : 0}%; background:${rColor};"></div></div>
                     </div>
 
-                    <!-- Bagian SLA Pengerjaan -->
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="font-weight:bold; font-size:13px; color:#555;">🛠️ Performa Pengerjaan</span>
@@ -456,11 +466,15 @@
             tiketDitampilkan.slice().reverse().forEach(ticket => {
                 if (!ticket['ID Tiket']) return;
                 let textStatus = ticket['Status'] || 'Menunggu';
-                let sc = ticket['Status SLA'] === 'TERLAMBAT' ? 'status-terlambat' : (ticket['Status SLA'] === 'TERPENUHI' ? 'status-terpenuhi' : 'status-aman');
+                
+                // JIKA STATUS PENDING, JANGAN MUNCULKAN WARNA MERAH (TERLAMBAT) DI KARTU
+                let statusPengerjaanKartu = ticket['Status SLA'];
+                if(textStatus === 'Pending') statusPengerjaanKartu = 'AMAN';
+                
+                let sc = statusPengerjaanKartu === 'TERLAMBAT' ? 'status-terlambat' : (statusPengerjaanKartu === 'TERPENUHI' ? 'status-terpenuhi' : 'status-aman');
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status'));
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 
-                // MUNCULKAN BLOK BERITA ACARA DI TIKET
                 let htmlBA = '';
                 if (ticket['Deskripsi Pekerjaan (BA)']) {
                     htmlBA = `
@@ -481,7 +495,6 @@
             if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:#7f8c8d; margin-top:40px;">Tidak ada pekerjaan untuk Anda.</p>';
         }
 
-        // TAMPILKAN LOGIKA BUKA/TUTUP (AKORDEON)
         function toggleBAT() {
             const baSection = document.getElementById('berita-acara-section');
             const btnToggle = document.getElementById('btn-toggle-bat');
@@ -591,7 +604,6 @@
             btn.innerText = '💾 Simpan Update'; btn.disabled = false;
         }
 
-        // --- SISTEM ADMIN ---
         function aktifkanEditTiket(idTiket) {
             const t = globalTickets.find(x => x['ID Tiket'] === idTiket); if(!t) return;
             modeEditTiket = true; switchTab('input'); document.getElementById('form-tiket-title').innerText = '✏️ Edit Pekerjaan: ' + idTiket; document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; document.getElementById('input-sales').value = t['Sales'] || ''; const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); document.getElementById('btn-submit-pekerjaan').innerText = 'Update Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#f39c12'; document.getElementById('btn-batal-edit-tiket').style.display = 'block';
