@@ -370,7 +370,7 @@
                 }
             });
             
-            // 2. Kalkulasi Tiket
+            // 2. Kalkulasi Tiket (Perbaikan Logika Berjalan)
             globalTickets.forEach(t => {
                 if(!t['ID Tiket']) return;
                 const statusRespon = t['Status SLA Respon']; 
@@ -394,21 +394,30 @@
                     else if(statusRespon === 'GAGAL') { stats[key].resp_telat++; stats[key].resp_total++; }
                     else if(statusRespon === 'AMAN') { stats[key].resp_aman++; } 
                     
-                    // Hitung SLA Pengerjaan (PENGECUALIAN UNTUK PENDING & CANCEL)
-                    if (statusTiket === 'Pending') {
-                        // Jika di-pending, abaikan status Google Sheets, kita anggap Berjalan/Menunggu
-                        stats[key].peng_aman++;
-                    } else if (statusTiket === 'Cancel') {
-                        // Jangan dihitung sebagai performa teknisi
-                    } else {
+                    // Hitung SLA Pengerjaan (Hanya hitung Berjalan jika statusnya benar-benar On Progress / Pending)
+                    if (statusTiket === 'Cancel') {
+                        // Abaikan
+                    } else if (statusTiket === 'Pending' || statusTiket === 'On Progress') {
+                        // Jika sudah telat batas waktu, masukkan ke telat. Jika belum, masukkan ke berjalan (aman)
+                        if (statusPengerjaan === 'TERLAMBAT') {
+                            stats[key].peng_telat++; stats[key].peng_total++;
+                        } else {
+                            stats[key].peng_aman++;
+                        }
+                    } else if (statusTiket === 'Menunggu') {
+                        // Jika masih menunggu tapi keburu telat deadline pengerjaannya
+                        if (statusPengerjaan === 'TERLAMBAT') {
+                            stats[key].peng_telat++; stats[key].peng_total++;
+                        }
+                        // Jika AMAN, JANGAN ditambah ke peng_aman (Berjalan) karena belum dikerjakan
+                    } else if (statusTiket === 'Selesai') {
                         if(statusPengerjaan === 'TERPENUHI') { stats[key].peng_tepat++; stats[key].peng_total++; } 
                         else if(statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; }
-                        else if(statusPengerjaan === 'AMAN') { stats[key].peng_aman++; } 
                     }
                 });
             });
             
-            // 3. Tampilkan (Icon Dihilangkan)
+            // 3. Tampilkan
             Object.values(stats).sort((a, b) => {
                 let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; 
                 let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0;
