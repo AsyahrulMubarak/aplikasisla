@@ -42,7 +42,9 @@
             width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #fff;
         }
         .form-card textarea, .modal-content textarea { resize: vertical; min-height: 60px; }
-        .input-terkunci { background-color: #e9ecef !important; color: #6c757d; cursor: not-allowed; font-weight: bold; }
+        
+        /* CLASS KHUSUS UNTUK KOTAK YANG DIKUNCI */
+        .input-terkunci { background-color: #e9ecef !important; color: #6c757d !important; cursor: not-allowed !important; font-weight: bold; }
         
         .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 15px; border-radius: 6px; border: 1px solid #ccc; }
         .checkbox-group label { display: flex; align-items: flex-start; justify-content: flex-start; text-align: left; cursor: pointer; font-weight: normal !important; margin: 0; font-size: 13px; }
@@ -146,7 +148,7 @@
                     <textarea id="ba-deskripsi" rows="4" placeholder="Contoh: Pemasangan hari pertama (4 kamera) selesai..."></textarea>
                     
                     <label>Kritik & Saran Customer (Opsional)</label>
-                    <textarea id="ba-kritik" rows="2" placeholder="Masukkan dari customer..."></textarea>
+                    <textarea id="ba-kritik" rows="2" placeholder="Masukan dari customer..."></textarea>
 
                     <label>Nama Customer / PIC</label>
                     <input type="text" id="ba-nama-customer" placeholder="Nama orang yang bertanda tangan">
@@ -344,10 +346,10 @@
         }
 
         function prosesLogout() { 
-    localStorage.removeItem('sesiLoginSLA'); 
-    penggunaAktif = null; 
-    window.location.reload(); // Perintah untuk refresh halaman otomatis agar 100% bersih
-}
+            localStorage.removeItem('sesiLoginSLA'); 
+            penggunaAktif = null; 
+            window.location.reload(); 
+        }
 
         function renderCheckboxTeknisi() {
             const group = document.getElementById('teknisi-group'); group.innerHTML = ''; 
@@ -358,7 +360,6 @@
             const dashContainer = document.getElementById('dashboard-content'); dashContainer.innerHTML = '';
             let stats = {};
             
-            // 1. Inisialisasi User (Gabungkan Syawal)
             globalUsers.forEach(u => { 
                 if (u.Role === 'teknisi' && u['Nama Asli']) {
                     let namaAsli = u['Nama Asli'];
@@ -374,7 +375,6 @@
                 }
             });
             
-            // 2. Kalkulasi Tiket (Perbaikan Logika Berjalan)
             globalTickets.forEach(t => {
                 if(!t['ID Tiket']) return;
                 const statusRespon = t['Status SLA Respon']; 
@@ -383,8 +383,6 @@
                 
                 (t['Teknisi'] || '').split(',').forEach(nama => {
                     let n = nama.trim(); if(!n) return;
-                    
-                    // GABUNGKAN SYAWAL
                     if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
 
                     let key = Object.keys(stats).find(k => k.toLowerCase() === n.toLowerCase());
@@ -393,27 +391,16 @@
                         key = n; 
                     }
                     
-                    // Hitung SLA Respon
                     if(statusRespon === 'TERPENUHI') { stats[key].resp_tepat++; stats[key].resp_total++; } 
                     else if(statusRespon === 'GAGAL') { stats[key].resp_telat++; stats[key].resp_total++; }
                     else if(statusRespon === 'AMAN') { stats[key].resp_aman++; } 
                     
-                    // Hitung SLA Pengerjaan (Hanya hitung Berjalan jika statusnya benar-benar On Progress / Pending)
                     if (statusTiket === 'Cancel') {
-                        // Abaikan
                     } else if (statusTiket === 'Pending' || statusTiket === 'On Progress') {
-                        // Jika sudah telat batas waktu, masukkan ke telat. Jika belum, masukkan ke berjalan (aman)
-                        if (statusPengerjaan === 'TERLAMBAT') {
-                            stats[key].peng_telat++; stats[key].peng_total++;
-                        } else {
-                            stats[key].peng_aman++;
-                        }
+                        if (statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; } 
+                        else { stats[key].peng_aman++; }
                     } else if (statusTiket === 'Menunggu') {
-                        // Jika masih menunggu tapi keburu telat deadline pengerjaannya
-                        if (statusPengerjaan === 'TERLAMBAT') {
-                            stats[key].peng_telat++; stats[key].peng_total++;
-                        }
-                        // Jika AMAN, JANGAN ditambah ke peng_aman (Berjalan) karena belum dikerjakan
+                        if (statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; }
                     } else if (statusTiket === 'Selesai') {
                         if(statusPengerjaan === 'TERPENUHI') { stats[key].peng_tepat++; stats[key].peng_total++; } 
                         else if(statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; }
@@ -421,7 +408,6 @@
                 });
             });
             
-            // 3. Tampilkan
             Object.values(stats).sort((a, b) => {
                 let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; 
                 let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0;
@@ -440,7 +426,6 @@
                     <div class="perf-header">
                         <h4 class="perf-name">${s.nama}</h4>
                     </div>
-                    
                     <div style="margin-bottom: 20px;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="font-weight:bold; font-size:13px; color:#555;">⚡ Performa Respon</span>
@@ -453,7 +438,6 @@
                         </div>
                         <div class="progress-bg"><div class="progress-bar" style="width:${s.resp_total > 0 ? rRate : 0}%; background:${rColor};"></div></div>
                     </div>
-
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="font-weight:bold; font-size:13px; color:#555;">🛠️ Performa Pengerjaan</span>
@@ -480,7 +464,6 @@
                 if (!ticket['ID Tiket']) return;
                 let textStatus = ticket['Status'] || 'Menunggu';
                 
-                // JIKA STATUS PENDING, JANGAN MUNCULKAN WARNA MERAH (TERLAMBAT) DI KARTU
                 let statusPengerjaanKartu = ticket['Status SLA'];
                 if(textStatus === 'Pending') statusPengerjaanKartu = 'AMAN';
                 
@@ -500,7 +483,10 @@
                     </div>`;
                 }
 
-                let btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">📝 Update Status Teknisi</button>`;
+                // GANTI TEKS TOMBOL JIKA SUDAH SELESAI
+                let labelTombol = textStatus === 'Selesai' ? '📝 Revisi Berita Acara' : '📝 Update Status Teknisi';
+
+                let btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
                 if (penggunaAktif.Role === 'admin') { btnHtml += `<div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-action" style="flex:1; background-color:#f39c12; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit</button><button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button></div>`; }
 
                 container.innerHTML += `<div class="card ${sc}"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;"><h3 style="margin:0;">${ticket['ID Tiket']}</h3><span class="badge ${bc}" style="font-size:12px;">${textStatus}</span></div><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p><p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box"><p style="border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:5px;"><strong>⏰ SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span><br><span style="color:#7f8c8d;">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</span></p><p><strong>⏰ SLA Pengerjaan:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p><p><strong>✅ Waktu Selesai:</strong> ${ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>'}</p></div>${ticket['Keterangan'] ? `<p style="margin-top:8px;"><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : ''}${htmlBA}${btnHtml}</div>`;
@@ -525,10 +511,11 @@
             const t = globalTickets.find(x => x['ID Tiket'] === id); if(!t) return;
             
             document.getElementById('update-id').value = id;
-            document.getElementById('update-title').innerText = 'Status: ' + id;
-            document.getElementById('update-status').value = t['Status'] || 'Menunggu';
-            document.getElementById('update-keterangan').value = t['Keterangan'] || '';
             
+            const statusElement = document.getElementById('update-status');
+            statusElement.value = t['Status'] || 'Menunggu';
+            
+            document.getElementById('update-keterangan').value = t['Keterangan'] || '';
             document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || '';
             document.getElementById('ba-nama-customer').value = t['Nama Customer'] || '';
             document.getElementById('ba-kritik').value = t['Kritik & Saran'] || '';
@@ -539,10 +526,40 @@
             clearSignature(); 
             cekKeterangan(); 
 
-            if (t['Deskripsi Pekerjaan (BA)'] && document.getElementById('update-status').value !== 'Selesai') {
+            // LOGIKA PENGUNCIAN JIKA TIKET SUDAH SELESAI
+            if (t['Status'] === 'Selesai') {
+                document.getElementById('update-title').innerText = 'Revisi BAT: ' + id;
+                
+                // Kunci Status
+                statusElement.disabled = true; 
+                statusElement.classList.add('input-terkunci');
+                
+                // Kunci Keterangan agar fokus ke BAT
+                document.getElementById('update-keterangan').readOnly = true;
+                document.getElementById('update-keterangan').classList.add('input-terkunci');
+                
+                document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Revisi BAT';
+                
                 document.getElementById('berita-acara-section').style.display = 'block';
-                document.getElementById('btn-toggle-bat').innerHTML = "🔽 Tutup Form Berita Acara";
+                document.getElementById('btn-toggle-bat').style.display = 'none';
                 setTimeout(resizeCanvas, 100);
+            } else {
+                document.getElementById('update-title').innerText = 'Status: ' + id;
+                
+                // Buka Kuncian
+                statusElement.disabled = false; 
+                statusElement.classList.remove('input-terkunci');
+                
+                document.getElementById('update-keterangan').readOnly = false;
+                document.getElementById('update-keterangan').classList.remove('input-terkunci');
+                
+                document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Update';
+                
+                if (t['Deskripsi Pekerjaan (BA)']) {
+                    document.getElementById('berita-acara-section').style.display = 'block';
+                    document.getElementById('btn-toggle-bat').innerHTML = "🔽 Tutup Form Berita Acara";
+                    setTimeout(resizeCanvas, 100);
+                }
             }
 
             document.getElementById('modal-update').style.display = 'flex';
