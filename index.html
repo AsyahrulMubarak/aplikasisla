@@ -35,16 +35,22 @@
 
         .form-card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid var(--warna-utama); }
         .form-card h3 { margin-top: 0; color: var(--warna-utama); }
-        .form-card label { display: block; margin: 10px 0 5px; font-weight: bold; font-size: 13px; }
-        .form-card input, .form-card select, .form-card textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
-        .input-terkunci { background-color: #e9ecef; color: #6c757d; cursor: not-allowed; font-weight: bold; }
         
-        .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #ccc; }
+        /* PERBAIKAN CSS FORMULIR & MODAL AGAR SAMA RAPINYA */
+        .form-card label, .modal-content label { display: block; margin: 12px 0 5px; font-weight: bold; font-size: 13px; text-align: left; color: #333; }
+        .form-card input, .form-card select, .form-card textarea,
+        .modal-content input, .modal-content select, .modal-content textarea { 
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #fff;
+        }
+        .form-card textarea, .modal-content textarea { resize: vertical; min-height: 60px; }
+        .input-terkunci { background-color: #e9ecef !important; color: #6c757d; cursor: not-allowed; font-weight: bold; }
+        
+        .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 15px; border-radius: 6px; border: 1px solid #ccc; }
         .checkbox-group label { display: flex; align-items: flex-start; justify-content: flex-start; text-align: left; cursor: pointer; font-weight: normal !important; margin: 0; font-size: 13px; }
         .checkbox-group input[type="checkbox"] { margin: 2px 10px 0 0 !important; flex-shrink: 0; width: 16px; height: 16px; }
 
-        .btn-submit { background-color: #2ecc71; color: white; border: none; padding: 12px; width: 100%; font-size: 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .btn-batal { background-color: #95a5a6; margin-top: 5px; }
+        .btn-submit { background-color: #2ecc71; color: white; border: none; padding: 12px; width: 100%; font-size: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-batal { background-color: #e74c3c; margin-top: 10px; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 8px; border: 1px solid #ddd; text-align: left; font-size: 13px; }
@@ -71,18 +77,27 @@
 
         #loading { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; }
 
-        /* MODAL STYLING KHUSUS TANDA TANGAN */
-        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: flex-start; overflow-y: auto; padding-top: 20px; padding-bottom: 20px;}
-        .modal-content { background-color: #fff; padding: 20px; border-radius: 8px; width: 90%; max-width: 450px; border-top: 5px solid var(--warna-utama); margin: auto; }
-        .btn-close-modal { background-color: #e74c3c; margin-top: 10px; }
+        /* MODAL KHUSUS AGAR RAPI DI HP */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: flex-start; overflow-y: auto; padding: 20px 10px;}
+        .modal-content { background-color: #fff; padding: 25px 20px; border-radius: 12px; width: 100%; max-width: 450px; border-top: 6px solid var(--warna-utama); margin: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         
-        #berita-acara-section { display: none; background-color: #f8f9fa; border: 2px dashed var(--warna-utama); padding: 15px; border-radius: 8px; margin-top: 15px; }
-        #berita-acara-section h4 { margin-top: 0; color: var(--warna-utama); text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        /* DESAIN BERITA ACARA */
+        #berita-acara-section { 
+            display: none; 
+            background-color: #f0f4f8; /* Warna latar kebiruan lembut */
+            border: 2px solid var(--warna-utama); 
+            padding: 20px 15px; 
+            border-radius: 8px; 
+            margin-top: 25px; 
+            margin-bottom: 10px;
+        }
+        #berita-acara-section h4 { margin: 0 0 5px 0; color: var(--warna-utama); text-align: center; border-bottom: 2px solid var(--warna-utama); padding-bottom: 10px; font-size: 16px; }
+        .info-wajib { font-size:11px; color:#e74c3c; text-align:center; font-style: italic; margin-bottom: 15px; display: block;}
         
         /* CANVAS TANDA TANGAN */
-        .signature-wrapper { border: 1px solid #ccc; background: #fff; border-radius: 4px; margin-bottom: 5px; position: relative; }
-        #signature-pad { width: 100%; height: 150px; cursor: crosshair; touch-action: none; /* Mencegah layar scroll saat TTD di HP */ }
-        .btn-clear-sig { background-color: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; float: right; margin-bottom: 10px; }
+        .signature-wrapper { border: 2px dashed #bdc3c7; background: #fff; border-radius: 6px; margin-bottom: 10px; position: relative; }
+        #signature-pad { width: 100%; height: 160px; cursor: crosshair; touch-action: none; border-radius: 6px; }
+        .btn-clear-sig { background-color: #f39c12; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; width: 100%; display: block; margin-bottom: 15px;}
     </style>
 </head>
 <body>
@@ -103,9 +118,10 @@
     <!-- MODAL UPDATE STATUS & BERITA ACARA -->
     <div id="modal-update" class="modal">
         <div class="modal-content">
-            <h3 id="update-title" style="margin-top:0; color:var(--warna-utama);">Update Status Tiket</h3>
+            <h3 id="update-title" style="margin-top:0; color:var(--warna-utama); font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Update Status Tiket</h3>
             <form id="form-update" onsubmit="submitUpdate(event)">
                 <input type="hidden" id="update-id">
+                
                 <label>Status Pekerjaan</label>
                 <select id="update-status" required onchange="cekKeterangan()">
                     <option value="Menunggu">Menunggu</option>
@@ -115,13 +131,13 @@
                     <option value="Selesai">Selesai (Closed)</option>
                 </select>
                 
-                <label>Keterangan / Progres</label>
-                <textarea id="update-keterangan" rows="2" placeholder="Masukkan progres..."></textarea>
+                <label>Keterangan / Progres Teknisi</label>
+                <textarea id="update-keterangan" placeholder="Ketik laporan atau progres pekerjaan di sini..."></textarea>
                 
                 <!-- BAGIAN BERITA ACARA (Hanya muncul jika Selesai) -->
                 <div id="berita-acara-section">
                     <h4>📑 BERITA ACARA TEKNISI</h4>
-                    <p style="font-size:11px; color:#e74c3c; margin-top:-10px; text-align:center;">*Wajib diisi oleh Teknisi & Customer</p>
+                    <span class="info-wajib">*Wajib diisi bersama Customer</span>
                     
                     <label>Deskripsi Pekerjaan Selesai</label>
                     <textarea id="ba-deskripsi" rows="3" placeholder="Contoh: Pemasangan 4 titik CCTV selesai dan diconfig..."></textarea>
@@ -130,18 +146,17 @@
                     <textarea id="ba-kritik" rows="2" placeholder="Masukan dari customer..."></textarea>
 
                     <label>Nama Customer / PIC</label>
-                    <input type="text" id="ba-nama-customer" placeholder="Nama yang tanda tangan">
+                    <input type="text" id="ba-nama-customer" placeholder="Nama orang yang bertanda tangan">
                     
                     <label>Tanda Tangan Customer</label>
                     <div class="signature-wrapper">
                         <canvas id="signature-pad"></canvas>
                     </div>
-                    <button type="button" class="btn-clear-sig" onclick="clearSignature()">🗑️ Hapus TTD</button>
-                    <div style="clear:both;"></div>
+                    <button type="button" class="btn-clear-sig" onclick="clearSignature()">🗑️ Hapus / Ulangi TTD</button>
                 </div>
 
-                <button type="submit" id="btn-submit-update" class="btn-submit">Simpan Update</button>
-                <button type="button" class="btn-submit btn-close-modal" onclick="tutupModal()">Batal</button>
+                <button type="submit" id="btn-submit-update" class="btn-submit">💾 Simpan Update</button>
+                <button type="button" class="btn-submit btn-batal" onclick="tutupModal()">❌ Batal</button>
             </form>
         </div>
     </div>
@@ -246,7 +261,7 @@
         const canvas = document.getElementById('signature-pad');
         const ctx = canvas.getContext('2d');
         let isDrawing = false;
-        let isCanvasDrawn = false; // Flag untuk mengecek apakah TTD kosong
+        let isCanvasDrawn = false; 
 
         function resizeCanvas() {
             const ratio =  Math.max(window.devicePixelRatio || 1, 1);
@@ -403,8 +418,14 @@
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status'));
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 
-                let btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db;" onclick="bukaModalUpdate('${ticket['ID Tiket']}', '${textStatus}', '${(ticket['Keterangan']||'').replace(/'/g, "\\'")}')">📝 Update Status Teknisi</button>`;
-                if (penggunaAktif.Role === 'admin') btnHtml += `<div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-action" style="flex:1; background-color:#f39c12; margin-bottom:0;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit</button><button class="btn-action" style="flex:1; background-color:#e74c3c; margin-bottom:0;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button></div>`;
+                let btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="bukaModalUpdate('${ticket['ID Tiket']}', '${textStatus}', '${(ticket['Keterangan']||'').replace(/'/g, "\\'")}')">📝 Update Status Teknisi</button>`;
+                
+                if (penggunaAktif.Role === 'admin') {
+                    btnHtml += `<div style="display:flex; gap:10px; margin-top:10px;">
+                        <button class="btn-action" style="flex:1; background-color:#f39c12; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit</button>
+                        <button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button>
+                    </div>`;
+                }
 
                 container.innerHTML += `<div class="card ${sc}"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;"><h3 style="margin:0;">${ticket['ID Tiket']}</h3><span class="badge ${bc}" style="font-size:12px;">${textStatus}</span></div><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p><p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box"><p style="border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:5px;"><strong>⏰ SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span><br><span style="color:#7f8c8d;">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</span></p><p><strong>⏰ SLA Pengerjaan (Deadline):</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p><p><strong>✅ Waktu Selesai:</strong> ${ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>'}</p></div>${ticket['Keterangan'] ? `<p style="margin-top:8px;"><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : ''}${btnHtml}</div>`;
             });
@@ -479,7 +500,6 @@
                 idTiket: document.getElementById('update-id').value, 
                 status: status, 
                 keterangan: document.getElementById('update-keterangan').value,
-                // Tambahan Data Berita Acara
                 baDeskripsi: document.getElementById('ba-deskripsi').value,
                 baNamaCustomer: document.getElementById('ba-nama-customer').value,
                 baKritik: document.getElementById('ba-kritik').value,
@@ -493,7 +513,7 @@
                     tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none';
                 } else { alert('Gagal update: ' + result.pesan); }
             } catch(err) { alert('Error sistem.'); }
-            btn.innerText = 'Simpan Update'; btn.disabled = false;
+            btn.innerText = '💾 Simpan Update'; btn.disabled = false;
         }
 
         // --- SISTEM ADMIN LAINNYA ---
