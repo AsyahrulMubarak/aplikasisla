@@ -42,8 +42,6 @@
             width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #fff;
         }
         .form-card textarea, .modal-content textarea { resize: vertical; min-height: 60px; }
-        
-        /* CLASS KHUSUS UNTUK KOTAK YANG DIKUNCI */
         .input-terkunci { background-color: #e9ecef !important; color: #6c757d !important; cursor: not-allowed !important; font-weight: bold; }
         
         .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 15px; border-radius: 6px; border: 1px solid #ccc; }
@@ -215,7 +213,7 @@
                         <option value="Abu Zakariah">Abu Zakariah</option>
                         <option value="Ustadz Abu Anis">Ustadz Abu Anis</option>
                     </select>
-                    <label>Ditugaskan Ke Teknisi</label>
+                    <label>Ditugaskan Ke Teknisi <span style="font-weight:normal; font-size:11px; color:#e74c3c;">(Abaikan jika belum ada teknisi yang Free)</span></label>
                     <div class="checkbox-group" id="teknisi-group"><p style="grid-column: 1 / span 2; margin:0; font-size:12px; color:#7f8c8d; font-style:italic;">Memuat data teknisi...</p></div>
                     <button type="submit" id="btn-submit-pekerjaan" class="btn-submit">Simpan Pekerjaan</button>
                     <button type="button" id="btn-batal-edit-tiket" class="btn-submit btn-batal" style="display:none;" onclick="batalEditTiket()">Batal Edit Pekerjaan</button>
@@ -382,7 +380,7 @@
                 const statusTiket = t['Status'] || 'Menunggu';
                 
                 (t['Teknisi'] || '').split(',').forEach(nama => {
-                    let n = nama.trim(); if(!n) return;
+                    let n = nama.trim(); if(!n || n === "Belum Ditugaskan") return;
                     if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
 
                     let key = Object.keys(stats).find(k => k.toLowerCase() === n.toLowerCase());
@@ -456,13 +454,18 @@
 
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
+            
+            // ADMIN BISA MELIHAT SEMUA TIKET (TERMASUK YANG BELUM DITUGASKAN). TEKNISI HANYA MELIHAT TIKETNYA SENDIRI.
             let tiketDitampilkan = penggunaAktif.Role === 'admin' ? globalTickets : globalTickets.filter(t => (t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase()));
+            
             let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }});
             if (!modeEditTiket) { document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0'); }
 
             tiketDitampilkan.slice().reverse().forEach(ticket => {
                 if (!ticket['ID Tiket']) return;
+                
                 let textStatus = ticket['Status'] || 'Menunggu';
+                let isUnassigned = ticket['Teknisi'] === 'Belum Ditugaskan' || ticket['Teknisi'] === '';
                 
                 let statusPengerjaanKartu = ticket['Status SLA'];
                 if(textStatus === 'Pending') statusPengerjaanKartu = 'AMAN';
@@ -471,6 +474,14 @@
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status'));
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 
+                // JIKA BELUM DITUGASKAN, BEKUKAN TAMPILAN SLA
+                if (isUnassigned) {
+                    sc = 'status-aman'; 
+                    bc = 'badge-pending';
+                    bRespon = 'badge-pending';
+                    textStatus = 'Menunggu Teknisi';
+                }
+
                 let htmlBA = '';
                 if (ticket['Deskripsi Pekerjaan (BA)']) {
                     htmlBA = `
@@ -483,14 +494,30 @@
                     </div>`;
                 }
 
-                // GANTI TEKS TOMBOL JIKA SUDAH SELESAI
-                let labelTombol = textStatus === 'Selesai' ? '📝 Revisi Berita Acara' : '📝 Update Status Teknisi';
+                let btnHtml = '';
+                
+                // JIKA TIKET BELUM DITUGASKAN (TOMBOL KHUSUS ADMIN)
+                if (isUnassigned && penggunaAktif.Role === 'admin') {
+                    btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#f39c12; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">👨‍🔧 Tugaskan Teknisi</button><div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button></div>`;
+                } else {
+                    let labelTombol = textStatus === 'Selesai' ? '📝 Revisi Berita Acara' : '📝 Update Status Teknisi';
+                    btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
+                    if (penggunaAktif.Role === 'admin') { 
+                        btnHtml += `<div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-action" style="flex:1; background-color:#f39c12; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit</button><button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button></div>`; 
+                    }
+                }
 
-                let btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
-                if (penggunaAktif.Role === 'admin') { btnHtml += `<div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-action" style="flex:1; background-color:#f39c12; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit</button><button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button></div>`; }
-
-                container.innerHTML += `<div class="card ${sc}"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;"><h3 style="margin:0;">${ticket['ID Tiket']}</h3><span class="badge ${bc}" style="font-size:12px;">${textStatus}</span></div><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p><p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box"><p style="border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:5px;"><strong>⏰ SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span><br><span style="color:#7f8c8d;">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</span></p><p><strong>⏰ SLA Pengerjaan:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p><p><strong>✅ Waktu Selesai:</strong> ${ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>'}</p></div>${ticket['Keterangan'] ? `<p style="margin-top:8px;"><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : ''}${htmlBA}${btnHtml}</div>`;
+                container.innerHTML += `<div class="card ${sc}"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;"><h3 style="margin:0;">${ticket['ID Tiket']}</h3><span class="badge ${bc}" style="font-size:12px;">${textStatus}</span></div><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p><p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
+                
+                <div class="waktu-box">
+                    ${isUnassigned ? 
+                    `<p style="text-align:center; font-weight:bold; color:#e67e22; padding:5px; margin:0;">⏳ SLA Ditangguhkan<br><span style="font-size:10px; font-weight:normal; color:#7f8c8d;">Pilih Teknisi untuk memulai waktu</span></p>` :
+                    `<p style="border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:5px;"><strong>⏰ SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span><br><span style="color:#7f8c8d;">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</span></p><p><strong>⏰ SLA Pengerjaan:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p><p><strong>✅ Waktu Selesai:</strong> ${ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>'}</p>`
+                    }
+                </div>
+                ${ticket['Keterangan'] ? `<p style="margin-top:8px;"><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : ''}${htmlBA}${btnHtml}</div>`;
             });
+            
             if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:#7f8c8d; margin-top:40px;">Tidak ada pekerjaan untuk Anda.</p>';
         }
 
@@ -526,35 +553,23 @@
             clearSignature(); 
             cekKeterangan(); 
 
-            // LOGIKA PENGUNCIAN JIKA TIKET SUDAH SELESAI
             if (t['Status'] === 'Selesai') {
                 document.getElementById('update-title').innerText = 'Revisi BAT: ' + id;
-                
-                // Kunci Status
                 statusElement.disabled = true; 
                 statusElement.classList.add('input-terkunci');
-                
-                // Kunci Keterangan agar fokus ke BAT
                 document.getElementById('update-keterangan').readOnly = true;
                 document.getElementById('update-keterangan').classList.add('input-terkunci');
-                
                 document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Revisi BAT';
-                
                 document.getElementById('berita-acara-section').style.display = 'block';
                 document.getElementById('btn-toggle-bat').style.display = 'none';
                 setTimeout(resizeCanvas, 100);
             } else {
                 document.getElementById('update-title').innerText = 'Status: ' + id;
-                
-                // Buka Kuncian
                 statusElement.disabled = false; 
                 statusElement.classList.remove('input-terkunci');
-                
                 document.getElementById('update-keterangan').readOnly = false;
                 document.getElementById('update-keterangan').classList.remove('input-terkunci');
-                
                 document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Update';
-                
                 if (t['Deskripsi Pekerjaan (BA)']) {
                     document.getElementById('berita-acara-section').style.display = 'block';
                     document.getElementById('btn-toggle-bat').innerHTML = "🔽 Tutup Form Berita Acara";
@@ -645,12 +660,18 @@
             if(!confirm(`Yakin MENGHAPUS pekerjaan ${idTiket}?`)) return; document.getElementById('loading').style.display = 'block';
             try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if((await res.json()).status === 'sukses') await ambilSemuaData(); } catch(err) {} document.getElementById('loading').style.display = 'none';
         }
+        
+        // MENGIZINKAN PENYIMPANAN TIKET TANPA TEKNISI
         async function submitData(e) {
             e.preventDefault(); const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
-            const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); if (!t) { alert('Pilih minimal satu teknisi!'); btn.innerText = 'Simpan Pekerjaan'; btn.disabled = false; return; }
+            
+            const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
+            
             const payload = { action: modeEditTiket ? 'editTicket' : 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, targetRespon: document.getElementById('input-sla-respon').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, teknisi: t };
+            
             try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if ((await res.json()).status === 'sukses') { alert(modeEditTiket ? 'Diupdate!' : 'Disimpan!'); batalEditTiket(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; switchTab('tiket'); } } catch (err) {} btn.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btn.disabled = false;
         }
+
         function renderTabelUser() {
             const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u.Role.toUpperCase()}</td><td><button class="btn-edit-user" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-delete-user" onclick="hapusUser('${u.Username}')">Hapus</button></td></tr>`; });
         }
