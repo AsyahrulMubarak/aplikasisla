@@ -36,7 +36,6 @@
         .form-card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid var(--warna-utama); }
         .form-card h3 { margin-top: 0; color: var(--warna-utama); }
         
-        /* PERBAIKAN CSS FORMULIR & MODAL AGAR SAMA RAPINYA */
         .form-card label, .modal-content label { display: block; margin: 12px 0 5px; font-weight: bold; font-size: 13px; text-align: left; color: #333; }
         .form-card input, .form-card select, .form-card textarea,
         .modal-content input, .modal-content select, .modal-content textarea { 
@@ -51,6 +50,7 @@
 
         .btn-submit { background-color: #2ecc71; color: white; border: none; padding: 12px; width: 100%; font-size: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .btn-batal { background-color: #e74c3c; margin-top: 10px; }
+        .btn-toggle-bat { background-color: #3498db; color: white; border: none; padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 8px; border: 1px solid #ddd; text-align: left; font-size: 13px; }
@@ -77,27 +77,30 @@
 
         #loading { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; }
 
-        /* MODAL KHUSUS AGAR RAPI DI HP */
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: flex-start; overflow-y: auto; padding: 20px 10px;}
         .modal-content { background-color: #fff; padding: 25px 20px; border-radius: 12px; width: 100%; max-width: 450px; border-top: 6px solid var(--warna-utama); margin: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         
-        /* DESAIN BERITA ACARA */
         #berita-acara-section { 
             display: none; 
-            background-color: #f0f4f8; /* Warna latar kebiruan lembut */
+            background-color: #f0f4f8; 
             border: 2px solid var(--warna-utama); 
             padding: 20px 15px; 
             border-radius: 8px; 
-            margin-top: 25px; 
+            margin-top: 15px; 
             margin-bottom: 10px;
         }
         #berita-acara-section h4 { margin: 0 0 5px 0; color: var(--warna-utama); text-align: center; border-bottom: 2px solid var(--warna-utama); padding-bottom: 10px; font-size: 16px; }
         .info-wajib { font-size:11px; color:#e74c3c; text-align:center; font-style: italic; margin-bottom: 15px; display: block;}
         
-        /* CANVAS TANDA TANGAN */
         .signature-wrapper { border: 2px dashed #bdc3c7; background: #fff; border-radius: 6px; margin-bottom: 10px; position: relative; }
         #signature-pad { width: 100%; height: 160px; cursor: crosshair; touch-action: none; border-radius: 6px; }
         .btn-clear-sig { background-color: #f39c12; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; width: 100%; display: block; margin-bottom: 15px;}
+        
+        .bat-card { background-color: #e8f4f8; border: 1px solid #bce8f1; padding: 12px; border-radius: 6px; margin-top: 15px; }
+        .bat-card h4 { margin: 0 0 8px 0; color: #31708f; font-size: 13px; border-bottom: 1px dashed #bce8f1; padding-bottom: 5px; }
+        .bat-card p { margin: 0 0 5px 0; font-size: 12px; }
+        .bat-text-wrap { white-space: pre-wrap; word-wrap: break-word; }
+        .bat-img { max-height: 80px; margin-top: 5px; border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 2px; }
     </style>
 </head>
 <body>
@@ -134,13 +137,16 @@
                 <label>Keterangan / Progres Teknisi</label>
                 <textarea id="update-keterangan" placeholder="Ketik laporan atau progres pekerjaan di sini..."></textarea>
                 
-                <!-- BAGIAN BERITA ACARA (Hanya muncul jika Selesai) -->
+                <!-- TOMBOL BUKA/TUTUP BAT (BISA DICICIL) -->
+                <button type="button" id="btn-toggle-bat" class="btn-toggle-bat" onclick="toggleBAT()">📝 Buka / Cicil Form Berita Acara</button>
+
+                <!-- BAGIAN BERITA ACARA -->
                 <div id="berita-acara-section">
                     <h4>📑 BERITA ACARA TEKNISI</h4>
-                    <span class="info-wajib">*Wajib diisi bersama Customer</span>
+                    <span class="info-wajib" id="info-wajib-text">*Bisa dicicil setiap hari selama status On Progress</span>
                     
-                    <label>Deskripsi Pekerjaan Selesai</label>
-                    <textarea id="ba-deskripsi" rows="3" placeholder="Contoh: Pemasangan 4 titik CCTV selesai dan diconfig..."></textarea>
+                    <label>Deskripsi Pekerjaan / Barang Terpasang</label>
+                    <textarea id="ba-deskripsi" rows="4" placeholder="Contoh: Pemasangan hari pertama (4 kamera) selesai..."></textarea>
                     
                     <label>Kritik & Saran Customer (Opsional)</label>
                     <textarea id="ba-kritik" rows="2" placeholder="Masukan dari customer..."></textarea>
@@ -148,7 +154,7 @@
                     <label>Nama Customer / PIC</label>
                     <input type="text" id="ba-nama-customer" placeholder="Nama orang yang bertanda tangan">
                     
-                    <label>Tanda Tangan Customer</label>
+                    <label>Tanda Tangan Customer <span id="status-ttd" style="color:#2ecc71; font-weight:normal; font-size:11px;"></span></label>
                     <div class="signature-wrapper">
                         <canvas id="signature-pad"></canvas>
                     </div>
@@ -257,7 +263,6 @@
         let modeEditUser = false;
         let modeEditTiket = false;
 
-        // --- SISTEM TANDA TANGAN (CANVAS) ---
         const canvas = document.getElementById('signature-pad');
         const ctx = canvas.getContext('2d');
         let isDrawing = false;
@@ -281,14 +286,8 @@
             return { x: clientX - rect.left, y: clientY - rect.top };
         }
 
-        function startDrawing(e) {
-            e.preventDefault(); isDrawing = true; isCanvasDrawn = true;
-            const pos = getMousePos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
-        }
-        function draw(e) {
-            e.preventDefault(); if (!isDrawing) return;
-            const pos = getMousePos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke();
-        }
+        function startDrawing(e) { e.preventDefault(); isDrawing = true; isCanvasDrawn = true; const pos = getMousePos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); }
+        function draw(e) { e.preventDefault(); if (!isDrawing) return; const pos = getMousePos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
         function stopDrawing(e) { e.preventDefault(); isDrawing = false; }
 
         canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw);
@@ -300,7 +299,6 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             isCanvasDrawn = false;
         }
-        // ------------------------------------
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none');
@@ -314,16 +312,13 @@
 
         async function ambilSemuaData() {
             try {
-                const response = await fetch(apiUrl);
-                const data = await response.json();
+                const response = await fetch(apiUrl); const data = await response.json();
                 globalTickets = data.tickets; globalUsers = data.users;
-
                 const savedSession = localStorage.getItem('sesiLoginSLA');
                 if (savedSession) {
                     const parsedSession = JSON.parse(savedSession);
                     if ((new Date().getTime() - parsedSession.loginTime) > 86400000) {
-                        localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null;
-                        alert('Sesi login telah berakhir. Silakan login kembali.');
+                        localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; alert('Sesi login telah berakhir. Silakan login kembali.');
                     } else {
                         const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password);
                         if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; }
@@ -339,42 +334,23 @@
 
         function prosesLogin(e) {
             e.preventDefault();
-            const un = document.getElementById('username').value.trim().toLowerCase();
-            const pw = document.getElementById('password').value;
+            const un = document.getElementById('username').value.trim().toLowerCase(); const pw = document.getElementById('password').value;
             const cocok = globalUsers.find(u => (u.Username || '').toLowerCase() === un && u.Password == pw);
-            if (cocok) {
-                penggunaAktif = cocok;
-                localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() }));
-                masukKeAplikasi();
-            } else { alert('Username atau Password salah!'); }
+            if (cocok) { penggunaAktif = cocok; localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); masukKeAplikasi(); } else { alert('Username atau Password salah!'); }
         }
 
         function masukKeAplikasi() {
-            document.getElementById('login-wrapper').style.display = 'none';
-            document.getElementById('app-wrapper').style.display = 'block';
+            document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
-            
-            if (penggunaAktif.Role === 'admin') {
-                document.getElementById('nav-input').style.display = 'flex';
-                document.getElementById('nav-user').style.display = 'flex';
-            } else {
-                document.getElementById('nav-input').style.display = 'none';
-                document.getElementById('nav-user').style.display = 'none';
-            }
+            if (penggunaAktif.Role === 'admin') { document.getElementById('nav-input').style.display = 'flex'; document.getElementById('nav-user').style.display = 'flex'; } else { document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; }
             renderCheckboxTeknisi(); renderDashboard(); renderTickets(); renderTabelUser(); switchTab('dashboard'); 
         }
 
-        function prosesLogout() {
-            localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null;
-            document.getElementById('app-wrapper').style.display = 'none';
-            document.getElementById('login-wrapper').style.display = 'flex';
-            document.getElementById('username').value = ''; document.getElementById('password').value = '';
-        }
+        function prosesLogout() { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; document.getElementById('app-wrapper').style.display = 'none'; document.getElementById('login-wrapper').style.display = 'flex'; document.getElementById('username').value = ''; document.getElementById('password').value = ''; }
 
         function renderCheckboxTeknisi() {
             const group = document.getElementById('teknisi-group'); group.innerHTML = ''; 
-            const listTeknisi = globalUsers.filter(u => u.Role === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
-            listTeknisi.forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
+            globalUsers.filter(u => u.Role === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
         }
 
         function renderDashboard() {
@@ -397,9 +373,7 @@
                 let rA = a.totalValid > 0 ? (a.tepat / a.totalValid) : 0; let rB = b.totalValid > 0 ? (b.tepat / b.totalValid) : 0;
                 return rB !== rA ? rB - rA : b.totalValid - a.totalValid; 
             }).forEach(s => {
-                let rate = s.totalValid > 0 ? Math.round((s.tepat / s.totalValid) * 100) : 0;
-                let color = rate >= 80 ? '#2ecc71' : (rate >= 50 ? '#f1c40f' : '#e74c3c');
-                if (s.totalValid === 0) color = '#bdc3c7'; 
+                let rate = s.totalValid > 0 ? Math.round((s.tepat / s.totalValid) * 100) : 0; let color = rate >= 80 ? '#2ecc71' : (rate >= 50 ? '#f1c40f' : '#e74c3c'); if (s.totalValid === 0) color = '#bdc3c7'; 
                 dashContainer.innerHTML += `<div class="perf-card" style="border-left:5px solid ${color};"><div class="perf-header"><h4 class="perf-name">${s.nama}</h4><span class="perf-rate" style="color:${color};">${s.totalValid > 0 ? rate+'%' : '-'}</span></div><div class="perf-stats"><div>✅ Tepat Waktu: <strong>${s.tepat}</strong></div><div>❌ Terlambat: <strong>${s.telat}</strong></div></div><div style="font-size:11px; color:#95a5a6; margin-top:5px;">⏳ Menunggu Direspon: ${s.aman} Tiket</div><div class="progress-bg"><div class="progress-bar" style="width:${s.totalValid > 0 ? rate : 0}%; background:${color};"></div></div></div>`;
             });
         }
@@ -407,7 +381,6 @@
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let tiketDitampilkan = penggunaAktif.Role === 'admin' ? globalTickets : globalTickets.filter(t => (t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase()));
-            
             let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }});
             if (!modeEditTiket) { document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0'); }
 
@@ -418,38 +391,68 @@
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status'));
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 
-                let btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="bukaModalUpdate('${ticket['ID Tiket']}', '${textStatus}', '${(ticket['Keterangan']||'').replace(/'/g, "\\'")}')">📝 Update Status Teknisi</button>`;
-                
-                if (penggunaAktif.Role === 'admin') {
-                    btnHtml += `<div style="display:flex; gap:10px; margin-top:10px;">
-                        <button class="btn-action" style="flex:1; background-color:#f39c12; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit</button>
-                        <button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button>
+                // MUNCULKAN BLOK BERITA ACARA DI TIKET
+                let htmlBA = '';
+                if (ticket['Deskripsi Pekerjaan (BA)']) {
+                    htmlBA = `
+                    <div class="bat-card">
+                        <h4>📑 Isi Berita Acara & Laporan:</h4>
+                        <p class="bat-text-wrap"><strong>Deskripsi:</strong><br>${ticket['Deskripsi Pekerjaan (BA)']}</p>
+                        ${ticket['Kritik & Saran'] ? `<p class="bat-text-wrap" style="margin-top:8px;"><strong>Kritik/Saran:</strong> ${ticket['Kritik & Saran']}</p>` : ''}
+                        <p style="margin-top:8px;"><strong>Customer:</strong> ${ticket['Nama Customer'] || '-'}</p>
+                        ${ticket['Tanda Tangan'] && ticket['Tanda Tangan'].length > 10 ? `<img src="${ticket['Tanda Tangan']}" class="bat-img">` : `<span style="font-size:11px; color:#e74c3c; display:block; margin-top:5px;">(Belum ada TTD)</span>`}
                     </div>`;
                 }
 
-                container.innerHTML += `<div class="card ${sc}"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;"><h3 style="margin:0;">${ticket['ID Tiket']}</h3><span class="badge ${bc}" style="font-size:12px;">${textStatus}</span></div><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p><p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box"><p style="border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:5px;"><strong>⏰ SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span><br><span style="color:#7f8c8d;">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</span></p><p><strong>⏰ SLA Pengerjaan (Deadline):</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p><p><strong>✅ Waktu Selesai:</strong> ${ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>'}</p></div>${ticket['Keterangan'] ? `<p style="margin-top:8px;"><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : ''}${btnHtml}</div>`;
+                let btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">📝 Update Status Teknisi</button>`;
+                if (penggunaAktif.Role === 'admin') { btnHtml += `<div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-action" style="flex:1; background-color:#f39c12; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit</button><button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button></div>`; }
+
+                container.innerHTML += `<div class="card ${sc}"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;"><h3 style="margin:0;">${ticket['ID Tiket']}</h3><span class="badge ${bc}" style="font-size:12px;">${textStatus}</span></div><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p><p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box"><p style="border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:5px;"><strong>⏰ SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span><br><span style="color:#7f8c8d;">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</span></p><p><strong>⏰ SLA Pengerjaan:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p><p><strong>✅ Waktu Selesai:</strong> ${ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>'}</p></div>${ticket['Keterangan'] ? `<p style="margin-top:8px;"><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : ''}${htmlBA}${btnHtml}</div>`;
             });
             if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:#7f8c8d; margin-top:40px;">Tidak ada pekerjaan untuk Anda.</p>';
         }
 
-        // --- LOGIKA FORM UPDATE STATUS & BERITA ACARA ---
-        function bukaModalUpdate(id, statusSaatIni, keteranganSaatIni) {
+        // TAMPILKAN LOGIKA BUKA/TUTUP (AKORDEON)
+        function toggleBAT() {
+            const baSection = document.getElementById('berita-acara-section');
+            const btnToggle = document.getElementById('btn-toggle-bat');
+            if (baSection.style.display === 'none' || baSection.style.display === '') {
+                baSection.style.display = 'block';
+                btnToggle.innerHTML = "🔽 Tutup Form Berita Acara";
+                setTimeout(resizeCanvas, 50);
+            } else {
+                baSection.style.display = 'none';
+                btnToggle.innerHTML = "📝 Buka / Cicil Form Berita Acara";
+            }
+        }
+
+        function bukaModalUpdate(id) {
+            const t = globalTickets.find(x => x['ID Tiket'] === id); if(!t) return;
+            
             document.getElementById('update-id').value = id;
             document.getElementById('update-title').innerText = 'Status: ' + id;
-            document.getElementById('update-status').value = statusSaatIni || 'Menunggu';
-            document.getElementById('update-keterangan').value = (!keteranganSaatIni || keteranganSaatIni === 'undefined') ? '' : keteranganSaatIni;
+            document.getElementById('update-status').value = t['Status'] || 'Menunggu';
+            document.getElementById('update-keterangan').value = t['Keterangan'] || '';
             
-            // Bersihkan form berita acara lama
-            document.getElementById('ba-deskripsi').value = '';
-            document.getElementById('ba-nama-customer').value = '';
-            document.getElementById('ba-kritik').value = '';
-            clearSignature();
+            // Tarik histori cicilan BAT
+            document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || '';
+            document.getElementById('ba-nama-customer').value = t['Nama Customer'] || '';
+            document.getElementById('ba-kritik').value = t['Kritik & Saran'] || '';
+            
+            const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10;
+            document.getElementById('status-ttd').innerText = hasExistingTTD ? '(Sudah Tersimpan ✅)' : '';
 
+            clearSignature(); 
             cekKeterangan(); 
+
+            // LOGIKA PINTAR: Jika sebelumnya teknisi sudah pernah mencicil BAT, langsung bukakan form-nya
+            if (t['Deskripsi Pekerjaan (BA)'] && document.getElementById('update-status').value !== 'Selesai') {
+                document.getElementById('berita-acara-section').style.display = 'block';
+                document.getElementById('btn-toggle-bat').innerHTML = "🔽 Tutup Form Berita Acara";
+                setTimeout(resizeCanvas, 100);
+            }
+
             document.getElementById('modal-update').style.display = 'flex';
-            
-            // Penting: Resize canvas setelah modal terbuka agar ukurannya pas
-            setTimeout(resizeCanvas, 100);
         }
 
         function tutupModal() { document.getElementById('modal-update').style.display = 'none'; }
@@ -458,46 +461,55 @@
             const status = document.getElementById('update-status').value;
             const ket = document.getElementById('update-keterangan');
             const baSection = document.getElementById('berita-acara-section');
+            const btnToggle = document.getElementById('btn-toggle-bat');
             const baDesk = document.getElementById('ba-deskripsi');
             const baNama = document.getElementById('ba-nama-customer');
+            const infoText = document.getElementById('info-wajib-text');
 
-            // Logika Pending/Cancel
             if (status === 'Pending' || status === 'Cancel') { ket.required = true; ket.placeholder = "Wajib diisi! Masukkan alasan..."; } 
             else { ket.required = false; ket.placeholder = "Masukkan progres..."; }
 
-            // Logika Berita Acara jika Selesai
             if (status === 'Selesai') {
+                btnToggle.style.display = 'none';
                 baSection.style.display = 'block';
-                baDesk.required = true;
-                baNama.required = true;
-                setTimeout(resizeCanvas, 50); // Pastikan ukuran canvas refresh
+                baDesk.required = true; baNama.required = true;
+                infoText.innerText = "*Wajib diisi beserta Tanda Tangan Customer";
+                setTimeout(resizeCanvas, 50);
+            } else if (status === 'On Progress' || status === 'Pending') {
+                btnToggle.style.display = 'block';
+                baSection.style.display = 'none'; // Secara default sembunyi agar rapi
+                btnToggle.innerHTML = "📝 Buka / Cicil Form Berita Acara";
+                baDesk.required = false; baNama.required = false;
+                infoText.innerText = "*Bisa dicicil setiap hari tanpa harus Tanda Tangan";
             } else {
+                btnToggle.style.display = 'none';
                 baSection.style.display = 'none';
-                baDesk.required = false;
-                baNama.required = false;
+                baDesk.required = false; baNama.required = false;
             }
         }
 
         async function submitUpdate(e) {
             e.preventDefault();
             const status = document.getElementById('update-status').value;
+            const idTiket = document.getElementById('update-id').value;
+            const t = globalTickets.find(x => x['ID Tiket'] === idTiket);
             let ttdBase64 = "";
 
-            // Validasi khusus jika status Selesai
             if (status === 'Selesai') {
-                if (!isCanvasDrawn) {
-                    alert("⚠️ Tanda Tangan Customer WAJIB diisi sebelum menyelesaikan tiket!");
-                    return;
+                const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10;
+                if (!isCanvasDrawn && !hasExistingTTD) {
+                    alert("⚠️ Tanda Tangan Customer WAJIB diisi sebelum menyelesaikan tiket!"); return;
                 }
-                // Ekspor canvas jadi gambar Base64
-                ttdBase64 = canvas.toDataURL('image/png');
             }
+            
+            // Ekspor gambar hanya jika ada coretan baru di layar
+            if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); }
 
             const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             
             const payload = { 
                 action: 'updateTicket', 
-                idTiket: document.getElementById('update-id').value, 
+                idTiket: idTiket, 
                 status: status, 
                 keterangan: document.getElementById('update-keterangan').value,
                 baDeskripsi: document.getElementById('ba-deskripsi').value,
@@ -507,64 +519,38 @@
             };
 
             try {
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
-                const result = await response.json();
-                if (result.status === 'sukses') {
-                    tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none';
-                } else { alert('Gagal update: ' + result.pesan); }
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) }); const result = await response.json();
+                if (result.status === 'sukses') { tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; } else { alert('Gagal update: ' + result.pesan); }
             } catch(err) { alert('Error sistem.'); }
             btn.innerText = '💾 Simpan Update'; btn.disabled = false;
         }
 
-        // --- SISTEM ADMIN LAINNYA ---
+        // --- SISTEM ADMIN ---
         function aktifkanEditTiket(idTiket) {
             const t = globalTickets.find(x => x['ID Tiket'] === idTiket); if(!t) return;
-            modeEditTiket = true; switchTab('input'); 
-            document.getElementById('form-tiket-title').innerText = '✏️ Edit Pekerjaan: ' + idTiket;
-            document.getElementById('input-id').value = idTiket;
-            document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || '';
-            document.getElementById('input-sla').value = t['Target SLA (Jam)'];
-            document.getElementById('input-klien').value = t['Klien & Lokasi'];
-            document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan'];
-            document.getElementById('input-sales').value = t['Sales'] || '';
-            const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim());
-            document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value));
-            document.getElementById('btn-submit-pekerjaan').innerText = 'Update Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#f39c12'; document.getElementById('btn-batal-edit-tiket').style.display = 'block';
+            modeEditTiket = true; switchTab('input'); document.getElementById('form-tiket-title').innerText = '✏️ Edit Pekerjaan: ' + idTiket; document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; document.getElementById('input-sales').value = t['Sales'] || ''; const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); document.getElementById('btn-submit-pekerjaan').innerText = 'Update Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#f39c12'; document.getElementById('btn-batal-edit-tiket').style.display = 'block';
         }
         function batalEditTiket() {
-            modeEditTiket = false; document.getElementById('form-tiket-title').innerText = '➕ Input Pekerjaan SLA Baru'; document.getElementById('form-sla').reset();
-            document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#2ecc71'; document.getElementById('btn-batal-edit-tiket').style.display = 'none';
-            let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }});
-            document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0');
+            modeEditTiket = false; document.getElementById('form-tiket-title').innerText = '➕ Input Pekerjaan SLA Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#2ecc71'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }}); document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0');
         }
         async function hapusTiket(idTiket) {
-            if(!confirm(`Yakin MENGHAPUS pekerjaan ${idTiket}?`)) return;
-            document.getElementById('loading').style.display = 'block';
-            try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if((await res.json()).status === 'sukses') await ambilSemuaData(); } catch(err) {}
-            document.getElementById('loading').style.display = 'none';
+            if(!confirm(`Yakin MENGHAPUS pekerjaan ${idTiket}?`)) return; document.getElementById('loading').style.display = 'block';
+            try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if((await res.json()).status === 'sukses') await ambilSemuaData(); } catch(err) {} document.getElementById('loading').style.display = 'none';
         }
         async function submitData(e) {
             e.preventDefault(); const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
-            const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
-            if (!t) { alert('Pilih minimal satu teknisi!'); btn.innerText = 'Simpan Pekerjaan'; btn.disabled = false; return; }
+            const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); if (!t) { alert('Pilih minimal satu teknisi!'); btn.innerText = 'Simpan Pekerjaan'; btn.disabled = false; return; }
             const payload = { action: modeEditTiket ? 'editTicket' : 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, targetRespon: document.getElementById('input-sla-respon').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, teknisi: t };
             try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if ((await res.json()).status === 'sukses') { alert(modeEditTiket ? 'Diupdate!' : 'Disimpan!'); batalEditTiket(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; switchTab('tiket'); } } catch (err) {} btn.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btn.disabled = false;
         }
         function renderTabelUser() {
-            const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = '';
-            globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u.Role.toUpperCase()}</td><td><button class="btn-edit-user" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-delete-user" onclick="hapusUser('${u.Username}')">Hapus</button></td></tr>`; });
+            const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u.Role.toUpperCase()}</td><td><button class="btn-edit-user" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-delete-user" onclick="hapusUser('${u.Username}')">Hapus</button></td></tr>`; });
         }
         function aktifkanEditUser(un) {
-            const u = globalUsers.find(x => x.Username === un); if(!u) return;
-            modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username;
-            document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role;
-            document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true;
-            document.getElementById('btn-tambah-user').innerText = 'Update User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#f39c12'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0);
+            const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#f39c12'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0);
         }
         function batalEditUser() {
-            modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; document.getElementById('new-nama').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = '';
-            document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false;
-            document.getElementById('btn-tambah-user').innerText = 'Simpan User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#3498db'; document.getElementById('btn-batal-edit-user').style.display = 'none';
+            modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; document.getElementById('new-nama').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = ''; document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false; document.getElementById('btn-tambah-user').innerText = 'Simpan User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#3498db'; document.getElementById('btn-batal-edit-user').style.display = 'none';
         }
         async function simpanUserBaru(e) {
             e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
@@ -573,9 +559,7 @@
             try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { alert(modeEditUser?'Di-update!':'Ditambahkan!'); batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update User':'Simpan User'; btn.disabled=false;
         }
         async function hapusUser(un) {
-            if(un==='admin') { alert('Akun admin utama dilarang dihapus!'); return; }
-            if(!confirm(`Yakin hapus user ${un}?`)) return; document.getElementById('loading').style.display='block';
-            try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') await ambilSemuaData(); } catch(err) {} document.getElementById('loading').style.display='none';
+            if(un==='admin') { alert('Akun admin utama dilarang dihapus!'); return; } if(!confirm(`Yakin hapus user ${un}?`)) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') await ambilSemuaData(); } catch(err) {} document.getElementById('loading').style.display='none';
         }
 
         ambilSemuaData();
