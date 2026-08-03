@@ -68,11 +68,10 @@
         .waktu-box p { margin: 3px 0; }
 
         .perf-card { background:#fff; padding:15px; border-radius:8px; margin-bottom:12px; box-shadow:0 2px 5px rgba(0,0,0,0.05); }
-        .perf-header { display:flex; justify-content:space-between; align-items:center; }
-        .perf-name { margin:0; font-size:16px; color:#333; }
-        .perf-rate { font-weight:900; font-size:22px; }
-        .perf-stats { margin-top:10px; font-size:12px; color:#555; display:flex; justify-content:space-between; }
-        .progress-bg { width:100%; background:#ecf0f1; height:8px; border-radius:4px; margin-top:10px; overflow:hidden; }
+        .perf-header { border-bottom: 1px dashed #ccc; padding-bottom: 8px; margin-bottom: 12px; }
+        .perf-name { margin:0; font-size:18px; color:var(--warna-utama); }
+        .perf-stats { margin-top:5px; font-size:11px; color:#555; display:flex; justify-content:space-between; }
+        .progress-bg { width:100%; background:#ecf0f1; height:8px; border-radius:4px; margin-top:8px; overflow:hidden; }
         .progress-bar { height:100%; transition: width 0.5s ease; }
 
         #loading { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; }
@@ -180,7 +179,7 @@
         <div id="loading" style="display:none;">Memproses data... Mohon tunggu.</div>
 
         <div id="page-dashboard" class="tab-page">
-            <h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px;">📊 Leaderboard Respon Teknisi</h3>
+            <h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px;">📊 Leaderboard Performa Teknisi</h3>
             <div id="dashboard-content"></div>
         </div>
 
@@ -356,25 +355,95 @@
         function renderDashboard() {
             const dashContainer = document.getElementById('dashboard-content'); dashContainer.innerHTML = '';
             let stats = {};
-            globalUsers.forEach(u => { if (u.Role === 'teknisi' && u['Nama Asli']) stats[u['Nama Asli']] = { nama: u['Nama Asli'], tepat: 0, telat: 0, aman: 0, totalValid: 0 }; });
+            
+            // Inisialisasi Data Teknisi
+            globalUsers.forEach(u => { 
+                if (u.Role === 'teknisi' && u['Nama Asli']) {
+                    stats[u['Nama Asli']] = { 
+                        nama: u['Nama Asli'], 
+                        resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0,
+                        peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 
+                    }; 
+                }
+            });
+            
+            // Kalkulasi Data Tiket
             globalTickets.forEach(t => {
                 if(!t['ID Tiket']) return;
                 const statusRespon = t['Status SLA Respon']; 
+                const statusPengerjaan = t['Status SLA']; 
+                
                 (t['Teknisi'] || '').split(',').forEach(nama => {
                     let n = nama.trim(); if(!n) return;
                     let key = Object.keys(stats).find(k => k.toLowerCase() === n.toLowerCase());
-                    if(!key) { stats[n] = { nama: n, tepat: 0, telat: 0, aman: 0, totalValid: 0 }; key = n; }
-                    if(statusRespon === 'TERPENUHI') { stats[key].tepat++; stats[key].totalValid++; } 
-                    else if(statusRespon === 'GAGAL') { stats[key].telat++; stats[key].totalValid++; }
-                    else if(statusRespon === 'AMAN') { stats[key].aman++; } 
+                    if(!key) { 
+                        stats[n] = { nama: n, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 }; 
+                        key = n; 
+                    }
+                    
+                    // Hitung SLA Respon
+                    if(statusRespon === 'TERPENUHI') { stats[key].resp_tepat++; stats[key].resp_total++; } 
+                    else if(statusRespon === 'GAGAL') { stats[key].resp_telat++; stats[key].resp_total++; }
+                    else if(statusRespon === 'AMAN') { stats[key].resp_aman++; } 
+                    
+                    // Hitung SLA Pengerjaan (Deadline Selesai)
+                    if(statusPengerjaan === 'TERPENUHI') { stats[key].peng_tepat++; stats[key].peng_total++; } 
+                    else if(statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; }
+                    else if(statusPengerjaan === 'AMAN') { stats[key].peng_aman++; } 
                 });
             });
+            
+            // Render Kartu Performa
             Object.values(stats).sort((a, b) => {
-                let rA = a.totalValid > 0 ? (a.tepat / a.totalValid) : 0; let rB = b.totalValid > 0 ? (b.tepat / b.totalValid) : 0;
-                return rB !== rA ? rB - rA : b.totalValid - a.totalValid; 
+                // Urutkan berdasarkan total tiket yang sudah valid (kombinasi respon & pengerjaan)
+                let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; 
+                let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0;
+                return rateB !== rateA ? rateB - rateA : (b.resp_total + b.peng_total) - (a.resp_total + a.peng_total); 
             }).forEach(s => {
-                let rate = s.totalValid > 0 ? Math.round((s.tepat / s.totalValid) * 100) : 0; let color = rate >= 80 ? '#2ecc71' : (rate >= 50 ? '#f1c40f' : '#e74c3c'); if (s.totalValid === 0) color = '#bdc3c7'; 
-                dashContainer.innerHTML += `<div class="perf-card" style="border-left:5px solid ${color};"><div class="perf-header"><h4 class="perf-name">${s.nama}</h4><span class="perf-rate" style="color:${color};">${s.totalValid > 0 ? rate+'%' : '-'}</span></div><div class="perf-stats"><div>✅ Tepat Waktu: <strong>${s.tepat}</strong></div><div>❌ Terlambat: <strong>${s.telat}</strong></div></div><div style="font-size:11px; color:#95a5a6; margin-top:5px;">⏳ Menunggu Direspon: ${s.aman} Tiket</div><div class="progress-bg"><div class="progress-bar" style="width:${s.totalValid > 0 ? rate : 0}%; background:${color};"></div></div></div>`;
+                // Persentase Respon
+                let rRate = s.resp_total > 0 ? Math.round((s.resp_tepat / s.resp_total) * 100) : 0; 
+                let rColor = rRate >= 80 ? '#2ecc71' : (rRate >= 50 ? '#f1c40f' : '#e74c3c'); 
+                if (s.resp_total === 0) rColor = '#bdc3c7'; 
+                
+                // Persentase Pengerjaan
+                let pRate = s.peng_total > 0 ? Math.round((s.peng_tepat / s.peng_total) * 100) : 0; 
+                let pColor = pRate >= 80 ? '#2ecc71' : (pRate >= 50 ? '#f1c40f' : '#e74c3c'); 
+                if (s.peng_total === 0) pColor = '#bdc3c7';
+                
+                dashContainer.innerHTML += `
+                <div class="perf-card" style="border-top: 5px solid var(--warna-utama);">
+                    <div class="perf-header">
+                        <h4 class="perf-name">👨‍🔧 ${s.nama}</h4>
+                    </div>
+                    
+                    <!-- Bagian SLA Respon -->
+                    <div style="margin-bottom: 20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:bold; font-size:13px; color:#555;">⚡ Performa Respon</span>
+                            <span style="font-weight:900; font-size:16px; color:${rColor};">${s.resp_total > 0 ? rRate+'%' : '-'}</span>
+                        </div>
+                        <div class="perf-stats">
+                            <div>✅ Tepat: <strong>${s.resp_tepat}</strong></div>
+                            <div>❌ Telat: <strong>${s.resp_telat}</strong></div>
+                            <div style="color:#f39c12;">⏳ Menunggu: <strong>${s.resp_aman}</strong></div>
+                        </div>
+                        <div class="progress-bg"><div class="progress-bar" style="width:${s.resp_total > 0 ? rRate : 0}%; background:${rColor};"></div></div>
+                    </div>
+
+                    <!-- Bagian SLA Pengerjaan -->
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:bold; font-size:13px; color:#555;">🛠️ Performa Pengerjaan</span>
+                            <span style="font-weight:900; font-size:16px; color:${pColor};">${s.peng_total > 0 ? pRate+'%' : '-'}</span>
+                        </div>
+                        <div class="perf-stats">
+                            <div>✅ Tepat: <strong>${s.peng_tepat}</strong></div>
+                            <div>❌ Telat: <strong>${s.peng_telat}</strong></div>
+                            <div style="color:#f39c12;">⏳ Berjalan: <strong>${s.peng_aman}</strong></div>
+                        </div>
+                        <div class="progress-bg"><div class="progress-bar" style="width:${s.peng_total > 0 ? pRate : 0}%; background:${pColor};"></div></div>
+                    </div>
+                </div>`;
             });
         }
 
@@ -434,7 +503,6 @@
             document.getElementById('update-status').value = t['Status'] || 'Menunggu';
             document.getElementById('update-keterangan').value = t['Keterangan'] || '';
             
-            // Tarik histori cicilan BAT
             document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || '';
             document.getElementById('ba-nama-customer').value = t['Nama Customer'] || '';
             document.getElementById('ba-kritik').value = t['Kritik & Saran'] || '';
@@ -445,7 +513,6 @@
             clearSignature(); 
             cekKeterangan(); 
 
-            // LOGIKA PINTAR: Jika sebelumnya teknisi sudah pernah mencicil BAT, langsung bukakan form-nya
             if (t['Deskripsi Pekerjaan (BA)'] && document.getElementById('update-status').value !== 'Selesai') {
                 document.getElementById('berita-acara-section').style.display = 'block';
                 document.getElementById('btn-toggle-bat').innerHTML = "🔽 Tutup Form Berita Acara";
@@ -477,7 +544,7 @@
                 setTimeout(resizeCanvas, 50);
             } else if (status === 'On Progress' || status === 'Pending') {
                 btnToggle.style.display = 'block';
-                baSection.style.display = 'none'; // Secara default sembunyi agar rapi
+                baSection.style.display = 'none'; 
                 btnToggle.innerHTML = "📝 Buka / Cicil Form Berita Acara";
                 baDesk.required = false; baNama.required = false;
                 infoText.innerText = "*Bisa dicicil setiap hari tanpa harus Tanda Tangan";
@@ -502,7 +569,6 @@
                 }
             }
             
-            // Ekspor gambar hanya jika ada coretan baru di layar
             if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); }
 
             const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
