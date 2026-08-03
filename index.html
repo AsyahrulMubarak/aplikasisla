@@ -79,7 +79,15 @@
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: flex-start; overflow-y: auto; padding: 20px 10px;}
         .modal-content { background-color: #fff; padding: 25px 20px; border-radius: 12px; width: 100%; max-width: 450px; border-top: 6px solid var(--warna-utama); margin: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         
-        #berita-acara-section { display: none; background-color: #f0f4f8; border: 2px solid var(--warna-utama); padding: 20px 15px; border-radius: 8px; margin-top: 15px; margin-bottom: 10px; }
+        #berita-acara-section { 
+            display: none; 
+            background-color: #f0f4f8; 
+            border: 2px solid var(--warna-utama); 
+            padding: 20px 15px; 
+            border-radius: 8px; 
+            margin-top: 15px; 
+            margin-bottom: 10px;
+        }
         #berita-acara-section h4 { margin: 0 0 5px 0; color: var(--warna-utama); text-align: center; border-bottom: 2px solid var(--warna-utama); padding-bottom: 10px; font-size: 16px; }
         .info-wajib { font-size:11px; color:#e74c3c; text-align:center; font-style: italic; margin-bottom: 15px; display: block;}
         
@@ -109,7 +117,6 @@
         </div>
     </div>
 
-    <!-- MODAL UPDATE STATUS & BERITA ACARA -->
     <div id="modal-update" class="modal">
         <div class="modal-content">
             <h3 id="update-title" style="margin-top:0; color:var(--warna-utama); font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Update Status Tiket</h3>
@@ -156,7 +163,6 @@
         </div>
     </div>
 
-    <!-- APLIKASI UTAMA -->
     <div class="container" id="app-wrapper">
         <div class="header-branding">
             <img src="depan_001.png" alt="Logo Alfacom Multi Solution" class="logo">
@@ -218,6 +224,7 @@
                 <h3 id="form-user-title">⚙️ Tambah User Baru</h3>
                 <form onsubmit="simpanUserBaru(event)">
                     <label>Nama Asli</label><input type="text" id="new-nama" required>
+                    <label>Alamat Email (Untuk Notifikasi)</label><input type="email" id="new-email" placeholder="contoh@gmail.com" required>
                     <label>Username</label><input type="text" id="new-username" required>
                     <label>Password</label><input type="text" id="new-password" required>
                     <label>Hak Akses</label>
@@ -228,7 +235,7 @@
                 <h3 style="margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">Daftar Terdaftar</h3>
                 <div style="overflow-x: auto;">
                     <table>
-                        <thead><tr><th>Username</th><th>Nama Asli</th><th>Role</th><th>Aksi</th></tr></thead>
+                        <thead><tr><th>Username</th><th>Nama Asli</th><th>Email</th><th>Role</th><th>Aksi</th></tr></thead>
                         <tbody id="tabel-user-body"></tbody>
                     </table>
                 </div>
@@ -660,17 +667,17 @@
         }
 
         function renderTabelUser() {
-            const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u.Role.toUpperCase()}</td><td><button class="btn-edit-user" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-delete-user" onclick="hapusUser('${u.Username}')">Hapus</button></td></tr>`; });
+            const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Email'] || '-'}</td><td>${u.Role.toUpperCase()}</td><td><button class="btn-edit-user" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-delete-user" onclick="hapusUser('${u.Username}')">Hapus</button></td></tr>`; });
         }
         function aktifkanEditUser(un) {
-            const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#f39c12'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0);
+            const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-email').value = u['Email'] || ''; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#f39c12'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0);
         }
         function batalEditUser() {
-            modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; document.getElementById('new-nama').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = ''; document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false; document.getElementById('btn-tambah-user').innerText = 'Simpan User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#3498db'; document.getElementById('btn-batal-edit-user').style.display = 'none';
+            modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = ''; document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false; document.getElementById('btn-tambah-user').innerText = 'Simpan User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#3498db'; document.getElementById('btn-batal-edit-user').style.display = 'none';
         }
         async function simpanUserBaru(e) {
             e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
-            const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value };
+            const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value };
             if (!modeEditUser && globalUsers.find(u => (u.Username||'').toLowerCase() === payload.username.toLowerCase())) { alert("Username sudah ada."); btn.innerText='Simpan User'; btn.disabled=false; return; }
             try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { alert(modeEditUser?'Di-update!':'Ditambahkan!'); batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update User':'Simpan User'; btn.disabled=false;
         }
