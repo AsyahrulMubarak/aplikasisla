@@ -9,7 +9,6 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--warna-latar); color: #333; padding: 20px; padding-bottom: 80px; margin: 0; }
         .container { max-width: 800px; margin: 0 auto; }
         
-        /* LOGIN UI */
         #login-wrapper { display: flex; justify-content: center; align-items: center; height: 80vh; }
         .login-card { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; border-top: 5px solid var(--warna-utama); }
         .login-card img { max-width: 200px; margin-bottom: 20px; }
@@ -19,26 +18,21 @@
 
         #app-wrapper { display: none; }
         
-        /* HEADER & LOGOUT */
         .header-branding { text-align: center; margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; }
         .logo { max-width: 200px; height: auto; margin-bottom: 10px; }
         .top-bar { display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; }
         .top-bar span { font-weight: bold; font-size: 14px; color: var(--warna-utama); }
         .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
 
-        /* TAB PAGES */
         .tab-page { display: none; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* BOTTOM NAVIGATION MENU */
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
         .nav-btn { flex: 1; padding: 10px 0; text-align: center; color: #95a5a6; cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; border-top: 3px solid transparent; }
         .nav-btn .icon { font-size: 20px; margin-bottom: 3px; }
         .nav-btn .text { font-size: 11px; font-weight: 600; }
         .nav-btn.active { color: var(--warna-utama); border-top-color: var(--warna-utama); background: #f8f9fa; }
-        .nav-btn:hover { color: var(--warna-aksen); }
 
-        /* FORMS & TABLES */
         .form-card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid var(--warna-utama); }
         .form-card h3 { margin-top: 0; color: var(--warna-utama); }
         .form-card label { display: block; margin: 10px 0 5px; font-weight: bold; font-size: 13px; }
@@ -58,18 +52,15 @@
         .btn-edit-user { background-color: #f39c12; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 5px; margin-bottom: 5px; }
         .btn-delete-user { background-color: #e74c3c; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
 
-        /* TICKET CARDS */
         .card { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 6px solid #ccc; position: relative; }
         .status-aman { border-left-color: #f1c40f; } .status-terpenuhi { border-left-color: #2ecc71; } .status-terlambat { border-left-color: #e74c3c; } 
         .card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--warna-utama); }
         .card p { margin: 5px 0; font-size: 13px; line-height: 1.4; }
         .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; background-color: var(--warna-aksen); }
-        
         .badge-status { background-color: #3498db; } .badge-selesai { background-color: #2ecc71; } .badge-pending { background-color: #e67e22; } .badge-cancel { background-color: #e74c3c; } .badge-aman { background-color: #f1c40f; color: #fff;}
         .waktu-box { background: #f8f9fa; border: 1px dashed #ccc; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 12px; }
         .waktu-box p { margin: 3px 0; }
 
-        /* DASHBOARD PERFORMANCE CARD */
         .perf-card { background:#fff; padding:15px; border-radius:8px; margin-bottom:12px; box-shadow:0 2px 5px rgba(0,0,0,0.05); }
         .perf-header { display:flex; justify-content:space-between; align-items:center; }
         .perf-name { margin:0; font-size:16px; color:#333; }
@@ -80,7 +71,6 @@
 
         #loading { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; }
 
-        /* MODAL */
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
         .modal-content { background-color: #fff; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; border-top: 5px solid var(--warna-utama); }
         .btn-close-modal { background-color: #e74c3c; margin-top: 10px; }
@@ -126,7 +116,6 @@
     <!-- APLIKASI UTAMA -->
     <div class="container" id="app-wrapper">
         
-        <!-- HEADER KECIL -->
         <div class="header-branding">
             <img src="depan_001.png" alt="Logo Alfacom Multi Solution" class="logo">
         </div>
@@ -137,24 +126,20 @@
 
         <div id="loading" style="display:none;">Memproses data... Mohon tunggu.</div>
 
-        <!-- HALAMAN 1: DASHBOARD PERFORMA -->
+        <!-- DASHBOARD -->
         <div id="page-dashboard" class="tab-page">
             <h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px;">📊 Leaderboard Respon Teknisi</h3>
             <p style="font-size: 12px; color: #7f8c8d; margin-top: -5px;">Kecepatan merespon tugas dari 'Menunggu' ke 'On Progress'.</p>
-            <div id="dashboard-content">
-                <!-- Card performa akan muncul di sini -->
-            </div>
+            <div id="dashboard-content"></div>
         </div>
 
-        <!-- HALAMAN 2: DAFTAR TIKET -->
+        <!-- TIKET -->
         <div id="page-tiket" class="tab-page">
             <h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px;">📋 Daftar Pekerjaan</h3>
-            <div id="ticket-container">
-                <!-- Kartu tiket akan muncul di sini -->
-            </div>
+            <div id="ticket-container"></div>
         </div>
 
-        <!-- HALAMAN 3: INPUT PEKERJAAN (HANYA ADMIN) -->
+        <!-- INPUT PEKERJAAN -->
         <div id="page-input" class="tab-page">
             <div class="form-card" id="form-container">
                 <h3 id="form-tiket-title">➕ Input Pekerjaan SLA Baru</h3>
@@ -177,9 +162,11 @@
                     <input type="text" id="input-klien" required placeholder="Contoh: Gedung SPPG Kadia">
                     <label>Jenis Pekerjaan</label>
                     <input type="text" id="input-pekerjaan" required placeholder="Contoh: Penambahan Kamera Tiandy">
-                    <label>Sales</label>
-                    <select id="input-sales" required>
-                        <option value="" disabled selected>-- Pilih Sales --</option>
+                    
+                    <!-- SALES DIBUAT OPSIONAL (REQUIRED DIHAPUS) -->
+                    <label>Sales (Opsional)</label>
+                    <select id="input-sales">
+                        <option value="" selected>-- Tidak Ada / Lewati --</option>
                         <option value="Abu Abid">Abu Abid</option>
                         <option value="Abu Abdillah">Abu Abdillah</option>
                         <option value="Muaz">Muaz</option>
@@ -192,33 +179,26 @@
                         <option value="Abu Zakariah">Abu Zakariah</option>
                         <option value="Ustadz Abu Anis">Ustadz Abu Anis</option>
                     </select>
+
                     <label>Ditugaskan Ke Teknisi (Bisa lebih dari satu)</label>
+                    <!-- DIV INI SEKARANG KOSONG, AKAN DIISI OTOMATIS DARI DATABASE USER -->
                     <div class="checkbox-group" id="teknisi-group">
-                        <label><input type="checkbox" value="Muaz"> Muaz</label>
-                        <label><input type="checkbox" value="Abu Abid"> Abu Abid</label>
-                        <label><input type="checkbox" value="Abu Abdillah"> Abu Abdillah</label>
-                        <label><input type="checkbox" value="Abu Caca"> Abu Caca</label>
-                        <label><input type="checkbox" value="Abu Habibah"> Abu Habibah</label>
-                        <label><input type="checkbox" value="Dafa"> Dafa</label>
-                        <label><input type="checkbox" value="Ardi"> Ardi</label>
-                        <label><input type="checkbox" value="Alif"> Alif</label> <!-- Ini yang diubah -->
-                        <label><input type="checkbox" value="Syawal"> Syawal</label>
-                        <label><input type="checkbox" value="Mubarak"> Mubarak</label>
-                        <label><input type="checkbox" value="Fauzan"> Fauzan</label>
+                        <p style="grid-column: 1 / span 2; margin:0; font-size:12px; color:#7f8c8d; font-style:italic;">Memuat data teknisi...</p>
                     </div>
+
                     <button type="submit" id="btn-submit-pekerjaan" class="btn-submit">Simpan Pekerjaan</button>
                     <button type="button" id="btn-batal-edit-tiket" class="btn-submit btn-batal" style="display:none;" onclick="batalEditTiket()">Batal Edit Pekerjaan</button>
                 </form>
             </div>
         </div>
 
-        <!-- HALAMAN 4: MANAJEMEN USER (HANYA ADMIN) -->
+        <!-- MANAJEMEN USER -->
         <div id="page-user" class="tab-page">
             <div class="form-card" id="user-management-container">
                 <h3 id="form-user-title">👥 Tambah User Baru</h3>
                 <form onsubmit="simpanUserBaru(event)">
-                    <label>Nama Asli (Sesuai di pilihan teknisi)</label>
-                    <input type="text" id="new-nama" placeholder="Misal: Syawal" required>
+                    <label>Nama Asli (Akan muncul di pilihan input tugas)</label>
+                    <input type="text" id="new-nama" placeholder="Misal: Teknisi Baru" required>
                     <label>Username (Untuk Login)</label>
                     <input type="text" id="new-username" placeholder="Tanpa spasi" required>
                     <label>Password</label>
@@ -243,7 +223,7 @@
             </div>
         </div>
 
-        <!-- BOTTOM NAV BAR MENU -->
+        <!-- BOTTOM NAV BAR -->
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')">
                 <div class="icon">📊</div>
@@ -274,17 +254,13 @@
         let modeEditUser = false;
         let modeEditTiket = false;
 
-        // FUNGSI NAVIGASI TAB MENU
         function switchTab(tabId) {
             document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none');
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-            
             document.getElementById('page-' + tabId).style.display = 'block';
             document.getElementById('nav-' + tabId).classList.add('active');
-
             if(tabId === 'input' && !modeEditTiket) batalEditTiket();
             if(tabId === 'user') batalEditUser();
-            
             window.scrollTo(0,0);
         }
 
@@ -352,6 +328,7 @@
                 document.getElementById('nav-user').style.display = 'none';
             }
 
+            renderCheckboxTeknisi(); // Memunculkan checklist teknisi
             renderDashboard();
             renderTickets();
             renderTabelUser();
@@ -367,7 +344,25 @@
             batalEditTiket();
         }
 
-        // --- RENDER DASHBOARD PERFORMA ---
+        // --- SISTEM DINAMIS CHECKBOX TEKNISI ---
+        function renderCheckboxTeknisi() {
+            const group = document.getElementById('teknisi-group');
+            group.innerHTML = ''; 
+            
+            // Ambil hanya user yang rolenya 'teknisi'
+            const listTeknisi = globalUsers.filter(u => u.Role === 'teknisi' && u['Nama Asli']);
+            
+            // Urutkan nama sesuai abjad
+            listTeknisi.sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
+            
+            listTeknisi.forEach(t => {
+                const label = document.createElement('label');
+                label.innerHTML = `<input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}`;
+                group.appendChild(label);
+            });
+        }
+
+        // --- RENDER DASHBOARD ---
         function renderDashboard() {
             const dashContainer = document.getElementById('dashboard-content');
             dashContainer.innerHTML = '';
@@ -428,7 +423,7 @@
             });
         }
 
-        // --- RENDER KARTU TIKET ---
+        // --- RENDER TIKET ---
         function renderTickets() {
             const container = document.getElementById('ticket-container');
             container.innerHTML = ''; 
@@ -528,7 +523,6 @@
             }
         }
 
-        // --- FUNGSI UPDATE STATUS TIKET OLEH TEKNISI ---
         function bukaModalUpdate(id, statusSaatIni, keteranganSaatIni) {
             document.getElementById('update-id').value = id;
             document.getElementById('update-title').innerText = 'Status: ' + id;
@@ -557,7 +551,6 @@
             btn.innerText = 'Simpan Update'; btn.disabled = false;
         }
 
-        // --- SISTEM EDIT, INPUT, DAN HAPUS PEKERJAAN (ADMIN) ---
         function aktifkanEditTiket(idTiket) {
             const t = globalTickets.find(x => x['ID Tiket'] === idTiket); if(!t) return;
             modeEditTiket = true;
@@ -612,7 +605,6 @@
             } catch (error) { alert('Error sistem.'); } btnSubmit.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btnSubmit.disabled = false;
         }
 
-        // --- MANAJEMEN USER ---
         function renderTabelUser() {
             const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = '';
             globalUsers.forEach(u => {
