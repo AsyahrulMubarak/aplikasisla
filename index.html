@@ -393,8 +393,11 @@
                     else if(statusRespon === 'GAGAL') { stats[key].resp_telat++; stats[key].resp_total++; }
                     else if(statusRespon === 'AMAN') { stats[key].resp_aman++; } 
                     
+                    // PERBAIKAN LOGIKA PENDING AGAR SELALU AMAN
                     if (statusTiket === 'Cancel') {
-                    } else if (statusTiket === 'Pending' || statusTiket === 'On Progress') {
+                    } else if (statusTiket === 'Pending') {
+                        stats[key].peng_aman++; // Pending selalu aman
+                    } else if (statusTiket === 'On Progress') {
                         if (statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; } 
                         else { stats[key].peng_aman++; }
                     } else if (statusTiket === 'Menunggu') {
@@ -455,7 +458,6 @@
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             
-            // ADMIN BISA MELIHAT SEMUA TIKET (TERMASUK YANG BELUM DITUGASKAN). TEKNISI HANYA MELIHAT TIKETNYA SENDIRI.
             let tiketDitampilkan = penggunaAktif.Role === 'admin' ? globalTickets : globalTickets.filter(t => (t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase()));
             
             let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }});
@@ -474,7 +476,6 @@
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status'));
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 
-                // JIKA BELUM DITUGASKAN, BEKUKAN TAMPILAN SLA
                 if (isUnassigned) {
                     sc = 'status-aman'; 
                     bc = 'badge-pending';
@@ -496,7 +497,6 @@
 
                 let btnHtml = '';
                 
-                // JIKA TIKET BELUM DITUGASKAN (TOMBOL KHUSUS ADMIN)
                 if (isUnassigned && penggunaAktif.Role === 'admin') {
                     btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#f39c12; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">👨‍🔧 Tugaskan Teknisi</button><div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button></div>`;
                 } else {
@@ -661,14 +661,10 @@
             try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if((await res.json()).status === 'sukses') await ambilSemuaData(); } catch(err) {} document.getElementById('loading').style.display = 'none';
         }
         
-        // MENGIZINKAN PENYIMPANAN TIKET TANPA TEKNISI
         async function submitData(e) {
             e.preventDefault(); const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
-            
             const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
-            
             const payload = { action: modeEditTiket ? 'editTicket' : 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, targetRespon: document.getElementById('input-sla-respon').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, teknisi: t };
-            
             try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if ((await res.json()).status === 'sukses') { alert(modeEditTiket ? 'Diupdate!' : 'Disimpan!'); batalEditTiket(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; switchTab('tiket'); } } catch (err) {} btn.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btn.disabled = false;
         }
 
