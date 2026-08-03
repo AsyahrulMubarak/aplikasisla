@@ -146,7 +146,7 @@
                     <textarea id="ba-deskripsi" rows="4" placeholder="Contoh: Pemasangan hari pertama (4 kamera) selesai..."></textarea>
                     
                     <label>Kritik & Saran Customer (Opsional)</label>
-                    <textarea id="ba-kritik" rows="2" placeholder="Masukan dari customer..."></textarea>
+                    <textarea id="ba-kritik" rows="2" placeholder="Masukkan dari customer..."></textarea>
 
                     <label>Nama Customer / PIC</label>
                     <input type="text" id="ba-nama-customer" placeholder="Nama orang yang bertanda tangan">
@@ -343,7 +343,11 @@
             renderCheckboxTeknisi(); renderDashboard(); renderTickets(); renderTabelUser(); switchTab('dashboard'); 
         }
 
-        function prosesLogout() { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; document.getElementById('app-wrapper').style.display = 'none'; document.getElementById('login-wrapper').style.display = 'flex'; document.getElementById('username').value = ''; document.getElementById('password').value = ''; }
+        function prosesLogout() { 
+    localStorage.removeItem('sesiLoginSLA'); 
+    penggunaAktif = null; 
+    window.location.reload(); // Perintah untuk refresh halaman otomatis agar 100% bersih
+}
 
         function renderCheckboxTeknisi() {
             const group = document.getElementById('teknisi-group'); group.innerHTML = ''; 
