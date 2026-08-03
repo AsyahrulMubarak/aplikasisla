@@ -117,6 +117,7 @@
         </div>
     </div>
 
+    <!-- MODAL UPDATE STATUS & BERITA ACARA -->
     <div id="modal-update" class="modal">
         <div class="modal-content">
             <h3 id="update-title" style="margin-top:0; color:var(--warna-utama); font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Update Status Tiket</h3>
@@ -163,6 +164,7 @@
         </div>
     </div>
 
+    <!-- APLIKASI UTAMA -->
     <div class="container" id="app-wrapper">
         <div class="header-branding">
             <img src="depan_001.png" alt="Logo Alfacom Multi Solution" class="logo">
@@ -654,9 +656,24 @@
         function batalEditTiket() {
             modeEditTiket = false; document.getElementById('form-tiket-title').innerText = '➕ Input Pekerjaan SLA Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#2ecc71'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }}); document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0');
         }
+        
+        // FUNGSI HAPUS TIKET DENGAN PENANGANAN ERROR YANG LEBIH BAIK
         async function hapusTiket(idTiket) {
-            if(!confirm(`Yakin MENGHAPUS pekerjaan ${idTiket}?`)) return; document.getElementById('loading').style.display = 'block';
-            try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if((await res.json()).status === 'sukses') await ambilSemuaData(); } catch(err) {} document.getElementById('loading').style.display = 'none';
+            if(!confirm(`Yakin MENGHAPUS pekerjaan ${idTiket} secara permanen?`)) return; 
+            document.getElementById('loading').style.display = 'block';
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); 
+                const hasil = await res.json();
+                
+                if (hasil.status === 'sukses') { 
+                    await ambilSemuaData(); 
+                } else {
+                    alert('Gagal menghapus tiket: ' + hasil.pesan);
+                }
+            } catch(err) {
+                alert('Terjadi kesalahan jaringan saat menghubungi server.');
+            } 
+            document.getElementById('loading').style.display = 'none';
         }
         
         async function submitData(e) {
