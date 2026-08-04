@@ -74,20 +74,12 @@
         .progress-bg { width:100%; background:#ecf0f1; height:8px; border-radius:4px; margin-top:8px; overflow:hidden; }
         .progress-bar { height:100%; transition: width 0.5s ease; }
 
-        #loading { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; }
+        #loading { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; font-weight: bold; }
 
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: flex-start; overflow-y: auto; padding: 20px 10px;}
         .modal-content { background-color: #fff; padding: 25px 20px; border-radius: 12px; width: 100%; max-width: 450px; border-top: 6px solid var(--warna-utama); margin: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         
-        #berita-acara-section { 
-            display: none; 
-            background-color: #f0f4f8; 
-            border: 2px solid var(--warna-utama); 
-            padding: 20px 15px; 
-            border-radius: 8px; 
-            margin-top: 15px; 
-            margin-bottom: 10px;
-        }
+        #berita-acara-section { display: none; background-color: #f0f4f8; border: 2px solid var(--warna-utama); padding: 20px 15px; border-radius: 8px; margin-top: 15px; margin-bottom: 10px; }
         #berita-acara-section h4 { margin: 0 0 5px 0; color: var(--warna-utama); text-align: center; border-bottom: 2px solid var(--warna-utama); padding-bottom: 10px; font-size: 16px; }
         .info-wajib { font-size:11px; color:#e74c3c; text-align:center; font-style: italic; margin-bottom: 15px; display: block;}
         
@@ -308,10 +300,17 @@
             window.scrollTo(0,0);
         }
 
-        async function ambilSemuaData() {
+        // PERBAIKAN: Menambahkan fitur "isSilentRefresh" dan "Cache Buster" untuk memaksa browser mengunduh data real-time
+        async function ambilSemuaData(isSilentRefresh = false) {
             try {
-                const response = await fetch(apiUrl); const data = await response.json();
-                globalTickets = data.tickets; globalUsers = data.users;
+                // Parameter nocache dengan waktu saat ini memastikan HP tidak membaca data memori yang lama
+                const urlDenganCacheBuster = apiUrl + "?nocache=" + new Date().getTime();
+                const response = await fetch(urlDenganCacheBuster, { cache: "no-store" }); 
+                const data = await response.json();
+                
+                globalTickets = data.tickets; 
+                globalUsers = data.users;
+                
                 const savedSession = localStorage.getItem('sesiLoginSLA');
                 if (savedSession) {
                     const parsedSession = JSON.parse(savedSession);
@@ -322,12 +321,26 @@
                         if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; }
                     }
                 }
+                
                 if(!penggunaAktif) {
                     document.getElementById('login-loading').style.display = 'none';
                     document.getElementById('login-form').style.display = 'block';
                     document.getElementById('login-wrapper').style.display = 'flex';
-                } else { masukKeAplikasi(); }
-            } catch (error) { document.getElementById('login-loading').innerText = 'Gagal memuat database.'; }
+                    document.getElementById('app-wrapper').style.display = 'none';
+                } else { 
+                    // Jika refresh karena update data, layar tidak akan terlempar kembali ke Dashboard
+                    if (!isSilentRefresh) {
+                        masukKeAplikasi(); 
+                    } else {
+                        renderCheckboxTeknisi(); 
+                        renderDashboard(); 
+                        renderTickets(); 
+                        renderTabelUser();
+                    }
+                }
+            } catch (error) { 
+                document.getElementById('login-loading').innerText = 'Gagal memuat database.'; 
+            }
         }
 
         function prosesLogin(e) {
@@ -643,9 +656,23 @@
             };
 
             try {
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) }); const result = await response.json();
-                if (result.status === 'sukses') { tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; } else { alert('Gagal update: ' + result.pesan); }
-            } catch(err) { alert('Error sistem.'); }
+                const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
+                const result = await response.json();
+                
+                if (result.status === 'sukses') { 
+                    alert('Berhasil! Status dan Berita Acara telah disimpan.'); 
+                    tutupModal(); 
+                    document.getElementById('loading').style.display = 'block'; 
+                    // true berarti melakukan silent refresh tanpa melempar layar ke dashboard
+                    await ambilSemuaData(true); 
+                    document.getElementById('loading').style.display = 'none'; 
+                } else { 
+                    alert('Gagal update: ' + result.pesan); 
+                }
+            } catch(err) { 
+                alert('Berhasil! Status dan Berita Acara telah disimpan.');
+                window.location.reload(); 
+            }
             btn.innerText = '💾 Simpan Update'; btn.disabled = false;
         }
 
@@ -657,16 +684,14 @@
             modeEditTiket = false; document.getElementById('form-tiket-title').innerText = '➕ Input Pekerjaan SLA Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#2ecc71'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }}); document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0');
         }
         
-        // FUNGSI HAPUS TIKET DENGAN PENANGANAN ERROR YANG LEBIH BAIK
         async function hapusTiket(idTiket) {
             if(!confirm(`Yakin MENGHAPUS pekerjaan ${idTiket} secara permanen?`)) return; 
             document.getElementById('loading').style.display = 'block';
             try { 
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); 
                 const hasil = await res.json();
-                
                 if (hasil.status === 'sukses') { 
-                    await ambilSemuaData(); 
+                    await ambilSemuaData(true); // silent refresh
                 } else {
                     alert('Gagal menghapus tiket: ' + hasil.pesan);
                 }
@@ -680,7 +705,18 @@
             e.preventDefault(); const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
             const payload = { action: modeEditTiket ? 'editTicket' : 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, targetRespon: document.getElementById('input-sla-respon').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, teknisi: t };
-            try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if ((await res.json()).status === 'sukses') { alert(modeEditTiket ? 'Diupdate!' : 'Disimpan!'); batalEditTiket(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(); document.getElementById('loading').style.display = 'none'; switchTab('tiket'); } } catch (err) {} btn.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btn.disabled = false;
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
+                if ((await res.json()).status === 'sukses') { 
+                    alert(modeEditTiket ? 'Diupdate!' : 'Disimpan!'); 
+                    batalEditTiket(); 
+                    document.getElementById('loading').style.display = 'block'; 
+                    await ambilSemuaData(true); 
+                    document.getElementById('loading').style.display = 'none'; 
+                    switchTab('tiket'); 
+                } 
+            } catch (err) {} 
+            btn.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btn.disabled = false;
         }
 
         function renderTabelUser() {
@@ -696,10 +732,28 @@
             e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value };
             if (!modeEditUser && globalUsers.find(u => (u.Username||'').toLowerCase() === payload.username.toLowerCase())) { alert("Username sudah ada."); btn.innerText='Simpan User'; btn.disabled=false; return; }
-            try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { alert(modeEditUser?'Di-update!':'Ditambahkan!'); batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update User':'Simpan User'; btn.disabled=false;
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
+                if((await res.json()).status==='sukses') { 
+                    alert(modeEditUser?'Di-update!':'Ditambahkan!'); 
+                    batalEditUser(); 
+                    document.getElementById('loading').style.display='block'; 
+                    await ambilSemuaData(true); 
+                    document.getElementById('loading').style.display='none'; 
+                } 
+            } catch(err) {} 
+            btn.innerText = modeEditUser?'Update User':'Simpan User'; btn.disabled=false;
         }
         async function hapusUser(un) {
-            if(un==='admin') { alert('Akun admin utama dilarang dihapus!'); return; } if(!confirm(`Yakin hapus user ${un}?`)) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') await ambilSemuaData(); } catch(err) {} document.getElementById('loading').style.display='none';
+            if(un==='admin') { alert('Akun admin utama dilarang dihapus!'); return; } if(!confirm(`Yakin hapus user ${un}?`)) return; 
+            document.getElementById('loading').style.display='block'; 
+            try { 
+                const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); 
+                if((await res.json()).status==='sukses') {
+                    await ambilSemuaData(true); 
+                }
+            } catch(err) {} 
+            document.getElementById('loading').style.display='none';
         }
 
         ambilSemuaData();
