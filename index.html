@@ -20,8 +20,10 @@
         
         .header-branding { text-align: center; margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; }
         .logo { max-width: 200px; height: auto; margin-bottom: 10px; }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         .top-bar span { font-weight: bold; font-size: 14px; color: var(--warna-utama); }
+        .top-bar-buttons { display: flex; gap: 5px; }
+        .btn-refresh { background-color: #f39c12; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
         .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
 
         .tab-page { display: none; animation: fadeIn 0.3s; }
@@ -168,7 +170,11 @@
         </div>
         <div class="top-bar">
             <span id="nama-login">User</span>
-            <button class="btn-logout" onclick="prosesLogout()">Keluar</button>
+            <div class="top-bar-buttons">
+                <!-- TOMBOL REFRESH MANUAL -->
+                <button onclick="refreshManual()" id="btn-refresh" class="btn-refresh">🔄 Refresh</button>
+                <button class="btn-logout" onclick="prosesLogout()">Keluar</button>
+            </div>
         </div>
 
         <div id="loading" style="display:none;">Memproses data... Mohon tunggu.</div>
@@ -257,6 +263,10 @@
         let penggunaAktif = null;
         let modeEditUser = false;
         let modeEditTiket = false;
+        
+        // VARIABEL UNTUK AUTO REFRESH
+        let intervalAutoRefresh;
+        let currentTabId = 'dashboard';
 
         const canvas = document.getElementById('signature-pad');
         const ctx = canvas.getContext('2d');
@@ -296,6 +306,7 @@
         }
 
         function switchTab(tabId) {
+            currentTabId = tabId;
             document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none');
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             document.getElementById('page-' + tabId).style.display = 'block';
@@ -305,9 +316,18 @@
             window.scrollTo(0,0);
         }
 
-        // SISTEM PANTANG MENYERAH (AUTO-RETRY)
+        // FUNGSI TOMBOL REFRESH MANUAL
+        async function refreshManual() {
+            const btn = document.getElementById('btn-refresh');
+            btn.innerText = '⏳ Memuat...';
+            btn.disabled = true;
+            await ambilSemuaData(true);
+            btn.innerText = '🔄 Refresh';
+            btn.disabled = false;
+        }
+
         async function ambilSemuaData(isSilentRefresh = false) {
-            let maxRetries = 3; // Aplikasi akan mencoba 3x jika server Google lambat
+            let maxRetries = 3; 
             let data = null;
             let berhasil = false;
 
@@ -317,22 +337,19 @@
                         document.getElementById('login-loading').innerHTML = i === 0 ? 'Menghubungkan ke database...' : `<span style="color:#e67e22;">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`;
                     }
                     
-                    // URL tanpa atribut cache agar browser tidak memblokir redirect Google
                     const urlDenganCacheBuster = apiUrl + "?nocache=" + new Date().getTime();
                     const response = await fetch(urlDenganCacheBuster, { redirect: "follow" }); 
                     data = await response.json();
                     
                     berhasil = true;
-                    break; // Jika sukses tembus, langsung keluar dari perulangan
+                    break; 
                 } catch (error) {
                     if (i === maxRetries - 1) {
-                        // Jika sudah 3x mencoba tetap gagal
                         if (!isSilentRefresh) {
                             document.getElementById('login-loading').innerHTML = '<span style="color:#e74c3c; font-weight:bold;">Gagal memuat database. Periksa sinyal internet Anda lalu <a href="#" onclick="window.location.reload();" style="color:#264a9f;">Refresh Halaman</a>.</span>';
                         }
-                        return; // Berhenti total
+                        return; 
                     }
-                    // Beri waktu napas untuk server Google selama 2 detik sebelum percobaan berikutnya
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
             }
@@ -362,10 +379,13 @@
                 if (!isSilentRefresh) {
                     masukKeAplikasi(); 
                 } else {
-                    renderCheckboxTeknisi(); 
                     renderDashboard(); 
                     renderTickets(); 
                     renderTabelUser();
+                    // Jangan re-render checkbox jika sedang di halaman input agar ketikan teknisi tidak hilang mendadak
+                    if (currentTabId !== 'input') {
+                        renderCheckboxTeknisi(); 
+                    }
                 }
             }
         }
@@ -382,9 +402,19 @@
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             if (penggunaAktif.Role === 'admin') { document.getElementById('nav-input').style.display = 'flex'; document.getElementById('nav-user').style.display = 'flex'; } else { document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; }
             renderCheckboxTeknisi(); renderDashboard(); renderTickets(); renderTabelUser(); switchTab('dashboard'); 
+            
+            // JALANKAN AUTO REFRESH SETIAP 30 DETIK (Mode Latar Belakang)
+            if (!intervalAutoRefresh) {
+                intervalAutoRefresh = setInterval(() => {
+                    // Mencegah auto-refresh bekerja jika modal Update Status sedang terbuka (agar ketikan aman)
+                    if (document.getElementById('modal-update').style.display === 'flex') return;
+                    ambilSemuaData(true);
+                }, 30000); 
+            }
         }
 
         function prosesLogout() { 
+            if(intervalAutoRefresh) clearInterval(intervalAutoRefresh);
             localStorage.removeItem('sesiLoginSLA'); 
             penggunaAktif = null; 
             window.location.reload(); 
