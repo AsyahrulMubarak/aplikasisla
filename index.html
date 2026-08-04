@@ -14,7 +14,7 @@
         .login-card img { max-width: 200px; margin-bottom: 20px; }
         .login-card input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn-login { background-color: var(--warna-utama); color: white; border: none; padding: 12px; width: 100%; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        #login-loading { font-style: italic; color: #7f8c8d; margin-bottom: 15px; }
+        #login-loading { font-style: italic; color: #7f8c8d; margin-bottom: 15px; font-size: 13px; }
 
         #app-wrapper { display: none; }
         
@@ -93,7 +93,6 @@
         .bat-text-wrap { white-space: pre-wrap; word-wrap: break-word; }
         .bat-img { max-height: 80px; margin-top: 5px; border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 2px; }
         
-        /* STYLE KHUSUS UNTUK KOTAK TRACKING WAKTU */
         .history-box { background-color: #fdfdfd; border: 1px dashed #bdc3c7; border-left: 4px solid #3498db; border-radius: 6px; padding: 10px; font-size: 12px; max-height: 130px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 15px; color: #2c3e50; line-height: 1.5;}
     </style>
 </head>
@@ -103,7 +102,7 @@
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
             <h3 style="color: var(--warna-utama); margin-top: 0;">Login Aplikasi SLA</h3>
-            <div id="login-loading">Menghubungkan ke server...</div>
+            <div id="login-loading">Memeriksa koneksi...</div>
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
                 <input type="password" id="password" placeholder="Password" required>
@@ -128,7 +127,6 @@
                     <option value="Selesai">Selesai (Closed)</option>
                 </select>
                 
-                <!-- BAGIAN TRACKING WAKTU (BARU) -->
                 <label>Riwayat Pemantauan (Tracking Waktu)</label>
                 <div id="tracking-history" class="history-box"></div>
                 
@@ -307,43 +305,68 @@
             window.scrollTo(0,0);
         }
 
+        // SISTEM PANTANG MENYERAH (AUTO-RETRY)
         async function ambilSemuaData(isSilentRefresh = false) {
-            try {
-                const urlDenganCacheBuster = apiUrl + "?nocache=" + new Date().getTime();
-                const response = await fetch(urlDenganCacheBuster, { cache: "no-store" }); 
-                const data = await response.json();
-                
-                globalTickets = data.tickets; 
-                globalUsers = data.users;
-                
-                const savedSession = localStorage.getItem('sesiLoginSLA');
-                if (savedSession) {
-                    const parsedSession = JSON.parse(savedSession);
-                    if ((new Date().getTime() - parsedSession.loginTime) > 86400000) {
-                        localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; alert('Sesi login telah berakhir. Silakan login kembali.');
-                    } else {
-                        const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password);
-                        if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; }
-                    }
-                }
-                
-                if(!penggunaAktif) {
-                    document.getElementById('login-loading').style.display = 'none';
-                    document.getElementById('login-form').style.display = 'block';
-                    document.getElementById('login-wrapper').style.display = 'flex';
-                    document.getElementById('app-wrapper').style.display = 'none';
-                } else { 
+            let maxRetries = 3; // Aplikasi akan mencoba 3x jika server Google lambat
+            let data = null;
+            let berhasil = false;
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
                     if (!isSilentRefresh) {
-                        masukKeAplikasi(); 
-                    } else {
-                        renderCheckboxTeknisi(); 
-                        renderDashboard(); 
-                        renderTickets(); 
-                        renderTabelUser();
+                        document.getElementById('login-loading').innerHTML = i === 0 ? 'Menghubungkan ke database...' : `<span style="color:#e67e22;">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`;
                     }
+                    
+                    // URL tanpa atribut cache agar browser tidak memblokir redirect Google
+                    const urlDenganCacheBuster = apiUrl + "?nocache=" + new Date().getTime();
+                    const response = await fetch(urlDenganCacheBuster, { redirect: "follow" }); 
+                    data = await response.json();
+                    
+                    berhasil = true;
+                    break; // Jika sukses tembus, langsung keluar dari perulangan
+                } catch (error) {
+                    if (i === maxRetries - 1) {
+                        // Jika sudah 3x mencoba tetap gagal
+                        if (!isSilentRefresh) {
+                            document.getElementById('login-loading').innerHTML = '<span style="color:#e74c3c; font-weight:bold;">Gagal memuat database. Periksa sinyal internet Anda lalu <a href="#" onclick="window.location.reload();" style="color:#264a9f;">Refresh Halaman</a>.</span>';
+                        }
+                        return; // Berhenti total
+                    }
+                    // Beri waktu napas untuk server Google selama 2 detik sebelum percobaan berikutnya
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                 }
-            } catch (error) { 
-                document.getElementById('login-loading').innerText = 'Gagal memuat database.'; 
+            }
+
+            if (!berhasil || !data) return;
+
+            globalTickets = data.tickets; 
+            globalUsers = data.users;
+            
+            const savedSession = localStorage.getItem('sesiLoginSLA');
+            if (savedSession) {
+                const parsedSession = JSON.parse(savedSession);
+                if ((new Date().getTime() - parsedSession.loginTime) > 86400000) {
+                    localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; alert('Sesi login telah berakhir. Silakan login kembali.');
+                } else {
+                    const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password);
+                    if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; }
+                }
+            }
+            
+            if(!penggunaAktif) {
+                document.getElementById('login-loading').style.display = 'none';
+                document.getElementById('login-form').style.display = 'block';
+                document.getElementById('login-wrapper').style.display = 'flex';
+                document.getElementById('app-wrapper').style.display = 'none';
+            } else { 
+                if (!isSilentRefresh) {
+                    masukKeAplikasi(); 
+                } else {
+                    renderCheckboxTeknisi(); 
+                    renderDashboard(); 
+                    renderTickets(); 
+                    renderTabelUser();
+                }
             }
         }
 
@@ -512,7 +535,6 @@
                     </div>`;
                 }
 
-                // MUNCULKAN RIWAYAT TRACKING WAKTU DI KARTU TIKET
                 let htmlTracking = '';
                 if (ticket['Keterangan']) {
                     htmlTracking = `<div style="margin-top:10px; background:#f0f4f8; padding:10px; border-radius:6px; border-left:4px solid var(--warna-utama); font-size:12px; max-height:100px; overflow-y:auto; white-space:pre-wrap; color:#333;"><strong>Riwayat Pekerjaan:</strong>\n${ticket['Keterangan']}</div>`;
@@ -565,10 +587,7 @@
             const statusElement = document.getElementById('update-status');
             statusElement.value = t['Status'] || 'Menunggu';
             
-            // TAMPILKAN LOG RIWAYAT TRACKING
             document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat pemantauan.';
-            
-            // KOSONGKAN AREA INPUT UNTUK CATATAN BARU
             document.getElementById('update-keterangan').value = ''; 
             
             document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || '';
@@ -585,11 +604,8 @@
                 document.getElementById('update-title').innerText = 'Revisi BAT: ' + id;
                 statusElement.disabled = true; 
                 statusElement.classList.add('input-terkunci');
-                
-                // SEMBUNYIKAN KOTAK INPUT CATATAN JIKA SUDAH SELESAI
                 document.getElementById('update-keterangan').style.display = 'none';
                 document.getElementById('label-keterangan').style.display = 'none';
-                
                 document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Revisi BAT';
                 document.getElementById('berita-acara-section').style.display = 'block';
                 document.getElementById('btn-toggle-bat').style.display = 'none';
@@ -598,11 +614,8 @@
                 document.getElementById('update-title').innerText = 'Status: ' + id;
                 statusElement.disabled = false; 
                 statusElement.classList.remove('input-terkunci');
-                
-                // MUNCULKAN KEMBALI KOTAK INPUT CATATAN
                 document.getElementById('update-keterangan').style.display = 'block';
                 document.getElementById('label-keterangan').style.display = 'block';
-                
                 document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Update';
                 if (t['Deskripsi Pekerjaan (BA)']) {
                     document.getElementById('berita-acara-section').style.display = 'block';
@@ -625,7 +638,6 @@
             const baNama = document.getElementById('ba-nama-customer');
             const infoText = document.getElementById('info-wajib-text');
 
-            // Hapus Required dari HTML, kita tangani di Javascript saat submit
             if (status === 'Pending' || status === 'Cancel') { 
                 ket.placeholder = "Wajib diisi! Masukkan alasan di sini..."; 
             } else { 
@@ -659,7 +671,6 @@
             const t = globalTickets.find(x => x['ID Tiket'] === idTiket);
             let ttdBase64 = "";
 
-            // VALIDASI WAJIB ISI UNTUK PENDING DAN CANCEL
             if ((status === 'Pending' || status === 'Cancel') && catatanBaru === "") {
                 alert("⚠️ Catatan Baru WAJIB diketik saat memilih status Pending atau Cancel!");
                 return;
@@ -676,11 +687,9 @@
 
             const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             
-            // SMART LOGGING: MENGGABUNGKAN WAKTU + STATUS + CATATAN LAMA & BARU
             let isStatusChanged = t['Status'] !== status;
             let keteranganFinal = t['Keterangan'] || '';
             
-            // Hanya tambahkan jejak (log) baru JIKA ada status berubah ATAU ada catatan yang diketik teknisi
             if ((catatanBaru !== "" || isStatusChanged) && t['Status'] !== 'Selesai') {
                 const now = new Date();
                 const timeStr = now.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
@@ -695,7 +704,7 @@
                 action: 'updateTicket', 
                 idTiket: idTiket, 
                 status: status, 
-                keterangan: keteranganFinal, // Kirim log rapi ke database
+                keterangan: keteranganFinal, 
                 baDeskripsi: document.getElementById('ba-deskripsi').value,
                 baNamaCustomer: document.getElementById('ba-nama-customer').value,
                 baKritik: document.getElementById('ba-kritik').value,
