@@ -92,6 +92,9 @@
         .bat-card p { margin: 0 0 5px 0; font-size: 12px; }
         .bat-text-wrap { white-space: pre-wrap; word-wrap: break-word; }
         .bat-img { max-height: 80px; margin-top: 5px; border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 2px; }
+        
+        /* STYLE KHUSUS UNTUK KOTAK TRACKING WAKTU */
+        .history-box { background-color: #fdfdfd; border: 1px dashed #bdc3c7; border-left: 4px solid #3498db; border-radius: 6px; padding: 10px; font-size: 12px; max-height: 130px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 15px; color: #2c3e50; line-height: 1.5;}
     </style>
 </head>
 <body>
@@ -125,8 +128,12 @@
                     <option value="Selesai">Selesai (Closed)</option>
                 </select>
                 
-                <label>Keterangan / Progres Teknisi</label>
-                <textarea id="update-keterangan" placeholder="Ketik laporan atau progres pekerjaan di sini..."></textarea>
+                <!-- BAGIAN TRACKING WAKTU (BARU) -->
+                <label>Riwayat Pemantauan (Tracking Waktu)</label>
+                <div id="tracking-history" class="history-box"></div>
+                
+                <label id="label-keterangan">Tambah Catatan / Progres Baru</label>
+                <textarea id="update-keterangan" placeholder="Ketik update kegiatan di sini... (Opsional jika hanya ubah status)"></textarea>
                 
                 <button type="button" id="btn-toggle-bat" class="btn-toggle-bat" onclick="toggleBAT()">📝 Buka / Cicil Form Berita Acara</button>
 
@@ -300,10 +307,8 @@
             window.scrollTo(0,0);
         }
 
-        // PERBAIKAN: Menambahkan fitur "isSilentRefresh" dan "Cache Buster" untuk memaksa browser mengunduh data real-time
         async function ambilSemuaData(isSilentRefresh = false) {
             try {
-                // Parameter nocache dengan waktu saat ini memastikan HP tidak membaca data memori yang lama
                 const urlDenganCacheBuster = apiUrl + "?nocache=" + new Date().getTime();
                 const response = await fetch(urlDenganCacheBuster, { cache: "no-store" }); 
                 const data = await response.json();
@@ -328,7 +333,6 @@
                     document.getElementById('login-wrapper').style.display = 'flex';
                     document.getElementById('app-wrapper').style.display = 'none';
                 } else { 
-                    // Jika refresh karena update data, layar tidak akan terlempar kembali ke Dashboard
                     if (!isSilentRefresh) {
                         masukKeAplikasi(); 
                     } else {
@@ -508,6 +512,12 @@
                     </div>`;
                 }
 
+                // MUNCULKAN RIWAYAT TRACKING WAKTU DI KARTU TIKET
+                let htmlTracking = '';
+                if (ticket['Keterangan']) {
+                    htmlTracking = `<div style="margin-top:10px; background:#f0f4f8; padding:10px; border-radius:6px; border-left:4px solid var(--warna-utama); font-size:12px; max-height:100px; overflow-y:auto; white-space:pre-wrap; color:#333;"><strong>Riwayat Pekerjaan:</strong>\n${ticket['Keterangan']}</div>`;
+                }
+
                 let btnHtml = '';
                 
                 if (isUnassigned && penggunaAktif.Role === 'admin') {
@@ -528,7 +538,7 @@
                     `<p style="border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:5px;"><strong>⏰ SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span><br><span style="color:#7f8c8d;">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</span></p><p><strong>⏰ SLA Pengerjaan:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p><p><strong>✅ Waktu Selesai:</strong> ${ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>'}</p>`
                     }
                 </div>
-                ${ticket['Keterangan'] ? `<p style="margin-top:8px;"><strong>Keterangan:</strong> <span style="color:#e74c3c;">${ticket['Keterangan']}</span></p>` : ''}${htmlBA}${btnHtml}</div>`;
+                ${htmlTracking}${htmlBA}${btnHtml}</div>`;
             });
             
             if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:#7f8c8d; margin-top:40px;">Tidak ada pekerjaan untuk Anda.</p>';
@@ -555,7 +565,12 @@
             const statusElement = document.getElementById('update-status');
             statusElement.value = t['Status'] || 'Menunggu';
             
-            document.getElementById('update-keterangan').value = t['Keterangan'] || '';
+            // TAMPILKAN LOG RIWAYAT TRACKING
+            document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat pemantauan.';
+            
+            // KOSONGKAN AREA INPUT UNTUK CATATAN BARU
+            document.getElementById('update-keterangan').value = ''; 
+            
             document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || '';
             document.getElementById('ba-nama-customer').value = t['Nama Customer'] || '';
             document.getElementById('ba-kritik').value = t['Kritik & Saran'] || '';
@@ -570,8 +585,11 @@
                 document.getElementById('update-title').innerText = 'Revisi BAT: ' + id;
                 statusElement.disabled = true; 
                 statusElement.classList.add('input-terkunci');
-                document.getElementById('update-keterangan').readOnly = true;
-                document.getElementById('update-keterangan').classList.add('input-terkunci');
+                
+                // SEMBUNYIKAN KOTAK INPUT CATATAN JIKA SUDAH SELESAI
+                document.getElementById('update-keterangan').style.display = 'none';
+                document.getElementById('label-keterangan').style.display = 'none';
+                
                 document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Revisi BAT';
                 document.getElementById('berita-acara-section').style.display = 'block';
                 document.getElementById('btn-toggle-bat').style.display = 'none';
@@ -580,8 +598,11 @@
                 document.getElementById('update-title').innerText = 'Status: ' + id;
                 statusElement.disabled = false; 
                 statusElement.classList.remove('input-terkunci');
-                document.getElementById('update-keterangan').readOnly = false;
-                document.getElementById('update-keterangan').classList.remove('input-terkunci');
+                
+                // MUNCULKAN KEMBALI KOTAK INPUT CATATAN
+                document.getElementById('update-keterangan').style.display = 'block';
+                document.getElementById('label-keterangan').style.display = 'block';
+                
                 document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Update';
                 if (t['Deskripsi Pekerjaan (BA)']) {
                     document.getElementById('berita-acara-section').style.display = 'block';
@@ -604,8 +625,12 @@
             const baNama = document.getElementById('ba-nama-customer');
             const infoText = document.getElementById('info-wajib-text');
 
-            if (status === 'Pending' || status === 'Cancel') { ket.required = true; ket.placeholder = "Wajib diisi! Masukkan alasan..."; } 
-            else { ket.required = false; ket.placeholder = "Masukkan progres..."; }
+            // Hapus Required dari HTML, kita tangani di Javascript saat submit
+            if (status === 'Pending' || status === 'Cancel') { 
+                ket.placeholder = "Wajib diisi! Masukkan alasan di sini..."; 
+            } else { 
+                ket.placeholder = "Ketik update kegiatan di sini... (Opsional jika hanya ubah status)"; 
+            }
 
             if (status === 'Selesai') {
                 btnToggle.style.display = 'none';
@@ -629,9 +654,16 @@
         async function submitUpdate(e) {
             e.preventDefault();
             const status = document.getElementById('update-status').value;
+            const catatanBaru = document.getElementById('update-keterangan').value.trim();
             const idTiket = document.getElementById('update-id').value;
             const t = globalTickets.find(x => x['ID Tiket'] === idTiket);
             let ttdBase64 = "";
+
+            // VALIDASI WAJIB ISI UNTUK PENDING DAN CANCEL
+            if ((status === 'Pending' || status === 'Cancel') && catatanBaru === "") {
+                alert("⚠️ Catatan Baru WAJIB diketik saat memilih status Pending atau Cancel!");
+                return;
+            }
 
             if (status === 'Selesai') {
                 const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10;
@@ -644,11 +676,26 @@
 
             const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             
+            // SMART LOGGING: MENGGABUNGKAN WAKTU + STATUS + CATATAN LAMA & BARU
+            let isStatusChanged = t['Status'] !== status;
+            let keteranganFinal = t['Keterangan'] || '';
+            
+            // Hanya tambahkan jejak (log) baru JIKA ada status berubah ATAU ada catatan yang diketik teknisi
+            if ((catatanBaru !== "" || isStatusChanged) && t['Status'] !== 'Selesai') {
+                const now = new Date();
+                const timeStr = now.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+                
+                let teksLogBaru = `[${timeStr}] ➔ ${status}`;
+                if (catatanBaru !== "") teksLogBaru += `\n📝 ${catatanBaru}`;
+                
+                keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru;
+            }
+
             const payload = { 
                 action: 'updateTicket', 
                 idTiket: idTiket, 
                 status: status, 
-                keterangan: document.getElementById('update-keterangan').value,
+                keterangan: keteranganFinal, // Kirim log rapi ke database
                 baDeskripsi: document.getElementById('ba-deskripsi').value,
                 baNamaCustomer: document.getElementById('ba-nama-customer').value,
                 baKritik: document.getElementById('ba-kritik').value,
@@ -663,7 +710,6 @@
                     alert('Berhasil! Status dan Berita Acara telah disimpan.'); 
                     tutupModal(); 
                     document.getElementById('loading').style.display = 'block'; 
-                    // true berarti melakukan silent refresh tanpa melempar layar ke dashboard
                     await ambilSemuaData(true); 
                     document.getElementById('loading').style.display = 'none'; 
                 } else { 
@@ -691,7 +737,7 @@
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); 
                 const hasil = await res.json();
                 if (hasil.status === 'sukses') { 
-                    await ambilSemuaData(true); // silent refresh
+                    await ambilSemuaData(true); 
                 } else {
                     alert('Gagal menghapus tiket: ' + hasil.pesan);
                 }
