@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard SLA - Alfacom</title>
+    <title>Sistem Manajemen SLA</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
@@ -49,6 +49,11 @@
         .form-card { background: var(--surface); padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border); }
         .form-card h3, .section-title { margin-top: 0; color: var(--text-main); font-size: 18px; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
         
+        /* SEGMENT TABS UNTUK ADMIN */
+        .segment-control { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 20px; }
+        .segment-btn { flex: 1; padding: 8px 0; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
+        .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
         label { display: block; margin: 15px 0 6px; font-weight: 600; font-size: 13px; color: var(--text-main); }
         input[type="text"], input[type="number"], input[type="email"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #f8fafc; transition: 0.2s; }
         input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); background-color: var(--surface); box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1); }
@@ -78,6 +83,7 @@
         .badge-pending { background: #fef3c7; color: #92400e; } 
         .badge-cancel { background: #fee2e2; color: #991b1b; } 
         .badge-aman { background: #f3f4f6; color: #475569; }
+        .badge-sales { background: #f3e8ff; color: #6b21a8; }
 
         .waktu-box { background: #f8fafc; border: 1px dashed var(--border); padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 12px; }
         .history-box { background: #f8fafc; border: 1px solid var(--border); border-left: 3px solid #cbd5e1; border-radius: 8px; padding: 12px; font-size: 12px; max-height: 120px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 15px; color: #4a5568; }
@@ -109,7 +115,7 @@
         th { background: #f8fafc; padding: 10px; border-bottom: 2px solid var(--border); color: var(--text-muted); text-align: left; }
         td { padding: 10px; border-bottom: 1px solid var(--border); }
         
-        /* ===== CSS BARU UNTUK GRAFIK DONAT TEKNISI ===== */
+        /* GRAFIK DONAT CSS MURNI */
         .charts-container { display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;}
         .chart-box { flex: 1; min-width: 130px; background: #f8fafc; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); }
         .chart-title { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 12px; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -127,7 +133,7 @@
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
-            <h3 style="margin-top:0; color:var(--text-main);">Sistem Manajemen SLA</h3>
+            <h3 style="margin-top:0; color:var(--text-main);">Manajemen SLA Alfacom</h3>
             <div id="login-loading">Memeriksa koneksi aman...</div>
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
@@ -140,17 +146,17 @@
     <!-- MODAL PENGAJUAN BANDING -->
     <div id="modal-banding" class="modal">
         <div class="modal-content" style="border-top-color: #8e44ad;">
-            <h3 class="modal-title" style="color:var(--purple);">🙋 Ajukan Klaim Pekerjaan</h3>
-            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Unggah hingga 3 bukti foto dan tambahkan keterangan untuk diverifikasi Admin.</p>
+            <h3 class="modal-title" style="color:var(--purple);">📌 Ajukan Klaim Penjualan</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Unggah hingga 3 foto bukti dan tambahkan keterangan untuk verifikasi Admin.</p>
             <form onsubmit="kirimBanding(event)">
                 <input type="hidden" id="banding-id">
                 <label>Bukti Foto (Maks 3 File)</label>
                 <input type="file" id="banding-bukti" accept="image/*" multiple max="3" required style="font-size: 12px;">
                 <label>Keterangan Tambahan (Opsional)</label>
-                <textarea id="banding-keterangan" placeholder="Misal: 'Ini pesanan dari Pak Budi kemarin via WA...'"></textarea>
+                <textarea id="banding-keterangan" placeholder="Ketik keterangan..."></textarea>
                 
                 <p id="banding-status" style="font-size:11px; color:var(--primary); font-weight:600; display:none; margin-top:10px;">Mengompres foto, mohon tunggu...</p>
-                <button type="submit" id="btn-submit-banding" class="btn-solid-primary" style="background:var(--purple);">🚀 Kirim Pengajuan Bukti</button>
+                <button type="submit" id="btn-submit-banding" class="btn-solid-primary" style="background:var(--purple);">Kirim Pengajuan Bukti</button>
                 <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-banding').style.display='none'">Batal</button>
             </form>
         </div>
@@ -177,7 +183,7 @@
                 <label id="label-keterangan">Log/Catatan Baru</label>
                 <textarea id="update-keterangan" placeholder="Ketik update kegiatan di sini..."></textarea>
                 
-                <button type="button" id="btn-toggle-bat" class="btn-outline-cancel" style="margin-top:15px; border-color:var(--primary); color:var(--primary);" onclick="toggleBAT()">📝 Buka / Cicil Berita Acara</button>
+                <button type="button" id="btn-toggle-bat" class="btn-outline-cancel" style="margin-top:15px; border-color:var(--primary); color:var(--primary);" onclick="toggleBAT()">Buka / Cicil Berita Acara</button>
 
                 <div id="berita-acara-section">
                     <h4 style="margin: 0 0 5px 0; color: var(--text-main); font-size: 14px; text-align:center;">BERITA ACARA TEKNISI</h4>
@@ -190,10 +196,10 @@
                     <input type="text" id="ba-nama-customer" placeholder="Nama penanda tangan">
                     <label>Tanda Tangan <span id="status-ttd" style="color:var(--success); font-weight:normal; font-size:11px;"></span></label>
                     <div class="signature-wrapper"><canvas id="signature-pad"></canvas></div>
-                    <button type="button" class="btn-outline-cancel" style="margin-top:0;" onclick="clearSignature()">🗑️ Bersihkan Kanvas</button>
+                    <button type="button" class="btn-outline-cancel" style="margin-top:0;" onclick="clearSignature()">Bersihkan Kanvas</button>
                 </div>
 
-                <button type="submit" id="btn-submit-update" class="btn-solid-primary">💾 Simpan Data</button>
+                <button type="submit" id="btn-submit-update" class="btn-solid-primary">Simpan Data</button>
                 <button type="button" class="btn-outline-cancel" onclick="tutupModal()">Tutup</button>
             </form>
         </div>
@@ -205,23 +211,40 @@
         <div class="top-bar">
             <span id="nama-login">User</span>
             <div class="top-bar-buttons">
-                <button onclick="refreshManual()" id="btn-refresh" class="btn-outline-warning">🔄 Sinkron</button>
+                <button onclick="refreshManual()" id="btn-refresh" class="btn-outline-warning">Sinkron Data</button>
                 <button class="btn-outline-danger" onclick="prosesLogout()">Keluar</button>
             </div>
         </div>
 
         <div id="loading" style="display:none;">Sinkronisasi data sistem...</div>
-        <div id="page-dashboard" class="tab-page"><div id="dashboard-content"></div></div>
+        
+        <!-- HALAMAN DASBOR -->
+        <div id="page-dashboard" class="tab-page">
+            <div id="dash-segment" class="segment-control" style="display:none;">
+                <button class="segment-btn active" id="btn-dash-sales" onclick="switchDashTab('sales')">Pencapaian Sales</button>
+                <button class="segment-btn" id="btn-dash-tek" onclick="switchDashTab('tek')">Performa Teknisi</button>
+            </div>
+            <div id="dash-sales-content"></div>
+            <div id="dash-tek-content" style="display:none;"></div>
+        </div>
 
+        <!-- HALAMAN PEKERJAAN -->
         <div id="page-tiket" class="tab-page">
-            <h3 class="section-title">📋 Daftar Pekerjaan SLA</h3>
+            <h3 class="section-title">Daftar Penugasan & Penjualan</h3>
             <div id="ticket-container"></div>
         </div>
 
+        <!-- HALAMAN INPUT DATA (ADMIN) -->
         <div id="page-input" class="tab-page">
-            <div class="form-card" id="form-container">
-                <h3 id="form-tiket-title" class="section-title">➕ Form Tiket Baru</h3>
-                <form id="form-sla" onsubmit="submitData(event)">
+            <div class="segment-control" id="input-segment">
+                <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
+                <button class="segment-btn" id="btn-input-sls" onclick="switchInputTab('sls')">Penjualan Langsung</button>
+            </div>
+
+            <!-- FORM TIKET SLA -->
+            <div class="form-card" id="form-input-sla-container">
+                <h3 id="form-tiket-title" class="section-title">Form Tiket Baru</h3>
+                <form id="form-sla" onsubmit="submitData(event, 'sla')">
                     <label>ID Tiket</label><input type="text" id="input-id" class="input-terkunci" readonly>
                     <div style="display: flex; gap:15px;">
                         <div style="flex: 1;"><label>SLA Respon (Jam)</label><input type="number" id="input-sla-respon" step="0.1" required></div>
@@ -234,8 +257,8 @@
                     <select id="input-sales" onchange="togglePenjualanInput()"></select>
                     
                     <div id="div-nilai-penjualan" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
-                        <label style="color:#166534; margin-top:0;">💰 Nilai Penjualan / Omzet (Rp)</label>
-                        <input type="number" id="input-nilai-penjualan" placeholder="Contoh: 1500000 (Hanya angka, tanpa titik)" style="border-color:#86efac; background:#fff;">
+                        <label style="color:#166534; margin-top:0;">Nilai Penjualan / Omzet (Rp)</label>
+                        <input type="number" id="input-nilai-penjualan" placeholder="Contoh: 1500000" style="border-color:#86efac; background:#fff;">
                         <p style="font-size:11px; color:#15803d; margin:5px 0 0 0;">Nilai ini akan dihitung ke performa Target Sales jika tiket Selesai.</p>
                     </div>
 
@@ -243,6 +266,21 @@
                     <div class="checkbox-group" id="teknisi-group"></div>
                     <button type="submit" id="btn-submit-pekerjaan" class="btn-solid-primary">Simpan Tiket</button>
                     <button type="button" id="btn-batal-edit-tiket" class="btn-outline-cancel" style="display:none;" onclick="batalEditTiket()">Batal Mode Edit</button>
+                </form>
+            </div>
+
+            <!-- FORM PENJUALAN LANGSUNG -->
+            <div class="form-card" id="form-input-sls-container" style="display:none; border-top-color:var(--purple);">
+                <h3 class="section-title" style="color:var(--purple);">Form Penjualan Langsung</h3>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Gunakan form ini untuk mencatat penjualan dari Sales yang tidak memerlukan teknisi (misal: Jual putus Starlink). Data akan langsung masuk ke Omzet Sales.</p>
+                <form id="form-sls" onsubmit="submitData(event, 'sls')">
+                    <label>ID Penjualan</label><input type="text" id="input-id-sls" class="input-terkunci" readonly>
+                    <label>Nama Pembeli</label><input type="text" id="input-pembeli-sls" required>
+                    <label>Barang / Jasa Terjual</label><input type="text" id="input-barang-sls" placeholder="Contoh: Perangkat Starlink Mini" required>
+                    <label>Sales Bertugas</label><select id="input-sales-sls" required></select>
+                    <label style="color:var(--purple);">Nominal Omzet (Rp)</label>
+                    <input type="number" id="input-nilai-sls" placeholder="Contoh: 7500000" required style="border-color:#d8b4fe;">
+                    <button type="submit" id="btn-submit-sls" class="btn-solid-primary" style="background:var(--purple);">Simpan Penjualan</button>
                 </form>
             </div>
         </div>
@@ -261,8 +299,8 @@
                     <select id="new-role" required onchange="toggleTargetSales()"><option value="" disabled selected>-- Pilih --</option><option value="admin">Admin</option><option value="teknisi">Teknisi</option><option value="sales">Sales</option></select>
                     
                     <div id="div-target-sales" style="display:none; background:#faf5ff; padding:15px; border-radius:8px; border:1px solid #e9d5ff; margin-top:15px;">
-                        <label style="color:#6b21a8; margin-top:0;">🎯 Target Penjualan Bulanan (Rp)</label>
-                        <input type="number" id="new-target-sales" placeholder="Contoh: 50000000 (Hanya angka)" style="border-color:#d8b4fe; background:#fff;">
+                        <label style="color:#6b21a8; margin-top:0;">Target Penjualan Bulanan (Rp)</label>
+                        <input type="number" id="new-target-sales" placeholder="Contoh: 50000000" style="border-color:#d8b4fe; background:#fff;">
                     </div>
 
                     <button type="submit" id="btn-tambah-user" class="btn-solid-primary">Simpan Profil</button>
@@ -280,9 +318,9 @@
         </div>
 
         <div class="bottom-nav">
-            <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dashboard</div></div>
+            <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
             <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')"><div class="icon">📋</div><div class="text">Pekerjaan</div></div>
-            <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Buat Tiket</div></div>
+            <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Input Data</div></div>
             <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:none;"><div class="icon">⚙️</div><div class="text">Pengaturan</div></div>
         </div>
     </div>
@@ -313,7 +351,21 @@
             if(tabId === 'input' && !modeEditTiket) batalEditTiket(); if(tabId === 'user') batalEditUser(); window.scrollTo(0,0);
         }
 
-        async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = '🔄 Sinkron'; btn.disabled = false; }
+        // TABS INSIDE DASHBOARD & INPUT
+        function switchDashTab(type) {
+            document.getElementById('btn-dash-sales').classList.remove('active'); document.getElementById('btn-dash-tek').classList.remove('active');
+            document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'none';
+            if(type === 'sales') { document.getElementById('btn-dash-sales').classList.add('active'); document.getElementById('dash-sales-content').style.display = 'block'; }
+            else { document.getElementById('btn-dash-tek').classList.add('active'); document.getElementById('dash-tek-content').style.display = 'block'; }
+        }
+        function switchInputTab(type) {
+            document.getElementById('btn-input-sla').classList.remove('active'); document.getElementById('btn-input-sls').classList.remove('active');
+            document.getElementById('form-input-sla-container').style.display = 'none'; document.getElementById('form-input-sls-container').style.display = 'none';
+            if(type === 'sla') { document.getElementById('btn-input-sla').classList.add('active'); document.getElementById('form-input-sla-container').style.display = 'block'; }
+            else { document.getElementById('btn-input-sls').classList.add('active'); document.getElementById('form-input-sls-container').style.display = 'block'; }
+        }
+
+        async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
 
         async function ambilSemuaData(isSilentRefresh = false) {
             let maxRetries = 3; let data = null; let berhasil = false;
@@ -336,7 +388,7 @@
                 else { const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } }
             }
             if(!penggunaAktif) { document.getElementById('login-loading').style.display = 'none'; document.getElementById('login-form').style.display = 'block'; document.getElementById('login-wrapper').style.display = 'flex'; document.getElementById('app-wrapper').style.display = 'none'; } 
-            else { if (!isSilentRefresh) { masukKeAplikasi(); } else { renderDashboard(); renderTickets(); renderTabelUser(); if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); } } }
+            else { if (!isSilentRefresh) { masukKeAplikasi(); } else { renderDashboard(); renderTickets(); renderTabelUser(); if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } } }
         }
 
         function prosesLogin(e) {
@@ -348,8 +400,24 @@
         function masukKeAplikasi() {
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
-            if (penggunaAktif.Role === 'admin') { document.getElementById('nav-input').style.display = 'flex'; document.getElementById('nav-user').style.display = 'flex'; } else { document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; }
-            renderDynamicInputs(); togglePenjualanInput(); renderDashboard(); renderTickets(); renderTabelUser(); switchTab('dashboard'); 
+            
+            // PENGATURAN MENU BERDASARKAN ROLE (PEMISAHAN KHUSUS)
+            if (penggunaAktif.Role === 'admin') { 
+                document.getElementById('nav-input').style.display = 'flex'; document.getElementById('nav-user').style.display = 'flex'; 
+                document.getElementById('dash-segment').style.display = 'flex'; // Admin bisa pilih Dash Sales / Teknisi
+                switchDashTab('sales');
+            } else if (penggunaAktif.Role === 'sales') { 
+                document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; 
+                document.getElementById('dash-segment').style.display = 'none'; 
+                document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
+            } else { 
+                // Teknisi
+                document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; 
+                document.getElementById('dash-segment').style.display = 'none'; 
+                document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'block';
+            }
+
+            renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderTabelUser(); switchTab('dashboard'); 
             if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
@@ -360,27 +428,45 @@
         function renderDynamicInputs() {
             const group = document.getElementById('teknisi-group'); group.innerHTML = ''; 
             globalUsers.filter(u => u.Role === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
+            
             const salesSelect = document.getElementById('input-sales'); const currentSalesVal = salesSelect.value;
+            const salesSelectSls = document.getElementById('input-sales-sls'); const currentSalesSlsVal = salesSelectSls.value;
+            
             salesSelect.innerHTML = '<option value="" selected>-- Tanpa Sales --</option>';
+            salesSelectSls.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
+            
             let salesList = globalUsers.filter(u => u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
-            salesList.forEach(s => { salesSelect.innerHTML += `<option value="${s}">${s}</option>`; });
+            salesList.forEach(s => { 
+                salesSelect.innerHTML += `<option value="${s}">${s}</option>`; 
+                salesSelectSls.innerHTML += `<option value="${s}">${s}</option>`;
+            });
             if (currentSalesVal && !salesList.includes(currentSalesVal)) { salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Nonaktif)</option>`; }
             salesSelect.value = currentSalesVal;
+            salesSelectSls.value = currentSalesSlsVal;
         }
 
-        // ========================================================
-        // PERBAIKAN DASHBOARD: GRAFIK VISUAL (DONUT PURE CSS)
-        // ========================================================
+        function setAutoIDs() {
+            let maxTkt = 0; let maxSls = 0;
+            globalTickets.forEach(t => { 
+                if(t['ID Tiket']) {
+                    if (t['ID Tiket'].startsWith('TKT-')) { let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxTkt) maxTkt = num; }
+                    if (t['ID Tiket'].startsWith('SLS-')) { let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxSls) maxSls = num; }
+                }
+            });
+            if (!modeEditTiket) { 
+                document.getElementById('input-id').value = 'TKT-' + String(maxTkt + 1).padStart(3, '0'); 
+                document.getElementById('input-id-sls').value = 'SLS-' + String(maxSls + 1).padStart(3, '0'); 
+            }
+        }
+
         function renderDashboard() {
-            const dashContainer = document.getElementById('dashboard-content'); dashContainer.innerHTML = '';
-            let statsTeknisi = {}; let statsSales = {};
+            const dashTekContainer = document.getElementById('dash-tek-content'); dashTekContainer.innerHTML = '';
+            const dashSalesContainer = document.getElementById('dash-sales-content'); dashSalesContainer.innerHTML = '';
             
+            let statsTeknisi = {}; let statsSales = {};
             globalUsers.forEach(u => { 
                 if (u.Role === 'teknisi' && u['Nama Asli']) { let namaAsli = u['Nama Asli']; if (namaAsli.toLowerCase() === 'syawal') namaAsli = 'Muhammad Syawal'; if (!statsTeknisi[namaAsli]) { statsTeknisi[namaAsli] = { nama: namaAsli, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 }; } }
-                if (u.Role === 'sales' && u['Nama Asli']) { 
-                    let namaSales = u['Nama Asli']; 
-                    if (!statsSales[namaSales]) { statsSales[namaSales] = { nama: namaSales, target: parseInt(u['Target Sales (Rp)']) || 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; } 
-                }
+                if (u.Role === 'sales' && u['Nama Asli']) { let namaSales = u['Nama Asli']; if (!statsSales[namaSales]) { statsSales[namaSales] = { nama: namaSales, target: parseInt(u['Target Sales (Rp)']) || 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; } }
             });
 
             globalTickets.forEach(t => {
@@ -388,7 +474,7 @@
                 const statusRespon = t['Status SLA Respon']; const statusPengerjaan = t['Status SLA']; const statusTiket = t['Status'] || 'Menunggu';
                 
                 (t['Teknisi'] || '').split(',').forEach(nama => {
-                    let n = nama.trim(); if(!n || n === "Belum Ditugaskan") return; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
+                    let n = nama.trim(); if(!n || n === "Belum Ditugaskan" || n === "-") return; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
                     let key = Object.keys(statsTeknisi).find(k => k.toLowerCase() === n.toLowerCase());
                     if(!key) { statsTeknisi[n] = { nama: n, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 }; key = n; }
                     if(statusRespon === 'TERPENUHI') { statsTeknisi[key].resp_tepat++; statsTeknisi[key].resp_total++; } else if(statusRespon === 'GAGAL') { statsTeknisi[key].resp_telat++; statsTeknisi[key].resp_total++; } else if(statusRespon === 'AMAN') { statsTeknisi[key].resp_aman++; } 
@@ -397,171 +483,97 @@
 
                 let sName = t['Sales'] ? t['Sales'].trim() : ''; 
                 let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
-                if (sName !== "" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
+                if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
                 if (sKey) { 
                     statsSales[sKey].total++; 
                     if (statusTiket === 'Selesai') { 
                         statsSales[sKey].revenue += parseInt(t['Nilai Penjualan (Rp)']) || 0; 
                         statsSales[sKey].selesai++;
-                    } else if (statusTiket === 'Cancel') {
-                        statsSales[sKey].batal++;
-                    } else {
-                        statsSales[sKey].progress++;
-                    }
+                    } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; }
                 }
             });
             
-            // ================== RENDER TEKNISI (GRAFIK CSS PURE) ==================
-            let htmlTeknisi = '<h3 class="section-title" style="margin-top:10px;">👨‍🔧 Papan Performa Teknisi</h3>';
+            // RENDER TEKNISI
+            let htmlTeknisi = '<h3 class="section-title">Papan Performa Teknisi</h3>';
             let arrTeknisi = Object.values(statsTeknisi).sort((a, b) => { let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0; return rateB !== rateA ? rateB - rateA : (b.resp_total + b.peng_total) - (a.resp_total + a.peng_total); });
             if (arrTeknisi.length === 0) htmlTeknisi += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
-            
             arrTeknisi.forEach(s => { 
-                // Kalkulasi Sudut Donat Respon
-                let sumR = s.resp_tepat + s.resp_telat + s.resp_aman;
-                let pr1 = sumR === 0 ? 0 : (s.resp_tepat / sumR) * 100;
-                let pr2 = sumR === 0 ? 0 : pr1 + (s.resp_telat / sumR) * 100;
-                let rBg = sumR === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${pr1}%, var(--danger) ${pr1}% ${pr2}%, var(--warning) ${pr2}% 100%)`;
-                let rRate = s.resp_total > 0 ? Math.round((s.resp_tepat / s.resp_total) * 100) : 0; 
-                
-                // Kalkulasi Sudut Donat Pengerjaan
-                let sumP = s.peng_tepat + s.peng_telat + s.peng_aman;
-                let pp1 = sumP === 0 ? 0 : (s.peng_tepat / sumP) * 100;
-                let pp2 = sumP === 0 ? 0 : pp1 + (s.peng_telat / sumP) * 100;
-                let pBg = sumP === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${pp1}%, var(--danger) ${pp1}% ${pp2}%, var(--warning) ${pp2}% 100%)`;
-                let pRate = s.peng_total > 0 ? Math.round((s.peng_tepat / s.peng_total) * 100) : 0; 
-
-                htmlTeknisi += `
-                <div class="card" style="border-left-color:var(--primary);">
-                    <h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--primary); font-size:16px;">${s.nama}</h3>
-                    <div class="charts-container">
-                        <!-- CHART RESPON -->
-                        <div class="chart-box">
-                            <div class="chart-title">SLA RESPON</div>
-                            <div class="donut" style="background: ${rBg};">
-                                <div class="donut-inner">
-                                    <span class="donut-val" style="color:${rRate>=80?'var(--success)':(rRate>=50?'var(--warning)':'var(--danger)')}">${sumR>0?rRate+'%':'-'}</span>
-                                    <span class="donut-label">Akurasi</span>
-                                </div>
-                            </div>
-                            <div class="chart-legend">
-                                <div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Tepat</span> <b>${s.resp_tepat}</b></div>
-                                <div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat</span> <b>${s.resp_telat}</b></div>
-                                <div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.resp_aman}</b></div>
-                            </div>
-                        </div>
-
-                        <!-- CHART PENGERJAAN -->
-                        <div class="chart-box">
-                            <div class="chart-title">SLA PENGERJAAN</div>
-                            <div class="donut" style="background: ${pBg};">
-                                <div class="donut-inner">
-                                    <span class="donut-val" style="color:${pRate>=80?'var(--success)':(pRate>=50?'var(--warning)':'var(--danger)')}">${sumP>0?pRate+'%':'-'}</span>
-                                    <span class="donut-label">Akurasi</span>
-                                </div>
-                            </div>
-                            <div class="chart-legend">
-                                <div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Tepat</span> <b>${s.peng_tepat}</b></div>
-                                <div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat</span> <b>${s.peng_telat}</b></div>
-                                <div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.peng_aman}</b></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
+                let sumR = s.resp_tepat + s.resp_telat + s.resp_aman; let pr1 = sumR === 0 ? 0 : (s.resp_tepat / sumR) * 100; let pr2 = sumR === 0 ? 0 : pr1 + (s.resp_telat / sumR) * 100; let rBg = sumR === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${pr1}%, var(--danger) ${pr1}% ${pr2}%, var(--warning) ${pr2}% 100%)`; let rRate = s.resp_total > 0 ? Math.round((s.resp_tepat / s.resp_total) * 100) : 0; 
+                let sumP = s.peng_tepat + s.peng_telat + s.peng_aman; let pp1 = sumP === 0 ? 0 : (s.peng_tepat / sumP) * 100; let pp2 = sumP === 0 ? 0 : pp1 + (s.peng_telat / sumP) * 100; let pBg = sumP === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${pp1}%, var(--danger) ${pp1}% ${pp2}%, var(--warning) ${pp2}% 100%)`; let pRate = s.peng_total > 0 ? Math.round((s.peng_tepat / s.peng_total) * 100) : 0; 
+                htmlTeknisi += `<div class="card" style="border-left-color:var(--primary);"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--primary); font-size:16px;">${s.nama}</h3><div class="charts-container"><div class="chart-box"><div class="chart-title">SLA RESPON</div><div class="donut" style="background: ${rBg};"><div class="donut-inner"><span class="donut-val" style="color:${rRate>=80?'var(--success)':(rRate>=50?'var(--warning)':'var(--danger)')}">${sumR>0?rRate+'%':'-'}</span><span class="donut-label">Akurasi</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Tepat</span> <b>${s.resp_tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat</span> <b>${s.resp_telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.resp_aman}</b></div></div></div><div class="chart-box"><div class="chart-title">SLA PENGERJAAN</div><div class="donut" style="background: ${pBg};"><div class="donut-inner"><span class="donut-val" style="color:${pRate>=80?'var(--success)':(pRate>=50?'var(--warning)':'var(--danger)')}">${sumP>0?pRate+'%':'-'}</span><span class="donut-label">Akurasi</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Tepat</span> <b>${s.peng_tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat</span> <b>${s.peng_telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.peng_aman}</b></div></div></div></div></div>`;
             });
+            dashTekContainer.innerHTML = htmlTeknisi;
 
-            // ================== RENDER SALES (FINANSIAL DOMPET) ==================
-            let htmlSales = '<h3 class="section-title">📈 Papan Pencapaian Omzet Sales</h3>';
+            // RENDER SALES
+            let htmlSales = '<h3 class="section-title">Papan Pencapaian Omzet</h3>';
             let arrSales = Object.values(statsSales).sort((a, b) => b.revenue - a.revenue);
             if (arrSales.length === 0) htmlSales += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
             arrSales.forEach(s => { 
                 let winRate = s.target > 0 ? Math.min(((s.revenue / s.target) * 100), 100).toFixed(0) : 0;
-                
                 let sisaTarget = s.target - s.revenue;
-                let textSisa = sisaTarget > 0 ? `<span style="color:var(--danger)">Sisa Target: <b>${formatRp(sisaTarget)}</b></span>` : `<span style="color:var(--success)">✅ Target Lampaui: <b>${formatRp(Math.abs(sisaTarget))}</b></span>`;
+                let textSisa = sisaTarget > 0 ? `<span style="color:var(--danger)">Sisa Target: <b>${formatRp(sisaTarget)}</b></span>` : `<span style="color:var(--success)">Target Lampaui: <b>${formatRp(Math.abs(sisaTarget))}</b></span>`;
                 if (s.target === 0) textSisa = `<span style="color:var(--text-muted)">Target belum diatur Admin</span>`;
-
-                htmlSales += `
-                <div class="card" style="border-left-color:var(--purple);">
-                    <h3 style="margin-bottom:15px; color:var(--purple); border-bottom:1px solid var(--border); padding-bottom:10px;">💼 ${s.nama} <span style="font-size:12px; color:var(--text-main); font-weight:500;">(${s.total} Proyek)</span></h3>
-                    
-                    <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:13px; align-items: center;">
-                        <div>
-                            <div style="color:var(--text-muted); font-size:10px; font-weight:700; text-transform:uppercase;">Minimal Target</div>
-                            <div style="font-weight:700; color:var(--text-main); font-size:14px;">${formatRp(s.target)}</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="color:var(--text-muted); font-size:10px; font-weight:700; text-transform:uppercase;">Total Omzet Valid</div>
-                            <div style="font-weight:800; color:var(--success); font-size:16px;">${formatRp(s.revenue)}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="progress-bg" style="height:10px; margin-bottom:8px;"><div class="progress-bar" style="width:${winRate}%; background:var(--purple);"></div></div>
-                    <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600; margin-bottom:15px;">
-                        <div>${textSisa}</div>
-                        <div style="color:var(--purple);">Tercapai ${winRate}%</div>
-                    </div>
-
-                    <div style="display:flex; gap:10px; font-size:11px; font-weight:600; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);">
-                        <div style="flex:1; text-align:center;"><span style="color:var(--success); display:block; font-size:14px;">${s.selesai}</span> Selesai</div>
-                        <div style="flex:1; text-align:center; border-left:1px solid var(--border); border-right:1px solid var(--border);"><span style="color:var(--warning); display:block; font-size:14px;">${s.progress}</span> Proses</div>
-                        <div style="flex:1; text-align:center;"><span style="color:var(--danger); display:block; font-size:14px;">${s.batal}</span> Batal</div>
-                    </div>
-                </div>`;
+                htmlSales += `<div class="card" style="border-left-color:var(--purple);"><h3 style="margin-bottom:15px; color:var(--purple); border-bottom:1px solid var(--border); padding-bottom:10px;">${s.nama} <span style="font-size:12px; color:var(--text-main); font-weight:500;">(${s.total} Transaksi)</span></h3><div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:13px; align-items: center;"><div><div style="color:var(--text-muted); font-size:10px; font-weight:700; text-transform:uppercase;">Minimal Target</div><div style="font-weight:700; color:var(--text-main); font-size:14px;">${formatRp(s.target)}</div></div><div style="text-align:right;"><div style="color:var(--text-muted); font-size:10px; font-weight:700; text-transform:uppercase;">Total Omzet Valid</div><div style="font-weight:800; color:var(--success); font-size:16px;">${formatRp(s.revenue)}</div></div></div><div class="progress-bg" style="height:10px; margin-bottom:8px;"><div class="progress-bar" style="width:${winRate}%; background:var(--purple);"></div></div><div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600; margin-bottom:15px;"><div>${textSisa}</div><div style="color:var(--purple);">Tercapai ${winRate}%</div></div><div style="display:flex; gap:10px; font-size:11px; font-weight:600; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);"><div style="flex:1; text-align:center;"><span style="color:var(--success); display:block; font-size:14px;">${s.selesai}</span> Selesai</div><div style="flex:1; text-align:center; border-left:1px solid var(--border); border-right:1px solid var(--border);"><span style="color:var(--warning); display:block; font-size:14px;">${s.progress}</span> Proses</div><div style="flex:1; text-align:center;"><span style="color:var(--danger); display:block; font-size:14px;">${s.batal}</span> Batal</div></div></div>`;
             });
-
-            if (penggunaAktif.Role === 'admin') { dashContainer.innerHTML = htmlSales + "<br>" + htmlTeknisi; } else if (penggunaAktif.Role === 'sales') { dashContainer.innerHTML = htmlSales; } else { dashContainer.innerHTML = htmlTeknisi; }
+            dashSalesContainer.innerHTML = htmlSales;
         }
 
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let tiketDitampilkan = [];
             if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') { tiketDitampilkan = globalTickets; } else { tiketDitampilkan = globalTickets.filter(t => (t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); }
-            let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }});
-            if (!modeEditTiket) { document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0'); }
-
+            
             tiketDitampilkan.slice().reverse().forEach(ticket => {
                 if (!ticket['ID Tiket']) return;
+                
+                let isDirectSales = ticket['ID Tiket'].startsWith('SLS-');
+                
                 let textStatus = ticket['Status'] || 'Menunggu'; let isUnassigned = ticket['Teknisi'] === 'Belum Ditugaskan' || ticket['Teknisi'] === '';
                 let statusPengerjaanKartu = ticket['Status SLA']; if(textStatus === 'Pending') statusPengerjaanKartu = 'AMAN';
+                
                 let sc = statusPengerjaanKartu === 'TERLAMBAT' ? 'status-terlambat' : (statusPengerjaanKartu === 'TERPENUHI' ? 'status-terpenuhi' : 'status-aman');
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status'));
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
-                if (isUnassigned) { sc = 'status-aman'; bc = 'badge-pending'; bRespon = 'badge-pending'; textStatus = 'Menunggu Teknisi'; }
+                
+                if (isUnassigned && !isDirectSales) { sc = 'status-aman'; bc = 'badge-pending'; bRespon = 'badge-pending'; textStatus = 'Menunggu Teknisi'; }
+                if (isDirectSales) { sc = 'status-terpenuhi'; bc = 'badge-sales'; textStatus = 'Penjualan Lunas'; }
 
                 let htmlBA = ''; if (ticket['Deskripsi Pekerjaan (BA)']) { htmlBA = `<div class="ba-box"><h4 style="margin:0 0 10px 0; font-size:13px; color:var(--primary); border-bottom:1px solid var(--border); padding-bottom:5px;">Berita Acara / Laporan</h4><p style="margin:0; font-size:12px; white-space:pre-wrap;">${ticket['Deskripsi Pekerjaan (BA)']}</p>${ticket['Kritik & Saran'] ? `<p style="margin:8px 0 0 0; font-size:12px; color:var(--text-muted);"><i>Catatan Klien: ${ticket['Kritik & Saran']}</i></p>` : ''}<p style="margin:8px 0 0 0; font-size:12px; font-weight:600;">Oleh: ${ticket['Nama Customer'] || '-'}</p></div>`; }
                 let htmlTracking = ''; if (ticket['Keterangan']) { htmlTracking = `<div class="history-box"><b>Riwayat Update:</b>\n${ticket['Keterangan']}</div>`; }
 
                 let htmlBanding = ''; let btnHtml = '';
                 
-                if (penggunaAktif.Role === 'sales') {
+                if (penggunaAktif.Role === 'sales' && !isDirectSales) {
                     if (!ticket['Sales'] || ticket['Sales'].trim() === '-' || ticket['Sales'].trim() === '') {
                         if (!ticket['Status Banding']) {
-                            htmlBanding = `<button class="btn-action-primary" style="background:#f3e8ff; color:var(--purple); border-color:#d8b4fe;" onclick="bukaModalBanding('${ticket['ID Tiket']}')">🙋 Klaim Pekerjaan Ini</button>`;
+                            htmlBanding = `<button class="btn-action-primary" style="background:#f3e8ff; color:var(--purple); border-color:#d8b4fe;" onclick="bukaModalBanding('${ticket['ID Tiket']}')">📌 Klaim Pekerjaan Ini</button>`;
                         } else if (ticket['Status Banding'] === 'Diajukan') {
-                            htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fefce8; border:1px solid #fde047; border-radius:6px; font-size:12px; font-weight:600; color:#b45309; text-align:center;">⏳ Klaim Menunggu Admin</div>`;
+                            htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fefce8; border:1px solid #fde047; border-radius:6px; font-size:12px; font-weight:600; color:#b45309; text-align:center;">Klaim Menunggu Admin</div>`;
                         } else if (ticket['Status Banding'] === 'Ditolak') {
-                            htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; font-weight:600; color:#991b1b; text-align:center;">❌ Klaim Ditolak (${ticket['Alasan Admin'] || 'Tanpa Alasan'})</div>`;
+                            htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; font-weight:600; color:#991b1b; text-align:center;">Klaim Ditolak (${ticket['Alasan Admin'] || 'Tanpa Alasan'})</div>`;
                         }
                     } else { btnHtml = `<div style="margin-top:10px; padding:10px; text-align:center; font-size:12px; color:var(--text-muted); border-top:1px dashed var(--border);">Hanya dapat diedit oleh Teknisi/Admin</div>`; }
                 }
                 else if (penggunaAktif.Role === 'admin' && ticket['Status Banding'] === 'Diajukan') {
-                    let imgs = (ticket['Bukti Banding']||'').split('|#|');
-                    let imgHtml = '';
-                    imgs.forEach((imgSrc, idx) => {
-                       if(imgSrc && imgSrc.length > 10) { imgHtml += `<div style="display:flex; flex-direction:column; align-items:center;"><img src="${imgSrc}"><a href="${imgSrc}" download="Bukti_${ticket['ID Tiket']}_${idx+1}.jpg" class="dl-btn">Unduh Foto ${idx+1}</a></div>`; }
-                    });
+                    let imgs = (ticket['Bukti Banding']||'').split('|#|'); let imgHtml = '';
+                    imgs.forEach((imgSrc, idx) => { if(imgSrc && imgSrc.length > 10) { imgHtml += `<div style="display:flex; flex-direction:column; align-items:center;"><img src="${imgSrc}"><a href="${imgSrc}" download="Bukti_${ticket['ID Tiket']}_${idx+1}.jpg" class="dl-btn">Unduh Foto ${idx+1}</a></div>`; } });
                     htmlBanding = `<div style="margin-top:15px; padding:15px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px;"><h4 style="margin:0 0 10px 0; color:var(--purple); font-size:14px;">Klaim Sales: ${ticket['Sales Pengaju']}</h4>${ticket['Keterangan Sales'] ? `<p style="font-size:12px; margin:0 0 10px 0; color:#4a5568;"><i>"${ticket['Keterangan Sales']}"</i></p>` : ''}<div class="img-grid">${imgHtml}</div><div class="btn-grid"><button class="btn-acc" onclick="responBanding('${ticket['ID Tiket']}', 'Diterima', '${ticket['Sales Pengaju']}')">Terima Klaim</button><button class="btn-del" onclick="responBanding('${ticket['ID Tiket']}', 'Ditolak', '')">Tolak Klaim</button></div></div>`;
                 }
 
-                if (penggunaAktif.Role !== 'sales') {
-                    if (isUnassigned && penggunaAktif.Role === 'admin') {
-                        btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid"><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus Tiket</button></div>`;
+                if (penggunaAktif.Role === 'admin') {
+                    if (isDirectSales) {
+                        btnHtml = `<div class="btn-grid"><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus Data Penjualan</button></div>`;
                     } else {
-                        let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status';
-                        btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
-                        if (penggunaAktif.Role === 'admin') { btnHtml += `<div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button></div>`; }
+                        if (isUnassigned) {
+                            btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid"><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus Tiket</button></div>`;
+                        } else {
+                            let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status';
+                            btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button><div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button></div>`;
+                        }
                     }
+                } else if (penggunaAktif.Role === 'teknisi' && !isDirectSales) {
+                    let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status';
+                    btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
                 }
 
                 let infoPenjualanHtml = '';
@@ -569,11 +581,11 @@
                     infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(ticket['Nilai Penjualan (Rp)'])}</p>`;
                 }
 
-                container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
-                <div class="waktu-box">
-                    ${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}
-                </div>
-                ${htmlTracking}${htmlBA}${htmlBanding}${btnHtml}</div>`;
+                if (isDirectSales) {
+                    container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Pembeli:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Barang:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']}</p>${infoPenjualanHtml}<div class="waktu-box"><p style="margin:0; text-align:center; color:var(--success); font-weight:600;">Tercatat Langsung Lunas / Selesai</p></div>${btnHtml}</div>`;
+                } else {
+                    container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}</div>${htmlTracking}${htmlBA}${htmlBanding}${btnHtml}</div>`;
+                }
             });
             if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada pekerjaan.</p>';
         }
@@ -603,59 +615,71 @@
             if(fileInput.files.length === 0) { alert('Harap pilih minimal 1 foto bukti!'); return; }
             if(fileInput.files.length > 3) { alert('Maksimal 3 foto yang bisa diunggah sekaligus!'); return; }
 
-            document.getElementById('banding-status').style.display = 'block'; 
-            document.getElementById('btn-submit-banding').disabled = true; 
-            document.getElementById('btn-submit-banding').innerText = 'Mengompres & Mengirim...';
+            document.getElementById('banding-status').style.display = 'block'; document.getElementById('btn-submit-banding').disabled = true; document.getElementById('btn-submit-banding').innerText = 'Mengompres & Mengirim...';
             
             let arrayBase64 = [];
             for(let i=0; i<fileInput.files.length; i++){ arrayBase64.push(await prosesUploadBanding(fileInput.files[i])); }
-            const gabunganBukti = arrayBase64.join('|#|');
-            const ketSales = document.getElementById('banding-keterangan').value;
-            const idTiket = document.getElementById('banding-id').value;
+            const gabunganBukti = arrayBase64.join('|#|'); const ketSales = document.getElementById('banding-keterangan').value; const idTiket = document.getElementById('banding-id').value;
             
             try {
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) });
                 if ((await res.json()).status === 'sukses') { alert('Klaim terkirim! Menunggu persetujuan Admin.'); document.getElementById('modal-banding').style.display = 'none'; await ambilSemuaData(true); }
-            } catch (err) { alert('Google menolak data terlalu besar. Coba gunakan foto yang diblur/potong kecil.'); }
-            document.getElementById('banding-status').style.display = 'none'; document.getElementById('btn-submit-banding').disabled = false; document.getElementById('btn-submit-banding').innerText = '🚀 Kirim Pengajuan Bukti';
+            } catch (err) { alert('Sistem menolak karena sinyal tidak stabil. Coba lagi.'); }
+            document.getElementById('banding-status').style.display = 'none'; document.getElementById('btn-submit-banding').disabled = false; document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti';
         }
 
         async function responBanding(idTiket, keputusan, namaSales) {
             let alasan = '';
-            if (keputusan === 'Ditolak') {
-                alasan = prompt("Tuliskan alasan penolakan untuk Sales:");
-                if(alasan === null) return; 
-                if(alasan.trim() === "") { alert("Alasan penolakan wajib diisi!"); return; }
-            } else { if(!confirm(`Yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`)) return; }
+            if (keputusan === 'Ditolak') { alasan = prompt("Tuliskan alasan penolakan untuk Sales:"); if(alasan === null) return; if(alasan.trim() === "") { alert("Alasan penolakan wajib diisi!"); return; } } 
+            else { if(!confirm(`Yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`)) return; }
 
             document.getElementById('loading').style.display = 'block';
             try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'responBanding', idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); if ((await res.json()).status === 'sukses') { alert(`Klaim ${keputusan}!`); await ambilSemuaData(true); } } catch (err) {}
             document.getElementById('loading').style.display = 'none';
         }
 
-        function toggleBAT() { const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); if (baSection.style.display === 'none' || baSection.style.display === '') { baSection.style.display = 'block'; btnToggle.innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 50); } else { baSection.style.display = 'none'; btnToggle.innerHTML = "📝 Buka / Cicil Berita Acara"; } }
-        function bukaModalUpdate(id) { const t = globalTickets.find(x => x['ID Tiket'] === id); if(!t) return; document.getElementById('update-id').value = id; const statusElement = document.getElementById('update-status'); statusElement.value = t['Status'] || 'Menunggu'; document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat.'; document.getElementById('update-keterangan').value = ''; document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || ''; document.getElementById('ba-nama-customer').value = t['Nama Customer'] || ''; document.getElementById('ba-kritik').value = t['Kritik & Saran'] || ''; const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; document.getElementById('status-ttd').innerText = hasExistingTTD ? '(Tersimpan ✅)' : ''; clearSignature(); cekKeterangan(); if (t['Status'] === 'Selesai') { document.getElementById('update-title').innerText = 'Revisi BAT: ' + id; statusElement.disabled = true; statusElement.classList.add('input-terkunci'); document.getElementById('update-keterangan').style.display = 'none'; document.getElementById('label-keterangan').style.display = 'none'; document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Revisi'; document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').style.display = 'none'; setTimeout(resizeCanvas, 100); } else { document.getElementById('update-title').innerText = 'Update: ' + id; statusElement.disabled = false; statusElement.classList.remove('input-terkunci'); document.getElementById('update-keterangan').style.display = 'block'; document.getElementById('label-keterangan').style.display = 'block'; document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Data'; if (t['Deskripsi Pekerjaan (BA)']) { document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 100); } } document.getElementById('modal-update').style.display = 'flex'; }
+        function toggleBAT() { const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); if (baSection.style.display === 'none' || baSection.style.display === '') { baSection.style.display = 'block'; btnToggle.innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 50); } else { baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; } }
+        function bukaModalUpdate(id) { const t = globalTickets.find(x => x['ID Tiket'] === id); if(!t) return; document.getElementById('update-id').value = id; const statusElement = document.getElementById('update-status'); statusElement.value = t['Status'] || 'Menunggu'; document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat.'; document.getElementById('update-keterangan').value = ''; document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || ''; document.getElementById('ba-nama-customer').value = t['Nama Customer'] || ''; document.getElementById('ba-kritik').value = t['Kritik & Saran'] || ''; const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; document.getElementById('status-ttd').innerText = hasExistingTTD ? '(Tersimpan)' : ''; clearSignature(); cekKeterangan(); if (t['Status'] === 'Selesai') { document.getElementById('update-title').innerText = 'Revisi BAT: ' + id; statusElement.disabled = true; statusElement.classList.add('input-terkunci'); document.getElementById('update-keterangan').style.display = 'none'; document.getElementById('label-keterangan').style.display = 'none'; document.getElementById('btn-submit-update').innerHTML = 'Simpan Revisi'; document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').style.display = 'none'; setTimeout(resizeCanvas, 100); } else { document.getElementById('update-title').innerText = 'Update: ' + id; statusElement.disabled = false; statusElement.classList.remove('input-terkunci'); document.getElementById('update-keterangan').style.display = 'block'; document.getElementById('label-keterangan').style.display = 'block'; document.getElementById('btn-submit-update').innerHTML = 'Simpan Data'; if (t['Deskripsi Pekerjaan (BA)']) { document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 100); } } document.getElementById('modal-update').style.display = 'flex'; }
         function tutupModal() { document.getElementById('modal-update').style.display = 'none'; }
-        function cekKeterangan() { const status = document.getElementById('update-status').value; const ket = document.getElementById('update-keterangan'); const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); const baDesk = document.getElementById('ba-deskripsi'); const baNama = document.getElementById('ba-nama-customer'); const infoText = document.getElementById('info-wajib-text'); if (status === 'Pending' || status === 'Cancel') { ket.placeholder = "Wajib diisi! Masukkan alasan di sini..."; } else { ket.placeholder = "Ketik update kegiatan di sini..."; } if (status === 'Selesai') { btnToggle.style.display = 'none'; baSection.style.display = 'block'; baDesk.required = true; baNama.required = true; infoText.innerText = "*Wajib diisi beserta Tanda Tangan Customer"; setTimeout(resizeCanvas, 50); } else if (status === 'On Progress' || status === 'Pending') { btnToggle.style.display = 'block'; baSection.style.display = 'none'; btnToggle.innerHTML = "📝 Buka / Cicil Berita Acara"; baDesk.required = false; baNama.required = false; infoText.innerText = "*Bisa dicicil tanpa harus Tanda Tangan"; } else { btnToggle.style.display = 'none'; baSection.style.display = 'none'; baDesk.required = false; baNama.required = false; } }
-        async function submitUpdate(e) { e.preventDefault(); const status = document.getElementById('update-status').value; const catatanBaru = document.getElementById('update-keterangan').value.trim(); const idTiket = document.getElementById('update-id').value; const t = globalTickets.find(x => x['ID Tiket'] === idTiket); let ttdBase64 = ""; if ((status === 'Pending' || status === 'Cancel') && catatanBaru === "") { alert("⚠️ Catatan Baru WAJIB diketik saat memilih status Pending atau Cancel!"); return; } if (status === 'Selesai') { const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; if (!isCanvasDrawn && !hasExistingTTD) { alert("⚠️ Tanda Tangan WAJIB diisi sebelum Selesai!"); return; } } if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); } const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true; let isStatusChanged = t['Status'] !== status; let keteranganFinal = t['Keterangan'] || ''; if ((catatanBaru !== "" || isStatusChanged) && t['Status'] !== 'Selesai') { const now = new Date(); const timeStr = now.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); let teksLogBaru = `[${timeStr}] ➔ ${status}`; if (catatanBaru !== "") teksLogBaru += `\n📝 ${catatanBaru}`; keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru; } const payload = { action: 'updateTicket', idTiket: idTiket, status: status, keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, baTTD: ttdBase64 }; try { const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if (result.status === 'sukses') { tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { alert('Gagal update: ' + result.pesan); } } catch(err) { window.location.reload(); } btn.innerText = '💾 Simpan Data'; btn.disabled = false; }
+        function cekKeterangan() { const status = document.getElementById('update-status').value; const ket = document.getElementById('update-keterangan'); const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); const baDesk = document.getElementById('ba-deskripsi'); const baNama = document.getElementById('ba-nama-customer'); const infoText = document.getElementById('info-wajib-text'); if (status === 'Pending' || status === 'Cancel') { ket.placeholder = "Wajib diisi! Masukkan alasan di sini..."; } else { ket.placeholder = "Ketik update kegiatan di sini..."; } if (status === 'Selesai') { btnToggle.style.display = 'none'; baSection.style.display = 'block'; baDesk.required = true; baNama.required = true; infoText.innerText = "*Wajib diisi beserta Tanda Tangan Customer"; setTimeout(resizeCanvas, 50); } else if (status === 'On Progress' || status === 'Pending') { btnToggle.style.display = 'block'; baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; baDesk.required = false; baNama.required = false; infoText.innerText = "*Bisa dicicil tanpa harus Tanda Tangan"; } else { btnToggle.style.display = 'none'; baSection.style.display = 'none'; baDesk.required = false; baNama.required = false; } }
+        async function submitUpdate(e) { e.preventDefault(); const status = document.getElementById('update-status').value; const catatanBaru = document.getElementById('update-keterangan').value.trim(); const idTiket = document.getElementById('update-id').value; const t = globalTickets.find(x => x['ID Tiket'] === idTiket); let ttdBase64 = ""; if ((status === 'Pending' || status === 'Cancel') && catatanBaru === "") { alert("Catatan Baru WAJIB diketik saat memilih status Pending atau Cancel!"); return; } if (status === 'Selesai') { const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; if (!isCanvasDrawn && !hasExistingTTD) { alert("Tanda Tangan WAJIB diisi sebelum Selesai!"); return; } } if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); } const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true; let isStatusChanged = t['Status'] !== status; let keteranganFinal = t['Keterangan'] || ''; if ((catatanBaru !== "" || isStatusChanged) && t['Status'] !== 'Selesai') { const now = new Date(); const timeStr = now.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); let teksLogBaru = `[${timeStr}] ➔ ${status}`; if (catatanBaru !== "") teksLogBaru += `\n ${catatanBaru}`; keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru; } const payload = { action: 'updateTicket', idTiket: idTiket, status: status, keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, baTTD: ttdBase64 }; try { const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if (result.status === 'sukses') { tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { alert('Gagal update: ' + result.pesan); } } catch(err) { window.location.reload(); } btn.innerText = 'Simpan Data'; btn.disabled = false; }
         
         function aktifkanEditTiket(idTiket) { 
             const t = globalTickets.find(x => x['ID Tiket'] === idTiket); if(!t) return; 
-            modeEditTiket = true; switchTab('input'); 
-            document.getElementById('form-tiket-title').innerText = '✏️ Edit Tiket: ' + idTiket; 
+            modeEditTiket = true; switchTab('input'); switchInputTab('sla');
+            document.getElementById('form-tiket-title').innerText = 'Edit Tiket SLA: ' + idTiket; 
             document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; 
-            
             const salesSelect = document.getElementById('input-sales'); let found = Array.from(salesSelect.options).some(opt => opt.value === (t['Sales'] || '')); if (!found && t['Sales']) { salesSelect.innerHTML += `<option value="${t['Sales']}">${t['Sales']} (Nonaktif)</option>`; } salesSelect.value = t['Sales'] || ''; 
-            
-            document.getElementById('input-nilai-penjualan').value = t['Nilai Penjualan (Rp)'] || '';
-            togglePenjualanInput();
-
+            document.getElementById('input-nilai-penjualan').value = t['Nilai Penjualan (Rp)'] || ''; togglePenjualanInput();
             const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); 
             document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-tiket').style.display = 'block'; 
         }
-        function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = '➕ Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; togglePenjualanInput(); let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }}); document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0'); }
+        function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; togglePenjualanInput(); setAutoIDs(); }
         async function hapusTiket(idTiket) { if(!confirm(`Hapus tiket ${idTiket} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
-        async function submitData(e) { e.preventDefault(); const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); const payload = { action: modeEditTiket ? 'editTicket' : 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, targetRespon: document.getElementById('input-sla-respon').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, nilaiPenjualan: document.getElementById('input-nilai-penjualan').value, teknisi: t }; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if ((await res.json()).status === 'sukses') { batalEditTiket(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; switchTab('tiket'); } } catch (err) {} btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
+        
+        async function submitData(e, type) { 
+            e.preventDefault(); 
+            const payload = {};
+            if (type === 'sla') {
+                const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
+                const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
+                payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; payload.idTiket = document.getElementById('input-id').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
+            } else if (type === 'sls') {
+                const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
+                payload.action = 'addPenjualan'; payload.idPenjualan = document.getElementById('input-id-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
+            }
+
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
+                if ((await res.json()).status === 'sukses') { 
+                    if (type === 'sla') batalEditTiket(); else document.getElementById('form-sls').reset();
+                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; switchTab('tiket'); 
+                } 
+            } catch (err) {} 
+            
+            if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
+            else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; }
+        }
         
         function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Email'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
         function aktifkanEditUser(un) { const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-email').value = u['Email'] || ''; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; toggleTargetSales(); document.getElementById('new-target-sales').value = u['Target Sales (Rp)'] || ''; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0); }
