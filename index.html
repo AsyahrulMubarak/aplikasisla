@@ -171,7 +171,6 @@
         <div class="top-bar">
             <span id="nama-login">User</span>
             <div class="top-bar-buttons">
-                <!-- TOMBOL REFRESH MANUAL -->
                 <button onclick="refreshManual()" id="btn-refresh" class="btn-refresh">🔄 Refresh</button>
                 <button class="btn-logout" onclick="prosesLogout()">Keluar</button>
             </div>
@@ -180,7 +179,6 @@
         <div id="loading" style="display:none;">Memproses data... Mohon tunggu.</div>
 
         <div id="page-dashboard" class="tab-page">
-            <h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px;">📊 Leaderboard Performa Teknisi</h3>
             <div id="dashboard-content"></div>
         </div>
 
@@ -201,21 +199,13 @@
                     </div>
                     <label>Nama Klien & Lokasi</label><input type="text" id="input-klien" required>
                     <label>Jenis Pekerjaan</label><input type="text" id="input-pekerjaan" required>
+                    
                     <label>Sales (Opsional)</label>
                     <select id="input-sales">
                         <option value="" selected>-- Tidak Ada / Lewati --</option>
-                        <option value="Abu Abid">Abu Abid</option>
-                        <option value="Abu Abdillah">Abu Abdillah</option>
-                        <option value="Muaz">Muaz</option>
-                        <option value="Ardi">Ardi</option>
-                        <option value="Abu Caca">Abu Caca</option>
-                        <option value="Ummu Abdillah">Ummu Abdillah</option>
-                        <option value="Ummu Abid">Ummu Abid</option>
-                        <option value="Ummu Maryam">Ummu Maryam</option>
-                        <option value="Ummu Ibrohim">Ummu Ibrohim</option>
-                        <option value="Abu Zakariah">Abu Zakariah</option>
-                        <option value="Ustadz Abu Anis">Ustadz Abu Anis</option>
+                        <!-- Pilihan Sales akan dirender secara dinamis dari database user -->
                     </select>
+
                     <label>Ditugaskan Ke Teknisi <span style="font-weight:normal; font-size:11px; color:#e74c3c;">(Abaikan jika belum ada teknisi yang Free)</span></label>
                     <div class="checkbox-group" id="teknisi-group"><p style="grid-column: 1 / span 2; margin:0; font-size:12px; color:#7f8c8d; font-style:italic;">Memuat data teknisi...</p></div>
                     <button type="submit" id="btn-submit-pekerjaan" class="btn-submit">Simpan Pekerjaan</button>
@@ -233,7 +223,12 @@
                     <label>Username</label><input type="text" id="new-username" required>
                     <label>Password</label><input type="text" id="new-password" required>
                     <label>Hak Akses</label>
-                    <select id="new-role" required><option value="" disabled selected>-- Pilih --</option><option value="admin">Admin</option><option value="teknisi">Teknisi</option></select>
+                    <select id="new-role" required>
+                        <option value="" disabled selected>-- Pilih --</option>
+                        <option value="admin">Admin</option>
+                        <option value="teknisi">Teknisi</option>
+                        <option value="sales">Sales</option> <!-- PENAMBAHAN ROLE SALES -->
+                    </select>
                     <button type="submit" id="btn-tambah-user" class="btn-submit" style="background-color: #3498db;">Simpan User</button>
                     <button type="button" id="btn-batal-edit-user" class="btn-submit btn-batal" style="display:none;" onclick="batalEditUser()">Batal Edit User</button>
                 </form>
@@ -264,7 +259,6 @@
         let modeEditUser = false;
         let modeEditTiket = false;
         
-        // VARIABEL UNTUK AUTO REFRESH
         let intervalAutoRefresh;
         let currentTabId = 'dashboard';
 
@@ -316,7 +310,6 @@
             window.scrollTo(0,0);
         }
 
-        // FUNGSI TOMBOL REFRESH MANUAL
         async function refreshManual() {
             const btn = document.getElementById('btn-refresh');
             btn.innerText = '⏳ Memuat...';
@@ -382,9 +375,8 @@
                     renderDashboard(); 
                     renderTickets(); 
                     renderTabelUser();
-                    // Jangan re-render checkbox jika sedang di halaman input agar ketikan teknisi tidak hilang mendadak
                     if (currentTabId !== 'input') {
-                        renderCheckboxTeknisi(); 
+                        renderDynamicInputs(); 
                     }
                 }
             }
@@ -399,14 +391,28 @@
 
         function masukKeAplikasi() {
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
-            document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
-            if (penggunaAktif.Role === 'admin') { document.getElementById('nav-input').style.display = 'flex'; document.getElementById('nav-user').style.display = 'flex'; } else { document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; }
-            renderCheckboxTeknisi(); renderDashboard(); renderTickets(); renderTabelUser(); switchTab('dashboard'); 
             
-            // JALANKAN AUTO REFRESH SETIAP 30 DETIK (Mode Latar Belakang)
+            let labelRole = penggunaAktif.Role.toUpperCase();
+            document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${labelRole})`;
+            
+            // PENGATURAN MENU BERDASARKAN ROLE
+            if (penggunaAktif.Role === 'admin') { 
+                document.getElementById('nav-input').style.display = 'flex'; 
+                document.getElementById('nav-user').style.display = 'flex'; 
+            } else { 
+                // Baik Teknisi maupun Sales tidak bisa menambah user dan tidak bisa input tiket baru
+                document.getElementById('nav-input').style.display = 'none'; 
+                document.getElementById('nav-user').style.display = 'none'; 
+            }
+            
+            renderDynamicInputs(); 
+            renderDashboard(); 
+            renderTickets(); 
+            renderTabelUser(); 
+            switchTab('dashboard'); 
+            
             if (!intervalAutoRefresh) {
                 intervalAutoRefresh = setInterval(() => {
-                    // Mencegah auto-refresh bekerja jika modal Update Status sedang terbuka (agar ketikan aman)
                     if (document.getElementById('modal-update').style.display === 'flex') return;
                     ambilSemuaData(true);
                 }, 30000); 
@@ -420,70 +426,125 @@
             window.location.reload(); 
         }
 
-        function renderCheckboxTeknisi() {
-            const group = document.getElementById('teknisi-group'); group.innerHTML = ''; 
-            globalUsers.filter(u => u.Role === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
+        // PERBAIKAN: MENGGENERATE LIST TEKNISI & SALES SECARA DINAMIS DARI USER SHEET
+        function renderDynamicInputs() {
+            // Render Checkbox Teknisi
+            const group = document.getElementById('teknisi-group'); 
+            group.innerHTML = ''; 
+            globalUsers.filter(u => u.Role === 'teknisi' && u['Nama Asli'])
+                       .sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']))
+                       .forEach(t => { 
+                           group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; 
+                       });
+
+            // Render Dropdown Sales
+            const salesSelect = document.getElementById('input-sales');
+            const currentSalesVal = salesSelect.value; // Simpan pilihan yang sedang terpilih (jika ada)
+            salesSelect.innerHTML = '<option value="" selected>-- Tidak Ada / Lewati --</option>';
+            
+            let salesList = globalUsers.filter(u => u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']);
+            
+            salesList.sort((a,b) => a.localeCompare(b)).forEach(s => {
+                salesSelect.innerHTML += `<option value="${s}">${s}</option>`;
+            });
+
+            // Jika sedang mode edit dan nama sales lama sudah dihapus dari sheet Users, tetap munculkan sbg histori
+            if (currentSalesVal && !salesList.includes(currentSalesVal)) {
+                salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Tidak Aktif)</option>`;
+            }
+            
+            salesSelect.value = currentSalesVal;
         }
 
+        // PERBAIKAN: PEMISAHAN DASHBOARD UNTUK ADMIN, TEKNISI, DAN SALES
         function renderDashboard() {
-            const dashContainer = document.getElementById('dashboard-content'); dashContainer.innerHTML = '';
-            let stats = {};
+            const dashContainer = document.getElementById('dashboard-content'); 
+            dashContainer.innerHTML = '';
             
+            let statsTeknisi = {};
+            let statsSales = {};
+            
+            // Inisialisasi wadah statistik
             globalUsers.forEach(u => { 
                 if (u.Role === 'teknisi' && u['Nama Asli']) {
                     let namaAsli = u['Nama Asli'];
                     if (namaAsli.toLowerCase() === 'syawal') namaAsli = 'Muhammad Syawal';
-
-                    if (!stats[namaAsli]) {
-                        stats[namaAsli] = { 
-                            nama: namaAsli, 
-                            resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0,
-                            peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 
-                        }; 
+                    if (!statsTeknisi[namaAsli]) {
+                        statsTeknisi[namaAsli] = { nama: namaAsli, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 }; 
+                    }
+                }
+                if (u.Role === 'sales' && u['Nama Asli']) {
+                    let namaSales = u['Nama Asli'];
+                    if (!statsSales[namaSales]) {
+                        statsSales[namaSales] = { nama: namaSales, total: 0, selesai: 0, progress: 0, batal: 0 };
                     }
                 }
             });
             
+            // Menghitung poin statistik
             globalTickets.forEach(t => {
                 if(!t['ID Tiket']) return;
                 const statusRespon = t['Status SLA Respon']; 
                 const statusPengerjaan = t['Status SLA']; 
                 const statusTiket = t['Status'] || 'Menunggu';
                 
+                // Hitung untuk Teknisi
                 (t['Teknisi'] || '').split(',').forEach(nama => {
                     let n = nama.trim(); if(!n || n === "Belum Ditugaskan") return;
                     if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
 
-                    let key = Object.keys(stats).find(k => k.toLowerCase() === n.toLowerCase());
+                    let key = Object.keys(statsTeknisi).find(k => k.toLowerCase() === n.toLowerCase());
                     if(!key) { 
-                        stats[n] = { nama: n, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 }; 
+                        statsTeknisi[n] = { nama: n, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 }; 
                         key = n; 
                     }
                     
-                    if(statusRespon === 'TERPENUHI') { stats[key].resp_tepat++; stats[key].resp_total++; } 
-                    else if(statusRespon === 'GAGAL') { stats[key].resp_telat++; stats[key].resp_total++; }
-                    else if(statusRespon === 'AMAN') { stats[key].resp_aman++; } 
+                    if(statusRespon === 'TERPENUHI') { statsTeknisi[key].resp_tepat++; statsTeknisi[key].resp_total++; } 
+                    else if(statusRespon === 'GAGAL') { statsTeknisi[key].resp_telat++; statsTeknisi[key].resp_total++; }
+                    else if(statusRespon === 'AMAN') { statsTeknisi[key].resp_aman++; } 
                     
                     if (statusTiket === 'Cancel') {
-                    } else if (statusTiket === 'Pending') {
-                        stats[key].peng_aman++; 
+                    } else if (statusTiket === 'Pending') { statsTeknisi[key].peng_aman++; 
                     } else if (statusTiket === 'On Progress') {
-                        if (statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; } 
-                        else { stats[key].peng_aman++; }
+                        if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } 
+                        else { statsTeknisi[key].peng_aman++; }
                     } else if (statusTiket === 'Menunggu') {
-                        if (statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; }
+                        if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; }
                     } else if (statusTiket === 'Selesai') {
-                        if(statusPengerjaan === 'TERPENUHI') { stats[key].peng_tepat++; stats[key].peng_total++; } 
-                        else if(statusPengerjaan === 'TERLAMBAT') { stats[key].peng_telat++; stats[key].peng_total++; }
+                        if(statusPengerjaan === 'TERPENUHI') { statsTeknisi[key].peng_tepat++; statsTeknisi[key].peng_total++; } 
+                        else if(statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; }
                     }
                 });
+
+                // Hitung untuk Sales
+                let sName = t['Sales'] ? t['Sales'].trim() : '';
+                let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
+                
+                // Jika sales ada di tiket tapi tidak terdaftar di User, buat wadah sementara agar tetap tampil
+                if (sName !== "" && !sKey) {
+                    statsSales[sName] = { nama: sName, total: 0, selesai: 0, progress: 0, batal: 0 };
+                    sKey = sName;
+                }
+
+                if (sKey) {
+                    statsSales[sKey].total++;
+                    if (statusTiket === 'Selesai') { statsSales[sKey].selesai++; }
+                    else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; }
+                    else { statsSales[sKey].progress++; } // Menunggu, On Progress, Pending dihitung Proses
+                }
             });
             
-            Object.values(stats).sort((a, b) => {
+            // BUILD HTML TEKNISI
+            let htmlTeknisi = '<h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px; margin-top: 10px;">🛠️ Performa Pengerjaan Teknisi</h3>';
+            let arrTeknisi = Object.values(statsTeknisi).sort((a, b) => {
                 let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; 
                 let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0;
                 return rateB !== rateA ? rateB - rateA : (b.resp_total + b.peng_total) - (a.resp_total + a.peng_total); 
-            }).forEach(s => {
+            });
+
+            if (arrTeknisi.length === 0) htmlTeknisi += '<p style="color:#7f8c8d; font-size:12px; font-style:italic;">Belum ada data teknisi.</p>';
+
+            arrTeknisi.forEach(s => {
                 let rRate = s.resp_total > 0 ? Math.round((s.resp_tepat / s.resp_total) * 100) : 0; 
                 let rColor = rRate >= 80 ? '#2ecc71' : (rRate >= 50 ? '#f1c40f' : '#e74c3c'); 
                 if (s.resp_total === 0) rColor = '#bdc3c7'; 
@@ -492,10 +553,10 @@
                 let pColor = pRate >= 80 ? '#2ecc71' : (pRate >= 50 ? '#f1c40f' : '#e74c3c'); 
                 if (s.peng_total === 0) pColor = '#bdc3c7';
                 
-                dashContainer.innerHTML += `
+                htmlTeknisi += `
                 <div class="perf-card" style="border-top: 5px solid var(--warna-utama);">
                     <div class="perf-header">
-                        <h4 class="perf-name">🛠️ ${s.nama}</h4>
+                        <h4 class="perf-name">📌 ${s.nama}</h4>
                     </div>
                     <div style="margin-bottom: 20px;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -523,12 +584,56 @@
                     </div>
                 </div>`;
             });
+
+            // BUILD HTML SALES
+            let htmlSales = '<h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px; margin-top: 10px;">📈 Performa Pencapaian Sales</h3>';
+            let arrSales = Object.values(statsSales).sort((a, b) => b.selesai - a.selesai || b.total - a.total);
+            
+            if (arrSales.length === 0) htmlSales += '<p style="color:#7f8c8d; font-size:12px; font-style:italic;">Belum ada data sales.</p>';
+
+            arrSales.forEach(s => {
+                let winRate = s.total > 0 ? ((s.selesai / s.total) * 100).toFixed(0) : 0;
+                htmlSales += `
+                <div class="perf-card" style="border-top: 5px solid #8e44ad;">
+                    <div class="perf-header" style="border-bottom-color:#8e44ad;">
+                        <h4 class="perf-name" style="color:#8e44ad;">💼 ${s.nama}</h4>
+                    </div>
+                    <div style="margin-bottom: 5px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:bold; font-size:13px; color:#555;">Total Proyek Masuk</span>
+                            <span style="font-weight:900; font-size:16px; color:#8e44ad;">${s.total} Tiket</span>
+                        </div>
+                        <div class="perf-stats" style="margin-top:10px; font-size:12px;">
+                            <div style="color:#2ecc71;">✅ Selesai: <strong>${s.selesai}</strong></div>
+                            <div style="color:#f39c12;">⏳ Proses: <strong>${s.progress}</strong></div>
+                            <div style="color:#e74c3c;">❌ Batal: <strong>${s.batal}</strong></div>
+                        </div>
+                        <div class="progress-bg"><div class="progress-bar" style="width:${winRate}%; background:#8e44ad;"></div></div>
+                    </div>
+                </div>`;
+            });
+
+            // PENGATURAN TAMPILAN DASHBOARD BERDASARKAN ROLE
+            if (penggunaAktif.Role === 'admin') {
+                dashContainer.innerHTML = htmlSales + "<br>" + htmlTeknisi;
+            } else if (penggunaAktif.Role === 'sales') {
+                dashContainer.innerHTML = htmlSales;
+            } else {
+                // Default teknisi
+                dashContainer.innerHTML = htmlTeknisi;
+            }
         }
 
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             
-            let tiketDitampilkan = penggunaAktif.Role === 'admin' ? globalTickets : globalTickets.filter(t => (t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase()));
+            // PENGATURAN TAMPILAN TIKET (Sales melihat semua daftar masuk, Teknisi melihat miliknya)
+            let tiketDitampilkan = [];
+            if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') {
+                tiketDitampilkan = globalTickets;
+            } else {
+                tiketDitampilkan = globalTickets.filter(t => (t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase()));
+            }
             
             let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }});
             if (!modeEditTiket) { document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0'); }
@@ -570,11 +675,17 @@
                     htmlTracking = `<div style="margin-top:10px; background:#f0f4f8; padding:10px; border-radius:6px; border-left:4px solid var(--warna-utama); font-size:12px; max-height:100px; overflow-y:auto; white-space:pre-wrap; color:#333;"><strong>Riwayat Pekerjaan:</strong>\n${ticket['Keterangan']}</div>`;
                 }
 
+                // LOGIKA TOMBOL BERDASARKAN ROLE
                 let btnHtml = '';
                 
-                if (isUnassigned && penggunaAktif.Role === 'admin') {
+                if (penggunaAktif.Role === 'sales') {
+                    // Sales hanya bisa memantau, tidak bisa edit
+                    btnHtml = `<div style="margin-top:10px; padding:10px; background:#e9ecef; text-align:center; border-radius:6px; font-size:12px; font-weight:bold; color:#7f8c8d;">🔒 Akses Edit Hanya Untuk Tim Teknisi & Admin</div>`;
+                }
+                else if (isUnassigned && penggunaAktif.Role === 'admin') {
                     btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#f39c12; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">📌 Tugaskan Teknisi</button><div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button></div>`;
-                } else {
+                } 
+                else {
                     let labelTombol = textStatus === 'Selesai' ? '📝 Revisi Berita Acara' : '📝 Update Status Teknisi';
                     btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
                     if (penggunaAktif.Role === 'admin') { 
@@ -593,7 +704,7 @@
                 ${htmlTracking}${htmlBA}${btnHtml}</div>`;
             });
             
-            if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:#7f8c8d; margin-top:40px;">Tidak ada pekerjaan untuk Anda.</p>';
+            if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:#7f8c8d; margin-top:40px;">Belum ada daftar pekerjaan untuk ditampilkan.</p>';
         }
 
         function toggleBAT() {
@@ -763,7 +874,25 @@
 
         function aktifkanEditTiket(idTiket) {
             const t = globalTickets.find(x => x['ID Tiket'] === idTiket); if(!t) return;
-            modeEditTiket = true; switchTab('input'); document.getElementById('form-tiket-title').innerText = '✏️ Edit Pekerjaan: ' + idTiket; document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; document.getElementById('input-sales').value = t['Sales'] || ''; const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); document.getElementById('btn-submit-pekerjaan').innerText = 'Update Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#f39c12'; document.getElementById('btn-batal-edit-tiket').style.display = 'block';
+            modeEditTiket = true; switchTab('input'); 
+            document.getElementById('form-tiket-title').innerText = '✏️ Edit Pekerjaan: ' + idTiket; 
+            document.getElementById('input-id').value = idTiket; 
+            document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; 
+            document.getElementById('input-sla').value = t['Target SLA (Jam)']; 
+            document.getElementById('input-klien').value = t['Klien & Lokasi']; 
+            document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; 
+            
+            // Set value dropdown sales dinamis, lalu panggil ulang jika tidak ditemukan
+            const salesSelect = document.getElementById('input-sales');
+            let found = Array.from(salesSelect.options).some(opt => opt.value === (t['Sales'] || ''));
+            if (!found && t['Sales']) { salesSelect.innerHTML += `<option value="${t['Sales']}">${t['Sales']} (Lama/Tidak Aktif)</option>`; }
+            salesSelect.value = t['Sales'] || ''; 
+            
+            const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); 
+            document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); 
+            document.getElementById('btn-submit-pekerjaan').innerText = 'Update Pekerjaan'; 
+            document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#f39c12'; 
+            document.getElementById('btn-batal-edit-tiket').style.display = 'block';
         }
         function batalEditTiket() {
             modeEditTiket = false; document.getElementById('form-tiket-title').innerText = '➕ Input Pekerjaan SLA Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#2ecc71'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }}); document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0');
