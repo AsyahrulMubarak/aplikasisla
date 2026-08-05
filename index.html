@@ -49,7 +49,6 @@
         .form-card { background: var(--surface); padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border); }
         .form-card h3, .section-title { margin-top: 0; color: var(--text-main); font-size: 18px; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
         
-        /* SEGMENT TABS UNTUK ADMIN */
         .segment-control { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 20px; }
         .segment-btn { flex: 1; padding: 8px 0; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
         .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -115,7 +114,6 @@
         th { background: #f8fafc; padding: 10px; border-bottom: 2px solid var(--border); color: var(--text-muted); text-align: left; }
         td { padding: 10px; border-bottom: 1px solid var(--border); }
         
-        /* GRAFIK DONAT CSS MURNI */
         .charts-container { display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;}
         .chart-box { flex: 1; min-width: 130px; background: #f8fafc; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); }
         .chart-title { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 12px; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -126,6 +124,8 @@
         .chart-legend { width: 100%; margin-top: 15px; font-size: 11px; display: flex; flex-direction: column; gap: 6px; }
         .legend-item { display: flex; justify-content: space-between; align-items: center; color: #4a5568; font-weight: 500;}
         .legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; }
+        
+        .code-badge { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--primary); border: 1px solid #e2e8f0; }
     </style>
 </head>
 <body>
@@ -133,7 +133,7 @@
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
-            <h3 style="margin-top:0; color:var(--text-main);">Manajemen SLA Alfacom</h3>
+            <h3 style="margin-top:0; color:var(--text-main);">Sistem Manajemen SLA</h3>
             <div id="login-loading">Memeriksa koneksi aman...</div>
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
@@ -269,12 +269,14 @@
                 </form>
             </div>
 
-            <!-- FORM PENJUALAN LANGSUNG -->
+            <!-- FORM PENJUALAN LANGSUNG (DENGAN NO TRANSAKSI IPOS) -->
             <div class="form-card" id="form-input-sls-container" style="display:none; border-top-color:var(--purple);">
                 <h3 class="section-title" style="color:var(--purple);">Form Penjualan Langsung</h3>
-                <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Gunakan form ini untuk mencatat penjualan dari Sales yang tidak memerlukan teknisi (misal: Jual putus Starlink). Data akan langsung masuk ke Omzet Sales.</p>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Gunakan form ini untuk mencatat penjualan dari Sales yang tidak memerlukan teknisi. Data akan langsung masuk ke Omzet Sales.</p>
                 <form id="form-sls" onsubmit="submitData(event, 'sls')">
                     <label>ID Penjualan</label><input type="text" id="input-id-sls" class="input-terkunci" readonly>
+                    <label>No Transaksi (iPOS)</label>
+                    <input type="text" id="input-notrans-sls" placeholder="Contoh: 0761/KSR/UTM/0826" required>
                     <label>Nama Pembeli</label><input type="text" id="input-pembeli-sls" required>
                     <label>Barang / Jasa Terjual</label><input type="text" id="input-barang-sls" placeholder="Contoh: Perangkat Starlink Mini" required>
                     <label>Sales Bertugas</label><select id="input-sales-sls" required></select>
@@ -334,7 +336,6 @@
         const canvas = document.getElementById('signature-pad'); const ctx = canvas.getContext('2d');
         let isDrawing = false; let isCanvasDrawn = false; 
 
-        // HELPER FORMAT RUPIAH
         function formatRp(angka) { if(!angka) return "Rp 0"; return "Rp " + parseInt(angka).toLocaleString('id-ID'); }
 
         function resizeCanvas() { const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; ctx.scale(ratio, ratio); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#000'; clearSignature(); }
@@ -351,7 +352,6 @@
             if(tabId === 'input' && !modeEditTiket) batalEditTiket(); if(tabId === 'user') batalEditUser(); window.scrollTo(0,0);
         }
 
-        // TABS INSIDE DASHBOARD & INPUT
         function switchDashTab(type) {
             document.getElementById('btn-dash-sales').classList.remove('active'); document.getElementById('btn-dash-tek').classList.remove('active');
             document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'none';
@@ -401,17 +401,14 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
-            // PENGATURAN MENU BERDASARKAN ROLE (PEMISAHAN KHUSUS)
             if (penggunaAktif.Role === 'admin') { 
                 document.getElementById('nav-input').style.display = 'flex'; document.getElementById('nav-user').style.display = 'flex'; 
-                document.getElementById('dash-segment').style.display = 'flex'; // Admin bisa pilih Dash Sales / Teknisi
-                switchDashTab('sales');
+                document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
             } else if (penggunaAktif.Role === 'sales') { 
                 document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; 
                 document.getElementById('dash-segment').style.display = 'none'; 
                 document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
             } else { 
-                // Teknisi
                 document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; 
                 document.getElementById('dash-segment').style.display = 'none'; 
                 document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'block';
@@ -441,8 +438,7 @@
                 salesSelectSls.innerHTML += `<option value="${s}">${s}</option>`;
             });
             if (currentSalesVal && !salesList.includes(currentSalesVal)) { salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Nonaktif)</option>`; }
-            salesSelect.value = currentSalesVal;
-            salesSelectSls.value = currentSalesSlsVal;
+            salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal;
         }
 
         function setAutoIDs() {
@@ -486,15 +482,12 @@
                 if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
                 if (sKey) { 
                     statsSales[sKey].total++; 
-                    if (statusTiket === 'Selesai') { 
-                        statsSales[sKey].revenue += parseInt(t['Nilai Penjualan (Rp)']) || 0; 
-                        statsSales[sKey].selesai++;
+                    if (statusTiket === 'Selesai') { statsSales[sKey].revenue += parseInt(t['Nilai Penjualan (Rp)']) || 0; statsSales[sKey].selesai++;
                     } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; }
                 }
             });
             
-            // RENDER TEKNISI
-            let htmlTeknisi = '<h3 class="section-title">Papan Performa Teknisi</h3>';
+            let htmlTeknisi = '';
             let arrTeknisi = Object.values(statsTeknisi).sort((a, b) => { let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0; return rateB !== rateA ? rateB - rateA : (b.resp_total + b.peng_total) - (a.resp_total + a.peng_total); });
             if (arrTeknisi.length === 0) htmlTeknisi += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
             arrTeknisi.forEach(s => { 
@@ -504,8 +497,7 @@
             });
             dashTekContainer.innerHTML = htmlTeknisi;
 
-            // RENDER SALES
-            let htmlSales = '<h3 class="section-title">Papan Pencapaian Omzet</h3>';
+            let htmlSales = '';
             let arrSales = Object.values(statsSales).sort((a, b) => b.revenue - a.revenue);
             if (arrSales.length === 0) htmlSales += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
             arrSales.forEach(s => { 
@@ -513,7 +505,7 @@
                 let sisaTarget = s.target - s.revenue;
                 let textSisa = sisaTarget > 0 ? `<span style="color:var(--danger)">Sisa Target: <b>${formatRp(sisaTarget)}</b></span>` : `<span style="color:var(--success)">Target Lampaui: <b>${formatRp(Math.abs(sisaTarget))}</b></span>`;
                 if (s.target === 0) textSisa = `<span style="color:var(--text-muted)">Target belum diatur Admin</span>`;
-                htmlSales += `<div class="card" style="border-left-color:var(--purple);"><h3 style="margin-bottom:15px; color:var(--purple); border-bottom:1px solid var(--border); padding-bottom:10px;">${s.nama} <span style="font-size:12px; color:var(--text-main); font-weight:500;">(${s.total} Transaksi)</span></h3><div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:13px; align-items: center;"><div><div style="color:var(--text-muted); font-size:10px; font-weight:700; text-transform:uppercase;">Minimal Target</div><div style="font-weight:700; color:var(--text-main); font-size:14px;">${formatRp(s.target)}</div></div><div style="text-align:right;"><div style="color:var(--text-muted); font-size:10px; font-weight:700; text-transform:uppercase;">Total Omzet Valid</div><div style="font-weight:800; color:var(--success); font-size:16px;">${formatRp(s.revenue)}</div></div></div><div class="progress-bg" style="height:10px; margin-bottom:8px;"><div class="progress-bar" style="width:${winRate}%; background:var(--purple);"></div></div><div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600; margin-bottom:15px;"><div>${textSisa}</div><div style="color:var(--purple);">Tercapai ${winRate}%</div></div><div style="display:flex; gap:10px; font-size:11px; font-weight:600; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);"><div style="flex:1; text-align:center;"><span style="color:var(--success); display:block; font-size:14px;">${s.selesai}</span> Selesai</div><div style="flex:1; text-align:center; border-left:1px solid var(--border); border-right:1px solid var(--border);"><span style="color:var(--warning); display:block; font-size:14px;">${s.progress}</span> Proses</div><div style="flex:1; text-align:center;"><span style="color:var(--danger); display:block; font-size:14px;">${s.batal}</span> Batal</div></div></div>`;
+                htmlSales += `<div class="card" style="border-left-color:var(--purple);"><h3 style="margin-bottom:15px; color:var(--purple); border-bottom:1px solid var(--border); padding-bottom:10px;">💼 ${s.nama} <span style="font-size:12px; color:var(--text-main); font-weight:500;">(${s.total} Transaksi)</span></h3><div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:13px; align-items: center;"><div><div style="color:var(--text-muted); font-size:10px; font-weight:700; text-transform:uppercase;">Minimal Target</div><div style="font-weight:700; color:var(--text-main); font-size:14px;">${formatRp(s.target)}</div></div><div style="text-align:right;"><div style="color:var(--text-muted); font-size:10px; font-weight:700; text-transform:uppercase;">Total Omzet Valid</div><div style="font-weight:800; color:var(--success); font-size:16px;">${formatRp(s.revenue)}</div></div></div><div class="progress-bg" style="height:10px; margin-bottom:8px;"><div class="progress-bar" style="width:${winRate}%; background:var(--purple);"></div></div><div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600; margin-bottom:15px;"><div>${textSisa}</div><div style="color:var(--purple);">Tercapai ${winRate}%</div></div><div style="display:flex; gap:10px; font-size:11px; font-weight:600; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);"><div style="flex:1; text-align:center;"><span style="color:var(--success); display:block; font-size:14px;">${s.selesai}</span> Selesai</div><div style="flex:1; text-align:center; border-left:1px solid var(--border); border-right:1px solid var(--border);"><span style="color:var(--warning); display:block; font-size:14px;">${s.progress}</span> Proses</div><div style="flex:1; text-align:center;"><span style="color:var(--danger); display:block; font-size:14px;">${s.batal}</span> Batal</div></div></div>`;
             });
             dashSalesContainer.innerHTML = htmlSales;
         }
@@ -537,6 +529,8 @@
                 
                 if (isUnassigned && !isDirectSales) { sc = 'status-aman'; bc = 'badge-pending'; bRespon = 'badge-pending'; textStatus = 'Menunggu Teknisi'; }
                 if (isDirectSales) { sc = 'status-terpenuhi'; bc = 'badge-sales'; textStatus = 'Penjualan Lunas'; }
+
+                let noTrans = ticket['No Transaksi'] ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${ticket['No Transaksi']}</span></p>` : '';
 
                 let htmlBA = ''; if (ticket['Deskripsi Pekerjaan (BA)']) { htmlBA = `<div class="ba-box"><h4 style="margin:0 0 10px 0; font-size:13px; color:var(--primary); border-bottom:1px solid var(--border); padding-bottom:5px;">Berita Acara / Laporan</h4><p style="margin:0; font-size:12px; white-space:pre-wrap;">${ticket['Deskripsi Pekerjaan (BA)']}</p>${ticket['Kritik & Saran'] ? `<p style="margin:8px 0 0 0; font-size:12px; color:var(--text-muted);"><i>Catatan Klien: ${ticket['Kritik & Saran']}</i></p>` : ''}<p style="margin:8px 0 0 0; font-size:12px; font-weight:600;">Oleh: ${ticket['Nama Customer'] || '-'}</p></div>`; }
                 let htmlTracking = ''; if (ticket['Keterangan']) { htmlTracking = `<div class="history-box"><b>Riwayat Update:</b>\n${ticket['Keterangan']}</div>`; }
@@ -582,9 +576,9 @@
                 }
 
                 if (isDirectSales) {
-                    container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Pembeli:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Barang:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']}</p>${infoPenjualanHtml}<div class="waktu-box"><p style="margin:0; text-align:center; color:var(--success); font-weight:600;">Tercatat Langsung Lunas / Selesai</p></div>${btnHtml}</div>`;
+                    container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>${noTrans}<p><strong>Pembeli:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Barang:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']}</p>${infoPenjualanHtml}<div class="waktu-box"><p style="margin:0; text-align:center; color:var(--success); font-weight:600;">Tercatat Langsung Lunas / Selesai</p></div>${btnHtml}</div>`;
                 } else {
-                    container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}</div>${htmlTracking}${htmlBA}${htmlBanding}${btnHtml}</div>`;
+                    container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>${noTrans}<p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}</div>${htmlTracking}${htmlBA}${htmlBanding}${btnHtml}</div>`;
                 }
             });
             if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada pekerjaan.</p>';
@@ -655,7 +649,7 @@
             document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-tiket').style.display = 'block'; 
         }
         function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; togglePenjualanInput(); setAutoIDs(); }
-        async function hapusTiket(idTiket) { if(!confirm(`Hapus tiket ${idTiket} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        async function hapusTiket(idTiket) { if(!confirm(`Hapus data ${idTiket} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         
         async function submitData(e, type) { 
             e.preventDefault(); 
@@ -666,7 +660,13 @@
                 payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; payload.idTiket = document.getElementById('input-id').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
             } else if (type === 'sls') {
                 const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
-                payload.action = 'addPenjualan'; payload.idPenjualan = document.getElementById('input-id-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
+                payload.action = 'addPenjualan'; 
+                payload.idPenjualan = document.getElementById('input-id-sls').value; 
+                payload.noTransaksi = document.getElementById('input-notrans-sls').value; 
+                payload.pembeli = document.getElementById('input-pembeli-sls').value; 
+                payload.barang = document.getElementById('input-barang-sls').value; 
+                payload.sales = document.getElementById('input-sales-sls').value; 
+                payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
             }
 
             try { 
