@@ -43,7 +43,7 @@
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--surface); box-shadow: 0 -4px 15px rgba(0,0,0,0.03); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--border); }
         .nav-btn { flex: 1; padding: 12px 0; text-align: center; color: var(--text-muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; border-top: 3px solid transparent; }
         .nav-btn .icon { font-size: 20px; margin-bottom: 4px; }
-        .nav-btn .text { font-size: 10px; font-weight: 700; letter-spacing: 0.3px; }
+        .nav-btn .text { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
         .nav-btn.active { color: var(--primary); border-top-color: var(--primary); background: #f8fafc; }
 
         .form-card { background: var(--surface); padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border); }
@@ -262,7 +262,12 @@
                     <label>Sales Penanggung Jawab</label>
                     <select id="input-sales" onchange="togglePenjualanInput()"></select>
                     
+                    <!-- KOTAK HIJAU: MUNCUL JIKA SALES DIPILIH -->
                     <div id="div-nilai-penjualan" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
+                        <!-- UPDATE: INPUT NO TRANSAKSI (IPOS) UNTUK TIKET SLA -->
+                        <label style="color:#166534; margin-top:0;">No Transaksi / SO (Opsional)</label>
+                        <input type="text" id="input-notrans-sla" placeholder="Contoh: 0761/KSR/UTM/0826" style="border-color:#86efac; background:#fff; margin-bottom:15px;">
+                        
                         <label style="color:#166534; margin-top:0;">Nilai Penjualan / Omzet (Rp)</label>
                         <input type="number" id="input-nilai-penjualan" placeholder="Contoh: 1500000" style="border-color:#86efac; background:#fff;">
                         <p style="font-size:11px; color:#15803d; margin:5px 0 0 0;">Nilai ini akan dihitung ke performa Target Sales jika tiket Selesai.</p>
@@ -411,7 +416,6 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
-            // MENGATUR TAMPILAN MENU BERDASARKAN ROLE
             if (penggunaAktif.Role === 'admin') { 
                 document.getElementById('nav-tiket').style.display = 'flex';
                 document.getElementById('nav-penjualan').style.display = 'flex';
@@ -427,7 +431,7 @@
                 document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
             } else { 
                 document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'none'; // Teknisi tidak butuh menu penjualan
+                document.getElementById('nav-penjualan').style.display = 'none'; 
                 document.getElementById('nav-input').style.display = 'none'; 
                 document.getElementById('nav-user').style.display = 'none'; 
                 document.getElementById('dash-segment').style.display = 'none'; 
@@ -490,9 +494,8 @@
                 }
             });
 
-            // HITUNG DARI TIKET SLA
             globalTickets.forEach(t => {
-                if(!t['ID Tiket']) return;
+                if(!t['ID Tiket'] || t['ID Tiket'].startsWith('SLS-')) return;
                 const statusRespon = t['Status SLA Respon']; const statusPengerjaan = t['Status SLA']; const statusTiket = t['Status'] || 'Menunggu';
                 
                 (t['Teknisi'] || '').split(',').forEach(nama => {
@@ -516,14 +519,13 @@
                 }
             });
 
-            // HITUNG DARI TABEL PENJUALAN LANGSUNG (Tabel Baru)
             globalPenjualan.forEach(p => {
                 let sName = p['Sales'] ? p['Sales'].trim() : ''; 
                 let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                 if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
                 if (sKey) {
                     statsSales[sKey].total++; 
-                    statsSales[sKey].selesai++; // Penjualan langsung selalu dianggap lunas/selesai
+                    statsSales[sKey].selesai++; 
                     let rawRev = p['Nominal (Rp)'] || p['Nominal'] || 0;
                     statsSales[sKey].revenue += parseInt(rawRev) || 0; 
                 }
@@ -552,7 +554,6 @@
             dashSalesContainer.innerHTML = htmlSales;
         }
 
-        // FUNGSI RENDER TIKET SLA SAJA
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let tiketDitampilkan = [];
@@ -560,7 +561,7 @@
             
             let htmlAda = false;
             tiketDitampilkan.slice().reverse().forEach(ticket => {
-                if (!ticket['ID Tiket'] || ticket['ID Tiket'].startsWith('SLS-')) return; // Hanya tampilkan TKT
+                if (!ticket['ID Tiket'] || ticket['ID Tiket'].startsWith('SLS-')) return; 
                 htmlAda = true;
                 
                 let textStatus = ticket['Status'] || 'Menunggu'; let isUnassigned = ticket['Teknisi'] === 'Belum Ditugaskan' || ticket['Teknisi'] === '';
@@ -571,6 +572,10 @@
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 
                 if (isUnassigned) { sc = 'status-aman'; bc = 'badge-pending'; bRespon = 'badge-pending'; textStatus = 'Menunggu Teknisi'; }
+
+                // MENGAMBIL NO TRANSAKSI (IPOS)
+                let noTransData = ticket['No Transaksi'] || ticket[Object.keys(ticket)[1]];
+                let noTrans = noTransData ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${noTransData}</span></p>` : '';
 
                 let htmlBA = ''; if (ticket['Deskripsi Pekerjaan (BA)']) { htmlBA = `<div class="ba-box"><h4 style="margin:0 0 10px 0; font-size:13px; color:var(--primary); border-bottom:1px solid var(--border); padding-bottom:5px;">Berita Acara / Laporan</h4><p style="margin:0; font-size:12px; white-space:pre-wrap;">${ticket['Deskripsi Pekerjaan (BA)']}</p>${ticket['Kritik & Saran'] ? `<p style="margin:8px 0 0 0; font-size:12px; color:var(--text-muted);"><i>Catatan Klien: ${ticket['Kritik & Saran']}</i></p>` : ''}<p style="margin:8px 0 0 0; font-size:12px; font-weight:600;">Oleh: ${ticket['Nama Customer'] || '-'}</p></div>`; }
                 let htmlTracking = ''; if (ticket['Keterangan']) { htmlTracking = `<div class="history-box"><b>Riwayat Update:</b>\n${ticket['Keterangan']}</div>`; }
@@ -612,12 +617,11 @@
                     infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`;
                 }
 
-                container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}</div>${htmlTracking}${htmlBA}${htmlBanding}${btnHtml}</div>`;
+                container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>${noTrans}<p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}</div>${htmlTracking}${htmlBA}${htmlBanding}${btnHtml}</div>`;
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada pekerjaan.</p>';
         }
 
-        // FUNGSI RENDER PENJUALAN SAJA (TABEL BARU)
         function renderPenjualan() {
             const container = document.getElementById('penjualan-container'); container.innerHTML = ''; 
             
@@ -704,12 +708,16 @@
             document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; 
             const salesSelect = document.getElementById('input-sales'); let found = Array.from(salesSelect.options).some(opt => opt.value === (t['Sales'] || '')); if (!found && t['Sales']) { salesSelect.innerHTML += `<option value="${t['Sales']}">${t['Sales']} (Nonaktif)</option>`; } salesSelect.value = t['Sales'] || ''; 
             
+            // MENGISI NO TRANSAKSI UNTUK DIEDIT
+            let noTransVal = t['No Transaksi'] || t[Object.keys(t)[1]] || '';
+            document.getElementById('input-notrans-sla').value = noTransVal;
+
             let targetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || '';
             document.getElementById('input-nilai-penjualan').value = targetVal; togglePenjualanInput();
             const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); 
             document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-tiket').style.display = 'block'; 
         }
-        function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; togglePenjualanInput(); setAutoIDs(); }
+        function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; document.getElementById('input-notrans-sla').value = ''; togglePenjualanInput(); setAutoIDs(); }
         
         async function hapusTiket(idTiket) { if(!confirm(`Hapus data tiket ${idTiket} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         async function hapusPenjualan(idPenjualan) { if(!confirm(`Hapus data penjualan ${idPenjualan} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
@@ -720,7 +728,16 @@
             if (type === 'sla') {
                 const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
                 const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
-                payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; payload.idTiket = document.getElementById('input-id').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
+                payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; 
+                payload.idTiket = document.getElementById('input-id').value; 
+                payload.noTransaksi = document.getElementById('input-notrans-sla').value; // NGAMBIL NO TRANSAKSI
+                payload.targetSLA = document.getElementById('input-sla').value; 
+                payload.targetRespon = document.getElementById('input-sla-respon').value; 
+                payload.klien = document.getElementById('input-klien').value; 
+                payload.pekerjaan = document.getElementById('input-pekerjaan').value; 
+                payload.sales = document.getElementById('input-sales').value; 
+                payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; 
+                payload.teknisi = t;
             } else if (type === 'sls') {
                 const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
                 payload.action = 'addPenjualan'; 
