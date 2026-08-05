@@ -43,7 +43,7 @@
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--surface); box-shadow: 0 -4px 15px rgba(0,0,0,0.03); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--border); }
         .nav-btn { flex: 1; padding: 12px 0; text-align: center; color: var(--text-muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; border-top: 3px solid transparent; }
         .nav-btn .icon { font-size: 20px; margin-bottom: 4px; }
-        .nav-btn .text { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+        .nav-btn .text { font-size: 10px; font-weight: 700; letter-spacing: 0.3px; }
         .nav-btn.active { color: var(--primary); border-top-color: var(--primary); background: #f8fafc; }
 
         .form-card { background: var(--surface); padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border); }
@@ -133,7 +133,7 @@
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
-            <h3 style="margin-top:0; color:var(--text-main);">Sistem Manajemen SLA</h3>
+            <h3 style="margin-top:0; color:var(--text-main);">Manajemen SLA Alfacom</h3>
             <div id="login-loading">Memeriksa koneksi aman...</div>
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
@@ -228,10 +228,16 @@
             <div id="dash-tek-content" style="display:none;"></div>
         </div>
 
-        <!-- HALAMAN PEKERJAAN -->
+        <!-- HALAMAN TIKET TEKNISI -->
         <div id="page-tiket" class="tab-page">
-            <h3 class="section-title">Daftar Penugasan & Penjualan</h3>
+            <h3 class="section-title">Daftar Tiket SLA (Pekerjaan)</h3>
             <div id="ticket-container"></div>
+        </div>
+
+        <!-- HALAMAN PENJUALAN KHUSUS (TAB BARU) -->
+        <div id="page-penjualan" class="tab-page">
+            <h3 class="section-title" style="color:var(--purple);">Daftar Penjualan Langsung</h3>
+            <div id="penjualan-container"></div>
         </div>
 
         <!-- HALAMAN INPUT DATA (ADMIN) -->
@@ -269,7 +275,7 @@
                 </form>
             </div>
 
-            <!-- FORM PENJUALAN LANGSUNG (DENGAN NO TRANSAKSI IPOS) -->
+            <!-- FORM PENJUALAN LANGSUNG -->
             <div class="form-card" id="form-input-sls-container" style="display:none; border-top-color:var(--purple);">
                 <h3 class="section-title" style="color:var(--purple);">Form Penjualan Langsung</h3>
                 <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Gunakan form ini untuk mencatat penjualan dari Sales yang tidak memerlukan teknisi. Data akan langsung masuk ke Omzet Sales.</p>
@@ -319,9 +325,11 @@
             </div>
         </div>
 
+        <!-- MENU NAVIGASI BAWAH TERGANTUNG ROLE -->
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
-            <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')"><div class="icon">📋</div><div class="text">Pekerjaan</div></div>
+            <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket SLA</div></div>
+            <div class="nav-btn" id="nav-penjualan" onclick="switchTab('penjualan')" style="display:none;"><div class="icon">🛒</div><div class="text">Penjualan</div></div>
             <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Input Data</div></div>
             <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:none;"><div class="icon">⚙️</div><div class="text">Pengaturan</div></div>
         </div>
@@ -330,13 +338,14 @@
     <script>
         const apiUrl = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
 
-        let globalTickets = []; let globalUsers = []; let penggunaAktif = null;
+        let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let penggunaAktif = null;
         let modeEditUser = false; let modeEditTiket = false; let intervalAutoRefresh; let currentTabId = 'dashboard';
 
         const canvas = document.getElementById('signature-pad'); const ctx = canvas.getContext('2d');
         let isDrawing = false; let isCanvasDrawn = false; 
 
-        function formatRp(angka) { if(!angka) return "Rp 0"; return "Rp " + parseInt(angka).toLocaleString('id-ID'); }
+        // HELPER FORMAT RUPIAH
+        function formatRp(angka) { if(!angka || isNaN(angka)) return "Rp 0"; return "Rp " + parseInt(angka).toLocaleString('id-ID'); }
 
         function resizeCanvas() { const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; ctx.scale(ratio, ratio); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#000'; clearSignature(); }
         function getMousePos(evt) { const rect = canvas.getBoundingClientRect(); let clientX = evt.clientX; let clientY = evt.clientY; if (evt.touches && evt.touches.length > 0) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; } return { x: clientX - rect.left, y: clientY - rect.top }; }
@@ -380,7 +389,8 @@
                 }
             }
             if (!berhasil || !data) return;
-            globalTickets = data.tickets; globalUsers = data.users;
+            globalTickets = data.tickets; globalUsers = data.users; globalPenjualan = data.penjualan || [];
+            
             const savedSession = localStorage.getItem('sesiLoginSLA');
             if (savedSession) {
                 const parsedSession = JSON.parse(savedSession);
@@ -388,7 +398,7 @@
                 else { const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } }
             }
             if(!penggunaAktif) { document.getElementById('login-loading').style.display = 'none'; document.getElementById('login-form').style.display = 'block'; document.getElementById('login-wrapper').style.display = 'flex'; document.getElementById('app-wrapper').style.display = 'none'; } 
-            else { if (!isSilentRefresh) { masukKeAplikasi(); } else { renderDashboard(); renderTickets(); renderTabelUser(); if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } } }
+            else { if (!isSilentRefresh) { masukKeAplikasi(); } else { renderDashboard(); renderTickets(); renderPenjualan(); renderTabelUser(); if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } } }
         }
 
         function prosesLogin(e) {
@@ -401,20 +411,30 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
+            // MENGATUR TAMPILAN MENU BERDASARKAN ROLE
             if (penggunaAktif.Role === 'admin') { 
-                document.getElementById('nav-input').style.display = 'flex'; document.getElementById('nav-user').style.display = 'flex'; 
+                document.getElementById('nav-tiket').style.display = 'flex';
+                document.getElementById('nav-penjualan').style.display = 'flex';
+                document.getElementById('nav-input').style.display = 'flex'; 
+                document.getElementById('nav-user').style.display = 'flex'; 
                 document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
             } else if (penggunaAktif.Role === 'sales') { 
-                document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; 
+                document.getElementById('nav-tiket').style.display = 'flex';
+                document.getElementById('nav-penjualan').style.display = 'flex';
+                document.getElementById('nav-input').style.display = 'none'; 
+                document.getElementById('nav-user').style.display = 'none'; 
                 document.getElementById('dash-segment').style.display = 'none'; 
                 document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
             } else { 
-                document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; 
+                document.getElementById('nav-tiket').style.display = 'flex';
+                document.getElementById('nav-penjualan').style.display = 'none'; // Teknisi tidak butuh menu penjualan
+                document.getElementById('nav-input').style.display = 'none'; 
+                document.getElementById('nav-user').style.display = 'none'; 
                 document.getElementById('dash-segment').style.display = 'none'; 
                 document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'block';
             }
 
-            renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderTabelUser(); switchTab('dashboard'); 
+            renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderTabelUser(); switchTab('dashboard'); 
             if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
@@ -444,11 +464,12 @@
         function setAutoIDs() {
             let maxTkt = 0; let maxSls = 0;
             globalTickets.forEach(t => { 
-                if(t['ID Tiket']) {
-                    if (t['ID Tiket'].startsWith('TKT-')) { let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxTkt) maxTkt = num; }
-                    if (t['ID Tiket'].startsWith('SLS-')) { let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxSls) maxSls = num; }
-                }
+                if(t['ID Tiket'] && t['ID Tiket'].startsWith('TKT-')) { let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxTkt) maxTkt = num; }
             });
+            globalPenjualan.forEach(p => { 
+                if(p['ID Penjualan'] && p['ID Penjualan'].startsWith('SLS-')) { let num = parseInt(p['ID Penjualan'].split('-')[1]); if (num > maxSls) maxSls = num; }
+            });
+
             if (!modeEditTiket) { 
                 document.getElementById('input-id').value = 'TKT-' + String(maxTkt + 1).padStart(3, '0'); 
                 document.getElementById('input-id-sls').value = 'SLS-' + String(maxSls + 1).padStart(3, '0'); 
@@ -462,9 +483,14 @@
             let statsTeknisi = {}; let statsSales = {};
             globalUsers.forEach(u => { 
                 if (u.Role === 'teknisi' && u['Nama Asli']) { let namaAsli = u['Nama Asli']; if (namaAsli.toLowerCase() === 'syawal') namaAsli = 'Muhammad Syawal'; if (!statsTeknisi[namaAsli]) { statsTeknisi[namaAsli] = { nama: namaAsli, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 }; } }
-                if (u.Role === 'sales' && u['Nama Asli']) { let namaSales = u['Nama Asli']; if (!statsSales[namaSales]) { statsSales[namaSales] = { nama: namaSales, target: parseInt(u['Target Sales (Rp)']) || 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; } }
+                if (u.Role === 'sales' && u['Nama Asli']) { 
+                    let namaSales = u['Nama Asli']; 
+                    let rawTarget = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || 0;
+                    if (!statsSales[namaSales]) { statsSales[namaSales] = { nama: namaSales, target: parseInt(rawTarget) || 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; } 
+                }
             });
 
+            // HITUNG DARI TIKET SLA
             globalTickets.forEach(t => {
                 if(!t['ID Tiket']) return;
                 const statusRespon = t['Status SLA Respon']; const statusPengerjaan = t['Status SLA']; const statusTiket = t['Status'] || 'Menunggu';
@@ -482,12 +508,28 @@
                 if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
                 if (sKey) { 
                     statsSales[sKey].total++; 
-                    if (statusTiket === 'Selesai') { statsSales[sKey].revenue += parseInt(t['Nilai Penjualan (Rp)']) || 0; statsSales[sKey].selesai++;
+                    if (statusTiket === 'Selesai') { 
+                        let rawRev = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0;
+                        statsSales[sKey].revenue += parseInt(rawRev) || 0; 
+                        statsSales[sKey].selesai++;
                     } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; }
                 }
             });
+
+            // HITUNG DARI TABEL PENJUALAN LANGSUNG (Tabel Baru)
+            globalPenjualan.forEach(p => {
+                let sName = p['Sales'] ? p['Sales'].trim() : ''; 
+                let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
+                if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
+                if (sKey) {
+                    statsSales[sKey].total++; 
+                    statsSales[sKey].selesai++; // Penjualan langsung selalu dianggap lunas/selesai
+                    let rawRev = p['Nominal (Rp)'] || p['Nominal'] || 0;
+                    statsSales[sKey].revenue += parseInt(rawRev) || 0; 
+                }
+            });
             
-            let htmlTeknisi = '';
+            let htmlTeknisi = '<h3 class="section-title">Papan Performa Teknisi</h3>';
             let arrTeknisi = Object.values(statsTeknisi).sort((a, b) => { let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0; return rateB !== rateA ? rateB - rateA : (b.resp_total + b.peng_total) - (a.resp_total + a.peng_total); });
             if (arrTeknisi.length === 0) htmlTeknisi += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
             arrTeknisi.forEach(s => { 
@@ -497,7 +539,7 @@
             });
             dashTekContainer.innerHTML = htmlTeknisi;
 
-            let htmlSales = '';
+            let htmlSales = '<h3 class="section-title">Papan Pencapaian Omzet</h3>';
             let arrSales = Object.values(statsSales).sort((a, b) => b.revenue - a.revenue);
             if (arrSales.length === 0) htmlSales += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
             arrSales.forEach(s => { 
@@ -510,15 +552,16 @@
             dashSalesContainer.innerHTML = htmlSales;
         }
 
+        // FUNGSI RENDER TIKET SLA SAJA
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let tiketDitampilkan = [];
             if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') { tiketDitampilkan = globalTickets; } else { tiketDitampilkan = globalTickets.filter(t => (t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); }
             
+            let htmlAda = false;
             tiketDitampilkan.slice().reverse().forEach(ticket => {
-                if (!ticket['ID Tiket']) return;
-                
-                let isDirectSales = ticket['ID Tiket'].startsWith('SLS-');
+                if (!ticket['ID Tiket'] || ticket['ID Tiket'].startsWith('SLS-')) return; // Hanya tampilkan TKT
+                htmlAda = true;
                 
                 let textStatus = ticket['Status'] || 'Menunggu'; let isUnassigned = ticket['Teknisi'] === 'Belum Ditugaskan' || ticket['Teknisi'] === '';
                 let statusPengerjaanKartu = ticket['Status SLA']; if(textStatus === 'Pending') statusPengerjaanKartu = 'AMAN';
@@ -527,17 +570,14 @@
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status'));
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 
-                if (isUnassigned && !isDirectSales) { sc = 'status-aman'; bc = 'badge-pending'; bRespon = 'badge-pending'; textStatus = 'Menunggu Teknisi'; }
-                if (isDirectSales) { sc = 'status-terpenuhi'; bc = 'badge-sales'; textStatus = 'Penjualan Lunas'; }
-
-                let noTrans = ticket['No Transaksi'] ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${ticket['No Transaksi']}</span></p>` : '';
+                if (isUnassigned) { sc = 'status-aman'; bc = 'badge-pending'; bRespon = 'badge-pending'; textStatus = 'Menunggu Teknisi'; }
 
                 let htmlBA = ''; if (ticket['Deskripsi Pekerjaan (BA)']) { htmlBA = `<div class="ba-box"><h4 style="margin:0 0 10px 0; font-size:13px; color:var(--primary); border-bottom:1px solid var(--border); padding-bottom:5px;">Berita Acara / Laporan</h4><p style="margin:0; font-size:12px; white-space:pre-wrap;">${ticket['Deskripsi Pekerjaan (BA)']}</p>${ticket['Kritik & Saran'] ? `<p style="margin:8px 0 0 0; font-size:12px; color:var(--text-muted);"><i>Catatan Klien: ${ticket['Kritik & Saran']}</i></p>` : ''}<p style="margin:8px 0 0 0; font-size:12px; font-weight:600;">Oleh: ${ticket['Nama Customer'] || '-'}</p></div>`; }
                 let htmlTracking = ''; if (ticket['Keterangan']) { htmlTracking = `<div class="history-box"><b>Riwayat Update:</b>\n${ticket['Keterangan']}</div>`; }
 
                 let htmlBanding = ''; let btnHtml = '';
                 
-                if (penggunaAktif.Role === 'sales' && !isDirectSales) {
+                if (penggunaAktif.Role === 'sales') {
                     if (!ticket['Sales'] || ticket['Sales'].trim() === '-' || ticket['Sales'].trim() === '') {
                         if (!ticket['Status Banding']) {
                             htmlBanding = `<button class="btn-action-primary" style="background:#f3e8ff; color:var(--purple); border-color:#d8b4fe;" onclick="bukaModalBanding('${ticket['ID Tiket']}')">📌 Klaim Pekerjaan Ini</button>`;
@@ -555,33 +595,52 @@
                 }
 
                 if (penggunaAktif.Role === 'admin') {
-                    if (isDirectSales) {
-                        btnHtml = `<div class="btn-grid"><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus Data Penjualan</button></div>`;
+                    if (isUnassigned) {
+                        btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid"><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus Tiket</button></div>`;
                     } else {
-                        if (isUnassigned) {
-                            btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid"><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus Tiket</button></div>`;
-                        } else {
-                            let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status';
-                            btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button><div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button></div>`;
-                        }
+                        let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status';
+                        btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button><div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button></div>`;
                     }
-                } else if (penggunaAktif.Role === 'teknisi' && !isDirectSales) {
+                } else if (penggunaAktif.Role === 'teknisi') {
                     let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status';
                     btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
                 }
 
+                let nilaiPenjualanCek = ticket['Nilai Penjualan (Rp)'] || ticket['Nilai Penjualan'] || 0;
                 let infoPenjualanHtml = '';
-                if ((penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') && ticket['Nilai Penjualan (Rp)']) {
-                    infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(ticket['Nilai Penjualan (Rp)'])}</p>`;
+                if ((penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') && parseInt(nilaiPenjualanCek) > 0) {
+                    infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`;
                 }
 
-                if (isDirectSales) {
-                    container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>${noTrans}<p><strong>Pembeli:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Barang:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']}</p>${infoPenjualanHtml}<div class="waktu-box"><p style="margin:0; text-align:center; color:var(--success); font-weight:600;">Tercatat Langsung Lunas / Selesai</p></div>${btnHtml}</div>`;
-                } else {
-                    container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>${noTrans}<p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}</div>${htmlTracking}${htmlBA}${htmlBanding}${btnHtml}</div>`;
-                }
+                container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}</div>${htmlTracking}${htmlBA}${htmlBanding}${btnHtml}</div>`;
             });
-            if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada pekerjaan.</p>';
+            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada pekerjaan.</p>';
+        }
+
+        // FUNGSI RENDER PENJUALAN SAJA (TABEL BARU)
+        function renderPenjualan() {
+            const container = document.getElementById('penjualan-container'); container.innerHTML = ''; 
+            
+            let penDitampilkan = [];
+            if (penggunaAktif.Role === 'admin') { penDitampilkan = globalPenjualan; } 
+            else if (penggunaAktif.Role === 'sales') { penDitampilkan = globalPenjualan.filter(p => (p['Sales']||'').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase()); }
+            
+            let htmlAda = false;
+            penDitampilkan.slice().reverse().forEach(p => {
+                if (!p['ID Penjualan']) return;
+                htmlAda = true;
+                
+                let btnHtml = '';
+                if (penggunaAktif.Role === 'admin') {
+                    btnHtml = `<div class="btn-grid"><button class="btn-del" onclick="hapusPenjualan('${p['ID Penjualan']}')">Hapus Data Penjualan</button></div>`;
+                }
+
+                let noTrans = p['No Transaksi'] ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${p['No Transaksi']}</span></p>` : '';
+                let tgl = p['Waktu Lapor'] ? new Date(p['Waktu Lapor']).toLocaleDateString('id-ID') : '-';
+
+                container.innerHTML += `<div class="card status-terpenuhi"><h3><span>${p['ID Penjualan']}</span><span class="badge badge-sales">Lunas</span></h3>${noTrans}<p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Pembeli:</strong> ${p['Nama Pembeli']}</p><p><strong>Barang:</strong> ${p['Barang / Jasa']}</p><p><strong>Sales:</strong> ${p['Sales']}</p><p style="color:var(--success);"><strong>Nominal Omzet:</strong> ${formatRp(p['Nominal (Rp)'] || p['Nominal'])}</p>${btnHtml}</div>`;
+            });
+            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada data penjualan langsung.</p>';
         }
 
         function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
@@ -644,13 +703,17 @@
             document.getElementById('form-tiket-title').innerText = 'Edit Tiket SLA: ' + idTiket; 
             document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; 
             const salesSelect = document.getElementById('input-sales'); let found = Array.from(salesSelect.options).some(opt => opt.value === (t['Sales'] || '')); if (!found && t['Sales']) { salesSelect.innerHTML += `<option value="${t['Sales']}">${t['Sales']} (Nonaktif)</option>`; } salesSelect.value = t['Sales'] || ''; 
-            document.getElementById('input-nilai-penjualan').value = t['Nilai Penjualan (Rp)'] || ''; togglePenjualanInput();
+            
+            let targetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || '';
+            document.getElementById('input-nilai-penjualan').value = targetVal; togglePenjualanInput();
             const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); 
             document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-tiket').style.display = 'block'; 
         }
         function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; togglePenjualanInput(); setAutoIDs(); }
-        async function hapusTiket(idTiket) { if(!confirm(`Hapus data ${idTiket} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         
+        async function hapusTiket(idTiket) { if(!confirm(`Hapus data tiket ${idTiket} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        async function hapusPenjualan(idPenjualan) { if(!confirm(`Hapus data penjualan ${idPenjualan} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+
         async function submitData(e, type) { 
             e.preventDefault(); 
             const payload = {};
@@ -672,8 +735,8 @@
             try { 
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
                 if ((await res.json()).status === 'sukses') { 
-                    if (type === 'sla') batalEditTiket(); else document.getElementById('form-sls').reset();
-                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; switchTab('tiket'); 
+                    if (type === 'sla') { batalEditTiket(); switchTab('tiket'); } else { document.getElementById('form-sls').reset(); switchTab('penjualan'); }
+                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
                 } 
             } catch (err) {} 
             
@@ -682,7 +745,7 @@
         }
         
         function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Email'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
-        function aktifkanEditUser(un) { const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-email').value = u['Email'] || ''; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; toggleTargetSales(); document.getElementById('new-target-sales').value = u['Target Sales (Rp)'] || ''; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0); }
+        function aktifkanEditUser(un) { const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-email').value = u['Email'] || ''; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; toggleTargetSales(); let targetVal = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || ''; document.getElementById('new-target-sales').value = targetVal; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0); }
         function batalEditUser() { modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = ''; toggleTargetSales(); document.getElementById('new-target-sales').value = ''; document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false; document.getElementById('btn-tambah-user').innerText = 'Simpan Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-user').style.display = 'none'; }
         async function simpanUserBaru(e) { e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value, targetSales: document.getElementById('new-target-sales').value }; if (!modeEditUser && globalUsers.find(u => (u.Username||'').toLowerCase() === payload.username.toLowerCase())) { alert("Username sudah ada."); btn.innerText='Simpan Profil'; btn.disabled=false; return; } try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(true); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update Profil':'Simpan Profil'; btn.disabled=false; }
         async function hapusUser(un) { if(un==='admin') { alert('Akun admin utama dilarang dihapus!'); return; } if(!confirm(`Yakin hapus user ${un}?`)) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
