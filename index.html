@@ -3,99 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard SLA Teknisi - Alfacom</title>
+    <title>Dashboard SLA - Alfacom</title>
     <style>
-        :root { --warna-utama: #264a9f; --warna-aksen: #1e3b7e; --warna-latar: #f4f7f6; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--warna-latar); color: #333; padding: 20px; padding-bottom: 80px; margin: 0; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        :root { 
+            --primary: #1e3a8a; --primary-hover: #1e40af; --surface: #ffffff; --bg: #f7fafc; 
+            --text-main: #2d3748; --text-muted: #718096; --border: #e2e8f0;
+            --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --purple: #8b5cf6;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); padding: 20px; padding-bottom: 90px; margin: 0; line-height: 1.5; }
         .container { max-width: 800px; margin: 0 auto; }
         
         #login-wrapper { display: flex; justify-content: center; align-items: center; height: 80vh; }
-        .login-card { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; border-top: 5px solid var(--warna-utama); }
-        .login-card img { max-width: 200px; margin-bottom: 20px; }
-        .login-card input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .btn-login { background-color: var(--warna-utama); color: white; border: none; padding: 12px; width: 100%; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        #login-loading { font-style: italic; color: #7f8c8d; margin-bottom: 15px; font-size: 13px; }
+        .login-card { background: var(--surface); padding: 40px 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 360px; text-align: center; border-top: 6px solid var(--primary); }
+        .login-card img { max-width: 180px; margin-bottom: 25px; }
+        .login-card input { width: 100%; padding: 12px 15px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; font-family: 'Inter', sans-serif; font-size: 14px; transition: border-color 0.2s; }
+        .login-card input:focus { outline: none; border-color: var(--primary); }
+        .btn-login { background-color: var(--primary); color: white; border: none; padding: 12px; width: 100%; font-size: 15px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+        .btn-login:hover { background-color: var(--primary-hover); }
+        #login-loading { font-style: italic; color: var(--text-muted); margin-bottom: 15px; font-size: 13px; }
 
         #app-wrapper { display: none; }
         
-        .header-branding { text-align: center; margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; }
-        .logo { max-width: 200px; height: auto; margin-bottom: 10px; }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        .top-bar span { font-weight: bold; font-size: 14px; color: var(--warna-utama); }
-        .top-bar-buttons { display: flex; gap: 5px; }
-        .btn-refresh { background-color: #f39c12; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
-        .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
-
-        .tab-page { display: none; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
-        .nav-btn { flex: 1; padding: 10px 0; text-align: center; color: #95a5a6; cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; border-top: 3px solid transparent; }
-        .nav-btn .icon { font-size: 20px; margin-bottom: 3px; }
-        .nav-btn .text { font-size: 11px; font-weight: 600; }
-        .nav-btn.active { color: var(--warna-utama); border-top-color: var(--warna-utama); background: #f8f9fa; }
-
-        .form-card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid var(--warna-utama); }
-        .form-card h3 { margin-top: 0; color: var(--warna-utama); }
+        .header-branding { text-align: center; margin-bottom: 20px; }
+        .logo { max-width: 180px; height: auto; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; background: var(--surface); padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+        .top-bar span { font-weight: 700; font-size: 14px; color: var(--primary); }
+        .top-bar-buttons { display: flex; gap: 8px; }
         
-        .form-card label, .modal-content label { display: block; margin: 12px 0 5px; font-weight: bold; font-size: 13px; text-align: left; color: #333; }
-        .form-card input, .form-card select, .form-card textarea,
-        .modal-content input, .modal-content select, .modal-content textarea { 
-            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #fff;
-        }
-        .form-card textarea, .modal-content textarea { resize: vertical; min-height: 60px; }
-        .input-terkunci { background-color: #e9ecef !important; color: #6c757d !important; cursor: not-allowed !important; font-weight: bold; }
+        /* MODERN OUTLINE BUTTONS */
+        .btn-outline-warning { background: transparent; color: var(--warning); border: 1px solid var(--warning); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+        .btn-outline-warning:hover { background: var(--warning); color: white; }
+        .btn-outline-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+        .btn-outline-danger:hover { background: var(--danger); color: white; }
+
+        .tab-page { display: none; animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* MODERN BOTTOM NAV */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--surface); box-shadow: 0 -4px 15px rgba(0,0,0,0.03); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--border); }
+        .nav-btn { flex: 1; padding: 12px 0; text-align: center; color: var(--text-muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; border-top: 3px solid transparent; }
+        .nav-btn .icon { font-size: 20px; margin-bottom: 4px; }
+        .nav-btn .text { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+        .nav-btn.active { color: var(--primary); border-top-color: var(--primary); background: #f8fafc; }
+
+        /* CARDS & FORMS */
+        .form-card { background: var(--surface); padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border); }
+        .form-card h3, .section-title { margin-top: 0; color: var(--text-main); font-size: 18px; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
         
-        .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 15px; border-radius: 6px; border: 1px solid #ccc; }
-        .checkbox-group label { display: flex; align-items: flex-start; justify-content: flex-start; text-align: left; cursor: pointer; font-weight: normal !important; margin: 0; font-size: 13px; }
-        .checkbox-group input[type="checkbox"] { margin: 2px 10px 0 0 !important; flex-shrink: 0; width: 16px; height: 16px; }
-
-        .btn-submit { background-color: #2ecc71; color: white; border: none; padding: 12px; width: 100%; font-size: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .btn-batal { background-color: #e74c3c; margin-top: 10px; }
-        .btn-toggle-bat { background-color: #3498db; color: white; border: none; padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { padding: 8px; border: 1px solid #ddd; text-align: left; font-size: 13px; }
-        th { background-color: #f4f7f6; }
-        .btn-edit-user { background-color: #f39c12; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 5px; margin-bottom: 5px; }
-        .btn-delete-user { background-color: #e74c3c; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
-
-        .card { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 6px solid #ccc; position: relative; }
-        .status-aman { border-left-color: #f1c40f; } .status-terpenuhi { border-left-color: #2ecc71; } .status-terlambat { border-left-color: #e74c3c; } 
-        .card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--warna-utama); }
-        .card p { margin: 5px 0; font-size: 13px; line-height: 1.4; }
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; background-color: var(--warna-aksen); }
-        .badge-status { background-color: #3498db; } .badge-selesai { background-color: #2ecc71; } .badge-pending { background-color: #e67e22; } .badge-cancel { background-color: #e74c3c; } .badge-aman { background-color: #f1c40f; color: #fff;}
-        .waktu-box { background: #f8f9fa; border: 1px dashed #ccc; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 12px; }
-        .waktu-box p { margin: 3px 0; }
-
-        .perf-card { background:#fff; padding:15px; border-radius:8px; margin-bottom:12px; box-shadow:0 2px 5px rgba(0,0,0,0.05); }
-        .perf-header { border-bottom: 1px dashed #ccc; padding-bottom: 8px; margin-bottom: 12px; }
-        .perf-name { margin:0; font-size:18px; color:var(--warna-utama); font-weight:bold; }
-        .perf-stats { margin-top:5px; font-size:11px; color:#555; display:flex; justify-content:space-between; }
-        .progress-bg { width:100%; background:#ecf0f1; height:8px; border-radius:4px; margin-top:8px; overflow:hidden; }
-        .progress-bar { height:100%; transition: width 0.5s ease; }
-
-        #loading { text-align: center; font-style: italic; color: #7f8c8d; padding: 20px; font-weight: bold; }
-
-        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: flex-start; overflow-y: auto; padding: 20px 10px;}
-        .modal-content { background-color: #fff; padding: 25px 20px; border-radius: 12px; width: 100%; max-width: 450px; border-top: 6px solid var(--warna-utama); margin: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        label { display: block; margin: 15px 0 6px; font-weight: 600; font-size: 13px; color: var(--text-main); }
+        input[type="text"], input[type="number"], input[type="email"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #f8fafc; transition: 0.2s; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); background-color: var(--surface); box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1); }
+        textarea { resize: vertical; min-height: 70px; }
+        .input-terkunci { background-color: #edf2f7 !important; color: #a0aec0 !important; cursor: not-allowed; }
         
-        #berita-acara-section { display: none; background-color: #f0f4f8; border: 2px solid var(--warna-utama); padding: 20px 15px; border-radius: 8px; margin-top: 15px; margin-bottom: 10px; }
-        #berita-acara-section h4 { margin: 0 0 5px 0; color: var(--warna-utama); text-align: center; border-bottom: 2px solid var(--warna-utama); padding-bottom: 10px; font-size: 16px; }
-        .info-wajib { font-size:11px; color:#e74c3c; text-align:center; font-style: italic; margin-bottom: 15px; display: block;}
+        .checkbox-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); }
+        .checkbox-group label { margin: 0; font-weight: 500; font-size: 13px; display: flex; align-items: center; cursor: pointer; }
+        .checkbox-group input { margin-right: 8px; width: 16px; height: 16px; accent-color: var(--primary); }
+
+        .btn-solid-primary { background: var(--primary); color: white; border: none; padding: 12px; width: 100%; font-size: 14px; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: 0.2s; }
+        .btn-solid-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .btn-outline-cancel { background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 10px; width: 100%; font-size: 14px; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 10px; transition: 0.2s; }
+        .btn-outline-cancel:hover { background: #f1f5f9; color: var(--text-main); }
         
-        .signature-wrapper { border: 2px dashed #bdc3c7; background: #fff; border-radius: 6px; margin-bottom: 10px; position: relative; }
-        #signature-pad { width: 100%; height: 160px; cursor: crosshair; touch-action: none; border-radius: 6px; }
-        .btn-clear-sig { background-color: #f39c12; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; width: 100%; display: block; margin-bottom: 15px;}
+        /* MODERN CARDS */
+        .card { background: var(--surface); padding: 20px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--border); border-left: 5px solid var(--border); transition: 0.2s; }
+        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .status-aman { border-left-color: var(--warning); } .status-terpenuhi { border-left-color: var(--success); } .status-terlambat { border-left-color: var(--danger); } 
         
-        .bat-card { background-color: #e8f4f8; border: 1px solid #bce8f1; padding: 12px; border-radius: 6px; margin-top: 15px; }
-        .bat-card h4 { margin: 0 0 8px 0; color: #31708f; font-size: 13px; border-bottom: 1px dashed #bce8f1; padding-bottom: 5px; }
-        .bat-card p { margin: 0 0 5px 0; font-size: 12px; }
-        .bat-text-wrap { white-space: pre-wrap; word-wrap: break-word; }
-        .bat-img { max-height: 80px; margin-top: 5px; border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 2px; }
+        .card h3 { margin: 0 0 12px 0; font-size: 16px; color: var(--primary); display: flex; justify-content: space-between; align-items: center; }
+        .card p { margin: 6px 0; font-size: 13px; color: #4a5568; }
+        .card strong { color: var(--text-main); font-weight: 600; }
         
-        .history-box { background-color: #fdfdfd; border: 1px dashed #bdc3c7; border-left: 4px solid #3498db; border-radius: 6px; padding: 10px; font-size: 12px; max-height: 130px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 15px; color: #2c3e50; line-height: 1.5;}
+        /* CLEAN BADGES */
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-status { background: #e0e7ff; color: #1e40af; } 
+        .badge-selesai { background: #d1fae5; color: #065f46; } 
+        .badge-pending { background: #fef3c7; color: #92400e; } 
+        .badge-cancel { background: #fee2e2; color: #991b1b; } 
+        .badge-aman { background: #f3f4f6; color: #475569; }
+
+        .waktu-box { background: #f8fafc; border: 1px dashed var(--border); padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 12px; }
+        
+        .history-box { background: #f8fafc; border: 1px solid var(--border); border-left: 3px solid #cbd5e1; border-radius: 8px; padding: 12px; font-size: 12px; max-height: 120px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 15px; color: #4a5568; }
+        .ba-box { border: 1px solid var(--border); background: var(--surface); padding: 15px; border-radius: 8px; margin-top: 15px; }
+
+        /* BUTTONS INSIDE CARDS */
+        .btn-action-primary { background: #eff6ff; color: var(--primary); border: 1px solid #bfdbfe; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; width: 100%; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        .btn-action-primary:hover { background: var(--primary); color: white; }
+        .btn-grid { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-grid button { flex: 1; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .btn-edit { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; } .btn-edit:hover { background: #f59e0b; color: white; }
+        .btn-del { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; } .btn-del:hover { background: #ef4444; color: white; }
+        .btn-acc { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; } .btn-acc:hover { background: #10b981; color: white; }
+
+        /* MODALS */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px); justify-content: center; align-items: flex-start; overflow-y: auto; padding: 20px 10px;}
+        .modal-content { background-color: var(--surface); padding: 25px; border-radius: 16px; width: 100%; max-width: 450px; margin: auto; position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); border: 1px solid var(--border); }
+        .modal-title { margin-top: 0; font-size: 18px; color: var(--text-main); font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 15px; }
+
+        #berita-acara-section { display: none; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-top: 15px; margin-bottom: 15px; }
+        .signature-wrapper { border: 2px dashed #cbd5e1; background: #fff; border-radius: 8px; margin-bottom: 10px; }
+        #signature-pad { width: 100%; height: 160px; cursor: crosshair; touch-action: none; border-radius: 8px; }
+
+        /* IMAGES GRID */
+        .img-grid { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-top: 10px; }
+        .img-grid img { height: 120px; border-radius: 6px; border: 1px solid var(--border); object-fit: cover; }
+        .dl-btn { display: inline-block; font-size: 11px; background: #f1f5f9; color: var(--text-main); border: 1px solid var(--border); padding: 6px 12px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 5px;}
+        .dl-btn:hover { background: var(--border); }
+
+        #loading { text-align: center; font-style: italic; color: var(--text-muted); padding: 20px; font-weight: 500; font-size: 14px; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f8fafc; padding: 10px; border-bottom: 2px solid var(--border); color: var(--text-muted); text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid var(--border); }
     </style>
 </head>
 <body>
@@ -103,28 +125,31 @@
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
-            <h3 style="color: var(--warna-utama); margin-top: 0;">Login Aplikasi SLA</h3>
-            <div id="login-loading">Memeriksa koneksi...</div>
+            <h3 style="margin-top:0; color:var(--text-main);">Sistem Manajemen SLA</h3>
+            <div id="login-loading">Memeriksa koneksi aman...</div>
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
                 <input type="password" id="password" placeholder="Password" required>
-                <button type="submit" class="btn-login">Masuk</button>
+                <button type="submit" class="btn-login">Masuk Workspace</button>
             </form>
         </div>
     </div>
 
     <!-- MODAL PENGAJUAN BANDING (UNTUK SALES) -->
     <div id="modal-banding" class="modal">
-        <div class="modal-content" style="border-top-color: #8e44ad;">
-            <h3 style="margin-top:0; color:#8e44ad; border-bottom: 1px solid #eee; padding-bottom: 10px;">🙋 Ajukan Klaim Banding</h3>
-            <p style="font-size:12px; color:#555;">Silakan upload foto bukti percakapan dengan Klien agar Admin dapat memverifikasi bahwa ini adalah pekerjaan Anda.</p>
+        <div class="modal-content">
+            <h3 class="modal-title" style="color:var(--purple);">🙋 Ajukan Klaim Pekerjaan</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Unggah hingga 3 bukti foto (screenshot chat/order) dan tambahkan keterangan untuk diverifikasi Admin.</p>
             <form onsubmit="kirimBanding(event)">
                 <input type="hidden" id="banding-id">
-                <label>Upload Bukti Foto/Screenshot</label>
-                <input type="file" id="banding-bukti" accept="image/*" required style="margin-bottom: 15px; font-size: 12px;">
-                <p id="banding-status" style="font-size:11px; color:#e74c3c; font-style:italic; display:none;">Memproses gambar...</p>
-                <button type="submit" id="btn-submit-banding" class="btn-submit" style="background-color: #8e44ad;">🚀 Kirim Pengajuan</button>
-                <button type="button" class="btn-submit btn-batal" onclick="document.getElementById('modal-banding').style.display='none'">❌ Batal</button>
+                <label>Bukti Foto (Maks 3 File)</label>
+                <input type="file" id="banding-bukti" accept="image/*" multiple max="3" required style="font-size: 12px;">
+                <label>Keterangan Tambahan (Opsional)</label>
+                <textarea id="banding-keterangan" placeholder="Misal: 'Ini pesanan dari Pak Budi kemarin via WA...'"></textarea>
+                
+                <p id="banding-status" style="font-size:11px; color:var(--primary); font-weight:600; display:none; margin-top:10px;">Memproses foto, mohon tunggu...</p>
+                <button type="submit" id="btn-submit-banding" class="btn-solid-primary" style="background:var(--purple);">🚀 Kirim Pengajuan Bukti</button>
+                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-banding').style.display='none'">Batal</button>
             </form>
         </div>
     </div>
@@ -132,9 +157,10 @@
     <!-- MODAL UPDATE STATUS & BERITA ACARA -->
     <div id="modal-update" class="modal">
         <div class="modal-content">
-            <h3 id="update-title" style="margin-top:0; color:var(--warna-utama); font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Update Status Tiket</h3>
+            <h3 id="update-title" class="modal-title">Update Status Tiket</h3>
             <form id="form-update" onsubmit="submitUpdate(event)">
                 <input type="hidden" id="update-id">
+                
                 <label>Status Pekerjaan</label>
                 <select id="update-status" required onchange="cekKeterangan()">
                     <option value="Menunggu">Menunggu</option>
@@ -143,90 +169,95 @@
                     <option value="Cancel">Cancel (Dibatalkan)</option>
                     <option value="Selesai">Selesai (Closed)</option>
                 </select>
-                <label>Riwayat Pemantauan (Tracking Waktu)</label>
+                
+                <label>Riwayat Pemantauan</label>
                 <div id="tracking-history" class="history-box"></div>
-                <label id="label-keterangan">Tambah Catatan / Progres Baru</label>
-                <textarea id="update-keterangan" placeholder="Ketik update kegiatan di sini... (Opsional jika hanya ubah status)"></textarea>
-                <button type="button" id="btn-toggle-bat" class="btn-toggle-bat" onclick="toggleBAT()">📝 Buka / Cicil Form Berita Acara</button>
+                
+                <label id="label-keterangan">Log/Catatan Baru</label>
+                <textarea id="update-keterangan" placeholder="Ketik update kegiatan di sini..."></textarea>
+                
+                <button type="button" id="btn-toggle-bat" class="btn-outline-cancel" style="margin-top:15px; border-color:var(--primary); color:var(--primary);" onclick="toggleBAT()">📝 Buka / Cicil Berita Acara</button>
 
                 <div id="berita-acara-section">
-                    <h4>📑 BERITA ACARA TEKNISI</h4>
-                    <span class="info-wajib" id="info-wajib-text">*Bisa dicicil setiap hari selama status On Progress</span>
-                    <label>Deskripsi Pekerjaan / Barang Terpasang</label>
-                    <textarea id="ba-deskripsi" rows="4" placeholder="Contoh: Pemasangan hari pertama (4 kamera) selesai..."></textarea>
-                    <label>Kritik & Saran Customer (Opsional)</label>
-                    <textarea id="ba-kritik" rows="2" placeholder="Masukan dari customer..."></textarea>
-                    <label>Nama Customer / PIC</label>
-                    <input type="text" id="ba-nama-customer" placeholder="Nama orang yang bertanda tangan">
-                    <label>Tanda Tangan Customer <span id="status-ttd" style="color:#2ecc71; font-weight:normal; font-size:11px;"></span></label>
+                    <h4 style="margin: 0 0 5px 0; color: var(--text-main); font-size: 14px; text-align:center;">BERITA ACARA TEKNISI</h4>
+                    <span class="info-wajib" id="info-wajib-text">*Bisa dicicil setiap hari selama On Progress</span>
+                    <label>Deskripsi Instalasi</label>
+                    <textarea id="ba-deskripsi" rows="3" placeholder="Barang terpasang/tindakan..."></textarea>
+                    <label>Kritik & Saran (Opsional)</label>
+                    <textarea id="ba-kritik" rows="2" placeholder="Masukan dari Klien..."></textarea>
+                    <label>Nama PIC Klien</label>
+                    <input type="text" id="ba-nama-customer" placeholder="Nama penanda tangan">
+                    <label>Tanda Tangan <span id="status-ttd" style="color:var(--success); font-weight:normal; font-size:11px;"></span></label>
                     <div class="signature-wrapper"><canvas id="signature-pad"></canvas></div>
-                    <button type="button" class="btn-clear-sig" onclick="clearSignature()">🗑️ Hapus / Ulangi TTD</button>
+                    <button type="button" class="btn-outline-cancel" style="margin-top:0;" onclick="clearSignature()">🗑️ Bersihkan Kanvas</button>
                 </div>
-                <button type="submit" id="btn-submit-update" class="btn-submit">💾 Simpan Update</button>
-                <button type="button" class="btn-submit btn-batal" onclick="tutupModal()">❌ Batal</button>
+
+                <button type="submit" id="btn-submit-update" class="btn-solid-primary">💾 Simpan Data</button>
+                <button type="button" class="btn-outline-cancel" onclick="tutupModal()">Tutup</button>
             </form>
         </div>
     </div>
 
     <!-- APLIKASI UTAMA -->
     <div class="container" id="app-wrapper">
-        <div class="header-branding">
-            <img src="depan_001.png" alt="Logo Alfacom Multi Solution" class="logo">
-        </div>
+        <div class="header-branding"><img src="depan_001.png" alt="Logo Alfacom" class="logo"></div>
         <div class="top-bar">
             <span id="nama-login">User</span>
             <div class="top-bar-buttons">
-                <button onclick="refreshManual()" id="btn-refresh" class="btn-refresh">🔄 Refresh</button>
-                <button class="btn-logout" onclick="prosesLogout()">Keluar</button>
+                <button onclick="refreshManual()" id="btn-refresh" class="btn-outline-warning">🔄 Sinkron</button>
+                <button class="btn-outline-danger" onclick="prosesLogout()">Keluar</button>
             </div>
         </div>
 
-        <div id="loading" style="display:none;">Memproses data... Mohon tunggu.</div>
+        <div id="loading" style="display:none;">Sinkronisasi data sistem...</div>
 
         <div id="page-dashboard" class="tab-page"><div id="dashboard-content"></div></div>
 
         <div id="page-tiket" class="tab-page">
-            <h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px;">📋 Daftar Pekerjaan</h3>
+            <h3 class="section-title">📋 Daftar Pekerjaan SLA</h3>
             <div id="ticket-container"></div>
         </div>
 
         <div id="page-input" class="tab-page">
             <div class="form-card" id="form-container">
-                <h3 id="form-tiket-title">➕ Input Pekerjaan SLA Baru</h3>
+                <h3 id="form-tiket-title" class="section-title">➕ Form Tiket Baru</h3>
                 <form id="form-sla" onsubmit="submitData(event)">
                     <label>ID Tiket</label><input type="text" id="input-id" class="input-terkunci" readonly>
-                    <div style="display: flex; gap:10px;">
+                    <div style="display: flex; gap:15px;">
                         <div style="flex: 1;"><label>SLA Respon (Jam)</label><input type="number" id="input-sla-respon" step="0.1" required></div>
                         <div style="flex: 1;"><label>SLA Pengerjaan (Jam)</label><input type="number" id="input-sla" step="0.1" required></div>
                     </div>
                     <label>Nama Klien & Lokasi</label><input type="text" id="input-klien" required>
-                    <label>Jenis Pekerjaan</label><input type="text" id="input-pekerjaan" required>
-                    <label>Sales (Opsional)</label><select id="input-sales"></select>
-                    <label>Ditugaskan Ke Teknisi</label>
+                    <label>Jenis Pekerjaan</label><textarea id="input-pekerjaan" required rows="2"></textarea>
+                    <label>Sales Penanggung Jawab</label><select id="input-sales"></select>
+                    <label>Alokasi Teknisi</label>
                     <div class="checkbox-group" id="teknisi-group"></div>
-                    <button type="submit" id="btn-submit-pekerjaan" class="btn-submit">Simpan Pekerjaan</button>
-                    <button type="button" id="btn-batal-edit-tiket" class="btn-submit btn-batal" style="display:none;" onclick="batalEditTiket()">Batal Edit Pekerjaan</button>
+                    <button type="submit" id="btn-submit-pekerjaan" class="btn-solid-primary">Simpan Tiket</button>
+                    <button type="button" id="btn-batal-edit-tiket" class="btn-outline-cancel" style="display:none;" onclick="batalEditTiket()">Batal Mode Edit</button>
                 </form>
             </div>
         </div>
 
         <div id="page-user" class="tab-page">
             <div class="form-card" id="user-management-container">
-                <h3 id="form-user-title">⚙️ Tambah User Baru</h3>
+                <h3 id="form-user-title" class="section-title">⚙️ Manajemen User</h3>
                 <form onsubmit="simpanUserBaru(event)">
-                    <label>Nama Asli</label><input type="text" id="new-nama" required>
-                    <label>Alamat Email</label><input type="email" id="new-email" placeholder="contoh@gmail.com" required>
-                    <label>Username</label><input type="text" id="new-username" required>
-                    <label>Password</label><input type="text" id="new-password" required>
+                    <label>Nama Lengkap</label><input type="text" id="new-nama" required>
+                    <label>Email (Notifikasi)</label><input type="email" id="new-email" required>
+                    <div style="display: flex; gap:15px;">
+                        <div style="flex: 1;"><label>Username</label><input type="text" id="new-username" required></div>
+                        <div style="flex: 1;"><label>Password</label><input type="text" id="new-password" required></div>
+                    </div>
                     <label>Hak Akses</label>
                     <select id="new-role" required><option value="" disabled selected>-- Pilih --</option><option value="admin">Admin</option><option value="teknisi">Teknisi</option><option value="sales">Sales</option></select>
-                    <button type="submit" id="btn-tambah-user" class="btn-submit" style="background-color: #3498db;">Simpan User</button>
-                    <button type="button" id="btn-batal-edit-user" class="btn-submit btn-batal" style="display:none;" onclick="batalEditUser()">Batal Edit User</button>
+                    <button type="submit" id="btn-tambah-user" class="btn-solid-primary">Simpan Profil</button>
+                    <button type="button" id="btn-batal-edit-user" class="btn-outline-cancel" style="display:none;" onclick="batalEditUser()">Batal Edit</button>
                 </form>
-                <h3 style="margin-top:20px; border-top: 1px solid #eee; padding-top: 15px;">Daftar Terdaftar</h3>
-                <div style="overflow-x: auto;">
+                
+                <h3 class="section-title" style="margin-top:30px;">Daftar Akun Sistem</h3>
+                <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 8px;">
                     <table>
-                        <thead><tr><th>Username</th><th>Nama Asli</th><th>Email</th><th>Role</th><th>Aksi</th></tr></thead>
+                        <thead><tr><th>Username</th><th>Nama</th><th>Email</th><th>Role</th><th>Opsi</th></tr></thead>
                         <tbody id="tabel-user-body"></tbody>
                     </table>
                 </div>
@@ -235,9 +266,9 @@
 
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dashboard</div></div>
-            <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')"><div class="icon">📋</div><div class="text">Tiket SLA</div></div>
-            <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Input Baru</div></div>
-            <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:none;"><div class="icon">⚙️</div><div class="text">Pengaturan User</div></div>
+            <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')"><div class="icon">📋</div><div class="text">Pekerjaan</div></div>
+            <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Buat Tiket</div></div>
+            <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:none;"><div class="icon">⚙️</div><div class="text">Pengaturan</div></div>
         </div>
     </div>
 
@@ -250,98 +281,58 @@
         const canvas = document.getElementById('signature-pad'); const ctx = canvas.getContext('2d');
         let isDrawing = false; let isCanvasDrawn = false; 
 
-        function resizeCanvas() {
-            const ratio =  Math.max(window.devicePixelRatio || 1, 1);
-            canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio;
-            ctx.scale(ratio, ratio); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#000'; clearSignature();
-        }
-
-        function getMousePos(evt) {
-            const rect = canvas.getBoundingClientRect(); let clientX = evt.clientX; let clientY = evt.clientY;
-            if (evt.touches && evt.touches.length > 0) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; }
-            return { x: clientX - rect.left, y: clientY - rect.top };
-        }
+        function resizeCanvas() { const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; ctx.scale(ratio, ratio); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#000'; clearSignature(); }
+        function getMousePos(evt) { const rect = canvas.getBoundingClientRect(); let clientX = evt.clientX; let clientY = evt.clientY; if (evt.touches && evt.touches.length > 0) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; } return { x: clientX - rect.left, y: clientY - rect.top }; }
         function startDrawing(e) { e.preventDefault(); isDrawing = true; isCanvasDrawn = true; const pos = getMousePos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); }
         function draw(e) { e.preventDefault(); if (!isDrawing) return; const pos = getMousePos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
         function stopDrawing(e) { e.preventDefault(); isDrawing = false; }
-
-        canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing);
-        canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); canvas.addEventListener('touchend', stopDrawing);
-
+        canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); canvas.addEventListener('touchend', stopDrawing);
         function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); isCanvasDrawn = false; }
 
         function switchTab(tabId) {
-            currentTabId = tabId; document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none');
-            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            currentTabId = tabId; document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none'); document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             document.getElementById('page-' + tabId).style.display = 'block'; document.getElementById('nav-' + tabId).classList.add('active');
-            if(tabId === 'input' && !modeEditTiket) batalEditTiket();
-            if(tabId === 'user') batalEditUser();
-            window.scrollTo(0,0);
+            if(tabId === 'input' && !modeEditTiket) batalEditTiket(); if(tabId === 'user') batalEditUser(); window.scrollTo(0,0);
         }
 
-        async function refreshManual() {
-            const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳ Memuat...'; btn.disabled = true;
-            await ambilSemuaData(true); btn.innerText = '🔄 Refresh'; btn.disabled = false;
-        }
+        async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = '🔄 Sinkron'; btn.disabled = false; }
 
         async function ambilSemuaData(isSilentRefresh = false) {
             let maxRetries = 3; let data = null; let berhasil = false;
             for (let i = 0; i < maxRetries; i++) {
                 try {
-                    if (!isSilentRefresh) { document.getElementById('login-loading').innerHTML = i === 0 ? 'Menghubungkan ke database...' : `<span style="color:#e67e22;">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`; }
-                    const urlDenganCacheBuster = apiUrl + "?nocache=" + new Date().getTime();
-                    const response = await fetch(urlDenganCacheBuster, { redirect: "follow" }); 
+                    if (!isSilentRefresh) { document.getElementById('login-loading').innerHTML = i === 0 ? 'Menghubungkan ke database...' : `<span style="color:var(--warning);">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`; }
+                    const response = await fetch(apiUrl + "?nocache=" + new Date().getTime(), { redirect: "follow" }); 
                     data = await response.json(); berhasil = true; break; 
                 } catch (error) {
-                    if (i === maxRetries - 1) {
-                        if (!isSilentRefresh) { document.getElementById('login-loading').innerHTML = '<span style="color:#e74c3c; font-weight:bold;">Gagal memuat. Periksa internet lalu <a href="#" onclick="window.location.reload();">Refresh</a>.</span>'; } return; 
-                    }
+                    if (i === maxRetries - 1) { if (!isSilentRefresh) { document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Gagal memuat. <a href="#" onclick="window.location.reload();">Muat Ulang</a>.</span>'; } return; }
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
             }
             if (!berhasil || !data) return;
             globalTickets = data.tickets; globalUsers = data.users;
-            
             const savedSession = localStorage.getItem('sesiLoginSLA');
             if (savedSession) {
                 const parsedSession = JSON.parse(savedSession);
-                if ((new Date().getTime() - parsedSession.loginTime) > 86400000) {
-                    localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; alert('Sesi berakhir. Silakan login.');
-                } else {
-                    const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password);
-                    if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; }
-                }
+                if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; alert('Sesi berakhir. Silakan login.'); } 
+                else { const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } }
             }
-            
-            if(!penggunaAktif) {
-                document.getElementById('login-loading').style.display = 'none'; document.getElementById('login-form').style.display = 'block';
-                document.getElementById('login-wrapper').style.display = 'flex'; document.getElementById('app-wrapper').style.display = 'none';
-            } else { 
-                if (!isSilentRefresh) { masukKeAplikasi(); } else {
-                    renderDashboard(); renderTickets(); renderTabelUser();
-                    if (currentTabId !== 'input') { renderDynamicInputs(); }
-                }
-            }
+            if(!penggunaAktif) { document.getElementById('login-loading').style.display = 'none'; document.getElementById('login-form').style.display = 'block'; document.getElementById('login-wrapper').style.display = 'flex'; document.getElementById('app-wrapper').style.display = 'none'; } 
+            else { if (!isSilentRefresh) { masukKeAplikasi(); } else { renderDashboard(); renderTickets(); renderTabelUser(); if (currentTabId !== 'input') { renderDynamicInputs(); } } }
         }
 
         function prosesLogin(e) {
-            e.preventDefault();
-            const un = document.getElementById('username').value.trim().toLowerCase(); const pw = document.getElementById('password').value;
+            e.preventDefault(); const un = document.getElementById('username').value.trim().toLowerCase(); const pw = document.getElementById('password').value;
             const cocok = globalUsers.find(u => (u.Username || '').toLowerCase() === un && u.Password == pw);
-            if (cocok) { penggunaAktif = cocok; localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); masukKeAplikasi(); } else { alert('Username atau Password salah!'); }
+            if (cocok) { penggunaAktif = cocok; localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); masukKeAplikasi(); } else { alert('Kredensial tidak valid!'); }
         }
 
         function masukKeAplikasi() {
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
-            let labelRole = penggunaAktif.Role.toUpperCase(); document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${labelRole})`;
-            
+            document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             if (penggunaAktif.Role === 'admin') { document.getElementById('nav-input').style.display = 'flex'; document.getElementById('nav-user').style.display = 'flex'; } else { document.getElementById('nav-input').style.display = 'none'; document.getElementById('nav-user').style.display = 'none'; }
             renderDynamicInputs(); renderDashboard(); renderTickets(); renderTabelUser(); switchTab('dashboard'); 
-            
-            if (!intervalAutoRefresh) {
-                intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex') return; ambilSemuaData(true); }, 30000); 
-            }
+            if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
 
@@ -349,10 +340,10 @@
             const group = document.getElementById('teknisi-group'); group.innerHTML = ''; 
             globalUsers.filter(u => u.Role === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
             const salesSelect = document.getElementById('input-sales'); const currentSalesVal = salesSelect.value;
-            salesSelect.innerHTML = '<option value="" selected>-- Tidak Ada / Lewati --</option>';
-            let salesList = globalUsers.filter(u => u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']);
-            salesList.sort((a,b) => a.localeCompare(b)).forEach(s => { salesSelect.innerHTML += `<option value="${s}">${s}</option>`; });
-            if (currentSalesVal && !salesList.includes(currentSalesVal)) { salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Tidak Aktif)</option>`; }
+            salesSelect.innerHTML = '<option value="" selected>-- Tanpa Sales --</option>';
+            let salesList = globalUsers.filter(u => u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
+            salesList.forEach(s => { salesSelect.innerHTML += `<option value="${s}">${s}</option>`; });
+            if (currentSalesVal && !salesList.includes(currentSalesVal)) { salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Nonaktif)</option>`; }
             salesSelect.value = currentSalesVal;
         }
 
@@ -377,18 +368,24 @@
                 if (sName !== "" && !sKey) { statsSales[sName] = { nama: sName, total: 0, selesai: 0, progress: 0, batal: 0 }; sKey = sName; }
                 if (sKey) { statsSales[sKey].total++; if (statusTiket === 'Selesai') { statsSales[sKey].selesai++; } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; } }
             });
-            let htmlTeknisi = '<h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px; margin-top: 10px;">🛠️ Performa Pengerjaan Teknisi</h3>';
+            
+            let htmlTeknisi = '<h3 class="section-title" style="margin-top:10px;">Rapor Teknisi</h3>';
             let arrTeknisi = Object.values(statsTeknisi).sort((a, b) => { let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0; return rateB !== rateA ? rateB - rateA : (b.resp_total + b.peng_total) - (a.resp_total + a.peng_total); });
-            if (arrTeknisi.length === 0) htmlTeknisi += '<p style="color:#7f8c8d; font-size:12px; font-style:italic;">Belum ada data teknisi.</p>';
-            arrTeknisi.forEach(s => { let rRate = s.resp_total > 0 ? Math.round((s.resp_tepat / s.resp_total) * 100) : 0; let rColor = rRate >= 80 ? '#2ecc71' : (rRate >= 50 ? '#f1c40f' : '#e74c3c'); if (s.resp_total === 0) rColor = '#bdc3c7'; let pRate = s.peng_total > 0 ? Math.round((s.peng_tepat / s.peng_total) * 100) : 0; let pColor = pRate >= 80 ? '#2ecc71' : (pRate >= 50 ? '#f1c40f' : '#e74c3c'); if (s.peng_total === 0) pColor = '#bdc3c7';
-                htmlTeknisi += `<div class="perf-card" style="border-top: 5px solid var(--warna-utama);"><div class="perf-header"><h4 class="perf-name">📌 ${s.nama}</h4></div><div style="margin-bottom: 20px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-weight:bold; font-size:13px; color:#555;">⚡ Performa Respon</span><span style="font-weight:900; font-size:16px; color:${rColor};">${s.resp_total > 0 ? rRate+'%' : '-'}</span></div><div class="perf-stats"><div>✅ Tepat: <strong>${s.resp_tepat}</strong></div><div>❌ Telat: <strong>${s.resp_telat}</strong></div><div style="color:#f39c12;">⏳ Menunggu: <strong>${s.resp_aman}</strong></div></div><div class="progress-bg"><div class="progress-bar" style="width:${s.resp_total > 0 ? rRate : 0}%; background:${rColor};"></div></div></div><div><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-weight:bold; font-size:13px; color:#555;">🛠️ Performa Pengerjaan</span><span style="font-weight:900; font-size:16px; color:${pColor};">${s.peng_total > 0 ? pRate+'%' : '-'}</span></div><div class="perf-stats"><div>✅ Tepat: <strong>${s.peng_tepat}</strong></div><div>❌ Telat: <strong>${s.peng_telat}</strong></div><div style="color:#f39c12;">⏳ Berjalan: <strong>${s.peng_aman}</strong></div></div><div class="progress-bg"><div class="progress-bar" style="width:${s.peng_total > 0 ? pRate : 0}%; background:${pColor};"></div></div></div></div>`;
+            if (arrTeknisi.length === 0) htmlTeknisi += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
+            arrTeknisi.forEach(s => { 
+                let rRate = s.resp_total > 0 ? Math.round((s.resp_tepat / s.resp_total) * 100) : 0; let rColor = rRate >= 80 ? 'var(--success)' : (rRate >= 50 ? 'var(--warning)' : 'var(--danger)'); if (s.resp_total === 0) rColor = '#cbd5e1'; 
+                let pRate = s.peng_total > 0 ? Math.round((s.peng_tepat / s.peng_total) * 100) : 0; let pColor = pRate >= 80 ? 'var(--success)' : (pRate >= 50 ? 'var(--warning)' : 'var(--danger)'); if (s.peng_total === 0) pColor = '#cbd5e1';
+                htmlTeknisi += `<div class="card" style="border-left-color:var(--primary);"><h3 style="margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:10px;">${s.nama}</h3><div style="margin-bottom: 15px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:600; color:var(--text-muted);">SLA RESPON</span><span style="font-weight:700; color:${rColor};">${s.resp_total > 0 ? rRate+'%' : '-'}</span></div><div class="progress-bg"><div class="progress-bar" style="width:${s.resp_total > 0 ? rRate : 0}%; background:${rColor};"></div></div></div><div><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:600; color:var(--text-muted);">SLA PENGERJAAN</span><span style="font-weight:700; color:${pColor};">${s.peng_total > 0 ? pRate+'%' : '-'}</span></div><div class="progress-bg"><div class="progress-bar" style="width:${s.peng_total > 0 ? pRate : 0}%; background:${pColor};"></div></div></div></div>`;
             });
-            let htmlSales = '<h3 style="color: var(--warna-utama); border-bottom: 2px solid #ccc; padding-bottom: 5px; margin-top: 10px;">📈 Performa Pencapaian Sales</h3>';
+
+            let htmlSales = '<h3 class="section-title">Pencapaian Sales</h3>';
             let arrSales = Object.values(statsSales).sort((a, b) => b.selesai - a.selesai || b.total - a.total);
-            if (arrSales.length === 0) htmlSales += '<p style="color:#7f8c8d; font-size:12px; font-style:italic;">Belum ada data sales.</p>';
-            arrSales.forEach(s => { let winRate = s.total > 0 ? ((s.selesai / s.total) * 100).toFixed(0) : 0;
-                htmlSales += `<div class="perf-card" style="border-top: 5px solid #8e44ad;"><div class="perf-header" style="border-bottom-color:#8e44ad;"><h4 class="perf-name" style="color:#8e44ad;">💼 ${s.nama}</h4></div><div style="margin-bottom: 5px;"><div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-weight:bold; font-size:13px; color:#555;">Total Proyek Masuk</span><span style="font-weight:900; font-size:16px; color:#8e44ad;">${s.total} Tiket</span></div><div class="perf-stats" style="margin-top:10px; font-size:12px;"><div style="color:#2ecc71;">✅ Selesai: <strong>${s.selesai}</strong></div><div style="color:#f39c12;">⏳ Proses: <strong>${s.progress}</strong></div><div style="color:#e74c3c;">❌ Batal: <strong>${s.batal}</strong></div></div><div class="progress-bg"><div class="progress-bar" style="width:${winRate}%; background:#8e44ad;"></div></div></div></div>`;
+            if (arrSales.length === 0) htmlSales += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
+            arrSales.forEach(s => { 
+                let winRate = s.total > 0 ? ((s.selesai / s.total) * 100).toFixed(0) : 0;
+                htmlSales += `<div class="card" style="border-left-color:var(--purple);"><h3 style="margin-bottom:10px; color:var(--purple);">${s.nama} <span style="font-size:12px; color:var(--text-main); font-weight:500;">(${s.total} Proyek)</span></h3><div style="display:flex; gap:15px; font-size:12px; font-weight:500; margin-bottom:10px;"><span style="color:var(--success)">Selesai: ${s.selesai}</span><span style="color:var(--warning)">Proses: ${s.progress}</span><span style="color:var(--danger)">Batal: ${s.batal}</span></div><div class="progress-bg"><div class="progress-bar" style="width:${winRate}%; background:var(--purple);"></div></div></div>`;
             });
+
             if (penggunaAktif.Role === 'admin') { dashContainer.innerHTML = htmlSales + "<br>" + htmlTeknisi; } else if (penggunaAktif.Role === 'sales') { dashContainer.innerHTML = htmlSales; } else { dashContainer.innerHTML = htmlTeknisi; }
         }
 
@@ -408,71 +405,74 @@
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 if (isUnassigned) { sc = 'status-aman'; bc = 'badge-pending'; bRespon = 'badge-pending'; textStatus = 'Menunggu Teknisi'; }
 
-                let htmlBA = ''; if (ticket['Deskripsi Pekerjaan (BA)']) { htmlBA = `<div class="bat-card"><h4>📑 Isi Berita Acara & Laporan:</h4><p class="bat-text-wrap"><strong>Deskripsi:</strong><br>${ticket['Deskripsi Pekerjaan (BA)']}</p>${ticket['Kritik & Saran'] ? `<p class="bat-text-wrap" style="margin-top:8px;"><strong>Kritik/Saran:</strong> ${ticket['Kritik & Saran']}</p>` : ''}<p style="margin-top:8px;"><strong>Customer:</strong> ${ticket['Nama Customer'] || '-'}</p>${ticket['Tanda Tangan'] && ticket['Tanda Tangan'].length > 10 ? `<img src="${ticket['Tanda Tangan']}" class="bat-img">` : `<span style="font-size:11px; color:#e74c3c; display:block; margin-top:5px;">(Belum ada TTD)</span>`}</div>`; }
-                let htmlTracking = ''; if (ticket['Keterangan']) { htmlTracking = `<div style="margin-top:10px; background:#f0f4f8; padding:10px; border-radius:6px; border-left:4px solid var(--warna-utama); font-size:12px; max-height:100px; overflow-y:auto; white-space:pre-wrap; color:#333;"><strong>Riwayat Pekerjaan:</strong>\n${ticket['Keterangan']}</div>`; }
+                let htmlBA = ''; if (ticket['Deskripsi Pekerjaan (BA)']) { htmlBA = `<div class="ba-box"><h4 style="margin:0 0 10px 0; font-size:13px; color:var(--primary); border-bottom:1px solid var(--border); padding-bottom:5px;">Berita Acara / Laporan</h4><p style="margin:0; font-size:12px; white-space:pre-wrap;">${ticket['Deskripsi Pekerjaan (BA)']}</p>${ticket['Kritik & Saran'] ? `<p style="margin:8px 0 0 0; font-size:12px; color:var(--text-muted);"><i>Catatan Klien: ${ticket['Kritik & Saran']}</i></p>` : ''}<p style="margin:8px 0 0 0; font-size:12px; font-weight:600;">Oleh: ${ticket['Nama Customer'] || '-'}</p></div>`; }
+                let htmlTracking = ''; if (ticket['Keterangan']) { htmlTracking = `<div class="history-box"><b>Riwayat Update:</b>\n${ticket['Keterangan']}</div>`; }
 
-                // LOGIKA TOMBOL BANDING & UPDATE
-                let htmlBanding = '';
-                let btnHtml = '';
+                // LOGIKA TAMPILAN BANDING 
+                let htmlBanding = ''; let btnHtml = '';
                 
                 if (penggunaAktif.Role === 'sales') {
                     if (!ticket['Sales'] || ticket['Sales'].trim() === '-' || ticket['Sales'].trim() === '') {
                         if (!ticket['Status Banding']) {
-                            htmlBanding = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#8e44ad; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="bukaModalBanding('${ticket['ID Tiket']}')">🙋 Ajukan Klaim Banding (Sales)</button>`;
+                            htmlBanding = `<button class="btn-action-primary" style="background:#f3e8ff; color:var(--purple); border-color:#d8b4fe;" onclick="bukaModalBanding('${ticket['ID Tiket']}')">🙋 Klaim Pekerjaan Ini</button>`;
                         } else if (ticket['Status Banding'] === 'Diajukan') {
-                            htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fef9e7; border-left:4px solid #f1c40f; font-size:12px; font-weight:bold; color:#d35400;">⏳ Banding Anda sedang menunggu verifikasi Admin.</div>`;
+                            htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fefce8; border:1px solid #fde047; border-radius:6px; font-size:12px; font-weight:600; color:#b45309; text-align:center;">⏳ Klaim Menunggu Admin</div>`;
                         } else if (ticket['Status Banding'] === 'Ditolak') {
-                            htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fdedec; border-left:4px solid #e74c3c; font-size:12px; font-weight:bold; color:#c0392b;">❌ Banding Anda ditolak oleh Admin.</div>`;
+                            htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; font-weight:600; color:#991b1b; text-align:center;">❌ Klaim Ditolak (${ticket['Alasan Admin'] || 'Tanpa Alasan'})</div>`;
                         }
-                    } else {
-                        btnHtml = `<div style="margin-top:10px; padding:10px; background:#e9ecef; text-align:center; border-radius:6px; font-size:12px; font-weight:bold; color:#7f8c8d;">🔒 Akses Edit Hanya Untuk Tim Teknisi & Admin</div>`;
-                    }
+                    } else { btnHtml = `<div style="margin-top:10px; padding:10px; text-align:center; font-size:12px; color:var(--text-muted); border-top:1px dashed var(--border);">Hanya dapat diedit oleh Teknisi/Admin</div>`; }
                 }
                 else if (penggunaAktif.Role === 'admin' && ticket['Status Banding'] === 'Diajukan') {
-                    htmlBanding = `<div style="margin-top:10px; padding:15px; background:#f5eef8; border:2px dashed #8e44ad; border-radius:6px;"><h4 style="margin:0 0 5px 0; color:#8e44ad;">🚨 PENGAJUAN BANDING SALES</h4><p style="margin:0 0 10px 0; font-size:12px;"><b>Pengaju:</b> ${ticket['Sales Pengaju']}</p><a href="${ticket['Bukti Banding']}" target="_blank" style="display:inline-block; margin-bottom:10px; font-size:12px; background:#8e44ad; color:white; padding:5px 10px; text-decoration:none; border-radius:4px;">🖼️ Lihat Bukti Foto</a><div style="display:flex; gap:10px;"><button onclick="responBanding('${ticket['ID Tiket']}', 'Diterima', '${ticket['Sales Pengaju']}')" style="flex:1; background-color:#2ecc71; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold; cursor:pointer;">✅ Terima</button><button onclick="responBanding('${ticket['ID Tiket']}', 'Ditolak', '')" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold; cursor:pointer;">❌ Tolak</button></div></div>`;
+                    // Render Multiple Photos
+                    let imgs = (ticket['Bukti Banding']||'').split('|#|');
+                    let imgHtml = '';
+                    imgs.forEach((imgSrc, idx) => {
+                       if(imgSrc && imgSrc.length > 10) {
+                          imgHtml += `<div style="display:flex; flex-direction:column; align-items:center;"><img src="${imgSrc}"><a href="${imgSrc}" download="Bukti_${ticket['ID Tiket']}_${idx+1}.jpg" class="dl-btn">Unduh</a></div>`;
+                       }
+                    });
+
+                    htmlBanding = `<div style="margin-top:15px; padding:15px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px;"><h4 style="margin:0 0 10px 0; color:var(--purple); font-size:14px;">Klaim Sales: ${ticket['Sales Pengaju']}</h4>${ticket['Keterangan Sales'] ? `<p style="font-size:12px; margin:0 0 10px 0; color:#4a5568;"><i>"${ticket['Keterangan Sales']}"</i></p>` : ''}<div class="img-grid">${imgHtml}</div><div class="btn-grid"><button class="btn-acc" onclick="responBanding('${ticket['ID Tiket']}', 'Diterima', '${ticket['Sales Pengaju']}')">Terima Klaim</button><button class="btn-del" onclick="responBanding('${ticket['ID Tiket']}', 'Ditolak', '')">Tolak Klaim</button></div></div>`;
                 }
 
                 if (penggunaAktif.Role !== 'sales') {
                     if (isUnassigned && penggunaAktif.Role === 'admin') {
-                        btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#f39c12; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">📌 Tugaskan Teknisi</button><div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button></div>`;
+                        btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid"><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus Tiket</button></div>`;
                     } else {
-                        let labelTombol = textStatus === 'Selesai' ? '📝 Revisi Berita Acara' : '📝 Update Status Teknisi';
-                        btnHtml = `<button class="btn-action" style="width:100%; margin-top:10px; background-color:#3498db; padding: 10px; border:none; border-radius:6px; color:white; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
-                        if (penggunaAktif.Role === 'admin') { btnHtml += `<div style="display:flex; gap:10px; margin-top:10px;"><button class="btn-action" style="flex:1; background-color:#f39c12; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">✏️ Edit</button><button class="btn-action" style="flex:1; background-color:#e74c3c; border:none; padding:8px; border-radius:6px; color:white; font-weight:bold;" onclick="hapusTiket('${ticket['ID Tiket']}')">🗑️ Hapus</button></div>`; }
+                        let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status';
+                        btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
+                        if (penggunaAktif.Role === 'admin') { btnHtml += `<div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button></div>`; }
                     }
                 }
 
-                container.innerHTML += `<div class="card ${sc}"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;"><h3 style="margin:0;">${ticket['ID Tiket']}</h3><span class="badge ${bc}" style="font-size:12px;">${textStatus}</span></div><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p><p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
+                container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p><p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
                 <div class="waktu-box">
-                    ${isUnassigned ? `<p style="text-align:center; font-weight:bold; color:#e67e22; padding:5px; margin:0;">⏳ SLA Ditangguhkan<br><span style="font-size:10px; font-weight:normal; color:#7f8c8d;">Pilih Teknisi untuk memulai waktu</span></p>` : `<p style="border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:5px;"><strong>⏰ SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span><br><span style="color:#7f8c8d;">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</span></p><p><strong>⏰ SLA Pengerjaan:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p><p><strong>✅ Waktu Selesai:</strong> ${ticket['Waktu Selesai'] ? new Date(ticket['Waktu Selesai']).toLocaleString('id-ID') : '<i>Belum Selesai</i>'}</p>`}
+                    ${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}
                 </div>
                 ${htmlTracking}${htmlBA}${htmlBanding}${btnHtml}</div>`;
             });
-            if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:#7f8c8d; margin-top:40px;">Belum ada daftar pekerjaan untuk ditampilkan.</p>';
+            if(tiketDitampilkan.length === 0) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada pekerjaan.</p>';
         }
 
-        // FUNGSI BANDING UNTUK SALES
-        function bukaModalBanding(id) {
-            document.getElementById('banding-id').value = id;
-            document.getElementById('banding-bukti').value = '';
-            document.getElementById('modal-banding').style.display = 'flex';
+        // FUNGSI KLAIM BANDING (MULTI-FOTO)
+        function bukaModalBanding(id) { 
+            document.getElementById('banding-id').value = id; 
+            document.getElementById('banding-bukti').value = ''; 
+            document.getElementById('banding-keterangan').value = '';
+            document.getElementById('modal-banding').style.display = 'flex'; 
         }
         
         function prosesUploadBanding(file) {
             return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
+                const reader = new FileReader(); reader.readAsDataURL(file);
                 reader.onload = function(event) {
-                    const img = new Image();
-                    img.src = event.target.result;
+                    const img = new Image(); img.src = event.target.result;
                     img.onload = function() {
                         const canvasBanding = document.createElement('canvas');
-                        const MAX_WIDTH = 600; // Kompresi gambar agar server tidak keberatan
-                        let width = img.width; let height = img.height;
+                        const MAX_WIDTH = 500; let width = img.width; let height = img.height;
                         if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                         canvasBanding.width = width; canvasBanding.height = height;
-                        const ctxBanding = canvasBanding.getContext('2d');
-                        ctxBanding.drawImage(img, 0, 0, width, height);
+                        const ctxBanding = canvasBanding.getContext('2d'); ctxBanding.drawImage(img, 0, 0, width, height);
                         resolve(canvasBanding.toDataURL('image/jpeg', 0.6));
                     }
                 };
@@ -480,65 +480,60 @@
         }
 
         async function kirimBanding(e) {
-            e.preventDefault();
-            const fileInput = document.getElementById('banding-bukti');
-            if(fileInput.files.length === 0) { alert('Harap pilih foto bukti!'); return; }
-            
-            document.getElementById('banding-status').style.display = 'block';
-            document.getElementById('btn-submit-banding').disabled = true;
-            document.getElementById('btn-submit-banding').innerText = 'Mengupload...';
+            e.preventDefault(); const fileInput = document.getElementById('banding-bukti');
+            if(fileInput.files.length === 0) { alert('Harap pilih minimal 1 foto bukti!'); return; }
+            if(fileInput.files.length > 3) { alert('Maksimal 3 foto yang bisa diunggah sekaligus!'); return; }
 
-            const base64Bukti = await prosesUploadBanding(fileInput.files[0]);
+            document.getElementById('banding-status').style.display = 'block'; 
+            document.getElementById('btn-submit-banding').disabled = true; 
+            document.getElementById('btn-submit-banding').innerText = 'Mengupload data...';
+            
+            let arrayBase64 = [];
+            for(let i=0; i<fileInput.files.length; i++){ arrayBase64.push(await prosesUploadBanding(fileInput.files[i])); }
+            
+            const gabunganBukti = arrayBase64.join('|#|');
+            const ketSales = document.getElementById('banding-keterangan').value;
             const idTiket = document.getElementById('banding-id').value;
-
-            try {
-                const res = await fetch(apiUrl, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: base64Bukti }) 
-                });
-                if ((await res.json()).status === 'sukses') {
-                    alert('Banding berhasil diajukan! Menunggu persetujuan Admin.');
-                    document.getElementById('modal-banding').style.display = 'none';
-                    await ambilSemuaData(true);
-                }
-            } catch (err) { alert('Gagal mengirim banding. Coba lagi.'); }
             
-            document.getElementById('banding-status').style.display = 'none';
-            document.getElementById('btn-submit-banding').disabled = false;
-            document.getElementById('btn-submit-banding').innerText = '🚀 Kirim Pengajuan';
+            try {
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) });
+                if ((await res.json()).status === 'sukses') { alert('Klaim terkirim! Menunggu Admin.'); document.getElementById('modal-banding').style.display = 'none'; await ambilSemuaData(true); }
+            } catch (err) { alert('Gagal mengirim. Coba lagi.'); }
+            document.getElementById('banding-status').style.display = 'none'; document.getElementById('btn-submit-banding').disabled = false; document.getElementById('btn-submit-banding').innerText = '🚀 Kirim Pengajuan Bukti';
         }
 
-        // FUNGSI RESPON BANDING UNTUK ADMIN
         async function responBanding(idTiket, keputusan, namaSales) {
-            if(!confirm(`Yakin ingin ${keputusan.toUpperCase()} banding ini?`)) return;
+            let alasan = '';
+            if (keputusan === 'Ditolak') {
+                alasan = prompt("Tuliskan alasan penolakan untuk Sales:");
+                if(alasan === null) return; // Cancel ditekan
+                if(alasan.trim() === "") { alert("Alasan penolakan wajib diisi!"); return; }
+            } else {
+                if(!confirm(`Yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`)) return;
+            }
+
             document.getElementById('loading').style.display = 'block';
-            try {
-                const res = await fetch(apiUrl, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ action: 'responBanding', idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales }) 
-                });
-                if ((await res.json()).status === 'sukses') {
-                    alert(`Banding berhasil ${keputusan}!`);
-                    await ambilSemuaData(true);
-                }
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'responBanding', idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); 
+                if ((await res.json()).status === 'sukses') { alert(`Klaim ${keputusan}!`); await ambilSemuaData(true); } 
             } catch (err) {}
             document.getElementById('loading').style.display = 'none';
         }
 
-        function toggleBAT() { const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); if (baSection.style.display === 'none' || baSection.style.display === '') { baSection.style.display = 'block'; btnToggle.innerHTML = "🔽 Tutup Form Berita Acara"; setTimeout(resizeCanvas, 50); } else { baSection.style.display = 'none'; btnToggle.innerHTML = "📝 Buka / Cicil Form Berita Acara"; } }
-        function bukaModalUpdate(id) { const t = globalTickets.find(x => x['ID Tiket'] === id); if(!t) return; document.getElementById('update-id').value = id; const statusElement = document.getElementById('update-status'); statusElement.value = t['Status'] || 'Menunggu'; document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat pemantauan.'; document.getElementById('update-keterangan').value = ''; document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || ''; document.getElementById('ba-nama-customer').value = t['Nama Customer'] || ''; document.getElementById('ba-kritik').value = t['Kritik & Saran'] || ''; const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; document.getElementById('status-ttd').innerText = hasExistingTTD ? '(Sudah Tersimpan ✅)' : ''; clearSignature(); cekKeterangan(); if (t['Status'] === 'Selesai') { document.getElementById('update-title').innerText = 'Revisi BAT: ' + id; statusElement.disabled = true; statusElement.classList.add('input-terkunci'); document.getElementById('update-keterangan').style.display = 'none'; document.getElementById('label-keterangan').style.display = 'none'; document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Revisi BAT'; document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').style.display = 'none'; setTimeout(resizeCanvas, 100); } else { document.getElementById('update-title').innerText = 'Status: ' + id; statusElement.disabled = false; statusElement.classList.remove('input-terkunci'); document.getElementById('update-keterangan').style.display = 'block'; document.getElementById('label-keterangan').style.display = 'block'; document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Update'; if (t['Deskripsi Pekerjaan (BA)']) { document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').innerHTML = "🔽 Tutup Form Berita Acara"; setTimeout(resizeCanvas, 100); } } document.getElementById('modal-update').style.display = 'flex'; }
+        // FUNGSI LAINNYA
+        function toggleBAT() { const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); if (baSection.style.display === 'none' || baSection.style.display === '') { baSection.style.display = 'block'; btnToggle.innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 50); } else { baSection.style.display = 'none'; btnToggle.innerHTML = "📝 Buka / Cicil Berita Acara"; } }
+        function bukaModalUpdate(id) { const t = globalTickets.find(x => x['ID Tiket'] === id); if(!t) return; document.getElementById('update-id').value = id; const statusElement = document.getElementById('update-status'); statusElement.value = t['Status'] || 'Menunggu'; document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat.'; document.getElementById('update-keterangan').value = ''; document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || ''; document.getElementById('ba-nama-customer').value = t['Nama Customer'] || ''; document.getElementById('ba-kritik').value = t['Kritik & Saran'] || ''; const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; document.getElementById('status-ttd').innerText = hasExistingTTD ? '(Tersimpan ✅)' : ''; clearSignature(); cekKeterangan(); if (t['Status'] === 'Selesai') { document.getElementById('update-title').innerText = 'Revisi BAT: ' + id; statusElement.disabled = true; statusElement.classList.add('input-terkunci'); document.getElementById('update-keterangan').style.display = 'none'; document.getElementById('label-keterangan').style.display = 'none'; document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Revisi'; document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').style.display = 'none'; setTimeout(resizeCanvas, 100); } else { document.getElementById('update-title').innerText = 'Update: ' + id; statusElement.disabled = false; statusElement.classList.remove('input-terkunci'); document.getElementById('update-keterangan').style.display = 'block'; document.getElementById('label-keterangan').style.display = 'block'; document.getElementById('btn-submit-update').innerHTML = '💾 Simpan Data'; if (t['Deskripsi Pekerjaan (BA)']) { document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 100); } } document.getElementById('modal-update').style.display = 'flex'; }
         function tutupModal() { document.getElementById('modal-update').style.display = 'none'; }
-        function cekKeterangan() { const status = document.getElementById('update-status').value; const ket = document.getElementById('update-keterangan'); const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); const baDesk = document.getElementById('ba-deskripsi'); const baNama = document.getElementById('ba-nama-customer'); const infoText = document.getElementById('info-wajib-text'); if (status === 'Pending' || status === 'Cancel') { ket.placeholder = "Wajib diisi! Masukkan alasan di sini..."; } else { ket.placeholder = "Ketik update kegiatan di sini... (Opsional jika hanya ubah status)"; } if (status === 'Selesai') { btnToggle.style.display = 'none'; baSection.style.display = 'block'; baDesk.required = true; baNama.required = true; infoText.innerText = "*Wajib diisi beserta Tanda Tangan Customer"; setTimeout(resizeCanvas, 50); } else if (status === 'On Progress' || status === 'Pending') { btnToggle.style.display = 'block'; baSection.style.display = 'none'; btnToggle.innerHTML = "📝 Buka / Cicil Form Berita Acara"; baDesk.required = false; baNama.required = false; infoText.innerText = "*Bisa dicicil setiap hari tanpa harus Tanda Tangan"; } else { btnToggle.style.display = 'none'; baSection.style.display = 'none'; baDesk.required = false; baNama.required = false; } }
-
-        async function submitUpdate(e) { e.preventDefault(); const status = document.getElementById('update-status').value; const catatanBaru = document.getElementById('update-keterangan').value.trim(); const idTiket = document.getElementById('update-id').value; const t = globalTickets.find(x => x['ID Tiket'] === idTiket); let ttdBase64 = ""; if ((status === 'Pending' || status === 'Cancel') && catatanBaru === "") { alert("⚠️ Catatan Baru WAJIB diketik saat memilih status Pending atau Cancel!"); return; } if (status === 'Selesai') { const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; if (!isCanvasDrawn && !hasExistingTTD) { alert("⚠️ Tanda Tangan Customer WAJIB diisi sebelum menyelesaikan tiket!"); return; } } if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); } const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true; let isStatusChanged = t['Status'] !== status; let keteranganFinal = t['Keterangan'] || ''; if ((catatanBaru !== "" || isStatusChanged) && t['Status'] !== 'Selesai') { const now = new Date(); const timeStr = now.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); let teksLogBaru = `[${timeStr}] ➔ ${status}`; if (catatanBaru !== "") teksLogBaru += `\n📝 ${catatanBaru}`; keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru; } const payload = { action: 'updateTicket', idTiket: idTiket, status: status, keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, baTTD: ttdBase64 }; try { const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if (result.status === 'sukses') { alert('Berhasil! Status dan Berita Acara telah disimpan.'); tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { alert('Gagal update: ' + result.pesan); } } catch(err) { alert('Berhasil! Status dan Berita Acara telah disimpan.'); window.location.reload(); } btn.innerText = '💾 Simpan Update'; btn.disabled = false; }
-        function aktifkanEditTiket(idTiket) { const t = globalTickets.find(x => x['ID Tiket'] === idTiket); if(!t) return; modeEditTiket = true; switchTab('input'); document.getElementById('form-tiket-title').innerText = '✏️ Edit Pekerjaan: ' + idTiket; document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; const salesSelect = document.getElementById('input-sales'); let found = Array.from(salesSelect.options).some(opt => opt.value === (t['Sales'] || '')); if (!found && t['Sales']) { salesSelect.innerHTML += `<option value="${t['Sales']}">${t['Sales']} (Lama/Tidak Aktif)</option>`; } salesSelect.value = t['Sales'] || ''; const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); document.getElementById('btn-submit-pekerjaan').innerText = 'Update Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#f39c12'; document.getElementById('btn-batal-edit-tiket').style.display = 'block'; }
-        function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = '➕ Input Pekerjaan SLA Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Pekerjaan'; document.getElementById('btn-submit-pekerjaan').style.backgroundColor = '#2ecc71'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }}); document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0'); }
-        async function hapusTiket(idTiket) { if(!confirm(`Yakin MENGHAPUS pekerjaan ${idTiket} secara permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); const hasil = await res.json(); if (hasil.status === 'sukses') { await ambilSemuaData(true); } else { alert('Gagal menghapus tiket: ' + hasil.pesan); } } catch(err) { alert('Terjadi kesalahan jaringan saat menghubungi server.'); } document.getElementById('loading').style.display = 'none'; }
-        async function submitData(e) { e.preventDefault(); const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); const payload = { action: modeEditTiket ? 'editTicket' : 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, targetRespon: document.getElementById('input-sla-respon').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, teknisi: t }; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if ((await res.json()).status === 'sukses') { alert(modeEditTiket ? 'Diupdate!' : 'Disimpan!'); batalEditTiket(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; switchTab('tiket'); } } catch (err) {} btn.innerText = modeEditTiket ? 'Update Pekerjaan' : 'Simpan Pekerjaan'; btn.disabled = false; }
-        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Email'] || '-'}</td><td>${u.Role.toUpperCase()}</td><td><button class="btn-edit-user" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-delete-user" onclick="hapusUser('${u.Username}')">Hapus</button></td></tr>`; }); }
-        function aktifkanEditUser(un) { const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-email').value = u['Email'] || ''; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#f39c12'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0); }
-        function batalEditUser() { modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = ''; document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false; document.getElementById('btn-tambah-user').innerText = 'Simpan User'; document.getElementById('btn-tambah-user').style.backgroundColor = '#3498db'; document.getElementById('btn-batal-edit-user').style.display = 'none'; }
-        async function simpanUserBaru(e) { e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value }; if (!modeEditUser && globalUsers.find(u => (u.Username||'').toLowerCase() === payload.username.toLowerCase())) { alert("Username sudah ada."); btn.innerText='Simpan User'; btn.disabled=false; return; } try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { alert(modeEditUser?'Di-update!':'Ditambahkan!'); batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(true); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update User':'Simpan User'; btn.disabled=false; }
+        function cekKeterangan() { const status = document.getElementById('update-status').value; const ket = document.getElementById('update-keterangan'); const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); const baDesk = document.getElementById('ba-deskripsi'); const baNama = document.getElementById('ba-nama-customer'); const infoText = document.getElementById('info-wajib-text'); if (status === 'Pending' || status === 'Cancel') { ket.placeholder = "Wajib diisi! Masukkan alasan di sini..."; } else { ket.placeholder = "Ketik update kegiatan di sini..."; } if (status === 'Selesai') { btnToggle.style.display = 'none'; baSection.style.display = 'block'; baDesk.required = true; baNama.required = true; infoText.innerText = "*Wajib diisi beserta Tanda Tangan Customer"; setTimeout(resizeCanvas, 50); } else if (status === 'On Progress' || status === 'Pending') { btnToggle.style.display = 'block'; baSection.style.display = 'none'; btnToggle.innerHTML = "📝 Buka / Cicil Berita Acara"; baDesk.required = false; baNama.required = false; infoText.innerText = "*Bisa dicicil tanpa harus Tanda Tangan"; } else { btnToggle.style.display = 'none'; baSection.style.display = 'none'; baDesk.required = false; baNama.required = false; } }
+        async function submitUpdate(e) { e.preventDefault(); const status = document.getElementById('update-status').value; const catatanBaru = document.getElementById('update-keterangan').value.trim(); const idTiket = document.getElementById('update-id').value; const t = globalTickets.find(x => x['ID Tiket'] === idTiket); let ttdBase64 = ""; if ((status === 'Pending' || status === 'Cancel') && catatanBaru === "") { alert("⚠️ Catatan Baru WAJIB diketik saat memilih status Pending atau Cancel!"); return; } if (status === 'Selesai') { const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; if (!isCanvasDrawn && !hasExistingTTD) { alert("⚠️ Tanda Tangan WAJIB diisi sebelum Selesai!"); return; } } if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); } const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true; let isStatusChanged = t['Status'] !== status; let keteranganFinal = t['Keterangan'] || ''; if ((catatanBaru !== "" || isStatusChanged) && t['Status'] !== 'Selesai') { const now = new Date(); const timeStr = now.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); let teksLogBaru = `[${timeStr}] ➔ ${status}`; if (catatanBaru !== "") teksLogBaru += `\n📝 ${catatanBaru}`; keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru; } const payload = { action: 'updateTicket', idTiket: idTiket, status: status, keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, baTTD: ttdBase64 }; try { const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if (result.status === 'sukses') { tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { alert('Gagal update: ' + result.pesan); } } catch(err) { window.location.reload(); } btn.innerText = '💾 Simpan Data'; btn.disabled = false; }
+        function aktifkanEditTiket(idTiket) { const t = globalTickets.find(x => x['ID Tiket'] === idTiket); if(!t) return; modeEditTiket = true; switchTab('input'); document.getElementById('form-tiket-title').innerText = '✏️ Edit Tiket: ' + idTiket; document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; const salesSelect = document.getElementById('input-sales'); let found = Array.from(salesSelect.options).some(opt => opt.value === (t['Sales'] || '')); if (!found && t['Sales']) { salesSelect.innerHTML += `<option value="${t['Sales']}">${t['Sales']} (Nonaktif)</option>`; } salesSelect.value = t['Sales'] || ''; const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-tiket').style.display = 'block'; }
+        function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = '➕ Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; let maxId = 0; globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].includes('-')){ let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxId) maxId = num; }}); document.getElementById('input-id').value = 'TKT-' + String(maxId + 1).padStart(3, '0'); }
+        async function hapusTiket(idTiket) { if(!confirm(`Hapus tiket ${idTiket} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        async function submitData(e) { e.preventDefault(); const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); const payload = { action: modeEditTiket ? 'editTicket' : 'addTicket', idTiket: document.getElementById('input-id').value, targetSLA: document.getElementById('input-sla').value, targetRespon: document.getElementById('input-sla-respon').value, klien: document.getElementById('input-klien').value, pekerjaan: document.getElementById('input-pekerjaan').value, sales: document.getElementById('input-sales').value, teknisi: t }; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if ((await res.json()).status === 'sukses') { batalEditTiket(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; switchTab('tiket'); } } catch (err) {} btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
+        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Email'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
+        function aktifkanEditUser(un) { const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-email').value = u['Email'] || ''; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0); }
+        function batalEditUser() { modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = ''; document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false; document.getElementById('btn-tambah-user').innerText = 'Simpan Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-user').style.display = 'none'; }
+        async function simpanUserBaru(e) { e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value }; if (!modeEditUser && globalUsers.find(u => (u.Username||'').toLowerCase() === payload.username.toLowerCase())) { alert("Username sudah ada."); btn.innerText='Simpan Profil'; btn.disabled=false; return; } try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(true); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update Profil':'Simpan Profil'; btn.disabled=false; }
         async function hapusUser(un) { if(un==='admin') { alert('Akun admin utama dilarang dihapus!'); return; } if(!confirm(`Yakin hapus user ${un}?`)) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
 
         ambilSemuaData();
