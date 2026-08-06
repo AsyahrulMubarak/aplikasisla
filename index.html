@@ -43,7 +43,7 @@
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--surface); box-shadow: 0 -4px 15px rgba(0,0,0,0.03); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--border); }
         .nav-btn { flex: 1; padding: 12px 0; text-align: center; color: var(--text-muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; border-top: 3px solid transparent; }
         .nav-btn .icon { font-size: 20px; margin-bottom: 4px; }
-        .nav-btn .text { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+        .nav-btn .text { font-size: 10px; font-weight: 700; letter-spacing: 0.3px; }
         .nav-btn.active { color: var(--primary); border-top-color: var(--primary); background: #f8fafc; }
 
         .form-card { background: var(--surface); padding: 25px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border); }
@@ -52,6 +52,12 @@
         .segment-control { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 20px; }
         .segment-btn { flex: 1; padding: 8px 0; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
         .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+        /* KOTAK PENCARIAN */
+        .search-wrapper { position: relative; margin-bottom: 15px; }
+        .search-wrapper input { width: 100%; padding: 12px 15px 12px 35px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; box-sizing: border-box;}
+        .search-wrapper input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(30,58,138,0.1); }
+        .search-icon { position: absolute; left: 12px; top: 12px; color: var(--text-muted); font-size: 16px; }
 
         label { display: block; margin: 15px 0 6px; font-weight: 600; font-size: 13px; color: var(--text-main); }
         input[type="text"], input[type="number"], input[type="email"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #f8fafc; transition: 0.2s; }
@@ -114,6 +120,7 @@
         th { background: #f8fafc; padding: 10px; border-bottom: 2px solid var(--border); color: var(--text-muted); text-align: left; }
         td { padding: 10px; border-bottom: 1px solid var(--border); }
         
+        /* GRAFIK DONAT CSS MURNI */
         .charts-container { display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;}
         .chart-box { flex: 1; min-width: 130px; background: #f8fafc; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); }
         .chart-title { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 12px; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -231,12 +238,28 @@
         <!-- HALAMAN TIKET TEKNISI -->
         <div id="page-tiket" class="tab-page">
             <h3 class="section-title">Daftar Tiket SLA (Pekerjaan)</h3>
+            
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." onkeyup="renderTickets()">
+            </div>
+
+            <!-- TABS PEMISAH TIKET (AKTIF / RIWAYAT) -->
+            <div class="segment-control">
+                <button class="segment-btn active" id="btn-filter-aktif" onclick="setTicketFilter('aktif')">Pekerjaan Aktif</button>
+                <button class="segment-btn" id="btn-filter-riwayat" onclick="setTicketFilter('riwayat')">Riwayat (Selesai/Batal)</button>
+            </div>
+
             <div id="ticket-container"></div>
         </div>
 
-        <!-- HALAMAN PENJUALAN KHUSUS (TAB BARU) -->
+        <!-- HALAMAN PENJUALAN KHUSUS -->
         <div id="page-penjualan" class="tab-page">
             <h3 class="section-title" style="color:var(--purple);">Daftar Penjualan Langsung</h3>
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-sls" placeholder="Cari ID, No Trx, Pembeli, Barang..." onkeyup="renderPenjualan()">
+            </div>
             <div id="penjualan-container"></div>
         </div>
 
@@ -262,9 +285,7 @@
                     <label>Sales Penanggung Jawab</label>
                     <select id="input-sales" onchange="togglePenjualanInput()"></select>
                     
-                    <!-- KOTAK HIJAU: MUNCUL JIKA SALES DIPILIH -->
                     <div id="div-nilai-penjualan" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
-                        <!-- UPDATE: INPUT NO TRANSAKSI (IPOS) UNTUK TIKET SLA -->
                         <label style="color:#166534; margin-top:0;">No Transaksi / SO (Opsional)</label>
                         <input type="text" id="input-notrans-sla" placeholder="Contoh: 0761/KSR/UTM/0826" style="border-color:#86efac; background:#fff; margin-bottom:15px;">
                         
@@ -345,6 +366,8 @@
 
         let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let penggunaAktif = null;
         let modeEditUser = false; let modeEditTiket = false; let intervalAutoRefresh; let currentTabId = 'dashboard';
+        
+        let currentTicketFilter = 'aktif'; // Filter tab Tiket (aktif vs riwayat)
 
         const canvas = document.getElementById('signature-pad'); const ctx = canvas.getContext('2d');
         let isDrawing = false; let isCanvasDrawn = false; 
@@ -377,6 +400,15 @@
             document.getElementById('form-input-sla-container').style.display = 'none'; document.getElementById('form-input-sls-container').style.display = 'none';
             if(type === 'sla') { document.getElementById('btn-input-sla').classList.add('active'); document.getElementById('form-input-sla-container').style.display = 'block'; }
             else { document.getElementById('btn-input-sls').classList.add('active'); document.getElementById('form-input-sls-container').style.display = 'block'; }
+        }
+        
+        function setTicketFilter(filterType) {
+            currentTicketFilter = filterType;
+            document.getElementById('btn-filter-aktif').classList.remove('active');
+            document.getElementById('btn-filter-riwayat').classList.remove('active');
+            if(filterType === 'aktif') document.getElementById('btn-filter-aktif').classList.add('active');
+            else document.getElementById('btn-filter-riwayat').classList.add('active');
+            renderTickets();
         }
 
         async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
@@ -546,34 +578,97 @@
             if (arrSales.length === 0) htmlSales += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
             arrSales.forEach(s => { 
                 let winRate = s.target > 0 ? Math.min(((s.revenue / s.target) * 100), 100).toFixed(0) : 0;
-                let sisaTarget = s.target - s.revenue;
-                let textSisa = sisaTarget > 0 ? `<span style="color:var(--danger)">Sisa Target: <b>${formatRp(sisaTarget)}</b></span>` : `<span style="color:var(--success)">Target Lampaui: <b>${formatRp(Math.abs(sisaTarget))}</b></span>`;
-                if (s.target === 0) textSisa = `<span style="color:var(--text-muted)">Target belum diatur Admin</span>`;
-                htmlSales += `<div class="card" style="border-left-color:var(--purple);"><h3 style="margin-bottom:15px; color:var(--purple); border-bottom:1px solid var(--border); padding-bottom:10px;">💼 ${s.nama} <span style="font-size:12px; color:var(--text-main); font-weight:500;">(${s.total} Transaksi)</span></h3><div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:13px; align-items: center;"><div><div style="color:var(--text-muted); font-size:10px; font-weight:700; text-transform:uppercase;">Minimal Target</div><div style="font-weight:700; color:var(--text-main); font-size:14px;">${formatRp(s.target)}</div></div><div style="text-align:right;"><div style="color:var(--text-muted); font-size:10px; font-weight:700; text-transform:uppercase;">Total Omzet Valid</div><div style="font-weight:800; color:var(--success); font-size:16px;">${formatRp(s.revenue)}</div></div></div><div class="progress-bg" style="height:10px; margin-bottom:8px;"><div class="progress-bar" style="width:${winRate}%; background:var(--purple);"></div></div><div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600; margin-bottom:15px;"><div>${textSisa}</div><div style="color:var(--purple);">Tercapai ${winRate}%</div></div><div style="display:flex; gap:10px; font-size:11px; font-weight:600; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);"><div style="flex:1; text-align:center;"><span style="color:var(--success); display:block; font-size:14px;">${s.selesai}</span> Selesai</div><div style="flex:1; text-align:center; border-left:1px solid var(--border); border-right:1px solid var(--border);"><span style="color:var(--warning); display:block; font-size:14px;">${s.progress}</span> Proses</div><div style="flex:1; text-align:center;"><span style="color:var(--danger); display:block; font-size:14px;">${s.batal}</span> Batal</div></div></div>`;
+                
+                // GRAFIK DONAT UNTUK SALES
+                let trTotal = s.selesai + s.progress + s.batal;
+                let pp1 = trTotal === 0 ? 0 : (s.selesai / trTotal) * 100;
+                let pp2 = trTotal === 0 ? 0 : pp1 + (s.progress / trTotal) * 100;
+                let pBg = trTotal === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${pp1}%, var(--warning) ${pp1}% ${pp2}%, var(--danger) ${pp2}% 100%)`;
+                
+                // Donut Target
+                let tBg = `conic-gradient(var(--purple) 0% ${winRate}%, #e2e8f0 ${winRate}% 100%)`;
+
+                htmlSales += `
+                <div class="card" style="border-left-color:var(--purple);">
+                    <h3 style="margin-bottom:5px; color:var(--purple); border-bottom:1px solid var(--border); padding-bottom:10px; font-size:16px;">💼 ${s.nama}</h3>
+                    
+                    <div class="charts-container">
+                        <!-- CHART PENCAPAIAN TARGET -->
+                        <div class="chart-box">
+                            <div class="chart-title">PENCAPAIAN TARGET</div>
+                            <div class="donut" style="background: ${tBg};">
+                                <div class="donut-inner">
+                                    <span class="donut-val" style="color:var(--purple);">${winRate}%</span>
+                                </div>
+                            </div>
+                            <div style="margin-top:12px; font-size:11px; width:100%;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="color:var(--text-muted);">Target:</span> <strong>${formatRp(s.target)}</strong></div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="color:var(--success);">Omzet:</span> <strong>${formatRp(s.revenue)}</strong></div>
+                            </div>
+                        </div>
+
+                        <!-- CHART STATUS TRANSAKSI -->
+                        <div class="chart-box">
+                            <div class="chart-title">STATUS TRANSAKSI</div>
+                            <div class="donut" style="background: ${pBg};">
+                                <div class="donut-inner">
+                                    <span class="donut-val">${s.total}</span>
+                                    <span class="donut-label">Total</span>
+                                </div>
+                            </div>
+                            <div class="chart-legend">
+                                <div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Selesai</span> <b>${s.selesai}</b></div>
+                                <div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.progress}</b></div>
+                                <div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Batal</span> <b>${s.batal}</b></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
             });
             dashSalesContainer.innerHTML = htmlSales;
         }
 
+        // FUNGSI RENDER TIKET SLA (DENGAN FILTER & SEARCH)
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
+            
+            // Ambil text pencarian
+            let searchInput = document.getElementById('search-tiket');
+            let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
+
             let tiketDitampilkan = [];
             if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') { tiketDitampilkan = globalTickets; } else { tiketDitampilkan = globalTickets.filter(t => (t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); }
             
             let htmlAda = false;
             tiketDitampilkan.slice().reverse().forEach(ticket => {
                 if (!ticket['ID Tiket'] || ticket['ID Tiket'].startsWith('SLS-')) return; 
-                htmlAda = true;
                 
                 let textStatus = ticket['Status'] || 'Menunggu'; let isUnassigned = ticket['Teknisi'] === 'Belum Ditugaskan' || ticket['Teknisi'] === '';
                 let statusPengerjaanKartu = ticket['Status SLA']; if(textStatus === 'Pending') statusPengerjaanKartu = 'AMAN';
                 
+                if (isUnassigned) textStatus = 'Menunggu'; // Anggap Unassigned sebagai Aktif/Menunggu
+
+                // FILTER AKTIF VS RIWAYAT
+                let isAktif = ['Menunggu', 'On Progress', 'Pending'].includes(textStatus);
+                let isRiwayat = ['Selesai', 'Cancel'].includes(textStatus);
+                
+                if (currentTicketFilter === 'aktif' && !isAktif) return;
+                if (currentTicketFilter === 'riwayat' && !isRiwayat) return;
+
+                // FILTER PENCARIAN
+                if (searchVal !== '') {
+                    let noTransData = ticket['No Transaksi'] || ticket[Object.keys(ticket)[1]] || '';
+                    let strCari = `${ticket['ID Tiket']} ${ticket['Klien & Lokasi']} ${ticket['Jenis Pekerjaan']} ${ticket['Sales']} ${ticket['Teknisi']} ${noTransData}`.toLowerCase();
+                    if (!strCari.includes(searchVal)) return;
+                }
+
+                htmlAda = true;
+                
                 let sc = statusPengerjaanKartu === 'TERLAMBAT' ? 'status-terlambat' : (statusPengerjaanKartu === 'TERPENUHI' ? 'status-terpenuhi' : 'status-aman');
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status'));
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
-                
                 if (isUnassigned) { sc = 'status-aman'; bc = 'badge-pending'; bRespon = 'badge-pending'; textStatus = 'Menunggu Teknisi'; }
 
-                // MENGAMBIL NO TRANSAKSI (IPOS)
                 let noTransData = ticket['No Transaksi'] || ticket[Object.keys(ticket)[1]];
                 let noTrans = noTransData ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${noTransData}</span></p>` : '';
 
@@ -619,12 +714,16 @@
 
                 container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>${noTrans}<p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}</div>${htmlTracking}${htmlBA}${htmlBanding}${btnHtml}</div>`;
             });
-            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada pekerjaan.</p>';
+            if(!htmlAda) container.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket ${currentTicketFilter === 'aktif' ? 'aktif' : 'di riwayat'}.</p>`;
         }
 
+        // FUNGSI RENDER PENJUALAN SAJA (DENGAN SEARCH)
         function renderPenjualan() {
             const container = document.getElementById('penjualan-container'); container.innerHTML = ''; 
             
+            let searchInput = document.getElementById('search-sls');
+            let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
+
             let penDitampilkan = [];
             if (penggunaAktif.Role === 'admin') { penDitampilkan = globalPenjualan; } 
             else if (penggunaAktif.Role === 'sales') { penDitampilkan = globalPenjualan.filter(p => (p['Sales']||'').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase()); }
@@ -632,6 +731,12 @@
             let htmlAda = false;
             penDitampilkan.slice().reverse().forEach(p => {
                 if (!p['ID Penjualan']) return;
+                
+                if (searchVal !== '') {
+                    let strCari = `${p['ID Penjualan']} ${p['No Transaksi']} ${p['Nama Pembeli']} ${p['Barang / Jasa']} ${p['Sales']}`.toLowerCase();
+                    if (!strCari.includes(searchVal)) return;
+                }
+
                 htmlAda = true;
                 
                 let btnHtml = '';
@@ -644,7 +749,7 @@
 
                 container.innerHTML += `<div class="card status-terpenuhi"><h3><span>${p['ID Penjualan']}</span><span class="badge badge-sales">Lunas</span></h3>${noTrans}<p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Pembeli:</strong> ${p['Nama Pembeli']}</p><p><strong>Barang:</strong> ${p['Barang / Jasa']}</p><p><strong>Sales:</strong> ${p['Sales']}</p><p style="color:var(--success);"><strong>Nominal Omzet:</strong> ${formatRp(p['Nominal (Rp)'] || p['Nominal'])}</p>${btnHtml}</div>`;
             });
-            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada data penjualan langsung.</p>';
+            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan sesuai pencarian.</p>';
         }
 
         function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
@@ -708,12 +813,8 @@
             document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; 
             const salesSelect = document.getElementById('input-sales'); let found = Array.from(salesSelect.options).some(opt => opt.value === (t['Sales'] || '')); if (!found && t['Sales']) { salesSelect.innerHTML += `<option value="${t['Sales']}">${t['Sales']} (Nonaktif)</option>`; } salesSelect.value = t['Sales'] || ''; 
             
-            // MENGISI NO TRANSAKSI UNTUK DIEDIT
-            let noTransVal = t['No Transaksi'] || t[Object.keys(t)[1]] || '';
-            document.getElementById('input-notrans-sla').value = noTransVal;
-
-            let targetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || '';
-            document.getElementById('input-nilai-penjualan').value = targetVal; togglePenjualanInput();
+            let noTransVal = t['No Transaksi'] || t[Object.keys(t)[1]] || ''; document.getElementById('input-notrans-sla').value = noTransVal;
+            let targetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || ''; document.getElementById('input-nilai-penjualan').value = targetVal; togglePenjualanInput();
             const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); 
             document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-tiket').style.display = 'block'; 
         }
@@ -729,24 +830,11 @@
                 const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
                 const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
                 payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; 
-                payload.idTiket = document.getElementById('input-id').value; 
-                payload.noTransaksi = document.getElementById('input-notrans-sla').value; // NGAMBIL NO TRANSAKSI
-                payload.targetSLA = document.getElementById('input-sla').value; 
-                payload.targetRespon = document.getElementById('input-sla-respon').value; 
-                payload.klien = document.getElementById('input-klien').value; 
-                payload.pekerjaan = document.getElementById('input-pekerjaan').value; 
-                payload.sales = document.getElementById('input-sales').value; 
-                payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; 
-                payload.teknisi = t;
+                payload.idTiket = document.getElementById('input-id').value; payload.noTransaksi = document.getElementById('input-notrans-sla').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
             } else if (type === 'sls') {
                 const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
                 payload.action = 'addPenjualan'; 
-                payload.idPenjualan = document.getElementById('input-id-sls').value; 
-                payload.noTransaksi = document.getElementById('input-notrans-sls').value; 
-                payload.pembeli = document.getElementById('input-pembeli-sls').value; 
-                payload.barang = document.getElementById('input-barang-sls').value; 
-                payload.sales = document.getElementById('input-sales-sls').value; 
-                payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
+                payload.idPenjualan = document.getElementById('input-id-sls').value; payload.noTransaksi = document.getElementById('input-notrans-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
             }
 
             try { 
