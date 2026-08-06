@@ -53,10 +53,11 @@
         .segment-btn { flex: 1; padding: 8px 0; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
         .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 
-        .search-wrapper { position: relative; margin-bottom: 15px; }
-        .search-wrapper input { width: 100%; padding: 12px 15px 12px 40px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; box-sizing: border-box;}
+        /* PERBAIKAN SEARCH BOX YANG BERTUMPUK (DIPAKSA DENGAN !IMPORTANT) */
+        .search-wrapper { position: relative; margin-bottom: 15px; display: block; width: 100%; }
+        .search-wrapper input { width: 100%; padding: 12px 15px 12px 40px !important; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; box-sizing: border-box !important;}
         .search-wrapper input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(30,58,138,0.1); }
-        .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 16px; pointer-events: none; }
+        .search-icon { position: absolute; left: 14px; top: 12px; color: var(--text-muted); font-size: 16px; pointer-events: none; z-index: 2; }
 
         label { display: block; margin: 15px 0 6px; font-weight: 600; font-size: 13px; color: var(--text-main); }
         input[type="text"], input[type="number"], input[type="email"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #f8fafc; transition: 0.2s; }
@@ -139,7 +140,7 @@
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
-            <h3 style="margin-top:0; color:var(--text-main);">Sistem Manajemen SLA</h3>
+            <h3 style="margin-top:0; color:var(--text-main);">Manajemen SLA Alfacom</h3>
             <div id="login-loading">Memeriksa koneksi aman...</div>
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
@@ -269,12 +270,18 @@
                 <button class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:var(--success);" onclick="bukaFormProspek()">+ Input Prospek</button>
             </div>
             
-            <!-- FORM INPUT PROSPEK (PERBAIKAN BUG MISSING ID) -->
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-prospek-input" placeholder="Cari Calon Customer, Kebutuhan, Sales..." onkeyup="renderProspek()">
+            </div>
+            
+            <!-- FORM INPUT PROSPEK (DIPERBAIKI) -->
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
                 <h3 style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
                 <form id="form-prospek" onsubmit="submitProspek(event)">
                     
-                    <input type="hidden" id="prospek-id"> <!-- INI KUNCI PERBAIKAN BUGNYA -->
+                    <!-- HIDDEN INPUT DIPASTIKAN ADA -->
+                    <input type="hidden" id="prospek-id">
                     
                     <label>Nama Calon Customer</label>
                     <input type="text" id="prospek-nama" placeholder="Contoh: Pak Budi - Instansi X" required>
@@ -299,11 +306,6 @@
                     <button type="submit" id="btn-submit-prospek" class="btn-solid-primary" style="background:var(--success);">Simpan Prospek</button>
                     <button type="button" class="btn-outline-cancel" onclick="tutupFormProspek()">Batal Input</button>
                 </form>
-            </div>
-
-            <div class="search-wrapper">
-                <span class="search-icon">🔍</span>
-                <input type="text" id="search-prospek-input" placeholder="Cari Calon Customer, Kebutuhan, Sales..." onkeyup="renderProspek()">
             </div>
 
             <div id="prospek-container"></div>
@@ -420,7 +422,6 @@
         const canvas = document.getElementById('signature-pad'); const ctx = canvas.getContext('2d');
         let isDrawing = false; let isCanvasDrawn = false; 
 
-        // HELPER FORMAT RUPIAH & STRING SAFEGUARD
         function formatRp(angka) { if(!angka || isNaN(angka)) return "Rp 0"; return "Rp " + parseInt(angka).toLocaleString('id-ID'); }
 
         function resizeCanvas() { const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; ctx.scale(ratio, ratio); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#000'; clearSignature(); }
@@ -551,9 +552,9 @@
             salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
         }
 
-        // =====================================
-        // PERBAIKAN BUG MISSING ID (String Safeguard)
-        // =====================================
+        // ==========================================
+        // PERBAIKAN BUG: FAILSAFE ID PROSPEK
+        // ==========================================
         function setAutoIDs() {
             let maxTkt = 0; let maxSls = 0; let maxPrp = 0;
             globalTickets.forEach(t => { 
@@ -573,8 +574,12 @@
                 document.getElementById('input-id').value = 'TKT-' + String(maxTkt + 1).padStart(3, '0'); 
                 document.getElementById('input-id-sls').value = 'SLS-' + String(maxSls + 1).padStart(3, '0'); 
             }
+            
+            // Failsafe pengecekan DOM
             let prospekEl = document.getElementById('prospek-id');
-            if(prospekEl) prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0');
+            if(prospekEl) {
+                prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0');
+            }
         }
 
         function renderDashboard() {
@@ -770,7 +775,7 @@
         }
 
         // ==========================================
-        // PROSPEK (LEADS CRM)
+        // PROSPEK (LEADS CRM) - BUG FIXED
         // ==========================================
         function bukaFormProspek() {
             document.getElementById('form-prospek-container').style.display = 'block';
@@ -841,12 +846,19 @@
             e.preventDefault();
             const btn = document.getElementById('btn-submit-prospek'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
             
+            // Failsafe Pengambilan ID Prospek
+            let idPrp = document.getElementById('prospek-id').value;
+            if(!idPrp || idPrp === "") {
+                setAutoIDs();
+                idPrp = document.getElementById('prospek-id').value;
+            }
+
             let salesPenanggung = penggunaAktif['Nama Asli'];
             if(penggunaAktif.Role === 'admin') { salesPenanggung = document.getElementById('prospek-sales').value || penggunaAktif['Nama Asli']; }
 
             const payload = { 
                 action: 'addProspek', 
-                idProspek: document.getElementById('prospek-id').value, 
+                idProspek: idPrp, 
                 customer: document.getElementById('prospek-nama').value, 
                 kebutuhan: document.getElementById('prospek-kebutuhan').value, 
                 statusProspek: document.getElementById('prospek-status').value, 
@@ -881,7 +893,7 @@
         }
 
         // ==========================================
-        // FITUR BANDING DAN UPDATE TIKET
+        // LAINNYA
         // ==========================================
         function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
         
