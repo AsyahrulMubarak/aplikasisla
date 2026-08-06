@@ -53,7 +53,6 @@
         .segment-btn { flex: 1; padding: 8px 0; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
         .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 
-        /* PERBAIKAN PENCARIAN (UI SEARCH BOX) */
         .search-wrapper { position: relative; margin-bottom: 15px; }
         .search-wrapper input { width: 100%; padding: 12px 15px 12px 40px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; box-sizing: border-box;}
         .search-wrapper input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(30,58,138,0.1); }
@@ -140,7 +139,7 @@
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
-            <h3 style="margin-top:0; color:var(--text-main);">Manajemen SLA Alfacom</h3>
+            <h3 style="margin-top:0; color:var(--text-main);">Sistem Manajemen SLA</h3>
             <div id="login-loading">Memeriksa koneksi aman...</div>
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
@@ -263,23 +262,25 @@
             <div id="penjualan-container"></div>
         </div>
 
-        <!-- HALAMAN PROSPEK (LEADS) BARU -->
+        <!-- HALAMAN PROSPEK (LEADS) -->
         <div id="page-prospek" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:var(--success);">Data Prospek (Leads)</h3>
                 <button class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:var(--success);" onclick="bukaFormProspek()">+ Input Prospek</button>
             </div>
             
-            <!-- FORM INPUT PROSPEK -->
+            <!-- FORM INPUT PROSPEK (PERBAIKAN BUG MISSING ID) -->
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
                 <h3 style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
                 <form id="form-prospek" onsubmit="submitProspek(event)">
+                    
+                    <input type="hidden" id="prospek-id"> <!-- INI KUNCI PERBAIKAN BUGNYA -->
+                    
                     <label>Nama Calon Customer</label>
                     <input type="text" id="prospek-nama" placeholder="Contoh: Pak Budi - Instansi X" required>
                     <label>Kebutuhan / Barang yang Diminati</label>
                     <textarea id="prospek-kebutuhan" placeholder="Contoh: Butuh 5 Kamera CCTV dan Jasa Pasang" required rows="2"></textarea>
                     
-                    <!-- Sales Dropdown Hanya Tampil Untuk Admin -->
                     <div id="div-prospek-sales" style="display:none;">
                         <label>Sales Penanggung Jawab</label>
                         <select id="prospek-sales"></select>
@@ -399,7 +400,7 @@
         <!-- MENU NAVIGASI BAWAH TERGANTUNG ROLE -->
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
-            <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Pekerjaan</div></div>
+            <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket SLA</div></div>
             <div class="nav-btn" id="nav-penjualan" onclick="switchTab('penjualan')" style="display:none;"><div class="icon">🛒</div><div class="text">Penjualan</div></div>
             <div class="nav-btn" id="nav-prospek" onclick="switchTab('prospek')" style="display:none;"><div class="icon">🤝</div><div class="text">Prospek</div></div>
             <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Input Data</div></div>
@@ -419,6 +420,7 @@
         const canvas = document.getElementById('signature-pad'); const ctx = canvas.getContext('2d');
         let isDrawing = false; let isCanvasDrawn = false; 
 
+        // HELPER FORMAT RUPIAH & STRING SAFEGUARD
         function formatRp(angka) { if(!angka || isNaN(angka)) return "Rp 0"; return "Rp " + parseInt(angka).toLocaleString('id-ID'); }
 
         function resizeCanvas() { const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; ctx.scale(ratio, ratio); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#000'; clearSignature(); }
@@ -492,7 +494,6 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
-            // PENGATURAN MENU MULTI-ROLE
             if (penggunaAktif.Role === 'admin') { 
                 document.getElementById('nav-tiket').style.display = 'flex';
                 document.getElementById('nav-penjualan').style.display = 'flex';
@@ -500,7 +501,7 @@
                 document.getElementById('nav-input').style.display = 'flex'; 
                 document.getElementById('nav-user').style.display = 'flex'; 
                 document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
-                document.getElementById('div-prospek-sales').style.display = 'block'; // Admin bisa pilih nama sales saat input prospek
+                document.getElementById('div-prospek-sales').style.display = 'block'; 
             } else if (penggunaAktif.Role === 'sales') { 
                 document.getElementById('nav-tiket').style.display = 'flex';
                 document.getElementById('nav-penjualan').style.display = 'flex';
@@ -509,7 +510,7 @@
                 document.getElementById('nav-user').style.display = 'none'; 
                 document.getElementById('dash-segment').style.display = 'none'; 
                 document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
-                document.getElementById('div-prospek-sales').style.display = 'none'; // Sales otomatis menginput atas nama mereka sendiri
+                document.getElementById('div-prospek-sales').style.display = 'none'; 
             } else { 
                 document.getElementById('nav-tiket').style.display = 'flex';
                 document.getElementById('nav-penjualan').style.display = 'none'; 
@@ -550,18 +551,30 @@
             salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
         }
 
+        // =====================================
+        // PERBAIKAN BUG MISSING ID (String Safeguard)
+        // =====================================
         function setAutoIDs() {
             let maxTkt = 0; let maxSls = 0; let maxPrp = 0;
-            globalTickets.forEach(t => { if(t['ID Tiket'] && t['ID Tiket'].startsWith('TKT-')) { let num = parseInt(t['ID Tiket'].split('-')[1]); if (num > maxTkt) maxTkt = num; } });
-            globalPenjualan.forEach(p => { if(p['ID Penjualan'] && p['ID Penjualan'].startsWith('SLS-')) { let num = parseInt(p['ID Penjualan'].split('-')[1]); if (num > maxSls) maxSls = num; } });
-            globalProspek.forEach(pr => { if(pr['ID Prospek'] && pr['ID Prospek'].startsWith('PRP-')) { let num = parseInt(pr['ID Prospek'].split('-')[1]); if (num > maxPrp) maxPrp = num; } });
+            globalTickets.forEach(t => { 
+                let id = String(t['ID Tiket'] || '');
+                if(id.startsWith('TKT-')) { let num = parseInt(id.split('-')[1]); if (num > maxTkt) maxTkt = num; } 
+            });
+            globalPenjualan.forEach(p => { 
+                let id = String(p['ID Penjualan'] || '');
+                if(id.startsWith('SLS-')) { let num = parseInt(id.split('-')[1]); if (num > maxSls) maxSls = num; } 
+            });
+            globalProspek.forEach(pr => { 
+                let id = String(pr['ID Prospek'] || '');
+                if(id.startsWith('PRP-')) { let num = parseInt(id.split('-')[1]); if (num > maxPrp) maxPrp = num; } 
+            });
 
             if (!modeEditTiket) { 
                 document.getElementById('input-id').value = 'TKT-' + String(maxTkt + 1).padStart(3, '0'); 
                 document.getElementById('input-id-sls').value = 'SLS-' + String(maxSls + 1).padStart(3, '0'); 
             }
-            // Khusus ID Prospek yang dinamis di saat tombol tambah ditekan, tapi kita set sekarang saja
-            document.getElementById('prospek-id').value = 'PRP-' + String(maxPrp + 1).padStart(3, '0');
+            let prospekEl = document.getElementById('prospek-id');
+            if(prospekEl) prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0');
         }
 
         function renderDashboard() {
@@ -579,10 +592,12 @@
             });
 
             globalTickets.forEach(t => {
-                if(!t['ID Tiket'] || t['ID Tiket'].startsWith('SLS-')) return;
+                let idTkt = String(t['ID Tiket'] || '');
+                if(!idTkt || idTkt.startsWith('SLS-')) return;
+                
                 const statusRespon = t['Status SLA Respon']; const statusPengerjaan = t['Status SLA']; const statusTiket = t['Status'] || 'Menunggu';
                 
-                (t['Teknisi'] || '').split(',').forEach(nama => {
+                String(t['Teknisi'] || '').split(',').forEach(nama => {
                     let n = nama.trim(); if(!n || n === "Belum Ditugaskan" || n === "-") return; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
                     let key = Object.keys(statsTeknisi).find(k => k.toLowerCase() === n.toLowerCase());
                     if(!key) { statsTeknisi[n] = { nama: n, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 }; key = n; }
@@ -590,7 +605,7 @@
                     if (statusTiket === 'Cancel') { } else if (statusTiket === 'Pending') { statsTeknisi[key].peng_aman++; } else if (statusTiket === 'On Progress') { if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } else { statsTeknisi[key].peng_aman++; } } else if (statusTiket === 'Menunggu') { if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } } else if (statusTiket === 'Selesai') { if(statusPengerjaan === 'TERPENUHI') { statsTeknisi[key].peng_tepat++; statsTeknisi[key].peng_total++; } else if(statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } }
                 });
 
-                let sName = t['Sales'] ? t['Sales'].trim() : ''; 
+                let sName = String(t['Sales'] || '').trim(); 
                 let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                 if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
                 if (sKey) { 
@@ -604,7 +619,7 @@
             });
 
             globalPenjualan.forEach(p => {
-                let sName = p['Sales'] ? p['Sales'].trim() : ''; 
+                let sName = String(p['Sales'] || '').trim(); 
                 let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                 if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
                 if (sKey) {
@@ -647,7 +662,6 @@
             dashSalesContainer.innerHTML = htmlSales;
         }
 
-        // TIKET SLA
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             
@@ -655,11 +669,12 @@
             let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
 
             let tiketDitampilkan = [];
-            if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') { tiketDitampilkan = globalTickets; } else { tiketDitampilkan = globalTickets.filter(t => (t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); }
+            if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') { tiketDitampilkan = globalTickets; } else { tiketDitampilkan = globalTickets.filter(t => String(t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); }
             
             let htmlAda = false;
             tiketDitampilkan.slice().reverse().forEach(ticket => {
-                if (!ticket['ID Tiket'] || ticket['ID Tiket'].startsWith('SLS-')) return; 
+                let idTkt = String(ticket['ID Tiket'] || '');
+                if (!idTkt || idTkt.startsWith('SLS-')) return; 
                 
                 let textStatus = ticket['Status'] || 'Menunggu'; let isUnassigned = ticket['Teknisi'] === 'Belum Ditugaskan' || ticket['Teknisi'] === '';
                 let statusPengerjaanKartu = ticket['Status SLA']; if(textStatus === 'Pending') statusPengerjaanKartu = 'AMAN';
@@ -701,7 +716,7 @@
                     } else { btnHtml = `<div style="margin-top:10px; padding:10px; text-align:center; font-size:12px; color:var(--text-muted); border-top:1px dashed var(--border);">Hanya dapat diedit oleh Teknisi/Admin</div>`; }
                 }
                 else if (penggunaAktif.Role === 'admin' && ticket['Status Banding'] === 'Diajukan') {
-                    let imgs = (ticket['Bukti Banding']||'').split('|#|'); let imgHtml = '';
+                    let imgs = String(ticket['Bukti Banding']||'').split('|#|'); let imgHtml = '';
                     imgs.forEach((imgSrc, idx) => { if(imgSrc && imgSrc.length > 10) { imgHtml += `<div style="display:flex; flex-direction:column; align-items:center;"><img src="${imgSrc}"><a href="${imgSrc}" download="Bukti_${ticket['ID Tiket']}_${idx+1}.jpg" class="dl-btn">Unduh Foto ${idx+1}</a></div>`; } });
                     htmlBanding = `<div style="margin-top:15px; padding:15px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px;"><h4 style="margin:0 0 10px 0; color:var(--purple); font-size:14px;">Klaim Sales: ${ticket['Sales Pengaju']}</h4>${ticket['Keterangan Sales'] ? `<p style="font-size:12px; margin:0 0 10px 0; color:#4a5568;"><i>"${ticket['Keterangan Sales']}"</i></p>` : ''}<div class="img-grid">${imgHtml}</div><div class="btn-grid"><button class="btn-acc" onclick="responBanding('${ticket['ID Tiket']}', 'Diterima', '${ticket['Sales Pengaju']}')">Terima Klaim</button><button class="btn-del" onclick="responBanding('${ticket['ID Tiket']}', 'Ditolak', '')">Tolak Klaim</button></div></div>`;
                 }
@@ -721,7 +736,6 @@
             if(!htmlAda) container.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket ${currentTicketFilter === 'aktif' ? 'aktif' : 'di riwayat'}.</p>`;
         }
 
-        // PENJUALAN LANGSUNG
         function renderPenjualan() {
             const container = document.getElementById('penjualan-container'); container.innerHTML = ''; 
             
@@ -730,11 +744,12 @@
 
             let penDitampilkan = [];
             if (penggunaAktif.Role === 'admin') { penDitampilkan = globalPenjualan; } 
-            else if (penggunaAktif.Role === 'sales') { penDitampilkan = globalPenjualan.filter(p => (p['Sales']||'').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase()); }
+            else if (penggunaAktif.Role === 'sales') { penDitampilkan = globalPenjualan.filter(p => String(p['Sales']||'').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase()); }
             
             let htmlAda = false;
             penDitampilkan.slice().reverse().forEach(p => {
-                if (!p['ID Penjualan']) return;
+                let idP = String(p['ID Penjualan'] || '');
+                if (!idP) return;
                 
                 if (searchVal !== '') {
                     let strCari = `${p['ID Penjualan']} ${p['No Transaksi']} ${p['Nama Pembeli']} ${p['Barang / Jasa']} ${p['Sales']}`.toLowerCase();
@@ -760,7 +775,7 @@
         function bukaFormProspek() {
             document.getElementById('form-prospek-container').style.display = 'block';
             document.getElementById('form-prospek').reset();
-            setAutoIDs(); // Generate PRP- ID
+            setAutoIDs(); 
         }
         function tutupFormProspek() { document.getElementById('form-prospek-container').style.display = 'none'; }
 
@@ -772,11 +787,12 @@
 
             let pDitampilkan = [];
             if (penggunaAktif.Role === 'admin') { pDitampilkan = globalProspek; } 
-            else if (penggunaAktif.Role === 'sales') { pDitampilkan = globalProspek.filter(p => (p['Sales Penanggung Jawab']||'').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase()); }
+            else if (penggunaAktif.Role === 'sales') { pDitampilkan = globalProspek.filter(p => String(p['Sales Penanggung Jawab']||'').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase()); }
             
             let htmlAda = false;
             pDitampilkan.slice().reverse().forEach(p => {
-                if (!p['ID Prospek']) return;
+                let idPrp = String(p['ID Prospek'] || '');
+                if (!idPrp) return;
                 
                 if (searchVal !== '') {
                     let strCari = `${p['ID Prospek']} ${p['Nama Calon Customer']} ${p['Kebutuhan']} ${p['Status Prospek']} ${p['Sales Penanggung Jawab']}`.toLowerCase();
@@ -786,7 +802,7 @@
                 htmlAda = true;
                 
                 let textStatus = p['Status Prospek'] || 'Tahap Penawaran';
-                let sc = 'status-aman'; // default kuning
+                let sc = 'status-aman'; 
                 let bc = 'badge-aman';
 
                 if (textStatus.includes('Closing')) { sc = 'status-terpenuhi'; bc = 'badge-selesai'; }
@@ -794,7 +810,6 @@
 
                 let btnHtml = '';
                 if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') {
-                    // Beri tombol untuk ubah status jika belum closing
                     if (!textStatus.includes('Closing')) {
                         btnHtml = `
                         <div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;">
@@ -826,7 +841,6 @@
             e.preventDefault();
             const btn = document.getElementById('btn-submit-prospek'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
             
-            // Jika admin, ambil dari dropdown. Jika sales, set otomatis dirinya sendiri
             let salesPenanggung = penggunaAktif['Nama Asli'];
             if(penggunaAktif.Role === 'admin') { salesPenanggung = document.getElementById('prospek-sales').value || penggunaAktif['Nama Asli']; }
 
@@ -843,8 +857,7 @@
             try { 
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
                 if ((await res.json()).status === 'sukses') { 
-                    tutupFormProspek();
-                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
+                    tutupFormProspek(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
                 } 
             } catch (err) {} 
             btn.innerText = 'Simpan Prospek'; btn.disabled = false;
@@ -926,15 +939,17 @@
             
             let noTransVal = t['No Transaksi'] || t[Object.keys(t)[1]] || ''; document.getElementById('input-notrans-sla').value = noTransVal;
             let targetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || ''; document.getElementById('input-nilai-penjualan').value = targetVal; togglePenjualanInput();
-            const tArr = (t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); 
+            const tArr = String(t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); 
             document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-tiket').style.display = 'block'; 
         }
         function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; document.getElementById('input-notrans-sla').value = ''; togglePenjualanInput(); setAutoIDs(); }
-        async function hapusTiket(idTiket) { if(!confirm(`Hapus data ${idTiket} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        
+        async function hapusTiket(idTiket) { if(!confirm(`Hapus data tiket ${idTiket} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         async function hapusPenjualan(idPenjualan) { if(!confirm(`Hapus data penjualan ${idPenjualan} permanen?`)) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
 
         async function submitData(e, type) { 
-            e.preventDefault(); const payload = {};
+            e.preventDefault(); 
+            const payload = {};
             if (type === 'sla') {
                 const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
                 const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
@@ -942,7 +957,8 @@
                 payload.idTiket = document.getElementById('input-id').value; payload.noTransaksi = document.getElementById('input-notrans-sla').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
             } else if (type === 'sls') {
                 const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
-                payload.action = 'addPenjualan'; payload.idPenjualan = document.getElementById('input-id-sls').value; payload.noTransaksi = document.getElementById('input-notrans-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
+                payload.action = 'addPenjualan'; 
+                payload.idPenjualan = document.getElementById('input-id-sls').value; payload.noTransaksi = document.getElementById('input-notrans-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
             }
 
             try { 
@@ -952,6 +968,7 @@
                     document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
                 } 
             } catch (err) {} 
+            
             if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
             else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; }
         }
@@ -959,7 +976,7 @@
         function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Email'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
         function aktifkanEditUser(un) { const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-email').value = u['Email'] || ''; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; toggleTargetSales(); let targetVal = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || ''; document.getElementById('new-target-sales').value = targetVal; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0); }
         function batalEditUser() { modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = ''; toggleTargetSales(); document.getElementById('new-target-sales').value = ''; document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false; document.getElementById('btn-tambah-user').innerText = 'Simpan Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-user').style.display = 'none'; }
-        async function simpanUserBaru(e) { e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value, targetSales: document.getElementById('new-target-sales').value }; if (!modeEditUser && globalUsers.find(u => (u.Username||'').toLowerCase() === payload.username.toLowerCase())) { alert("Username sudah ada."); btn.innerText='Simpan Profil'; btn.disabled=false; return; } try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(true); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update Profil':'Simpan Profil'; btn.disabled=false; }
+        async function simpanUserBaru(e) { e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value, targetSales: document.getElementById('new-target-sales').value }; if (!modeEditUser && globalUsers.find(u => String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { alert("Username sudah ada."); btn.innerText='Simpan Profil'; btn.disabled=false; return; } try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(true); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update Profil':'Simpan Profil'; btn.disabled=false; }
         async function hapusUser(un) { if(un==='admin') { alert('Akun admin utama dilarang dihapus!'); return; } if(!confirm(`Yakin hapus user ${un}?`)) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
 
         ambilSemuaData();
