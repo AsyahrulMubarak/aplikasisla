@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Manajemen SLA</title>
     
-    <!-- MENGGUNAKAN MESIN EXCELJS ENTERPRISE UNTUK FORMATTING RAPI -->
+    <!-- PWA MANIFEST & META TAGS -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    <link rel="apple-touch-icon" href="depan_001.png">
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     
     <style>
@@ -63,7 +68,7 @@
         .search-icon { position: absolute; left: 14px; top: 12px; color: var(--text-muted); font-size: 16px; pointer-events: none; z-index: 2; }
 
         label { display: block; margin: 15px 0 6px; font-weight: 600; font-size: 13px; color: var(--text-main); }
-        input[type="text"], input[type="number"], input[type="email"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #f8fafc; transition: 0.2s; }
+        input[type="text"], input[type="number"], input[type="email"], input[type="password"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #f8fafc; transition: 0.2s; }
         input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); background-color: var(--surface); box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1); }
         textarea { resize: vertical; min-height: 70px; }
         .input-terkunci { background-color: #edf2f7 !important; color: #a0aec0 !important; cursor: not-allowed; }
@@ -172,6 +177,19 @@
             <div class="custom-modal-actions">
                 <button class="custom-modal-btn btn-cm-cancel" id="btn-confirm-no">Batal</button>
                 <button class="custom-modal-btn btn-cm-danger" id="btn-confirm-yes">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PWA INSTALL (FITUR BARU) -->
+    <div id="pwa-install-modal" class="custom-modal-backdrop" style="z-index: 9999;">
+        <div class="custom-modal-box">
+            <img src="depan_001.png" style="width:70px; margin-bottom:15px; border-radius:12px;">
+            <h3 class="custom-modal-title" style="color:var(--primary);">Install Aplikasi SLA</h3>
+            <p class="custom-modal-msg">Tambahkan Alfacom SLA ke layar utama HP Anda agar lebih cepat diakses tanpa repot buka browser lagi.</p>
+            <div class="custom-modal-actions">
+                <button class="custom-modal-btn btn-cm-cancel" onclick="tolakInstall()">Nanti Saja</button>
+                <button class="custom-modal-btn btn-cm-confirm" onclick="terimaInstall()">Install Sekarang</button>
             </div>
         </div>
     </div>
@@ -494,7 +512,10 @@
                     <label>Email (Notifikasi)</label><input type="email" id="new-email" required>
                     <div style="display: flex; gap:15px;">
                         <div style="flex: 1;"><label>Username</label><input type="text" id="new-username" required></div>
-                        <div style="flex: 1;"><label>Password</label><input type="text" id="new-password" required></div>
+                        <div style="flex: 1;">
+                            <label>Password</label>
+                            <input type="password" id="new-password" placeholder="Password Baru" required>
+                        </div>
                     </div>
                     <label>Hak Akses</label>
                     <select id="new-role" required onchange="toggleTargetSales()"><option value="" disabled selected>-- Pilih --</option><option value="admin">Admin</option><option value="teknisi">Teknisi</option><option value="sales">Sales</option></select>
@@ -538,6 +559,52 @@
         let currentTicketFilter = 'aktif'; 
 
         /* =========================================================
+           FUNGSI ENKRIPSI PASSWORD (SHA-256)
+        ========================================================= */
+        async function hashPassword(text) {
+            const msgUint8 = new TextEncoder().encode(text);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        /* =========================================================
+           FUNGSI PWA - INSTALL PROMPT
+        ========================================================= */
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Munculkan popup install 3 detik setelah web dibuka (jika belum pernah ditolak)
+            if(!sessionStorage.getItem('pwaPromptDimatikan')) {
+                setTimeout(() => {
+                    document.getElementById('pwa-install-modal').style.display = 'flex';
+                }, 3000); 
+            }
+        });
+
+        function tolakInstall() {
+            document.getElementById('pwa-install-modal').style.display = 'none';
+            sessionStorage.setItem('pwaPromptDimatikan', 'true');
+        }
+
+        async function terimaInstall() {
+            document.getElementById('pwa-install-modal').style.display = 'none';
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+            }
+        }
+        
+        // Daftarkan Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(reg => {
+                console.log('Service Worker Registered');
+            });
+        }
+
+        /* =========================================================
            FUNGSI CUSTOM NOTIFIKASI (TOAST & MODAL)
         ========================================================= */
         function showToast(message, type = 'success') {
@@ -574,7 +641,7 @@
         }
 
         /* =========================================================
-           FUNGSI EXPORT LAPORAN MENGGUNAKAN EXCELJS (RAPI & PROFESIONAL)
+           FUNGSI EXPORT LAPORAN MENGGUNAKAN EXCELJS
         ========================================================= */
         async function prosesExportExcel(e) {
             e.preventDefault();
@@ -582,7 +649,6 @@
             const bulan = document.getElementById('export-bulan').value;
             const tahun = document.getElementById('export-tahun').value;
             
-            // Ubah teks tombol jadi loading
             const btn = e.target.querySelector('button[type="submit"]');
             let textAwal = btn.innerText;
             btn.innerText = "Merakit Excel..."; btn.disabled = true;
@@ -610,7 +676,6 @@
                 return; 
             }
 
-            // MEMBERSIHKAN DATA SEBELUM DIMASUKKAN KE EXCEL
             let cleanData = dataToExport.map(row => {
                 let newRow = {};
                 for (let key in row) {
@@ -627,14 +692,12 @@
             });
 
             try {
-                // 1. BUAT FILE EXCEL BARU
                 const workbook = new ExcelJS.Workbook();
                 const worksheet = workbook.addWorksheet('Laporan ' + jenis.toUpperCase());
 
-                // 2. ATUR LEBAR KOLOM SECARA CERDAS
                 const headers = Object.keys(cleanData[0]);
                 worksheet.columns = headers.map(h => {
-                    let w = 15; // Lebar default
+                    let w = 15;
                     let namaHeaderLower = h.toLowerCase();
                     if (namaHeaderLower.includes('pekerjaan') || namaHeaderLower.includes('keterangan') || namaHeaderLower.includes('kebutuhan') || namaHeaderLower.includes('klien') || namaHeaderLower.includes('deskripsi')) w = 35;
                     if (namaHeaderLower.includes('waktu') || namaHeaderLower.includes('tenggat') || namaHeaderLower.includes('tanggal')) w = 22;
@@ -642,26 +705,22 @@
                     return { header: h, key: h, width: w };
                 });
 
-                // 3. WARNAI BARIS JUDUL (HEADER)
                 const headerRow = worksheet.getRow(1);
                 headerRow.eachCell((cell) => {
-                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; // Tulisan Putih
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } }; // Latar Biru Alfacom
+                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
                     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
                     cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
                 });
 
-                // 4. MASUKKAN DATA
                 cleanData.forEach(item => { worksheet.addRow(item); });
 
-                // 5. ATUR GAYA TIAP BARIS (WARNA SLA & KOTAK)
                 worksheet.eachRow((row, rowNumber) => {
-                    if (rowNumber > 1) { // Mulai dari baris ke-2
+                    if (rowNumber > 1) { 
                         row.eachCell((cell, colNumber) => {
                             cell.alignment = { vertical: 'middle', wrapText: true };
                             cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
 
-                            // PEWARNAAN OTOMATIS (CONDITIONAL FORMATTING)
                             const cellVal = String(cell.value);
                             if (cellVal === 'TERPENUHI' || cellVal === 'Selesai' || cellVal === 'Diterima') {
                                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
@@ -677,11 +736,9 @@
                     }
                 });
 
-                // 6. FREEZE BARIS ATAS & TAMBAHKAN FILTER
                 worksheet.views = [ { state: 'frozen', ySplit: 1 } ];
                 worksheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
 
-                // 7. DOWNLOAD FILE
                 const buffer = await workbook.xlsx.writeBuffer();
                 const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                 const url = URL.createObjectURL(blob);
@@ -698,7 +755,6 @@
                 showToast('Afwan, terjadi kesalahan saat merakit Excel. Pastikan browser mendukung.', 'error');
             }
             
-            // Kembalikan tombol seperti semula
             btn.innerText = textAwal; btn.disabled = false;
         }
 
@@ -762,24 +818,41 @@
             if (savedSession) {
                 const parsedSession = JSON.parse(savedSession);
                 if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Afwan, sesi login telah berakhir.', 'error'); } 
-                else { const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } }
+                else { 
+                    // PENYESUAIAN LOGIN: Mengecek kecocokan dengan data (bisa berupa teks lama atau hash baru)
+                    const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); 
+                    if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
+                }
             }
             if(!penggunaAktif) { document.getElementById('login-loading').style.display = 'none'; document.getElementById('login-form').style.display = 'block'; document.getElementById('login-wrapper').style.display = 'flex'; document.getElementById('app-wrapper').style.display = 'none'; } 
             else { if (!isSilentRefresh) { masukKeAplikasi(); } else { renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderTabelUser(); if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } } }
         }
 
-        function prosesLogin(e) {
-            e.preventDefault(); const un = document.getElementById('username').value.trim().toLowerCase(); const pw = document.getElementById('password').value;
-            const cocok = globalUsers.find(u => (u.Username || '').toLowerCase() === un && u.Password == pw);
-            if (cocok) { penggunaAktif = cocok; localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); masukKeAplikasi(); } 
-            else { showToast('Afwan, Username atau Password tidak valid!', 'error'); }
+        async function prosesLogin(e) {
+            e.preventDefault(); 
+            const un = document.getElementById('username').value.trim().toLowerCase(); 
+            const pwRaw = document.getElementById('password').value;
+            const pwHashed = await hashPassword(pwRaw); // Mengenkripsi input sebelum dicocokkan
+
+            // Sistem Pintar: Mencocokkan Hash Baru ATAU Teks Lama (agar akun lama tetap bisa login)
+            const cocok = globalUsers.find(u => {
+                let uName = String(u.Username || '').toLowerCase();
+                return uName === un && (u.Password === pwHashed || u.Password == pwRaw);
+            });
+
+            if (cocok) { 
+                penggunaAktif = cocok; 
+                localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); 
+                masukKeAplikasi(); 
+            } else { 
+                showToast('Afwan, Username atau Password tidak valid!', 'error'); 
+            }
         }
 
         function masukKeAplikasi() {
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
-            // TOMBOL EXPORT HANYA UNTUK ADMIN
             if (penggunaAktif.Role === 'admin') { 
                 document.getElementById('admin-export-section').style.display = 'block';
                 document.getElementById('nav-tiket').style.display = 'flex';
@@ -811,7 +884,7 @@
             }
 
             renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderTabelUser(); switchTab('dashboard'); 
-            if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
+            if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex' || document.getElementById('pwa-install-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
 
@@ -1199,7 +1272,7 @@
                 } else { showToast('Afwan, gagal menyimpan: ' + hasil.pesan, 'error'); }
             } catch (err) { showToast('Afwan, kesalahan jaringan. Pastikan internet stabil.', 'error'); } 
             
-            if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
+            if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket'; btn.disabled = false; }
             else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; }
         }
 
@@ -1222,9 +1295,92 @@
         async function hapusPenjualan(idPenjualan) { let acc = await showConfirm(`Bismillah, hapus data penjualan ${idPenjualan} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         
         function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Email'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
-        function aktifkanEditUser(un) { const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-email').value = u['Email'] || ''; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; toggleTargetSales(); let targetVal = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || ''; document.getElementById('new-target-sales').value = targetVal; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0); }
-        function batalEditUser() { modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = ''; toggleTargetSales(); document.getElementById('new-target-sales').value = ''; document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false; document.getElementById('btn-tambah-user').innerText = 'Simpan Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-user').style.display = 'none'; }
-        async function simpanUserBaru(e) { e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value, targetSales: document.getElementById('new-target-sales').value }; if (!modeEditUser && globalUsers.find(u => String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { showToast("Afwan, Username tersebut sudah digunakan.", "error"); btn.innerText='Simpan Profil'; btn.disabled=false; return; } try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { showToast('Alhamdulillah! Profil tersimpan.', 'success'); batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(true); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update Profil':'Simpan Profil'; btn.disabled=false; }
+        
+        function aktifkanEditUser(un) { 
+            const u = globalUsers.find(x => x.Username === un); if(!u) return; 
+            modeEditUser = true; 
+            document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; 
+            document.getElementById('new-nama').value = u['Nama Asli']; 
+            document.getElementById('new-email').value = u['Email'] || ''; 
+            document.getElementById('new-username').value = u.Username; 
+            
+            // KOSONGKAN PASSWORD AGAR HASH LAMA TIDAK MUNCUL
+            document.getElementById('new-password').value = ''; 
+            document.getElementById('new-password').placeholder = 'Kosongkan jika tidak ubah password';
+            document.getElementById('new-password').required = false; 
+
+            document.getElementById('new-role').value = u.Role; toggleTargetSales(); 
+            let targetVal = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || ''; 
+            document.getElementById('new-target-sales').value = targetVal; 
+            document.getElementById('new-username').classList.add('input-terkunci'); 
+            document.getElementById('new-username').readOnly = true; 
+            document.getElementById('btn-tambah-user').innerText = 'Update Profil'; 
+            document.getElementById('btn-tambah-user').style.background = 'var(--warning)'; 
+            document.getElementById('btn-batal-edit-user').style.display = 'block'; 
+            window.scrollTo(0,0); 
+        }
+
+        function batalEditUser() { 
+            modeEditUser = false; 
+            document.getElementById('form-user-title').innerText = 'Tambah User Baru'; 
+            document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; 
+            document.getElementById('new-username').value = ''; 
+            
+            document.getElementById('new-password').value = ''; 
+            document.getElementById('new-password').placeholder = 'Password Baru';
+            document.getElementById('new-password').required = true;
+
+            document.getElementById('new-role').value = ''; toggleTargetSales(); 
+            document.getElementById('new-target-sales').value = ''; 
+            document.getElementById('new-username').classList.remove('input-terkunci'); 
+            document.getElementById('new-username').readOnly = false; 
+            document.getElementById('btn-tambah-user').innerText = 'Simpan Profil'; 
+            document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; 
+            document.getElementById('btn-batal-edit-user').style.display = 'none'; 
+        }
+
+        async function simpanUserBaru(e) { 
+            e.preventDefault(); 
+            const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
+            
+            let inputPw = document.getElementById('new-password').value;
+            let finalPw = "";
+
+            if (modeEditUser) {
+                const oldUser = globalUsers.find(u => u.Username === document.getElementById('new-username').value);
+                // Jika input password kosong, gunakan password (hash lama) dari database
+                if (inputPw === "") { finalPw = oldUser.Password; } 
+                else { finalPw = await hashPassword(inputPw); } // Jika diisi, enkripsi password baru
+            } else {
+                // User baru
+                finalPw = await hashPassword(inputPw);
+            }
+
+            const payload = { 
+                action: modeEditUser ? 'editUser' : 'addUser', 
+                namaAsli: document.getElementById('new-nama').value, 
+                email: document.getElementById('new-email').value, 
+                username: document.getElementById('new-username').value, 
+                password: finalPw, // Mengirim password terenkripsi
+                role: document.getElementById('new-role').value, 
+                targetSales: document.getElementById('new-target-sales').value 
+            }; 
+
+            if (!modeEditUser && globalUsers.find(u => String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { 
+                showToast("Afwan, Username tersebut sudah digunakan.", "error"); 
+                btn.innerText='Simpan Profil'; btn.disabled=false; return; 
+            } 
+
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
+                if((await res.json()).status==='sukses') { 
+                    showToast('Alhamdulillah! Profil tersimpan.', 'success'); 
+                    batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(true); document.getElementById('loading').style.display='none'; 
+                } 
+            } catch(err) { showToast("Gagal menyimpan profil", "error");} 
+            btn.innerText = modeEditUser ? 'Update Profil' : 'Simpan Profil'; btn.disabled = false; 
+        }
+
         async function hapusUser(un) { if(un==='admin') { showToast('Afwan, akun admin utama dilarang dihapus!', 'error'); return; } let acc = await showConfirm(`Bismillah, yakin hapus user ${un}?`); if(!acc) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { showToast('Alhamdulillah! User berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
 
         ambilSemuaData();
