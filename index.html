@@ -342,6 +342,8 @@
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
                 <h3 style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
                 <form id="form-prospek" onsubmit="submitProspek(event)">
+                    
+                    <!-- HIDDEN INPUT DIPASTIKAN ADA -->
                     <input type="hidden" id="prospek-id">
                     
                     <label>Nama Calon Customer</label>
@@ -694,6 +696,7 @@
                 document.getElementById('input-id').value = 'TKT-' + String(maxTkt + 1).padStart(3, '0'); 
                 document.getElementById('input-id-sls').value = 'SLS-' + String(maxSls + 1).padStart(3, '0'); 
             }
+            
             let prospekEl = document.getElementById('prospek-id');
             if(prospekEl) { prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0'); }
         }
@@ -744,7 +747,8 @@
                 let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                 if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
                 if (sKey) {
-                    statsSales[sKey].total++; statsSales[sKey].selesai++; 
+                    statsSales[sKey].total++; 
+                    statsSales[sKey].selesai++; 
                     let rawRev = p['Nominal (Rp)'] || p['Nominal'] || 0;
                     statsSales[sKey].revenue += parseInt(rawRev) || 0; 
                 }
@@ -942,7 +946,7 @@
             // KOMPRES GAMBAR BUKTI CHAT
             const fileInput = document.getElementById('prospek-bukti');
             let base64Bukti = '';
-            if(fileInput.files.length > 0) {
+            if(fileInput && fileInput.files.length > 0) {
                 base64Bukti = await prosesUploadGambar(fileInput.files[0]);
             }
 
@@ -975,10 +979,13 @@
             
             try {
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'updateProspekStatus', idProspek: idPrp, statusBaru: "Tahap Penawaran", suratPenawaran: base64Doc }) });
-                if ((await res.json()).status === 'sukses') { 
+                const jsonRes = await res.json();
+                if (jsonRes.status === 'sukses') { 
                     showToast('Alhamdulillah! Surat Penawaran terkirim.', 'success'); 
                     document.getElementById('modal-penawaran').style.display = 'none'; 
                     await ambilSemuaData(true); 
+                } else {
+                    showToast('Afwan, gagal mengupload.', 'error');
                 }
             } catch (err) { showToast('Afwan, jaringan tidak stabil.', 'error'); }
             btn.innerText = 'Kirim Penawaran'; btn.disabled = false;
@@ -1017,8 +1024,9 @@
 
         // BAGIAN BAWAH INI SAMA (TIDAK ADA PERUBAHAN LOGIKA DARI VERSI SEBELUMNYA)
         function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
+        function prosesUploadBanding(file) { return new Promise((resolve) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = function(event) { const img = new Image(); img.src = event.target.result; img.onload = function() { const canvasBanding = document.createElement('canvas'); const MAX_WIDTH = 300; let width = img.width; let height = img.height; if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } canvasBanding.width = width; canvasBanding.height = height; const ctxBanding = canvasBanding.getContext('2d'); ctxBanding.drawImage(img, 0, 0, width, height); resolve(canvasBanding.toDataURL('image/jpeg', 0.4)); } }; }); }
         
-        async function kirimBanding(e) { e.preventDefault(); const fileInput = document.getElementById('banding-bukti'); if(fileInput.files.length === 0) { showToast('Afwan, harap pilih minimal 1 foto bukti!', 'warning'); return; } if(fileInput.files.length > 3) { showToast('Afwan, maksimal 3 foto yang bisa diunggah sekaligus!', 'warning'); return; } document.getElementById('banding-status').style.display = 'block'; document.getElementById('btn-submit-banding').disabled = true; document.getElementById('btn-submit-banding').innerText = 'Mengompres & Mengirim...'; let arrayBase64 = []; for(let i=0; i<fileInput.files.length; i++){ arrayBase64.push(await prosesUploadGambar(fileInput.files[i])); } const gabunganBukti = arrayBase64.join('|#|'); const ketSales = document.getElementById('banding-keterangan').value; const idTiket = document.getElementById('banding-id').value; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Klaim terkirim, menunggu persetujuan Admin.', 'success'); document.getElementById('modal-banding').style.display = 'none'; await ambilSemuaData(true); } } catch (err) { showToast('Afwan, sistem menolak karena sinyal tidak stabil. Coba lagi.', 'error'); } document.getElementById('banding-status').style.display = 'none'; document.getElementById('btn-submit-banding').disabled = false; document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti'; }
+        async function kirimBanding(e) { e.preventDefault(); const fileInput = document.getElementById('banding-bukti'); if(fileInput.files.length === 0) { showToast('Afwan, harap pilih minimal 1 foto bukti!', 'warning'); return; } if(fileInput.files.length > 3) { showToast('Afwan, maksimal 3 foto yang bisa diunggah sekaligus!', 'warning'); return; } document.getElementById('banding-status').style.display = 'block'; document.getElementById('btn-submit-banding').disabled = true; document.getElementById('btn-submit-banding').innerText = 'Mengompres & Mengirim...'; let arrayBase64 = []; for(let i=0; i<fileInput.files.length; i++){ arrayBase64.push(await prosesUploadBanding(fileInput.files[i])); } const gabunganBukti = arrayBase64.join('|#|'); const ketSales = document.getElementById('banding-keterangan').value; const idTiket = document.getElementById('banding-id').value; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Klaim terkirim, menunggu persetujuan Admin.', 'success'); document.getElementById('modal-banding').style.display = 'none'; await ambilSemuaData(true); } } catch (err) { showToast('Afwan, sistem menolak karena sinyal tidak stabil. Coba lagi.', 'error'); } document.getElementById('banding-status').style.display = 'none'; document.getElementById('btn-submit-banding').disabled = false; document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti'; }
         
         async function responBanding(idTiket, keputusan, namaSales) { let alasan = ''; if (keputusan === 'Ditolak') { alasan = await showPrompt("Tuliskan alasan penolakan untuk Sales:"); if(alasan === null) return; if(alasan.trim() === "") { showToast("Afwan, alasan penolakan wajib diisi!", "warning"); return; } } else { let acc = await showConfirm(`Bismillah, yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`, false); if(!acc) return; } document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'responBanding', idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); if ((await res.json()).status === 'sukses') { showToast(`Alhamdulillah! Klaim berhasil diproses (${keputusan}).`, 'success'); await ambilSemuaData(true); } } catch (err) {} document.getElementById('loading').style.display = 'none'; }
         
