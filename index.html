@@ -276,6 +276,7 @@
         </div>
     </div>
 
+    <!-- HALAMAN LOGIN (DENGAN ICON MATA) -->
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
@@ -283,7 +284,13 @@
             <div id="login-loading">Memeriksa koneksi aman...</div>
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
-                <input type="password" id="password" placeholder="Password" required>
+                
+                <!-- TAMBAHAN IKON MATA DI SINI -->
+                <div style="position:relative; margin-bottom:15px;">
+                    <input type="password" id="password" placeholder="Password" required style="margin-bottom:0; padding-right:40px; width:100%; box-sizing:border-box;">
+                    <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:16px; user-select:none; z-index:10;" onclick="togglePasswordVisibility('password', this)" title="Tampilkan Password">👁️</span>
+                </div>
+
                 <button type="submit" class="btn-login">Masuk Workspace</button>
             </form>
         </div>
@@ -522,7 +529,13 @@
                         <div style="flex: 1;"><label>Username</label><input type="text" id="new-username" required></div>
                         <div style="flex: 1;">
                             <label>Password</label>
-                            <input type="password" id="new-password" placeholder="Password Baru" required>
+                            
+                            <!-- TAMBAHAN IKON MATA DI SINI JUGA -->
+                            <div style="position:relative;">
+                                <input type="password" id="new-password" placeholder="Password Baru" required style="padding-right:40px; width:100%; box-sizing:border-box;">
+                                <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:16px; user-select:none; z-index:10;" onclick="togglePasswordVisibility('new-password', this)" title="Tampilkan Password">👁️</span>
+                            </div>
+
                         </div>
                     </div>
                     <label>Hak Akses</label>
@@ -567,10 +580,25 @@
         let currentTicketFilter = 'aktif'; 
 
         /* =========================================================
+           FUNGSI TOGGLE PASSWORD VISIBILITY (MATA)
+        ========================================================= */
+        function togglePasswordVisibility(inputId, iconEl) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                iconEl.innerText = '🙈';
+                iconEl.title = 'Sembunyikan Password';
+            } else {
+                input.type = 'password';
+                iconEl.innerText = '👁️';
+                iconEl.title = 'Tampilkan Password';
+            }
+        }
+
+        /* =========================================================
            FUNGSI ENKRIPSI PASSWORD (SHA-256) DENGAN FALLBACK
         ========================================================= */
         async function hashPassword(text) {
-            // Jika browser jadul atau HTTP, gunakan fallback aman sederhana
             if (!crypto || !crypto.subtle) { return btoa(text).replace(/=/g, ''); }
             const msgUint8 = new TextEncoder().encode(text);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -585,7 +613,6 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            // Hanya munculkan pop-up jika belum dicentang "Jangan tampilkan lagi"
             const neverShow = localStorage.getItem('pwaNeverShow');
             if(!neverShow) {
                 setTimeout(() => { document.getElementById('pwa-install-modal').style.display = 'flex'; }, 3000); 
@@ -607,7 +634,6 @@
             }
         }
         
-        // Daftarkan Service Worker tanpa memblokir sistem loading
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Error'));
@@ -690,12 +716,9 @@
                 let newRow = {};
                 for (let key in row) {
                     let val = row[key] === null || row[key] === undefined ? "" : String(row[key]);
-                    // Membersihkan gambar panjang agar kolom tidak error
                     if (val.includes('base64,') || val.includes('data:image')) {
                         newRow[key] = "[FILE GAMBAR/TTD TERSIMPAN DI SISTEM]";
-                    } 
-                    // Mengubah 'Enter' agar tidak turun baris di excel
-                    else if (val.includes('\n')) {
+                    } else if (val.includes('\n')) {
                         newRow[key] = val.replace(/(\r\n|\n|\r)/gm, " ➔ ");
                     } else {
                         newRow[key] = val;
@@ -705,7 +728,6 @@
             });
 
             try {
-                // Generate Excel .xlsx Resmi dengan SheetJS
                 const worksheet = XLSX.utils.json_to_sheet(cleanData);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan " + jenis.toUpperCase());
@@ -795,7 +817,6 @@
             const pwRaw = document.getElementById('password').value;
             const pwHashed = await hashPassword(pwRaw);
 
-            // Cek Password (Bisa login pakai teks asli yang belum diubah admin ATAU hash baru)
             const cocok = globalUsers.find(u => {
                 let uName = String(u.Username || '').toLowerCase();
                 return uName === un && (u.Password === pwHashed || u.Password == pwRaw);
@@ -814,7 +835,6 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
-            // TOMBOL EXPORT HANYA UNTUK ADMIN
             if (penggunaAktif.Role === 'admin') { 
                 document.getElementById('admin-export-section').style.display = 'block';
                 document.getElementById('nav-tiket').style.display = 'flex';
