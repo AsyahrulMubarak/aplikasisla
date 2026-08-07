@@ -1,0 +1,21 @@
+{
+  "name": "SLA Alfacom",
+  "short_name": "Alfacom",
+  "description": "Sistem Manajemen SLA & CRM Alfacom Multi Solution",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f7fafc",
+  "theme_color": "#1e3a8a",
+  "icons": [
+    {
+      "src": "depan_001.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "depan_001.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
