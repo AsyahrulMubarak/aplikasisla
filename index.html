@@ -201,7 +201,7 @@
         </div>
     </div>
 
-    <!-- MODAL EXPORT LAPORAN CSV (FITUR BARU) -->
+    <!-- MODAL EXPORT LAPORAN CSV -->
     <div id="modal-export" class="modal">
         <div class="modal-content" style="border-top-color: #0f766e;">
             <h3 class="modal-title" style="color:#0f766e;">📥 Export Laporan (Excel/CSV)</h3>
@@ -570,7 +570,7 @@
         }
 
         /* =========================================================
-           FUNGSI EXPORT LAPORAN KE CSV (FITUR BARU)
+           FUNGSI EXPORT LAPORAN KE CSV (FITUR BARU) - BUG FIXED
         ========================================================= */
         function prosesExportCSV(e) {
             e.preventDefault();
@@ -578,7 +578,7 @@
             const bulan = document.getElementById('export-bulan').value;
             const tahun = document.getElementById('export-tahun').value;
             
-            let dataSource = []; let dateKeyIndex = 2; // Default untuk Tiket & Penjualan
+            let dataSource = []; let dateKeyIndex = 2; 
 
             if (jenis === 'tiket') { dataSource = globalTickets.filter(t => t['ID Tiket'] && t['ID Tiket'].startsWith('TKT-')); dateKeyIndex = 2; }
             else if (jenis === 'penjualan') { dataSource = globalPenjualan; dateKeyIndex = 2; }
@@ -598,18 +598,32 @@
             if(dataToExport.length === 0) { showToast(`Afwan, tidak ada data ${jenis} pada waktu tersebut.`, 'warning'); return; }
 
             let headers = Object.keys(dataToExport[0]);
-            let csvContent = headers.join(",") + "\n";
+            
+            // KUNCI: MENGGUNAKAN TITIK KOMA AGAR RAPI DI EXCEL INDONESIA
+            let delimiter = ";"; 
+            let csvContent = headers.join(delimiter) + "\n";
             
             dataToExport.forEach(row => {
                 let rowData = headers.map(header => {
                     let val = row[header] === null || row[header] === undefined ? "" : String(row[header]);
-                    val = val.replace(/"/g, '""'); // Membersihkan karakter koma dan petik dua
+                    
+                    // PEMBERSIH 1: Hilangkan Base64 agar tidak merusak Excel
+                    if (val.includes('base64,') || val.includes('data:image')) {
+                        val = "[FILE GAMBAR/TTD TERSIMPAN DI SISTEM]";
+                    }
+                    
+                    // PEMBERSIH 2: Ubah tombol "Enter" di riwayat menjadi tanda panah
+                    val = val.replace(/(\r\n|\n|\r)/gm, " ➔ ");
+                    
+                    // PEMBERSIH 3: Amankan tanda petik dua
+                    val = val.replace(/"/g, '""'); 
+                    
                     return `"${val}"`;
                 });
-                csvContent += rowData.join(",") + "\n";
+                csvContent += rowData.join(delimiter) + "\n";
             });
 
-            // Membuat File Download Otomatis
+            // TRIGGER DOWNLOAD
             let blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
             let url = URL.createObjectURL(blob);
             let link = document.createElement("a");
@@ -627,7 +641,7 @@
         function formatRp(angka) { if(!angka || isNaN(angka)) return "Rp 0"; return "Rp " + parseInt(angka).toLocaleString('id-ID'); }
 
         function resizeCanvas() { const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; ctx.scale(ratio, ratio); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#000'; clearSignature(); }
-        function getMousePos(evt) { const rect = canvas.getBoundingClientRect(); let clientX = evt.clientX; let clientY = evt.clientY; if (evt.touches && evt.touches.length > 0) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; } return { x: clientX - rect.left, y: clientY - top }; }
+        function getMousePos(evt) { const rect = canvas.getBoundingClientRect(); let clientX = evt.clientX; let clientY = evt.clientY; if (evt.touches && evt.touches.length > 0) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; } return { x: clientX - rect.left, y: clientY - rect.top }; }
         function startDrawing(e) { e.preventDefault(); isDrawing = true; isCanvasDrawn = true; const pos = getMousePos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); }
         function draw(e) { e.preventDefault(); if (!isDrawing) return; const pos = getMousePos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
         function stopDrawing(e) { e.preventDefault(); isDrawing = false; }
@@ -798,6 +812,7 @@
                 document.getElementById('input-id').value = 'TKT-' + String(maxTkt + 1).padStart(3, '0'); 
                 document.getElementById('input-id-sls').value = 'SLS-' + String(maxSls + 1).padStart(3, '0'); 
             }
+            
             let prospekEl = document.getElementById('prospek-id');
             if(prospekEl) { prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0'); }
         }
