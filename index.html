@@ -162,6 +162,9 @@
         .btn-cm-cancel { background: #f1f5f9; color: var(--text-main); } .btn-cm-cancel:hover { background: #e2e8f0; }
         .btn-cm-confirm { background: var(--primary); color: white; } .btn-cm-confirm:hover { background: var(--primary-hover); }
         .btn-cm-danger { background: var(--danger); color: white; } .btn-cm-danger:hover { background: #dc2626; }
+        
+        .icon-btn-pwd { position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text-muted); display:flex; align-items:center; justify-content:center; z-index:10; }
+        .icon-btn-pwd:hover { color:var(--primary); }
     </style>
 </head>
 <body>
@@ -215,7 +218,7 @@
         </div>
     </div>
 
-    <!-- MODAL UPLOAD PENAWARAN (KHUSUS ADMIN) -->
+    <!-- MODAL UPLOAD PENAWARAN (KHUSUS ADMIN/MANAGER) -->
     <div id="modal-penawaran" class="modal">
         <div class="modal-content" style="border-top-color: var(--success);">
             <h3 class="modal-title" style="color:var(--success);">📄 Upload Surat Penawaran</h3>
@@ -276,7 +279,7 @@
         </div>
     </div>
 
-    <!-- HALAMAN LOGIN (DENGAN ICON MATA TERBUKA / GEMBOK) -->
+    <!-- HALAMAN LOGIN (DENGAN ICON SVG PROFESIONAL) -->
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
@@ -287,7 +290,10 @@
                 
                 <div style="position:relative; margin-bottom:15px;">
                     <input type="password" id="password" placeholder="Password" required style="margin-bottom:0; padding-right:40px; width:100%; box-sizing:border-box;">
-                    <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:16px; user-select:none; z-index:10;" onclick="togglePasswordVisibility('password', this)" title="Tampilkan Password">👁️</span>
+                    <span class="icon-btn-pwd" onclick="togglePasswordVisibility('password', this)" title="Tampilkan Password">
+                        <!-- Default Icon: Mata Terbuka -->
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </span>
                 </div>
 
                 <button type="submit" class="btn-login">Masuk Workspace</button>
@@ -373,7 +379,7 @@
         <!-- HALAMAN DASBOR -->
         <div id="page-dashboard" class="tab-page">
             
-            <!-- TOMBOL EXPORT KHUSUS ADMIN -->
+            <!-- TOMBOL EXPORT (MUNCUL UNTUK ADMIN & MANAGER & DIREKTUR) -->
             <div id="admin-export-section" style="display:none; text-align:right; margin-bottom:15px;">
                 <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan (Excel)</button>
             </div>
@@ -413,11 +419,11 @@
             <div id="penjualan-container"></div>
         </div>
 
-        <!-- HALAMAN PROSPEK (LEADS) ICON JABAT TANGAN (🤝) DIKEMBALIKAN -->
+        <!-- HALAMAN PROSPEK (LEADS) -->
         <div id="page-prospek" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:var(--success);">Data Prospek (Leads)</h3>
-                <button class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:var(--success);" onclick="bukaFormProspek()">+ Input Prospek</button>
+                <button id="btn-tambah-prospek" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:var(--success);" onclick="bukaFormProspek()">+ Input Prospek</button>
             </div>
             
             <div class="search-wrapper">
@@ -462,7 +468,7 @@
             <div id="prospek-container"></div>
         </div>
 
-        <!-- HALAMAN INPUT DATA (ADMIN) -->
+        <!-- HALAMAN INPUT DATA (ADMIN & MANAGER SAJA) -->
         <div id="page-input" class="tab-page">
             <div class="segment-control" id="input-segment">
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
@@ -531,13 +537,22 @@
                             
                             <div style="position:relative;">
                                 <input type="password" id="new-password" placeholder="Password Baru" required style="padding-right:40px; width:100%; box-sizing:border-box;">
-                                <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:16px; user-select:none; z-index:10;" onclick="togglePasswordVisibility('new-password', this)" title="Tampilkan Password">👁️</span>
+                                <span class="icon-btn-pwd" onclick="togglePasswordVisibility('new-password', this)" title="Tampilkan Password">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                </span>
                             </div>
 
                         </div>
                     </div>
                     <label>Hak Akses</label>
-                    <select id="new-role" required onchange="toggleTargetSales()"><option value="" disabled selected>-- Pilih --</option><option value="admin">Admin</option><option value="teknisi">Teknisi</option><option value="sales">Sales</option></select>
+                    <select id="new-role" required onchange="toggleTargetSales()">
+                        <option value="" disabled selected>-- Pilih --</option>
+                        <option value="admin">Admin</option>
+                        <option value="direktur">Direktur</option>
+                        <option value="manager">Manager</option>
+                        <option value="teknisi">Teknisi</option>
+                        <option value="sales">Sales</option>
+                    </select>
                     
                     <div id="div-target-sales" style="display:none; background:#faf5ff; padding:15px; border-radius:8px; border:1px solid #e9d5ff; margin-top:15px;">
                         <label style="color:#6b21a8; margin-top:0;">Target Penjualan Bulanan (Rp)</label>
@@ -558,7 +573,7 @@
             </div>
         </div>
 
-        <!-- MENU NAVIGASI BAWAH TERGANTUNG ROLE (JABAT TANGAN 🤝 DIKEMBALIKAN) -->
+        <!-- MENU NAVIGASI BAWAH TERGANTUNG ROLE -->
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
             <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket SLA</div></div>
@@ -577,19 +592,25 @@
         let modeEditUser = false; let modeEditTiket = false; let intervalAutoRefresh; let currentTabId = 'dashboard';
         let currentTicketFilter = 'aktif'; 
 
+        // Ikon Mata SVG
+        const iconEyeOpen = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+        const iconEyeClosed = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+
         /* =========================================================
-           FUNGSI TOGGLE PASSWORD VISIBILITY (MATA & GEMBOK)
+           FUNGSI TOGGLE PASSWORD VISIBILITY (SVG MATA DICORET)
         ========================================================= */
         function togglePasswordVisibility(inputId, iconEl) {
             const input = document.getElementById(inputId);
             if (input.type === 'password') {
                 input.type = 'text';
-                iconEl.innerText = '🔒';
+                iconEl.innerHTML = iconEyeClosed;
                 iconEl.title = 'Sembunyikan Password';
+                iconEl.style.color = 'var(--danger)'; 
             } else {
                 input.type = 'password';
-                iconEl.innerText = '👁️';
+                iconEl.innerHTML = iconEyeOpen;
                 iconEl.title = 'Tampilkan Password';
+                iconEl.style.color = 'var(--text-muted)';
             }
         }
 
@@ -675,7 +696,7 @@
         }
 
         /* =========================================================
-           FUNGSI EXPORT LAPORAN MENGGUNAKAN SHEETJS (RINGAN & AMAN)
+           FUNGSI EXPORT LAPORAN MENGGUNAKAN SHEETJS
         ========================================================= */
         async function prosesExportExcel(e) {
             e.preventDefault();
@@ -729,9 +750,7 @@
                 const worksheet = XLSX.utils.json_to_sheet(cleanData);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan " + jenis.toUpperCase());
-                
                 XLSX.writeFile(workbook, `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`);
-                
                 showToast('Alhamdulillah! Laporan Excel berhasil diunduh.', 'success');
                 document.getElementById('modal-export').style.display = 'none';
             } catch(err) {
@@ -833,6 +852,7 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
+            // KENDALI AKSES HIERARKI PERUSAHAAN (ADMIN, DIREKTUR, MANAGER, TEKNISI, SALES)
             if (penggunaAktif.Role === 'admin') { 
                 document.getElementById('admin-export-section').style.display = 'block';
                 document.getElementById('nav-tiket').style.display = 'flex';
@@ -842,7 +862,33 @@
                 document.getElementById('nav-user').style.display = 'flex'; 
                 document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
                 document.getElementById('div-prospek-sales').style.display = 'block'; 
-            } else if (penggunaAktif.Role === 'sales') { 
+                document.getElementById('btn-tambah-prospek').style.display = 'block';
+            } 
+            else if (penggunaAktif.Role === 'direktur') { 
+                // DIREKTUR HANYA BISA MELIHAT & DOWNLOAD, TIDAK BISA INPUT/EDIT
+                document.getElementById('admin-export-section').style.display = 'block';
+                document.getElementById('nav-tiket').style.display = 'flex';
+                document.getElementById('nav-penjualan').style.display = 'flex';
+                document.getElementById('nav-prospek').style.display = 'flex';
+                document.getElementById('nav-input').style.display = 'none'; // Sembunyikan Input
+                document.getElementById('nav-user').style.display = 'none';  // Sembunyikan Pengaturan
+                document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
+                document.getElementById('div-prospek-sales').style.display = 'none'; 
+                document.getElementById('btn-tambah-prospek').style.display = 'none'; // Sembunyikan tombol tambah prospek
+            }
+            else if (penggunaAktif.Role === 'manager') { 
+                // MANAGER BISA MELAKUKAN OPERASIONAL TAPI TIDAK BISA HAPUS PERMANEN / EDIT USER
+                document.getElementById('admin-export-section').style.display = 'block';
+                document.getElementById('nav-tiket').style.display = 'flex';
+                document.getElementById('nav-penjualan').style.display = 'flex';
+                document.getElementById('nav-prospek').style.display = 'flex';
+                document.getElementById('nav-input').style.display = 'flex'; 
+                document.getElementById('nav-user').style.display = 'none'; // Sembunyikan Pengaturan (User)
+                document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
+                document.getElementById('div-prospek-sales').style.display = 'block'; 
+                document.getElementById('btn-tambah-prospek').style.display = 'block';
+            }
+            else if (penggunaAktif.Role === 'sales') { 
                 document.getElementById('admin-export-section').style.display = 'none';
                 document.getElementById('nav-tiket').style.display = 'flex';
                 document.getElementById('nav-penjualan').style.display = 'flex';
@@ -852,7 +898,9 @@
                 document.getElementById('dash-segment').style.display = 'none'; 
                 document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
                 document.getElementById('div-prospek-sales').style.display = 'none'; 
-            } else { 
+                document.getElementById('btn-tambah-prospek').style.display = 'block';
+            } 
+            else { // Teknisi
                 document.getElementById('admin-export-section').style.display = 'none';
                 document.getElementById('nav-tiket').style.display = 'flex';
                 document.getElementById('nav-penjualan').style.display = 'none'; 
@@ -861,6 +909,7 @@
                 document.getElementById('nav-user').style.display = 'none'; 
                 document.getElementById('dash-segment').style.display = 'none'; 
                 document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'block';
+                document.getElementById('btn-tambah-prospek').style.display = 'none';
             }
 
             renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderTabelUser(); switchTab('dashboard'); 
@@ -1005,7 +1054,13 @@
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let tiketDitampilkan = [];
-            if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') { tiketDitampilkan = globalTickets; } else { tiketDitampilkan = globalTickets.filter(t => String(t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); }
+            
+            // ADMIN, MANAGER, DIREKTUR MELIHAT SEMUA TIKET
+            if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
+                tiketDitampilkan = globalTickets; 
+            } else { 
+                tiketDitampilkan = globalTickets.filter(t => String(t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); 
+            }
             
             let htmlAda = false;
             tiketDitampilkan.slice().reverse().forEach(ticket => {
@@ -1049,18 +1104,27 @@
                         else if (ticket['Status Banding'] === 'Ditolak') { htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; font-weight:600; color:#991b1b; text-align:center;">Klaim Ditolak (${ticket['Alasan Admin'] || 'Tanpa Alasan'})</div>`; }
                     } else { btnHtml = `<div style="margin-top:10px; padding:10px; text-align:center; font-size:12px; color:var(--text-muted); border-top:1px dashed var(--border);">Hanya dapat diedit oleh Teknisi/Admin</div>`; }
                 }
-                else if (penggunaAktif.Role === 'admin' && ticket['Status Banding'] === 'Diajukan') {
-                    let imgs = String(ticket['Bukti Banding']||'').split('|#|'); let imgHtml = '';
-                    imgs.forEach((imgSrc, idx) => { if(imgSrc && imgSrc.length > 10) { imgHtml += `<div style="display:flex; flex-direction:column; align-items:center;"><img src="${imgSrc}"><a href="${imgSrc}" download="Bukti_${ticket['ID Tiket']}_${idx+1}.jpg" class="dl-btn">Unduh Foto ${idx+1}</a></div>`; } });
-                    htmlBanding = `<div style="margin-top:15px; padding:15px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px;"><h4 style="margin:0 0 10px 0; color:var(--purple); font-size:14px;">Klaim Sales: ${ticket['Sales Pengaju']}</h4>${ticket['Keterangan Sales'] ? `<p style="font-size:12px; margin:0 0 10px 0; color:#4a5568;"><i>"${ticket['Keterangan Sales']}"</i></p>` : ''}<div class="img-grid">${imgHtml}</div><div class="btn-grid"><button class="btn-acc" onclick="responBanding('${ticket['ID Tiket']}', 'Diterima', '${ticket['Sales Pengaju']}')">Terima Klaim</button><button class="btn-del" onclick="responBanding('${ticket['ID Tiket']}', 'Ditolak', '')">Tolak Klaim</button></div></div>`;
-                }
+                else if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') {
+                    // JIKA STATUS DIAJUKAN
+                    if (ticket['Status Banding'] === 'Diajukan') {
+                        let imgs = String(ticket['Bukti Banding']||'').split('|#|'); let imgHtml = '';
+                        imgs.forEach((imgSrc, idx) => { if(imgSrc && imgSrc.length > 10) { imgHtml += `<div style="display:flex; flex-direction:column; align-items:center;"><img src="${imgSrc}"><a href="${imgSrc}" download="Bukti_${ticket['ID Tiket']}_${idx+1}.jpg" class="dl-btn">Unduh Foto ${idx+1}</a></div>`; } });
+                        htmlBanding = `<div style="margin-top:15px; padding:15px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px;"><h4 style="margin:0 0 10px 0; color:var(--purple); font-size:14px;">Klaim Sales: ${ticket['Sales Pengaju']}</h4>${ticket['Keterangan Sales'] ? `<p style="font-size:12px; margin:0 0 10px 0; color:#4a5568;"><i>"${ticket['Keterangan Sales']}"</i></p>` : ''}<div class="img-grid">${imgHtml}</div><div class="btn-grid"><button class="btn-acc" onclick="responBanding('${ticket['ID Tiket']}', 'Diterima', '${ticket['Sales Pengaju']}')">Terima Klaim</button><button class="btn-del" onclick="responBanding('${ticket['ID Tiket']}', 'Ditolak', '')">Tolak Klaim</button></div></div>`;
+                    }
+                    
+                    // TOMBOL AKSI (MANAGER TIDAK BISA HAPUS PERMANEN)
+                    let delBtn = penggunaAktif.Role === 'admin' ? `<button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button>` : '';
 
-                if (penggunaAktif.Role === 'admin') {
-                    if (isUnassigned) { btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid"><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus Tiket</button></div>`; } 
-                    else { let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status'; btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button><div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button><button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button></div>`; }
+                    if (isUnassigned) { 
+                        btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid">${delBtn}</div>`; 
+                    } else { 
+                        let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status'; 
+                        btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button><div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button>${delBtn}</div>`; 
+                    }
                 } else if (penggunaAktif.Role === 'teknisi') {
                     let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status'; btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
                 }
+                // Jika Direktur, btnHtml tetap kosong (tidak bisa edit)
 
                 let pdfUrl = ticket['Link PDF BA'] || ticket[Object.keys(ticket)[30]];
                 let pdfHtml = (pdfUrl && pdfUrl.length > 10) ? 
@@ -1070,7 +1134,9 @@
                     </div>` : '';
 
                 let nilaiPenjualanCek = ticket['Nilai Penjualan (Rp)'] || ticket['Nilai Penjualan'] || 0; let infoPenjualanHtml = '';
-                if ((penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') && parseInt(nilaiPenjualanCek) > 0) { infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`; }
+                if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role) && parseInt(nilaiPenjualanCek) > 0) { 
+                    infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`; 
+                }
 
                 container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>${noTrans}<p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}</div>${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}</div>`;
             });
@@ -1081,7 +1147,12 @@
             const container = document.getElementById('penjualan-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-sls'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let penDitampilkan = [];
-            if (penggunaAktif.Role === 'admin') { penDitampilkan = globalPenjualan; } else if (penggunaAktif.Role === 'sales') { penDitampilkan = globalPenjualan.filter(p => String(p['Sales']||'').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase()); }
+            
+            if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role)) { 
+                penDitampilkan = globalPenjualan; 
+            } else if (penggunaAktif.Role === 'sales') { 
+                penDitampilkan = globalPenjualan.filter(p => String(p['Sales']||'').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase()); 
+            }
             
             let htmlAda = false;
             penDitampilkan.slice().reverse().forEach(p => {
@@ -1094,7 +1165,11 @@
                 }
                 htmlAda = true;
                 
-                let btnHtml = ''; if (penggunaAktif.Role === 'admin') { btnHtml = `<div class="btn-grid"><button class="btn-del" onclick="hapusPenjualan('${p['ID Penjualan']}')">Hapus Data Penjualan</button></div>`; }
+                let btnHtml = ''; 
+                if (penggunaAktif.Role === 'admin') { 
+                    btnHtml = `<div class="btn-grid"><button class="btn-del" onclick="hapusPenjualan('${p['ID Penjualan']}')">Hapus Data Penjualan</button></div>`; 
+                }
+                
                 let noTrans = p['No Transaksi'] ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${p['No Transaksi']}</span></p>` : '';
                 let tgl = p['Waktu Lapor'] ? new Date(p['Waktu Lapor']).toLocaleDateString('id-ID') : '-';
 
@@ -1110,7 +1185,12 @@
             const container = document.getElementById('prospek-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-prospek-input'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let pDitampilkan = [];
-            if (penggunaAktif.Role === 'admin') { pDitampilkan = globalProspek; } else if (penggunaAktif.Role === 'sales') { pDitampilkan = globalProspek.filter(p => String(p['Sales Penanggung Jawab']||'').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase()); }
+            
+            if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role)) { 
+                pDitampilkan = globalProspek; 
+            } else if (penggunaAktif.Role === 'sales') { 
+                pDitampilkan = globalProspek.filter(p => String(p['Sales Penanggung Jawab']||'').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase()); 
+            }
             
             let htmlAda = false;
             pDitampilkan.slice().reverse().forEach(p => {
@@ -1129,14 +1209,15 @@
                 else if (textStatus.includes('Kunjungan')) { sc = 'status-terlambat'; bc = 'badge-status'; }
 
                 let btnHtml = '';
-                if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'sales') {
+                if (['admin', 'manager', 'sales'].includes(penggunaAktif.Role)) {
                     if (!textStatus.includes('Closing')) {
                         btnHtml = `<div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;"><label style="font-size:11px; margin-top:0;">Update Status Prospek:</label><div style="display:flex; gap:5px;"><select id="update-prospek-${p['ID Prospek']}" style="flex:1; padding:6px; font-size:12px;"><option value="Tahap Penawaran">Tahap Penawaran</option><option value="Kunjungan Toko">Kunjungan Toko</option><option value="Closing / Deal">Closing / Deal</option></select><button class="btn-solid-primary" style="margin:0; width:auto; padding:6px 12px; font-size:11px;" onclick="updateStatusProspek('${p['ID Prospek']}')">Simpan</button></div></div>`;
                     }
-                    if (penggunaAktif.Role === 'admin') { 
+                    if (['admin', 'manager'].includes(penggunaAktif.Role)) { 
+                        let delBtn = penggunaAktif.Role === 'admin' ? `<button class="btn-del" onclick="hapusProspek('${p['ID Prospek']}')">Hapus</button>` : '';
                         btnHtml += `<div class="btn-grid">
                             <button class="btn-action-primary" style="background:#ecfdf5; color:#065f46; border-color:#a7f3d0;" onclick="bukaModalPenawaran('${p['ID Prospek']}')">Upload Surat Penawaran</button>
-                            <button class="btn-del" onclick="hapusProspek('${p['ID Prospek']}')">Hapus</button>
+                            ${delBtn}
                         </div>`; 
                     }
                 }
@@ -1164,7 +1245,7 @@
             if(!idPrp || idPrp === "") { setAutoIDs(); idPrp = document.getElementById('prospek-id').value; }
 
             let salesPenanggung = penggunaAktif['Nama Asli'];
-            if(penggunaAktif.Role === 'admin') { salesPenanggung = document.getElementById('prospek-sales').value || penggunaAktif['Nama Asli']; }
+            if(penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { salesPenanggung = document.getElementById('prospek-sales').value || penggunaAktif['Nama Asli']; }
 
             const fileInput = document.getElementById('prospek-bukti');
             let base64Bukti = '';
