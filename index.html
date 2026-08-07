@@ -10,8 +10,8 @@
     <meta name="theme-color" content="#1e3a8a">
     <link rel="apple-touch-icon" href="depan_001.png">
 
+    <!-- MESIN EXCEL RINGAN (ANTI-STUCK) -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -181,12 +181,20 @@
         </div>
     </div>
 
-    <!-- MODAL PWA INSTALL (FITUR BARU) -->
+    <!-- MODAL PWA INSTALL (DENGAN CHECKBOX JANGAN TAMPILKAN) -->
     <div id="pwa-install-modal" class="custom-modal-backdrop" style="z-index: 9999;">
         <div class="custom-modal-box">
             <img src="depan_001.png" style="width:70px; margin-bottom:15px; border-radius:12px;">
             <h3 class="custom-modal-title" style="color:var(--primary);">Install Aplikasi SLA</h3>
             <p class="custom-modal-msg">Tambahkan Alfacom SLA ke layar utama HP Anda agar lebih cepat diakses tanpa repot buka browser lagi.</p>
+            
+            <div style="background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; text-align: left;">
+                <label style="display: flex; align-items: center; font-size: 13px; font-weight: 600; color: var(--text-main); margin: 0; cursor: pointer;">
+                    <input type="checkbox" id="pwa-never-show" style="margin-right: 10px; width: 16px; height: 16px; accent-color: var(--primary);">
+                    Jangan tampilkan lagi
+                </label>
+            </div>
+
             <div class="custom-modal-actions">
                 <button class="custom-modal-btn btn-cm-cancel" onclick="tolakInstall()">Nanti Saja</button>
                 <button class="custom-modal-btn btn-cm-confirm" onclick="terimaInstall()">Install Sekarang</button>
@@ -559,9 +567,11 @@
         let currentTicketFilter = 'aktif'; 
 
         /* =========================================================
-           FUNGSI ENKRIPSI PASSWORD (SHA-256)
+           FUNGSI ENKRIPSI PASSWORD (SHA-256) DENGAN FALLBACK
         ========================================================= */
         async function hashPassword(text) {
+            // Jika browser jadul atau HTTP, gunakan fallback aman sederhana
+            if (!crypto || !crypto.subtle) { return btoa(text).replace(/=/g, ''); }
             const msgUint8 = new TextEncoder().encode(text);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -569,23 +579,23 @@
         }
 
         /* =========================================================
-           FUNGSI PWA - INSTALL PROMPT
+           FUNGSI PWA - INSTALL PROMPT & SERVICE WORKER
         ========================================================= */
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            // Munculkan popup install 3 detik setelah web dibuka (jika belum pernah ditolak)
-            if(!sessionStorage.getItem('pwaPromptDimatikan')) {
-                setTimeout(() => {
-                    document.getElementById('pwa-install-modal').style.display = 'flex';
-                }, 3000); 
+            // Hanya munculkan pop-up jika belum dicentang "Jangan tampilkan lagi"
+            const neverShow = localStorage.getItem('pwaNeverShow');
+            if(!neverShow) {
+                setTimeout(() => { document.getElementById('pwa-install-modal').style.display = 'flex'; }, 3000); 
             }
         });
 
         function tolakInstall() {
+            const cb = document.getElementById('pwa-never-show');
+            if(cb.checked) { localStorage.setItem('pwaNeverShow', 'true'); }
             document.getElementById('pwa-install-modal').style.display = 'none';
-            sessionStorage.setItem('pwaPromptDimatikan', 'true');
         }
 
         async function terimaInstall() {
@@ -597,10 +607,10 @@
             }
         }
         
-        // Daftarkan Service Worker
+        // Daftarkan Service Worker tanpa memblokir sistem loading
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').then(reg => {
-                console.log('Service Worker Registered');
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Error'));
             });
         }
 
@@ -641,7 +651,7 @@
         }
 
         /* =========================================================
-           FUNGSI EXPORT LAPORAN MENGGUNAKAN EXCELJS
+           FUNGSI EXPORT LAPORAN MENGGUNAKAN SHEETJS (RINGAN & AMAN)
         ========================================================= */
         async function prosesExportExcel(e) {
             e.preventDefault();
@@ -680,9 +690,12 @@
                 let newRow = {};
                 for (let key in row) {
                     let val = row[key] === null || row[key] === undefined ? "" : String(row[key]);
+                    // Membersihkan gambar panjang agar kolom tidak error
                     if (val.includes('base64,') || val.includes('data:image')) {
                         newRow[key] = "[FILE GAMBAR/TTD TERSIMPAN DI SISTEM]";
-                    } else if (val.includes('\n')) {
+                    } 
+                    // Mengubah 'Enter' agar tidak turun baris di excel
+                    else if (val.includes('\n')) {
                         newRow[key] = val.replace(/(\r\n|\n|\r)/gm, " ➔ ");
                     } else {
                         newRow[key] = val;
@@ -692,69 +705,18 @@
             });
 
             try {
-                const workbook = new ExcelJS.Workbook();
-                const worksheet = workbook.addWorksheet('Laporan ' + jenis.toUpperCase());
-
-                const headers = Object.keys(cleanData[0]);
-                worksheet.columns = headers.map(h => {
-                    let w = 15;
-                    let namaHeaderLower = h.toLowerCase();
-                    if (namaHeaderLower.includes('pekerjaan') || namaHeaderLower.includes('keterangan') || namaHeaderLower.includes('kebutuhan') || namaHeaderLower.includes('klien') || namaHeaderLower.includes('deskripsi')) w = 35;
-                    if (namaHeaderLower.includes('waktu') || namaHeaderLower.includes('tenggat') || namaHeaderLower.includes('tanggal')) w = 22;
-                    if (namaHeaderLower.includes('id ') || namaHeaderLower.includes('poin')) w = 12;
-                    return { header: h, key: h, width: w };
-                });
-
-                const headerRow = worksheet.getRow(1);
-                headerRow.eachCell((cell) => {
-                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
-                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                    cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-                });
-
-                cleanData.forEach(item => { worksheet.addRow(item); });
-
-                worksheet.eachRow((row, rowNumber) => {
-                    if (rowNumber > 1) { 
-                        row.eachCell((cell, colNumber) => {
-                            cell.alignment = { vertical: 'middle', wrapText: true };
-                            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-
-                            const cellVal = String(cell.value);
-                            if (cellVal === 'TERPENUHI' || cellVal === 'Selesai' || cellVal === 'Diterima') {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
-                                cell.font = { color: { argb: 'FF065F46' }, bold: true };
-                            } else if (cellVal === 'TERLAMBAT' || cellVal === 'GAGAL' || cellVal === 'Cancel' || cellVal === 'Ditolak') {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-                                cell.font = { color: { argb: 'FF991B1B' }, bold: true };
-                            } else if (cellVal === 'AMAN' || cellVal === 'Pending' || cellVal === 'On Progress' || cellVal === 'Diajukan') {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-                                cell.font = { color: { argb: 'FF92400E' }, bold: true };
-                            }
-                        });
-                    }
-                });
-
-                worksheet.views = [ { state: 'frozen', ySplit: 1 } ];
-                worksheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
-
-                const buffer = await workbook.xlsx.writeBuffer();
-                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
+                // Generate Excel .xlsx Resmi dengan SheetJS
+                const worksheet = XLSX.utils.json_to_sheet(cleanData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan " + jenis.toUpperCase());
+                
+                XLSX.writeFile(workbook, `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`);
+                
                 showToast('Alhamdulillah! Laporan Excel berhasil diunduh.', 'success');
                 document.getElementById('modal-export').style.display = 'none';
             } catch(err) {
-                showToast('Afwan, terjadi kesalahan saat merakit Excel. Pastikan browser mendukung.', 'error');
+                showToast('Afwan, terjadi kesalahan saat merakit Excel.', 'error');
             }
-            
             btn.innerText = textAwal; btn.disabled = false;
         }
 
@@ -819,7 +781,6 @@
                 const parsedSession = JSON.parse(savedSession);
                 if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Afwan, sesi login telah berakhir.', 'error'); } 
                 else { 
-                    // PENYESUAIAN LOGIN: Mengecek kecocokan dengan data (bisa berupa teks lama atau hash baru)
                     const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); 
                     if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
                 }
@@ -832,9 +793,9 @@
             e.preventDefault(); 
             const un = document.getElementById('username').value.trim().toLowerCase(); 
             const pwRaw = document.getElementById('password').value;
-            const pwHashed = await hashPassword(pwRaw); // Mengenkripsi input sebelum dicocokkan
+            const pwHashed = await hashPassword(pwRaw);
 
-            // Sistem Pintar: Mencocokkan Hash Baru ATAU Teks Lama (agar akun lama tetap bisa login)
+            // Cek Password (Bisa login pakai teks asli yang belum diubah admin ATAU hash baru)
             const cocok = globalUsers.find(u => {
                 let uName = String(u.Username || '').toLowerCase();
                 return uName === un && (u.Password === pwHashed || u.Password == pwRaw);
@@ -853,6 +814,7 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
+            // TOMBOL EXPORT HANYA UNTUK ADMIN
             if (penggunaAktif.Role === 'admin') { 
                 document.getElementById('admin-export-section').style.display = 'block';
                 document.getElementById('nav-tiket').style.display = 'flex';
@@ -911,26 +873,6 @@
             });
             if (currentSalesVal && !salesList.includes(currentSalesVal)) { salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Nonaktif)</option>`; }
             salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
-        }
-
-        function prosesUploadBebas(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = function(event) {
-                    const result = event.target.result;
-                    if (file.type === 'application/pdf') { resolve(result); } 
-                    else {
-                        const img = new Image(); img.src = result;
-                        img.onload = function() {
-                            const canvasG = document.createElement('canvas'); const MAX_WIDTH = 600; let width = img.width; let height = img.height;
-                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                            canvasG.width = width; canvasG.height = height; const ctxG = canvasG.getContext('2d'); ctxG.drawImage(img, 0, 0, width, height); 
-                            resolve(canvasG.toDataURL('image/jpeg', 0.5)); 
-                        }
-                    }
-                };
-            });
         }
 
         function setAutoIDs() {
@@ -1272,7 +1214,7 @@
                 } else { showToast('Afwan, gagal menyimpan: ' + hasil.pesan, 'error'); }
             } catch (err) { showToast('Afwan, kesalahan jaringan. Pastikan internet stabil.', 'error'); } 
             
-            if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket'; btn.disabled = false; }
+            if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
             else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; }
         }
 
@@ -1304,7 +1246,6 @@
             document.getElementById('new-email').value = u['Email'] || ''; 
             document.getElementById('new-username').value = u.Username; 
             
-            // KOSONGKAN PASSWORD AGAR HASH LAMA TIDAK MUNCUL
             document.getElementById('new-password').value = ''; 
             document.getElementById('new-password').placeholder = 'Kosongkan jika tidak ubah password';
             document.getElementById('new-password').required = false; 
@@ -1348,20 +1289,16 @@
 
             if (modeEditUser) {
                 const oldUser = globalUsers.find(u => u.Username === document.getElementById('new-username').value);
-                // Jika input password kosong, gunakan password (hash lama) dari database
                 if (inputPw === "") { finalPw = oldUser.Password; } 
-                else { finalPw = await hashPassword(inputPw); } // Jika diisi, enkripsi password baru
-            } else {
-                // User baru
-                finalPw = await hashPassword(inputPw);
-            }
+                else { finalPw = await hashPassword(inputPw); } 
+            } else { finalPw = await hashPassword(inputPw); }
 
             const payload = { 
                 action: modeEditUser ? 'editUser' : 'addUser', 
                 namaAsli: document.getElementById('new-nama').value, 
                 email: document.getElementById('new-email').value, 
                 username: document.getElementById('new-username').value, 
-                password: finalPw, // Mengirim password terenkripsi
+                password: finalPw, 
                 role: document.getElementById('new-role').value, 
                 targetSales: document.getElementById('new-target-sales').value 
             }; 
