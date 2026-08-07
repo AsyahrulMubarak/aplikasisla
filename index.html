@@ -114,7 +114,7 @@
 
         .img-grid { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-top: 10px; }
         .img-grid img { height: 120px; border-radius: 6px; border: 1px solid var(--border); object-fit: cover; }
-        .dl-btn { display: inline-block; font-size: 11px; background: #f1f5f9; color: var(--text-main); border: 1px solid var(--border); padding: 6px 12px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 5px;}
+        .dl-btn { display: inline-block; font-size: 11px; background: #f1f5f9; color: var(--text-main); border: 1px solid var(--border); padding: 6px 12px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 5px; text-align: center; width: 100%; box-sizing: border-box;}
         .dl-btn:hover { background: var(--border); }
 
         #loading { text-align: center; font-style: italic; color: var(--text-muted); padding: 20px; font-weight: 500; font-size: 14px; }
@@ -182,6 +182,21 @@
                 <button class="custom-modal-btn btn-cm-cancel" id="btn-prompt-cancel">Batal</button>
                 <button class="custom-modal-btn btn-cm-confirm" id="btn-prompt-submit">Kirim</button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL UPLOAD PENAWARAN (KHUSUS ADMIN) -->
+    <div id="modal-penawaran" class="modal">
+        <div class="modal-content" style="border-top-color: var(--success);">
+            <h3 class="modal-title" style="color:var(--success);">📄 Upload Surat Penawaran</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Unggah foto/screenshot Surat Penawaran agar bisa di-download oleh Sales dan dikirim ke Customer.</p>
+            <form onsubmit="kirimPenawaran(event)">
+                <input type="hidden" id="penawaran-id">
+                <label>File Surat Penawaran (Gambar/Screenshot)</label>
+                <input type="file" id="penawaran-file" accept="image/*" required style="font-size: 12px;">
+                <button type="submit" id="btn-submit-penawaran" class="btn-solid-primary" style="background:var(--success);">Kirim Penawaran</button>
+                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-penawaran').style.display='none'">Batal</button>
+            </form>
         </div>
     </div>
 
@@ -327,7 +342,6 @@
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
                 <h3 style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
                 <form id="form-prospek" onsubmit="submitProspek(event)">
-                    
                     <input type="hidden" id="prospek-id">
                     
                     <label>Nama Calon Customer</label>
@@ -335,6 +349,11 @@
                     <label>Kebutuhan / Barang yang Diminati</label>
                     <textarea id="prospek-kebutuhan" placeholder="Contoh: Butuh 5 Kamera CCTV dan Jasa Pasang" required rows="2"></textarea>
                     
+                    <!-- UPLOAD BUKTI CHAT (KHUSUS SALES) -->
+                    <label>Bukti Chat / Interaksi (Screenshot)</label>
+                    <input type="file" id="prospek-bukti" accept="image/*" style="font-size: 12px; margin-bottom:0;">
+                    <p style="font-size:11px; color:var(--text-muted); margin:4px 0 15px 0;">*Opsional: Upload screenshot percakapan dengan calon customer.</p>
+
                     <div id="div-prospek-sales" style="display:none;">
                         <label>Sales Penanggung Jawab</label>
                         <select id="prospek-sales"></select>
@@ -610,7 +629,7 @@
             }
 
             renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderTabelUser(); switchTab('dashboard'); 
-            if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
+            if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
 
@@ -639,6 +658,23 @@
             salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
         }
 
+        // =====================================
+        // FUNGSI PENGOLAHAN GAMBAR (COMPRESS)
+        // =====================================
+        function prosesUploadGambar(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader(); reader.readAsDataURL(file);
+                reader.onload = function(event) {
+                    const img = new Image(); img.src = event.target.result;
+                    img.onload = function() {
+                        const canvasG = document.createElement('canvas'); const MAX_WIDTH = 600; let width = img.width; let height = img.height;
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                        canvasG.width = width; canvasG.height = height; const ctxG = canvasG.getContext('2d'); ctxG.drawImage(img, 0, 0, width, height); resolve(canvasG.toDataURL('image/jpeg', 0.5)); 
+                    }
+                };
+            });
+        }
+
         function setAutoIDs() {
             let maxTkt = 0; let maxSls = 0; let maxPrp = 0;
             globalTickets.forEach(t => { 
@@ -658,7 +694,6 @@
                 document.getElementById('input-id').value = 'TKT-' + String(maxTkt + 1).padStart(3, '0'); 
                 document.getElementById('input-id-sls').value = 'SLS-' + String(maxSls + 1).padStart(3, '0'); 
             }
-            
             let prospekEl = document.getElementById('prospek-id');
             if(prospekEl) { prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0'); }
         }
@@ -709,8 +744,7 @@
                 let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                 if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
                 if (sKey) {
-                    statsSales[sKey].total++; 
-                    statsSales[sKey].selesai++; 
+                    statsSales[sKey].total++; statsSales[sKey].selesai++; 
                     let rawRev = p['Nominal (Rp)'] || p['Nominal'] || 0;
                     statsSales[sKey].revenue += parseInt(rawRev) || 0; 
                 }
@@ -843,6 +877,9 @@
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan sesuai pencarian.</p>';
         }
 
+        // ==========================================
+        // PROSPEK (LEADS CRM) DENGAN UPLOAD FILE
+        // ==========================================
         function bukaFormProspek() { document.getElementById('form-prospek-container').style.display = 'block'; document.getElementById('form-prospek').reset(); setAutoIDs(); }
         function tutupFormProspek() { document.getElementById('form-prospek-container').style.display = 'none'; }
 
@@ -873,13 +910,22 @@
                     if (!textStatus.includes('Closing')) {
                         btnHtml = `<div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;"><label style="font-size:11px; margin-top:0;">Update Status Prospek:</label><div style="display:flex; gap:5px;"><select id="update-prospek-${p['ID Prospek']}" style="flex:1; padding:6px; font-size:12px;"><option value="Tahap Penawaran">Tahap Penawaran</option><option value="Kunjungan Toko">Kunjungan Toko</option><option value="Closing / Deal">Closing / Deal</option></select><button class="btn-solid-primary" style="margin:0; width:auto; padding:6px 12px; font-size:11px;" onclick="updateStatusProspek('${p['ID Prospek']}')">Simpan</button></div></div>`;
                     }
-                    if (penggunaAktif.Role === 'admin') { btnHtml += `<div class="btn-grid"><button class="btn-del" onclick="hapusProspek('${p['ID Prospek']}')">Hapus Prospek</button></div>`; }
+                    if (penggunaAktif.Role === 'admin') { 
+                        btnHtml += `<div class="btn-grid">
+                            <button class="btn-action-primary" style="background:#ecfdf5; color:#065f46; border-color:#a7f3d0;" onclick="bukaModalPenawaran('${p['ID Prospek']}')">Upload Surat Penawaran</button>
+                            <button class="btn-del" onclick="hapusProspek('${p['ID Prospek']}')">Hapus</button>
+                        </div>`; 
+                    }
                 }
 
                 let tgl = p['Tanggal Input'] ? new Date(p['Tanggal Input']).toLocaleDateString('id-ID') : '-';
                 let estimasiHtml = p['Estimasi (Rp)'] ? `<p style="color:var(--success);"><strong>Potensi Nilai:</strong> ${formatRp(p['Estimasi (Rp)'])}</p>` : '';
+                
+                // MUNCULKAN BUKTI CHAT DAN SURAT PENAWARAN JIKA ADA
+                let buktiChatHtml = p['Bukti Chat'] ? `<div style="margin-top:10px;"><a href="${p['Bukti Chat']}" download="Bukti_Chat_${p['ID Prospek']}.jpg" class="dl-btn" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">⬇️ Unduh Bukti Chat</a></div>` : '';
+                let penawaranHtml = p['Surat Penawaran'] ? `<div style="margin-top:10px; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;"><p style="margin:0 0 5px 0; font-size:12px; color:#065f46; font-weight:bold;">📄 Surat Penawaran Tersedia</p><a href="${p['Surat Penawaran']}" download="Penawaran_${p['ID Prospek']}.jpg" class="dl-btn" style="background:#10b981; color:white;">⬇️ Download Penawaran</a></div>` : '';
 
-                container.innerHTML += `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p><p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${btnHtml}</div>`;
+                container.innerHTML += `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p><p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${buktiChatHtml}${penawaranHtml}${btnHtml}</div>`;
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada daftar calon customer (Leads).</p>';
         }
@@ -893,7 +939,14 @@
             let salesPenanggung = penggunaAktif['Nama Asli'];
             if(penggunaAktif.Role === 'admin') { salesPenanggung = document.getElementById('prospek-sales').value || penggunaAktif['Nama Asli']; }
 
-            const payload = { action: 'addProspek', idProspek: idPrp, customer: document.getElementById('prospek-nama').value, kebutuhan: document.getElementById('prospek-kebutuhan').value, statusProspek: document.getElementById('prospek-status').value, sales: salesPenanggung, estimasi: document.getElementById('prospek-nominal').value };
+            // KOMPRES GAMBAR BUKTI CHAT
+            const fileInput = document.getElementById('prospek-bukti');
+            let base64Bukti = '';
+            if(fileInput.files.length > 0) {
+                base64Bukti = await prosesUploadGambar(fileInput.files[0]);
+            }
+
+            const payload = { action: 'addProspek', idProspek: idPrp, customer: document.getElementById('prospek-nama').value, kebutuhan: document.getElementById('prospek-kebutuhan').value, statusProspek: document.getElementById('prospek-status').value, sales: salesPenanggung, estimasi: document.getElementById('prospek-nominal').value, buktiChat: base64Bukti };
 
             try { 
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
@@ -909,10 +962,63 @@
         async function updateStatusProspek(id) { const newVal = document.getElementById('update-prospek-'+id).value; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'updateProspekStatus', idProspek: id, statusBaru: newVal }) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Status berhasil diperbarui.', 'success'); await ambilSemuaData(true); } } catch (err) { showToast('Afwan, gagal mengupdate status.', 'error'); } document.getElementById('loading').style.display = 'none'; }
         async function hapusProspek(id) { let acc = await showConfirm(`Bismillah, hapus data prospek ${id} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteProspek', idProspek: id}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Prospek berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
 
-        function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
-        function prosesUploadBanding(file) { return new Promise((resolve) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = function(event) { const img = new Image(); img.src = event.target.result; img.onload = function() { const canvasBanding = document.createElement('canvas'); const MAX_WIDTH = 300; let width = img.width; let height = img.height; if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } canvasBanding.width = width; canvasBanding.height = height; const ctxBanding = canvasBanding.getContext('2d'); ctxBanding.drawImage(img, 0, 0, width, height); resolve(canvasBanding.toDataURL('image/jpeg', 0.4)); } }; }); }
+        // FUNGSI ADMIN UPLOAD SURAT PENAWARAN
+        function bukaModalPenawaran(id) { document.getElementById('penawaran-id').value = id; document.getElementById('penawaran-file').value = ''; document.getElementById('modal-penawaran').style.display = 'flex'; }
         
-        async function kirimBanding(e) { e.preventDefault(); const fileInput = document.getElementById('banding-bukti'); if(fileInput.files.length === 0) { showToast('Afwan, harap pilih minimal 1 foto bukti!', 'warning'); return; } if(fileInput.files.length > 3) { showToast('Afwan, maksimal 3 foto yang bisa diunggah sekaligus!', 'warning'); return; } document.getElementById('banding-status').style.display = 'block'; document.getElementById('btn-submit-banding').disabled = true; document.getElementById('btn-submit-banding').innerText = 'Mengompres & Mengirim...'; let arrayBase64 = []; for(let i=0; i<fileInput.files.length; i++){ arrayBase64.push(await prosesUploadBanding(fileInput.files[i])); } const gabunganBukti = arrayBase64.join('|#|'); const ketSales = document.getElementById('banding-keterangan').value; const idTiket = document.getElementById('banding-id').value; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Klaim terkirim, menunggu persetujuan Admin.', 'success'); document.getElementById('modal-banding').style.display = 'none'; await ambilSemuaData(true); } } catch (err) { showToast('Afwan, sistem menolak karena jaringan tidak stabil. Coba lagi.', 'error'); } document.getElementById('banding-status').style.display = 'none'; document.getElementById('btn-submit-banding').disabled = false; document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti'; }
+        async function kirimPenawaran(e) {
+            e.preventDefault(); const fileInput = document.getElementById('penawaran-file');
+            if(fileInput.files.length === 0) { showToast('Afwan, harap pilih foto surat penawaran!', 'warning'); return; }
+            const btn = document.getElementById('btn-submit-penawaran'); btn.innerText = 'Mengupload...'; btn.disabled = true;
+            
+            let base64Doc = await prosesUploadGambar(fileInput.files[0]);
+            const idPrp = document.getElementById('penawaran-id').value;
+            
+            try {
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'updateProspekStatus', idProspek: idPrp, statusBaru: "Tahap Penawaran", suratPenawaran: base64Doc }) });
+                if ((await res.json()).status === 'sukses') { 
+                    showToast('Alhamdulillah! Surat Penawaran terkirim.', 'success'); 
+                    document.getElementById('modal-penawaran').style.display = 'none'; 
+                    await ambilSemuaData(true); 
+                }
+            } catch (err) { showToast('Afwan, jaringan tidak stabil.', 'error'); }
+            btn.innerText = 'Kirim Penawaran'; btn.disabled = false;
+        }
+
+        // ==========================================
+        // FITUR TIKET DAN PENJUALAN
+        // ==========================================
+        async function submitData(e, type) { 
+            e.preventDefault(); 
+            const payload = {};
+            if (type === 'sla') {
+                const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
+                const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
+                payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; 
+                payload.idTiket = document.getElementById('input-id').value; payload.noTransaksi = document.getElementById('input-notrans-sla').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
+            } else if (type === 'sls') {
+                const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
+                payload.action = 'addPenjualan'; 
+                payload.idPenjualan = document.getElementById('input-id-sls').value; payload.noTransaksi = document.getElementById('input-notrans-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
+            }
+
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
+                const hasil = await res.json();
+                if (hasil.status === 'sukses') { 
+                    showToast('Alhamdulillah! Data berhasil disimpan.', 'success');
+                    if (type === 'sla') { batalEditTiket(); switchTab('tiket'); } else { document.getElementById('form-sls').reset(); switchTab('penjualan'); }
+                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
+                } else { showToast('Afwan, gagal menyimpan: ' + hasil.pesan, 'error'); }
+            } catch (err) { showToast('Afwan, kesalahan jaringan. Pastikan internet stabil.', 'error'); } 
+            
+            if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
+            else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; }
+        }
+
+        // BAGIAN BAWAH INI SAMA (TIDAK ADA PERUBAHAN LOGIKA DARI VERSI SEBELUMNYA)
+        function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
+        
+        async function kirimBanding(e) { e.preventDefault(); const fileInput = document.getElementById('banding-bukti'); if(fileInput.files.length === 0) { showToast('Afwan, harap pilih minimal 1 foto bukti!', 'warning'); return; } if(fileInput.files.length > 3) { showToast('Afwan, maksimal 3 foto yang bisa diunggah sekaligus!', 'warning'); return; } document.getElementById('banding-status').style.display = 'block'; document.getElementById('btn-submit-banding').disabled = true; document.getElementById('btn-submit-banding').innerText = 'Mengompres & Mengirim...'; let arrayBase64 = []; for(let i=0; i<fileInput.files.length; i++){ arrayBase64.push(await prosesUploadGambar(fileInput.files[i])); } const gabunganBukti = arrayBase64.join('|#|'); const ketSales = document.getElementById('banding-keterangan').value; const idTiket = document.getElementById('banding-id').value; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Klaim terkirim, menunggu persetujuan Admin.', 'success'); document.getElementById('modal-banding').style.display = 'none'; await ambilSemuaData(true); } } catch (err) { showToast('Afwan, sistem menolak karena sinyal tidak stabil. Coba lagi.', 'error'); } document.getElementById('banding-status').style.display = 'none'; document.getElementById('btn-submit-banding').disabled = false; document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti'; }
         
         async function responBanding(idTiket, keputusan, namaSales) { let alasan = ''; if (keputusan === 'Ditolak') { alasan = await showPrompt("Tuliskan alasan penolakan untuk Sales:"); if(alasan === null) return; if(alasan.trim() === "") { showToast("Afwan, alasan penolakan wajib diisi!", "warning"); return; } } else { let acc = await showConfirm(`Bismillah, yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`, false); if(!acc) return; } document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'responBanding', idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); if ((await res.json()).status === 'sukses') { showToast(`Alhamdulillah! Klaim berhasil diproses (${keputusan}).`, 'success'); await ambilSemuaData(true); } } catch (err) {} document.getElementById('loading').style.display = 'none'; }
         
@@ -926,12 +1032,12 @@
         function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; document.getElementById('input-notrans-sla').value = ''; togglePenjualanInput(); setAutoIDs(); }
         async function hapusTiket(idTiket) { let acc = await showConfirm(`Bismillah, hapus data tiket ${idTiket} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Tiket berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         async function hapusPenjualan(idPenjualan) { let acc = await showConfirm(`Bismillah, hapus data penjualan ${idPenjualan} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
-        async function submitData(e, type) { e.preventDefault(); const payload = {}; if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; payload.idTiket = document.getElementById('input-id').value; payload.noTransaksi = document.getElementById('input-notrans-sla').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t; } else if (type === 'sls') { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; payload.action = 'addPenjualan'; payload.idPenjualan = document.getElementById('input-id-sls').value; payload.noTransaksi = document.getElementById('input-notrans-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value; } try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const hasil = await res.json(); if (hasil.status === 'sukses') { showToast('Alhamdulillah! Data berhasil disimpan.', 'success'); if (type === 'sla') { batalEditTiket(); switchTab('tiket'); } else { document.getElementById('form-sls').reset(); switchTab('penjualan'); } document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { showToast('Afwan, data gagal disimpan: ' + hasil.pesan, 'error'); } } catch (err) { showToast('Afwan, kesalahan jaringan. Pastikan internet stabil.', 'error'); } if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; } else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; } }
+        
         function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Email'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
         function aktifkanEditUser(un) { const u = globalUsers.find(x => x.Username === un); if(!u) return; modeEditUser = true; document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-email').value = u['Email'] || ''; document.getElementById('new-username').value = u.Username; document.getElementById('new-password').value = u.Password; document.getElementById('new-role').value = u.Role; toggleTargetSales(); let targetVal = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || ''; document.getElementById('new-target-sales').value = targetVal; document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; document.getElementById('btn-tambah-user').innerText = 'Update Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0); }
         function batalEditUser() { modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-password').value = ''; document.getElementById('new-role').value = ''; toggleTargetSales(); document.getElementById('new-target-sales').value = ''; document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false; document.getElementById('btn-tambah-user').innerText = 'Simpan Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-user').style.display = 'none'; }
-        async function simpanUserBaru(e) { e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value, targetSales: document.getElementById('new-target-sales').value }; if (!modeEditUser && globalUsers.find(u => String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { showToast("Afwan, Username tersebut sudah digunakan.", "error"); btn.innerText='Simpan Profil'; btn.disabled=false; return; } try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { showToast('Alhamdulillah! Profil berhasil disimpan.', 'success'); batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(true); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update Profil':'Simpan Profil'; btn.disabled=false; }
-        async function hapusUser(un) { if(un==='admin') { showToast('Afwan, akun admin utama tidak boleh dihapus!', 'error'); return; } let acc = await showConfirm(`Bismillah, yakin hapus user ${un}?`); if(!acc) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { showToast('Alhamdulillah! User berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
+        async function simpanUserBaru(e) { e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; const payload = { action: modeEditUser?'editUser':'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: document.getElementById('new-password').value, role: document.getElementById('new-role').value, targetSales: document.getElementById('new-target-sales').value }; if (!modeEditUser && globalUsers.find(u => String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { showToast("Afwan, Username tersebut sudah digunakan.", "error"); btn.innerText='Simpan Profil'; btn.disabled=false; return; } try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if((await res.json()).status==='sukses') { showToast('Alhamdulillah! Profil tersimpan.', 'success'); batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(true); document.getElementById('loading').style.display='none'; } } catch(err) {} btn.innerText = modeEditUser?'Update Profil':'Simpan Profil'; btn.disabled=false; }
+        async function hapusUser(un) { if(un==='admin') { showToast('Afwan, akun admin utama dilarang dihapus!', 'error'); return; } let acc = await showConfirm(`Bismillah, yakin hapus user ${un}?`); if(!acc) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { showToast('Alhamdulillah! User berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
 
         ambilSemuaData();
     </script>
