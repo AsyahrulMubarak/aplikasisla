@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Manajemen SLA</title>
+    <!-- MENGGUNAKAN LIBRARY SHEETJS UNTUK EXPORT KE EXCEL RESMI (.XLSX) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
@@ -135,7 +137,6 @@
         
         .code-badge { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--primary); border: 1px solid #e2e8f0; }
 
-        /* SISTEM NOTIFIKASI PROFESIONAL (TOAST & CUSTOM MODAL) */
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
         .toast { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-radius: 8px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-left: 5px solid; font-size: 14px; font-weight: 600; animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; max-width: 300px;}
         .toast-success { border-left-color: var(--success); color: #064e3b; }
@@ -185,7 +186,7 @@
         </div>
     </div>
 
-    <!-- MODAL UPLOAD PENAWARAN (KHUSUS ADMIN) -->
+    <!-- MODAL UPLOAD PENAWARAN (KHUSUS ADMIN) MENDUKUNG PDF -->
     <div id="modal-penawaran" class="modal">
         <div class="modal-content" style="border-top-color: var(--success);">
             <h3 class="modal-title" style="color:var(--success);">📄 Upload Surat Penawaran</h3>
@@ -193,6 +194,7 @@
             <form onsubmit="kirimPenawaran(event)">
                 <input type="hidden" id="penawaran-id">
                 <label>File Surat Penawaran</label>
+                <!-- DIBUAT BISA MENERIMA PDF -->
                 <input type="file" id="penawaran-file" accept="image/*,application/pdf" required style="font-size: 12px; background:#f8fafc;">
                 <p style="font-size:11px; color:var(--success); margin:4px 0 15px 0;">*PDF otomatis tersimpan ke Google Drive.</p>
                 <button type="submit" id="btn-submit-penawaran" class="btn-solid-primary" style="background:var(--success);">Kirim Penawaran</button>
@@ -201,12 +203,12 @@
         </div>
     </div>
 
-    <!-- MODAL EXPORT LAPORAN CSV -->
+    <!-- MODAL EXPORT LAPORAN EXCEL (FITUR BARU) -->
     <div id="modal-export" class="modal">
         <div class="modal-content" style="border-top-color: #0f766e;">
-            <h3 class="modal-title" style="color:#0f766e;">📥 Export Laporan (Excel/CSV)</h3>
-            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Unduh data aplikasi menjadi file Excel/CSV untuk arsip dan pembuatan laporan.</p>
-            <form onsubmit="prosesExportCSV(event)">
+            <h3 class="modal-title" style="color:#0f766e;">📥 Export Laporan (Excel Resmi)</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Unduh data aplikasi menjadi file Microsoft Excel (.xlsx) yang rapi dan profesional.</p>
+            <form onsubmit="prosesExportExcel(event)">
                 <label>Pilih Jenis Data</label>
                 <select id="export-jenis" required>
                     <option value="tiket">Tiket SLA / Pekerjaan Teknisi</option>
@@ -240,7 +242,7 @@
                     <option value="2030">2030</option>
                 </select>
                 
-                <button type="submit" class="btn-solid-primary" style="background:#0f766e;">Download File Laporan</button>
+                <button type="submit" class="btn-solid-primary" style="background:#0f766e;">Download File Excel</button>
                 <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-export').style.display='none'">Batal</button>
             </form>
         </div>
@@ -339,7 +341,7 @@
             
             <!-- TOMBOL EXPORT KHUSUS ADMIN -->
             <div id="admin-export-section" style="display:none; text-align:right; margin-bottom:15px;">
-                <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan (CSV)</button>
+                <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan (Excel)</button>
             </div>
 
             <div id="dash-segment" class="segment-control" style="display:none;">
@@ -570,9 +572,9 @@
         }
 
         /* =========================================================
-           FUNGSI EXPORT LAPORAN KE CSV (FITUR BARU) - BUG FIXED
+           FUNGSI EXPORT LAPORAN KE EXCEL (.XLSX RESMI)
         ========================================================= */
-        function prosesExportCSV(e) {
+        function prosesExportExcel(e) {
             e.preventDefault();
             const jenis = document.getElementById('export-jenis').value;
             const bulan = document.getElementById('export-bulan').value;
@@ -597,42 +599,39 @@
 
             if(dataToExport.length === 0) { showToast(`Afwan, tidak ada data ${jenis} pada waktu tersebut.`, 'warning'); return; }
 
-            let headers = Object.keys(dataToExport[0]);
-            
-            // KUNCI: MENGGUNAKAN TITIK KOMA AGAR RAPI DI EXCEL INDONESIA
-            let delimiter = ";"; 
-            let csvContent = headers.join(delimiter) + "\n";
-            
-            dataToExport.forEach(row => {
-                let rowData = headers.map(header => {
-                    let val = row[header] === null || row[header] === undefined ? "" : String(row[header]);
-                    
-                    // PEMBERSIH 1: Hilangkan Base64 agar tidak merusak Excel
+            // CLONING DATA UNTUK DIBERSIHKAN
+            let cleanData = dataToExport.map(row => {
+                let newRow = {};
+                for (let key in row) {
+                    let val = row[key] === null || row[key] === undefined ? "" : String(row[key]);
+                    // Membersihkan Base64 / Gambar panjang
                     if (val.includes('base64,') || val.includes('data:image')) {
-                        val = "[FILE GAMBAR/TTD TERSIMPAN DI SISTEM]";
+                        newRow[key] = "[FILE GAMBAR/TTD TERSIMPAN DI SISTEM]";
+                    } 
+                    // Mengubah 'Enter' agar tidak turun baris di excel
+                    else if (val.includes('\n')) {
+                        newRow[key] = val.replace(/(\r\n|\n|\r)/gm, " ➔ ");
+                    } else {
+                        newRow[key] = val;
                     }
-                    
-                    // PEMBERSIH 2: Ubah tombol "Enter" di riwayat menjadi tanda panah
-                    val = val.replace(/(\r\n|\n|\r)/gm, " ➔ ");
-                    
-                    // PEMBERSIH 3: Amankan tanda petik dua
-                    val = val.replace(/"/g, '""'); 
-                    
-                    return `"${val}"`;
-                });
-                csvContent += rowData.join(delimiter) + "\n";
+                }
+                return newRow;
             });
 
-            // TRIGGER DOWNLOAD
-            let blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-            let url = URL.createObjectURL(blob);
-            let link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.csv`);
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-            
-            showToast('Alhamdulillah! Laporan CSV berhasil diunduh.', 'success');
-            document.getElementById('modal-export').style.display = 'none';
+            // PROSES PEMBUATAN FILE EXCEL MENGGUNAKAN SHEETJS
+            try {
+                let worksheet = XLSX.utils.json_to_sheet(cleanData);
+                let workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan " + jenis.toUpperCase());
+                
+                // Trigger Download File .xlsx
+                XLSX.writeFile(workbook, `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`);
+                
+                showToast('Alhamdulillah! Laporan Excel berhasil diunduh.', 'success');
+                document.getElementById('modal-export').style.display = 'none';
+            } catch(err) {
+                showToast('Afwan, gagal merakit Excel. Pastikan browser mendukung.', 'error');
+            }
         }
 
         const canvas = document.getElementById('signature-pad'); const ctx = canvas.getContext('2d');
