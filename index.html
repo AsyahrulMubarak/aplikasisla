@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Manajemen SLA</title>
-    <!-- MENGGUNAKAN LIBRARY SHEETJS UNTUK EXPORT KE EXCEL RESMI (.XLSX) -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- MENGGUNAKAN MESIN EXCELJS ENTERPRISE UNTUK FORMATTING RAPI -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
@@ -137,6 +139,7 @@
         
         .code-badge { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--primary); border: 1px solid #e2e8f0; }
 
+        /* SISTEM NOTIFIKASI PROFESIONAL (TOAST & CUSTOM MODAL) */
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
         .toast { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-radius: 8px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-left: 5px solid; font-size: 14px; font-weight: 600; animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; max-width: 300px;}
         .toast-success { border-left-color: var(--success); color: #064e3b; }
@@ -186,7 +189,7 @@
         </div>
     </div>
 
-    <!-- MODAL UPLOAD PENAWARAN (KHUSUS ADMIN) MENDUKUNG PDF -->
+    <!-- MODAL UPLOAD PENAWARAN (KHUSUS ADMIN) -->
     <div id="modal-penawaran" class="modal">
         <div class="modal-content" style="border-top-color: var(--success);">
             <h3 class="modal-title" style="color:var(--success);">📄 Upload Surat Penawaran</h3>
@@ -194,7 +197,6 @@
             <form onsubmit="kirimPenawaran(event)">
                 <input type="hidden" id="penawaran-id">
                 <label>File Surat Penawaran</label>
-                <!-- DIBUAT BISA MENERIMA PDF -->
                 <input type="file" id="penawaran-file" accept="image/*,application/pdf" required style="font-size: 12px; background:#f8fafc;">
                 <p style="font-size:11px; color:var(--success); margin:4px 0 15px 0;">*PDF otomatis tersimpan ke Google Drive.</p>
                 <button type="submit" id="btn-submit-penawaran" class="btn-solid-primary" style="background:var(--success);">Kirim Penawaran</button>
@@ -203,7 +205,7 @@
         </div>
     </div>
 
-    <!-- MODAL EXPORT LAPORAN EXCEL (FITUR BARU) -->
+    <!-- MODAL EXPORT LAPORAN EXCEL -->
     <div id="modal-export" class="modal">
         <div class="modal-content" style="border-top-color: #0f766e;">
             <h3 class="modal-title" style="color:#0f766e;">📥 Export Laporan (Excel Resmi)</h3>
@@ -572,14 +574,19 @@
         }
 
         /* =========================================================
-           FUNGSI EXPORT LAPORAN KE EXCEL (.XLSX RESMI)
+           FUNGSI EXPORT LAPORAN MENGGUNAKAN EXCELJS (RAPI & PROFESIONAL)
         ========================================================= */
-        function prosesExportExcel(e) {
+        async function prosesExportExcel(e) {
             e.preventDefault();
             const jenis = document.getElementById('export-jenis').value;
             const bulan = document.getElementById('export-bulan').value;
             const tahun = document.getElementById('export-tahun').value;
             
+            // Ubah teks tombol jadi loading
+            const btn = e.target.querySelector('button[type="submit"]');
+            let textAwal = btn.innerText;
+            btn.innerText = "Merakit Excel..."; btn.disabled = true;
+
             let dataSource = []; let dateKeyIndex = 2; 
 
             if (jenis === 'tiket') { dataSource = globalTickets.filter(t => t['ID Tiket'] && t['ID Tiket'].startsWith('TKT-')); dateKeyIndex = 2; }
@@ -597,19 +604,20 @@
                 return (m === bulan && y === tahun);
             });
 
-            if(dataToExport.length === 0) { showToast(`Afwan, tidak ada data ${jenis} pada waktu tersebut.`, 'warning'); return; }
+            if(dataToExport.length === 0) { 
+                showToast(`Afwan, tidak ada data ${jenis} pada waktu tersebut.`, 'warning'); 
+                btn.innerText = textAwal; btn.disabled = false;
+                return; 
+            }
 
-            // CLONING DATA UNTUK DIBERSIHKAN
+            // MEMBERSIHKAN DATA SEBELUM DIMASUKKAN KE EXCEL
             let cleanData = dataToExport.map(row => {
                 let newRow = {};
                 for (let key in row) {
                     let val = row[key] === null || row[key] === undefined ? "" : String(row[key]);
-                    // Membersihkan Base64 / Gambar panjang
                     if (val.includes('base64,') || val.includes('data:image')) {
                         newRow[key] = "[FILE GAMBAR/TTD TERSIMPAN DI SISTEM]";
-                    } 
-                    // Mengubah 'Enter' agar tidak turun baris di excel
-                    else if (val.includes('\n')) {
+                    } else if (val.includes('\n')) {
                         newRow[key] = val.replace(/(\r\n|\n|\r)/gm, " ➔ ");
                     } else {
                         newRow[key] = val;
@@ -618,20 +626,80 @@
                 return newRow;
             });
 
-            // PROSES PEMBUATAN FILE EXCEL MENGGUNAKAN SHEETJS
             try {
-                let worksheet = XLSX.utils.json_to_sheet(cleanData);
-                let workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan " + jenis.toUpperCase());
-                
-                // Trigger Download File .xlsx
-                XLSX.writeFile(workbook, `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`);
-                
+                // 1. BUAT FILE EXCEL BARU
+                const workbook = new ExcelJS.Workbook();
+                const worksheet = workbook.addWorksheet('Laporan ' + jenis.toUpperCase());
+
+                // 2. ATUR LEBAR KOLOM SECARA CERDAS
+                const headers = Object.keys(cleanData[0]);
+                worksheet.columns = headers.map(h => {
+                    let w = 15; // Lebar default
+                    let namaHeaderLower = h.toLowerCase();
+                    if (namaHeaderLower.includes('pekerjaan') || namaHeaderLower.includes('keterangan') || namaHeaderLower.includes('kebutuhan') || namaHeaderLower.includes('klien') || namaHeaderLower.includes('deskripsi')) w = 35;
+                    if (namaHeaderLower.includes('waktu') || namaHeaderLower.includes('tenggat') || namaHeaderLower.includes('tanggal')) w = 22;
+                    if (namaHeaderLower.includes('id ') || namaHeaderLower.includes('poin')) w = 12;
+                    return { header: h, key: h, width: w };
+                });
+
+                // 3. WARNAI BARIS JUDUL (HEADER)
+                const headerRow = worksheet.getRow(1);
+                headerRow.eachCell((cell) => {
+                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; // Tulisan Putih
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } }; // Latar Biru Alfacom
+                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                    cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                });
+
+                // 4. MASUKKAN DATA
+                cleanData.forEach(item => { worksheet.addRow(item); });
+
+                // 5. ATUR GAYA TIAP BARIS (WARNA SLA & KOTAK)
+                worksheet.eachRow((row, rowNumber) => {
+                    if (rowNumber > 1) { // Mulai dari baris ke-2
+                        row.eachCell((cell, colNumber) => {
+                            cell.alignment = { vertical: 'middle', wrapText: true };
+                            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+
+                            // PEWARNAAN OTOMATIS (CONDITIONAL FORMATTING)
+                            const cellVal = String(cell.value);
+                            if (cellVal === 'TERPENUHI' || cellVal === 'Selesai' || cellVal === 'Diterima') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                                cell.font = { color: { argb: 'FF065F46' }, bold: true };
+                            } else if (cellVal === 'TERLAMBAT' || cellVal === 'GAGAL' || cellVal === 'Cancel' || cellVal === 'Ditolak') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                                cell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                            } else if (cellVal === 'AMAN' || cellVal === 'Pending' || cellVal === 'On Progress' || cellVal === 'Diajukan') {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                                cell.font = { color: { argb: 'FF92400E' }, bold: true };
+                            }
+                        });
+                    }
+                });
+
+                // 6. FREEZE BARIS ATAS & TAMBAHKAN FILTER
+                worksheet.views = [ { state: 'frozen', ySplit: 1 } ];
+                worksheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+
+                // 7. DOWNLOAD FILE
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
                 showToast('Alhamdulillah! Laporan Excel berhasil diunduh.', 'success');
                 document.getElementById('modal-export').style.display = 'none';
             } catch(err) {
-                showToast('Afwan, gagal merakit Excel. Pastikan browser mendukung.', 'error');
+                showToast('Afwan, terjadi kesalahan saat merakit Excel. Pastikan browser mendukung.', 'error');
             }
+            
+            // Kembalikan tombol seperti semula
+            btn.innerText = textAwal; btn.disabled = false;
         }
 
         const canvas = document.getElementById('signature-pad'); const ctx = canvas.getContext('2d');
