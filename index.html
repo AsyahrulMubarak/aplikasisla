@@ -276,7 +276,7 @@
         </div>
     </div>
 
-    <!-- HALAMAN LOGIN (DENGAN ICON MATA) -->
+    <!-- HALAMAN LOGIN (DENGAN ICON MATA TERBUKA / GEMBOK) -->
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
@@ -285,7 +285,6 @@
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
                 
-                <!-- TAMBAHAN IKON MATA DI SINI -->
                 <div style="position:relative; margin-bottom:15px;">
                     <input type="password" id="password" placeholder="Password" required style="margin-bottom:0; padding-right:40px; width:100%; box-sizing:border-box;">
                     <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:16px; user-select:none; z-index:10;" onclick="togglePasswordVisibility('password', this)" title="Tampilkan Password">👁️</span>
@@ -414,7 +413,7 @@
             <div id="penjualan-container"></div>
         </div>
 
-        <!-- HALAMAN PROSPEK (LEADS) -->
+        <!-- HALAMAN PROSPEK (LEADS) ICON JABAT TANGAN (🤝) DIKEMBALIKAN -->
         <div id="page-prospek" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:var(--success);">Data Prospek (Leads)</h3>
@@ -530,7 +529,6 @@
                         <div style="flex: 1;">
                             <label>Password</label>
                             
-                            <!-- TAMBAHAN IKON MATA DI SINI JUGA -->
                             <div style="position:relative;">
                                 <input type="password" id="new-password" placeholder="Password Baru" required style="padding-right:40px; width:100%; box-sizing:border-box;">
                                 <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:16px; user-select:none; z-index:10;" onclick="togglePasswordVisibility('new-password', this)" title="Tampilkan Password">👁️</span>
@@ -560,7 +558,7 @@
             </div>
         </div>
 
-        <!-- MENU NAVIGASI BAWAH TERGANTUNG ROLE -->
+        <!-- MENU NAVIGASI BAWAH TERGANTUNG ROLE (JABAT TANGAN 🤝 DIKEMBALIKAN) -->
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
             <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket SLA</div></div>
@@ -580,13 +578,13 @@
         let currentTicketFilter = 'aktif'; 
 
         /* =========================================================
-           FUNGSI TOGGLE PASSWORD VISIBILITY (MATA)
+           FUNGSI TOGGLE PASSWORD VISIBILITY (MATA & GEMBOK)
         ========================================================= */
         function togglePasswordVisibility(inputId, iconEl) {
             const input = document.getElementById(inputId);
             if (input.type === 'password') {
                 input.type = 'text';
-                iconEl.innerText = '🙈';
+                iconEl.innerText = '🔒';
                 iconEl.title = 'Sembunyikan Password';
             } else {
                 input.type = 'password';
