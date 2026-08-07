@@ -185,7 +185,7 @@
         </div>
     </div>
 
-    <!-- MODAL UPLOAD PENAWARAN (KHUSUS ADMIN) MENDUKUNG PDF -->
+    <!-- MODAL UPLOAD PENAWARAN (KHUSUS ADMIN) -->
     <div id="modal-penawaran" class="modal">
         <div class="modal-content" style="border-top-color: var(--success);">
             <h3 class="modal-title" style="color:var(--success);">📄 Upload Surat Penawaran</h3>
@@ -193,11 +193,55 @@
             <form onsubmit="kirimPenawaran(event)">
                 <input type="hidden" id="penawaran-id">
                 <label>File Surat Penawaran</label>
-                <!-- DIBUAT BISA MENERIMA PDF -->
                 <input type="file" id="penawaran-file" accept="image/*,application/pdf" required style="font-size: 12px; background:#f8fafc;">
                 <p style="font-size:11px; color:var(--success); margin:4px 0 15px 0;">*PDF otomatis tersimpan ke Google Drive.</p>
                 <button type="submit" id="btn-submit-penawaran" class="btn-solid-primary" style="background:var(--success);">Kirim Penawaran</button>
                 <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-penawaran').style.display='none'">Batal</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL EXPORT LAPORAN CSV (FITUR BARU) -->
+    <div id="modal-export" class="modal">
+        <div class="modal-content" style="border-top-color: #0f766e;">
+            <h3 class="modal-title" style="color:#0f766e;">📥 Export Laporan (Excel/CSV)</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Unduh data aplikasi menjadi file Excel/CSV untuk arsip dan pembuatan laporan.</p>
+            <form onsubmit="prosesExportCSV(event)">
+                <label>Pilih Jenis Data</label>
+                <select id="export-jenis" required>
+                    <option value="tiket">Tiket SLA / Pekerjaan Teknisi</option>
+                    <option value="penjualan">Data Penjualan Langsung (Sales)</option>
+                    <option value="prospek">Data CRM Prospek (Leads)</option>
+                </select>
+
+                <label>Pilih Bulan</label>
+                <select id="export-bulan" required>
+                    <option value="all">-- Semua Bulan --</option>
+                    <option value="01">Januari</option>
+                    <option value="02">Februari</option>
+                    <option value="03">Maret</option>
+                    <option value="04">April</option>
+                    <option value="05">Mei</option>
+                    <option value="06">Juni</option>
+                    <option value="07">Juli</option>
+                    <option value="08">Agustus</option>
+                    <option value="09">September</option>
+                    <option value="10">Oktober</option>
+                    <option value="11">November</option>
+                    <option value="12">Desember</option>
+                </select>
+                
+                <label>Pilih Tahun</label>
+                <select id="export-tahun" required>
+                    <option value="2026">2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                    <option value="2029">2029</option>
+                    <option value="2030">2030</option>
+                </select>
+                
+                <button type="submit" class="btn-solid-primary" style="background:#0f766e;">Download File Laporan</button>
+                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-export').style.display='none'">Batal</button>
             </form>
         </div>
     </div>
@@ -292,6 +336,12 @@
         
         <!-- HALAMAN DASBOR -->
         <div id="page-dashboard" class="tab-page">
+            
+            <!-- TOMBOL EXPORT KHUSUS ADMIN -->
+            <div id="admin-export-section" style="display:none; text-align:right; margin-bottom:15px;">
+                <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan (CSV)</button>
+            </div>
+
             <div id="dash-segment" class="segment-control" style="display:none;">
                 <button class="segment-btn active" id="btn-dash-sales" onclick="switchDashTab('sales')">Pencapaian Sales</button>
                 <button class="segment-btn" id="btn-dash-tek" onclick="switchDashTab('tek')">Performa Teknisi</button>
@@ -309,7 +359,6 @@
                 <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." onkeyup="renderTickets()">
             </div>
 
-            <!-- TABS PEMISAH TIKET -->
             <div class="segment-control">
                 <button class="segment-btn active" id="btn-filter-aktif" onclick="setTicketFilter('aktif')">Pekerjaan Aktif</button>
                 <button class="segment-btn" id="btn-filter-riwayat" onclick="setTicketFilter('riwayat')">Riwayat (Selesai/Batal)</button>
@@ -344,15 +393,12 @@
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
                 <h3 style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
                 <form id="form-prospek" onsubmit="submitProspek(event)">
-                    
                     <input type="hidden" id="prospek-id">
-                    
                     <label>Nama Calon Customer</label>
                     <input type="text" id="prospek-nama" placeholder="Contoh: Pak Budi - Instansi X" required>
                     <label>Kebutuhan / Barang yang Diminati</label>
                     <textarea id="prospek-kebutuhan" placeholder="Contoh: Butuh 5 Kamera CCTV dan Jasa Pasang" required rows="2"></textarea>
                     
-                    <!-- UPLOAD BUKTI CHAT (KHUSUS SALES) -->
                     <label>Bukti Chat / Interaksi (Screenshot)</label>
                     <input type="file" id="prospek-bukti" accept="image/*" style="font-size: 12px; margin-bottom:0;">
                     <p style="font-size:11px; color:var(--text-muted); margin:4px 0 15px 0;">*Opsional: Upload screenshot percakapan dengan calon customer.</p>
@@ -487,9 +533,6 @@
         let modeEditUser = false; let modeEditTiket = false; let intervalAutoRefresh; let currentTabId = 'dashboard';
         let currentTicketFilter = 'aktif'; 
 
-        const canvas = document.getElementById('signature-pad'); const ctx = canvas.getContext('2d');
-        let isDrawing = false; let isCanvasDrawn = false; 
-
         /* =========================================================
            FUNGSI CUSTOM NOTIFIKASI (TOAST & MODAL)
         ========================================================= */
@@ -510,7 +553,6 @@
                 const btnYes = document.getElementById('btn-confirm-yes');
                 btnYes.className = isDanger ? 'custom-modal-btn btn-cm-danger' : 'custom-modal-btn btn-cm-confirm';
                 modal.style.display = 'flex';
-                
                 btnYes.onclick = function() { modal.style.display = 'none'; resolve(true); };
                 document.getElementById('btn-confirm-no').onclick = function() { modal.style.display = 'none'; resolve(false); };
             });
@@ -521,19 +563,71 @@
                 const modal = document.getElementById('custom-prompt-modal');
                 const inputField = document.getElementById('prompt-input');
                 document.getElementById('prompt-msg').innerText = message;
-                inputField.value = ''; 
-                modal.style.display = 'flex';
-                inputField.focus();
-                
+                inputField.value = ''; modal.style.display = 'flex'; inputField.focus();
                 document.getElementById('btn-prompt-submit').onclick = function() { modal.style.display = 'none'; resolve(inputField.value); };
                 document.getElementById('btn-prompt-cancel').onclick = function() { modal.style.display = 'none'; resolve(null); };
             });
         }
 
+        /* =========================================================
+           FUNGSI EXPORT LAPORAN KE CSV (FITUR BARU)
+        ========================================================= */
+        function prosesExportCSV(e) {
+            e.preventDefault();
+            const jenis = document.getElementById('export-jenis').value;
+            const bulan = document.getElementById('export-bulan').value;
+            const tahun = document.getElementById('export-tahun').value;
+            
+            let dataSource = []; let dateKeyIndex = 2; // Default untuk Tiket & Penjualan
+
+            if (jenis === 'tiket') { dataSource = globalTickets.filter(t => t['ID Tiket'] && t['ID Tiket'].startsWith('TKT-')); dateKeyIndex = 2; }
+            else if (jenis === 'penjualan') { dataSource = globalPenjualan; dateKeyIndex = 2; }
+            else if (jenis === 'prospek') { dataSource = globalProspek; dateKeyIndex = 1; }
+
+            let dataToExport = dataSource.filter(d => {
+                if(bulan === "all") return true;
+                let rawDate = d[Object.keys(d)[dateKeyIndex]]; 
+                if(!rawDate) return false;
+                let dt = new Date(rawDate);
+                if(isNaN(dt.getTime())) return false;
+                let m = String(dt.getMonth() + 1).padStart(2, '0');
+                let y = String(dt.getFullYear());
+                return (m === bulan && y === tahun);
+            });
+
+            if(dataToExport.length === 0) { showToast(`Afwan, tidak ada data ${jenis} pada waktu tersebut.`, 'warning'); return; }
+
+            let headers = Object.keys(dataToExport[0]);
+            let csvContent = headers.join(",") + "\n";
+            
+            dataToExport.forEach(row => {
+                let rowData = headers.map(header => {
+                    let val = row[header] === null || row[header] === undefined ? "" : String(row[header]);
+                    val = val.replace(/"/g, '""'); // Membersihkan karakter koma dan petik dua
+                    return `"${val}"`;
+                });
+                csvContent += rowData.join(",") + "\n";
+            });
+
+            // Membuat File Download Otomatis
+            let blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            let url = URL.createObjectURL(blob);
+            let link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.csv`);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            
+            showToast('Alhamdulillah! Laporan CSV berhasil diunduh.', 'success');
+            document.getElementById('modal-export').style.display = 'none';
+        }
+
+        const canvas = document.getElementById('signature-pad'); const ctx = canvas.getContext('2d');
+        let isDrawing = false; let isCanvasDrawn = false; 
+
         function formatRp(angka) { if(!angka || isNaN(angka)) return "Rp 0"; return "Rp " + parseInt(angka).toLocaleString('id-ID'); }
 
         function resizeCanvas() { const ratio = Math.max(window.devicePixelRatio || 1, 1); canvas.width = canvas.offsetWidth * ratio; canvas.height = canvas.offsetHeight * ratio; ctx.scale(ratio, ratio); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#000'; clearSignature(); }
-        function getMousePos(evt) { const rect = canvas.getBoundingClientRect(); let clientX = evt.clientX; let clientY = evt.clientY; if (evt.touches && evt.touches.length > 0) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; } return { x: clientX - rect.left, y: clientY - rect.top }; }
+        function getMousePos(evt) { const rect = canvas.getBoundingClientRect(); let clientX = evt.clientX; let clientY = evt.clientY; if (evt.touches && evt.touches.length > 0) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; } return { x: clientX - rect.left, y: clientY - top }; }
         function startDrawing(e) { e.preventDefault(); isDrawing = true; isCanvasDrawn = true; const pos = getMousePos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); }
         function draw(e) { e.preventDefault(); if (!isDrawing) return; const pos = getMousePos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
         function stopDrawing(e) { e.preventDefault(); isDrawing = false; }
@@ -604,7 +698,9 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
+            // TOMBOL EXPORT HANYA UNTUK ADMIN
             if (penggunaAktif.Role === 'admin') { 
+                document.getElementById('admin-export-section').style.display = 'block';
                 document.getElementById('nav-tiket').style.display = 'flex';
                 document.getElementById('nav-penjualan').style.display = 'flex';
                 document.getElementById('nav-prospek').style.display = 'flex';
@@ -613,6 +709,7 @@
                 document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
                 document.getElementById('div-prospek-sales').style.display = 'block'; 
             } else if (penggunaAktif.Role === 'sales') { 
+                document.getElementById('admin-export-section').style.display = 'none';
                 document.getElementById('nav-tiket').style.display = 'flex';
                 document.getElementById('nav-penjualan').style.display = 'flex';
                 document.getElementById('nav-prospek').style.display = 'flex';
@@ -622,6 +719,7 @@
                 document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
                 document.getElementById('div-prospek-sales').style.display = 'none'; 
             } else { 
+                document.getElementById('admin-export-section').style.display = 'none';
                 document.getElementById('nav-tiket').style.display = 'flex';
                 document.getElementById('nav-penjualan').style.display = 'none'; 
                 document.getElementById('nav-prospek').style.display = 'none';
@@ -632,7 +730,7 @@
             }
 
             renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderTabelUser(); switchTab('dashboard'); 
-            if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
+            if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
 
@@ -661,20 +759,14 @@
             salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
         }
 
-        // =====================================
-        // FUNGSI PENGOLAHAN GAMBAR (COMPRESS) & PDF
-        // =====================================
         function prosesUploadBebas(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
                 reader.onload = function(event) {
                     const result = event.target.result;
-                    // Jika PDF, langsung return string base64 asli tanpa dipotong canvas
-                    if (file.type === 'application/pdf') {
-                        resolve(result);
-                    } else {
-                        // Jika gambar, gunakan kompresi normal
+                    if (file.type === 'application/pdf') { resolve(result); } 
+                    else {
                         const img = new Image(); img.src = result;
                         img.onload = function() {
                             const canvasG = document.createElement('canvas'); const MAX_WIDTH = 600; let width = img.width; let height = img.height;
@@ -706,7 +798,6 @@
                 document.getElementById('input-id').value = 'TKT-' + String(maxTkt + 1).padStart(3, '0'); 
                 document.getElementById('input-id-sls').value = 'SLS-' + String(maxSls + 1).padStart(3, '0'); 
             }
-            
             let prospekEl = document.getElementById('prospek-id');
             if(prospekEl) { prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0'); }
         }
@@ -795,7 +886,6 @@
             dashSalesContainer.innerHTML = htmlSales;
         }
 
-        // TIKET SLA + TOMBOL DOWNLOAD PDF
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
@@ -857,7 +947,6 @@
                     let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status'; btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
                 }
 
-                // TAMPILKAN TOMBOL DOWNLOAD PDF BA JIKA ADA
                 let pdfUrl = ticket['Link PDF BA'] || ticket[Object.keys(ticket)[30]];
                 let pdfHtml = (pdfUrl && pdfUrl.length > 10) ? 
                     `<div style="margin-top:10px; padding:10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
@@ -899,9 +988,6 @@
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan sesuai pencarian.</p>';
         }
 
-        // ==========================================
-        // PROSPEK (LEADS CRM) DENGAN UPLOAD FILE
-        // ==========================================
         function bukaFormProspek() { document.getElementById('form-prospek-container').style.display = 'block'; document.getElementById('form-prospek').reset(); setAutoIDs(); }
         function tutupFormProspek() { document.getElementById('form-prospek-container').style.display = 'none'; }
 
