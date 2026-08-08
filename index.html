@@ -184,14 +184,11 @@
             <img src="depan_001.png" style="width:70px; margin-bottom:15px; border-radius:12px;">
             <h3 class="custom-modal-title" style="color:var(--primary);">Install Aplikasi SLA</h3>
             <p class="custom-modal-msg">Tambahkan Alfacom SLA ke layar utama HP Anda agar lebih cepat diakses tanpa repot buka browser lagi.</p>
-            
             <div style="background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; text-align: left;">
                 <label style="display: flex; align-items: center; font-size: 13px; font-weight: 600; color: var(--text-main); margin: 0; cursor: pointer;">
-                    <input type="checkbox" id="pwa-never-show" style="margin-right: 10px; width: 16px; height: 16px; accent-color: var(--primary);">
-                    Jangan tampilkan lagi
+                    <input type="checkbox" id="pwa-never-show" style="margin-right: 10px; width: 16px; height: 16px; accent-color: var(--primary);"> Jangan tampilkan lagi
                 </label>
             </div>
-
             <div class="custom-modal-actions">
                 <button class="custom-modal-btn btn-cm-cancel" onclick="tolakInstall()">Nanti Saja</button>
                 <button class="custom-modal-btn btn-cm-confirm" onclick="terimaInstall()">Install Sekarang</button>
@@ -237,40 +234,25 @@
                     <option value="penjualan">Data Penjualan Langsung (Sales)</option>
                     <option value="prospek">Data CRM Prospek (Leads)</option>
                 </select>
-
                 <label>Pilih Bulan</label>
                 <select id="export-bulan" required>
                     <option value="all">-- Semua Bulan --</option>
-                    <option value="01">Januari</option>
-                    <option value="02">Februari</option>
-                    <option value="03">Maret</option>
-                    <option value="04">April</option>
-                    <option value="05">Mei</option>
-                    <option value="06">Juni</option>
-                    <option value="07">Juli</option>
-                    <option value="08">Agustus</option>
-                    <option value="09">September</option>
-                    <option value="10">Oktober</option>
-                    <option value="11">November</option>
-                    <option value="12">Desember</option>
+                    <option value="01">Januari</option><option value="02">Februari</option><option value="03">Maret</option>
+                    <option value="04">April</option><option value="05">Mei</option><option value="06">Juni</option>
+                    <option value="07">Juli</option><option value="08">Agustus</option><option value="09">September</option>
+                    <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
                 </select>
-                
                 <label>Pilih Tahun</label>
                 <select id="export-tahun" required>
-                    <option value="2026">2026</option>
-                    <option value="2027">2027</option>
-                    <option value="2028">2028</option>
-                    <option value="2029">2029</option>
-                    <option value="2030">2030</option>
+                    <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option>
                 </select>
-                
                 <button type="submit" class="btn-solid-primary" style="background:#0f766e;">Download File Excel</button>
                 <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-export').style.display='none'">Batal</button>
             </form>
         </div>
     </div>
 
-    <!-- HALAMAN LOGIN -->
+    <!-- HALAMAN LOGIN (DENGAN FITUR LUPA SANDI) -->
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
@@ -279,11 +261,15 @@
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
                 <input type="text" id="username" placeholder="Username" required>
                 
-                <div style="position:relative; margin-bottom:15px;">
+                <div style="position:relative; margin-bottom:5px;">
                     <input type="password" id="password" placeholder="Password" required style="margin-bottom:0; padding-right:40px; width:100%; box-sizing:border-box;">
                     <span class="icon-btn-pwd" onclick="togglePasswordVisibility('password', this)" title="Tampilkan Password">
                         <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     </span>
+                </div>
+                
+                <div style="text-align:right; margin-bottom:20px;">
+                    <a href="#" onclick="mintaResetSandi()" style="font-size:12px; color:var(--primary); text-decoration:none; font-weight:600;">Lupa Sandi?</a>
                 </div>
 
                 <button type="submit" class="btn-login">Masuk Workspace</button>
@@ -301,7 +287,6 @@
                 <input type="file" id="banding-bukti" accept="image/*" multiple max="3" required style="font-size: 12px;">
                 <label>Keterangan Tambahan (Opsional)</label>
                 <textarea id="banding-keterangan" placeholder="Ketik keterangan..."></textarea>
-                
                 <p id="banding-status" style="font-size:11px; color:var(--primary); font-weight:600; display:none; margin-top:10px;">Mengompres foto, mohon tunggu...</p>
                 <button type="submit" id="btn-submit-banding" class="btn-solid-primary" style="background:var(--purple);">Kirim Pengajuan Bukti</button>
                 <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-banding').style.display='none'">Batal</button>
@@ -322,15 +307,11 @@
                     <option value="Cancel">Cancel (Dibatalkan)</option>
                     <option value="Selesai">Selesai (Closed)</option>
                 </select>
-                
                 <label>Riwayat Pemantauan</label>
                 <div id="tracking-history" class="history-box"></div>
-                
                 <label id="label-keterangan">Log/Catatan Baru</label>
                 <textarea id="update-keterangan" placeholder="Ketik update kegiatan di sini..."></textarea>
-                
                 <button type="button" id="btn-toggle-bat" class="btn-outline-cancel" style="margin-top:15px; border-color:var(--primary); color:var(--primary);" onclick="toggleBAT()">Buka / Cicil Berita Acara</button>
-
                 <div id="berita-acara-section">
                     <h4 style="margin: 0 0 5px 0; color: var(--text-main); font-size: 14px; text-align:center;">BERITA ACARA TEKNISI</h4>
                     <span class="info-wajib" id="info-wajib-text">*Bisa dicicil setiap hari selama On Progress</span>
@@ -344,7 +325,6 @@
                     <div class="signature-wrapper"><canvas id="signature-pad"></canvas></div>
                     <button type="button" class="btn-outline-cancel" style="margin-top:0;" onclick="clearSignature()">Bersihkan Kanvas</button>
                 </div>
-
                 <button type="submit" id="btn-submit-update" class="btn-solid-primary">Simpan Data</button>
                 <button type="button" class="btn-outline-cancel" onclick="tutupModal()">Tutup</button>
             </form>
@@ -361,7 +341,6 @@
                 <button class="btn-outline-danger" onclick="prosesLogout()">Keluar</button>
             </div>
         </div>
-
         <div id="loading" style="display:none;">Sinkronisasi data sistem...</div>
         
         <div id="page-dashboard" class="tab-page">
@@ -407,7 +386,6 @@
                 <span class="search-icon">🔍</span>
                 <input type="text" id="search-prospek-input" placeholder="Cari Calon Customer, Kebutuhan, Sales..." onkeyup="renderProspek()">
             </div>
-            
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
                 <h3 style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
                 <form id="form-prospek" onsubmit="submitProspek(event)">
@@ -443,7 +421,6 @@
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
                 <button class="segment-btn" id="btn-input-sls" onclick="switchInputTab('sls')">Penjualan Langsung</button>
             </div>
-
             <div class="form-card" id="form-input-sla-container">
                 <h3 id="form-tiket-title" class="section-title">Form Tiket Baru</h3>
                 <form id="form-sla" onsubmit="submitData(event, 'sla')">
@@ -469,7 +446,6 @@
                     <button type="button" id="btn-batal-edit-tiket" class="btn-outline-cancel" style="display:none;" onclick="batalEditTiket()">Batal Mode Edit</button>
                 </form>
             </div>
-
             <div class="form-card" id="form-input-sls-container" style="display:none; border-top-color:var(--purple);">
                 <h3 class="section-title" style="color:var(--purple);">Form Penjualan Langsung</h3>
                 <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Gunakan form ini untuk mencatat penjualan dari Sales yang tidak memerlukan teknisi. Data akan langsung masuk ke Omzet Sales.</p>
@@ -493,11 +469,9 @@
                 <form onsubmit="simpanUserBaru(event)">
                     <label>Nama Lengkap</label><input type="text" id="new-nama" required>
                     <label>Email (Notifikasi)</label><input type="email" id="new-email" required>
-                    
-                    <!-- KOTAK INPUT NO WHATSAPP DIMUNCULKAN KEMBALI -->
                     <label>No WhatsApp (Aktif)</label>
                     <input type="number" id="new-wa" placeholder="Contoh: 081234567890" required>
-
+                    
                     <div style="display: flex; gap:15px;">
                         <div style="flex: 1;"><label>Username</label><input type="text" id="new-username" required></div>
                         <div style="flex: 1;">
@@ -510,42 +484,47 @@
                             </div>
                         </div>
                     </div>
-                    <label>Hak Akses</label>
-                    <select id="new-role" required onchange="toggleTargetSales()">
-                        <option value="" disabled selected>-- Pilih --</option>
-                        <option value="admin">Admin</option>
-                        <option value="direktur">Direktur</option>
-                        <option value="manager">Manager</option>
-                        <option value="teknisi">Teknisi</option>
-                        <option value="sales">Sales</option>
-                    </select>
-                    
-                    <div id="div-target-sales" style="display:none; background:#faf5ff; padding:15px; border-radius:8px; border:1px solid #e9d5ff; margin-top:15px;">
-                        <label style="color:#6b21a8; margin-top:0;">Target Penjualan Bulanan (Rp)</label>
-                        <input type="number" id="new-target-sales" placeholder="Contoh: 50000000" style="border-color:#d8b4fe; background:#fff;">
+
+                    <div id="role-wrapper" style="display:block;">
+                        <label>Hak Akses</label>
+                        <select id="new-role" required onchange="toggleTargetSales()">
+                            <option value="" disabled selected>-- Pilih --</option>
+                            <option value="admin">Admin</option>
+                            <option value="direktur">Direktur</option>
+                            <option value="manager">Manager</option>
+                            <option value="teknisi">Teknisi</option>
+                            <option value="sales">Sales</option>
+                        </select>
+                        <div id="div-target-sales" style="display:none; background:#faf5ff; padding:15px; border-radius:8px; border:1px solid #e9d5ff; margin-top:15px;">
+                            <label style="color:#6b21a8; margin-top:0;">Target Penjualan Bulanan (Rp)</label>
+                            <input type="number" id="new-target-sales" placeholder="Contoh: 50000000" style="border-color:#d8b4fe; background:#fff;">
+                        </div>
                     </div>
 
                     <button type="submit" id="btn-tambah-user" class="btn-solid-primary">Simpan Profil</button>
                     <button type="button" id="btn-batal-edit-user" class="btn-outline-cancel" style="display:none;" onclick="batalEditUser()">Batal Edit</button>
                 </form>
                 
-                <h3 class="section-title" style="margin-top:30px;">Daftar Akun Sistem</h3>
-                <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 8px;">
-                    <table>
-                        <thead><tr><th>Username</th><th>Nama</th><th>No WA</th><th>Role</th><th>Opsi</th></tr></thead>
-                        <tbody id="tabel-user-body"></tbody>
-                    </table>
+                <div id="tabel-user-wrapper" style="display:block;">
+                    <h3 class="section-title" style="margin-top:30px;">Daftar Akun Sistem</h3>
+                    <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 8px;">
+                        <table>
+                            <thead><tr><th>Username</th><th>Nama</th><th>No WA</th><th>Role</th><th>Opsi</th></tr></thead>
+                            <tbody id="tabel-user-body"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
 
+        <!-- MUNCULKAN MENU PENGATURAN UNTUK SEMUA ROLE -->
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
             <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket SLA</div></div>
             <div class="nav-btn" id="nav-penjualan" onclick="switchTab('penjualan')" style="display:none;"><div class="icon">🛒</div><div class="text">Penjualan</div></div>
             <div class="nav-btn" id="nav-prospek" onclick="switchTab('prospek')" style="display:none;"><div class="icon">🤝</div><div class="text">Prospek</div></div>
             <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Input Data</div></div>
-            <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:none;"><div class="icon">⚙️</div><div class="text">Pengaturan</div></div>
+            <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:flex;"><div class="icon">⚙️</div><div class="text">Pengaturan</div></div>
         </div>
     </div>
 
@@ -590,6 +569,28 @@
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
+        async function mintaResetSandi() {
+            let un = await showPrompt("Masukkan Username Anda. Sistem akan mengirim notifikasi ke Admin (via WA) untuk membantu mereset sandi Anda:");
+            if(!un) return;
+            if(un.trim() === "") return;
+            
+            document.getElementById('login-loading').innerHTML = 'Mengirim permintaan...';
+            document.getElementById('login-form').style.display = 'none';
+            try {
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ action: 'lupaSandi', username: un }) });
+                const json = await res.json();
+                if(json.status === 'sukses') {
+                    showToast('Alhamdulillah! Permintaan reset sandi terkirim ke Admin.', 'success');
+                } else {
+                    showToast(json.pesan, 'error');
+                }
+            } catch(e) {
+                showToast('Afwan, gagal mengirim permintaan. Pastikan internet lancar.', 'error');
+            }
+            document.getElementById('login-loading').innerHTML = 'Memeriksa koneksi aman...';
+            document.getElementById('login-form').style.display = 'block';
+        }
+
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -629,7 +630,24 @@
         canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); canvas.addEventListener('touchend', stopDrawing);
         function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); isCanvasDrawn = false; }
 
-        function switchTab(tabId) { currentTabId = tabId; document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none'); document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active')); document.getElementById('page-' + tabId).style.display = 'block'; document.getElementById('nav-' + tabId).classList.add('active'); if(tabId === 'input' && !modeEditTiket) batalEditTiket(); if(tabId === 'user') batalEditUser(); window.scrollTo(0,0); }
+        function switchTab(tabId) { 
+            currentTabId = tabId; 
+            document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none'); 
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active')); 
+            document.getElementById('page-' + tabId).style.display = 'block'; 
+            document.getElementById('nav-' + tabId).classList.add('active'); 
+            if(tabId === 'input' && !modeEditTiket) batalEditTiket(); 
+            
+            if(tabId === 'user') {
+                if (penggunaAktif && penggunaAktif.Role === 'admin') {
+                    batalEditUser(); 
+                } else if (penggunaAktif) {
+                    siapkanProfilPribadi(); 
+                }
+            } 
+            window.scrollTo(0,0); 
+        }
+
         function switchDashTab(type) { document.getElementById('btn-dash-sales').classList.remove('active'); document.getElementById('btn-dash-tek').classList.remove('active'); document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'none'; if(type === 'sales') { document.getElementById('btn-dash-sales').classList.add('active'); document.getElementById('dash-sales-content').style.display = 'block'; } else { document.getElementById('btn-dash-tek').classList.add('active'); document.getElementById('dash-tek-content').style.display = 'block'; } }
         function switchInputTab(type) { document.getElementById('btn-input-sla').classList.remove('active'); document.getElementById('btn-input-sls').classList.remove('active'); document.getElementById('form-input-sla-container').style.display = 'none'; document.getElementById('form-input-sls-container').style.display = 'none'; if(type === 'sla') { document.getElementById('btn-input-sla').classList.add('active'); document.getElementById('form-input-sla-container').style.display = 'block'; } else { document.getElementById('btn-input-sls').classList.add('active'); document.getElementById('form-input-sls-container').style.display = 'block'; } }
         function setTicketFilter(filterType) { currentTicketFilter = filterType; document.getElementById('btn-filter-aktif').classList.remove('active'); document.getElementById('btn-filter-riwayat').classList.remove('active'); if(filterType === 'aktif') document.getElementById('btn-filter-aktif').classList.add('active'); else document.getElementById('btn-filter-riwayat').classList.add('active'); renderTickets(); }
@@ -688,13 +706,15 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
+            // MENU PENGATURAN KINI MUNCUL UNTUK SEMUA ROLE
+            document.getElementById('nav-user').style.display = 'flex'; 
+
             if (penggunaAktif.Role === 'admin') { 
                 document.getElementById('admin-export-section').style.display = 'block';
                 document.getElementById('nav-tiket').style.display = 'flex';
                 document.getElementById('nav-penjualan').style.display = 'flex';
                 document.getElementById('nav-prospek').style.display = 'flex';
                 document.getElementById('nav-input').style.display = 'flex'; 
-                document.getElementById('nav-user').style.display = 'flex'; 
                 document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
                 document.getElementById('div-prospek-sales').style.display = 'block'; 
                 document.getElementById('btn-tambah-prospek').style.display = 'block';
@@ -705,7 +725,6 @@
                 document.getElementById('nav-penjualan').style.display = 'flex';
                 document.getElementById('nav-prospek').style.display = 'flex';
                 document.getElementById('nav-input').style.display = 'none'; 
-                document.getElementById('nav-user').style.display = 'none';  
                 document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
                 document.getElementById('div-prospek-sales').style.display = 'none'; 
                 document.getElementById('btn-tambah-prospek').style.display = 'none'; 
@@ -716,7 +735,6 @@
                 document.getElementById('nav-penjualan').style.display = 'flex';
                 document.getElementById('nav-prospek').style.display = 'flex';
                 document.getElementById('nav-input').style.display = 'flex'; 
-                document.getElementById('nav-user').style.display = 'none'; 
                 document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
                 document.getElementById('div-prospek-sales').style.display = 'block'; 
                 document.getElementById('btn-tambah-prospek').style.display = 'block';
@@ -727,7 +745,6 @@
                 document.getElementById('nav-penjualan').style.display = 'flex';
                 document.getElementById('nav-prospek').style.display = 'flex';
                 document.getElementById('nav-input').style.display = 'none'; 
-                document.getElementById('nav-user').style.display = 'none'; 
                 document.getElementById('dash-segment').style.display = 'none'; 
                 document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
                 document.getElementById('div-prospek-sales').style.display = 'none'; 
@@ -739,7 +756,6 @@
                 document.getElementById('nav-penjualan').style.display = 'none'; 
                 document.getElementById('nav-prospek').style.display = 'none';
                 document.getElementById('nav-input').style.display = 'none'; 
-                document.getElementById('nav-user').style.display = 'none'; 
                 document.getElementById('dash-segment').style.display = 'none'; 
                 document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'block';
                 document.getElementById('btn-tambah-prospek').style.display = 'none';
@@ -1311,22 +1327,51 @@
         
         function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['No WA'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
         
+        /* =========================================================
+           FITUR BARU: PROFIL PRIBADI UNTUK NON-ADMIN
+        ========================================================= */
+        function siapkanProfilPribadi() {
+            modeEditUser = true; 
+            document.getElementById('form-user-title').innerText = '👤 Profil Saya'; 
+            document.getElementById('new-nama').value = penggunaAktif['Nama Asli']; 
+            document.getElementById('new-email').value = penggunaAktif['Email'] || ''; 
+            document.getElementById('new-wa').value = penggunaAktif['No WA'] || ''; 
+            document.getElementById('new-username').value = penggunaAktif.Username; 
+            
+            // KUNCI USERNAME AGAR TIDAK BISA DIGANTI
+            document.getElementById('new-username').classList.add('input-terkunci'); 
+            document.getElementById('new-username').readOnly = true; 
+            
+            document.getElementById('new-password').value = ''; 
+            document.getElementById('new-password').placeholder = 'Kosongkan jika tidak ubah password';
+            document.getElementById('new-password').required = false; 
+
+            // SEMBUNYIKAN MENU YANG TIDAK BOLEH DIAKSES NON-ADMIN
+            document.getElementById('role-wrapper').style.display = 'none';
+            document.getElementById('tabel-user-wrapper').style.display = 'none';
+
+            document.getElementById('new-role').value = penggunaAktif.Role; 
+            document.getElementById('new-target-sales').value = penggunaAktif['Target Sales'] || ''; 
+            
+            document.getElementById('btn-tambah-user').innerText = 'Update Profil Saya'; 
+            document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; 
+            document.getElementById('btn-batal-edit-user').style.display = 'none'; 
+        }
+
         function aktifkanEditUser(un) { 
             const u = globalUsers.find(x => x.Username === un); if(!u) return; 
             modeEditUser = true; 
             document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; 
             document.getElementById('new-nama').value = u['Nama Asli']; 
             document.getElementById('new-email').value = u['Email'] || ''; 
-            
-            // MENGISI NO WA SAAT EDIT
             document.getElementById('new-wa').value = u['No WA'] || ''; 
-            
             document.getElementById('new-username').value = u.Username; 
             
             document.getElementById('new-password').value = ''; 
             document.getElementById('new-password').placeholder = 'Kosongkan jika tidak ubah password';
             document.getElementById('new-password').required = false; 
 
+            document.getElementById('role-wrapper').style.display = 'block';
             document.getElementById('new-role').value = u.Role; toggleTargetSales(); 
             let targetVal = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || ''; 
             document.getElementById('new-target-sales').value = targetVal; 
@@ -1349,6 +1394,7 @@
             document.getElementById('new-password').placeholder = 'Password Baru';
             document.getElementById('new-password').required = true;
 
+            document.getElementById('role-wrapper').style.display = 'block';
             document.getElementById('new-role').value = ''; toggleTargetSales(); 
             document.getElementById('new-target-sales').value = ''; 
             document.getElementById('new-username').classList.remove('input-terkunci'); 
@@ -1379,7 +1425,7 @@
                 password: finalPw, 
                 role: document.getElementById('new-role').value, 
                 targetSales: document.getElementById('new-target-sales').value,
-                noWA: document.getElementById('new-wa').value // MENGIRIM NO WA KE SERVER
+                noWA: document.getElementById('new-wa').value 
             }; 
 
             if (!modeEditUser && globalUsers.find(u => String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { 
@@ -1391,10 +1437,29 @@
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
                 if((await res.json()).status==='sukses') { 
                     showToast('Alhamdulillah! Profil tersimpan.', 'success'); 
-                    batalEditUser(); document.getElementById('loading').style.display='block'; await ambilSemuaData(true); document.getElementById('loading').style.display='none'; 
+                    
+                    if (penggunaAktif.Role === 'admin') {
+                        batalEditUser(); 
+                    }
+                    
+                    document.getElementById('loading').style.display='block'; 
+                    await ambilSemuaData(true); 
+                    
+                    // JIKA NON-ADMIN UPDATE PROFILNYA SENDIRI
+                    if (penggunaAktif.Role !== 'admin') {
+                        const uUpdated = globalUsers.find(x => x.Username === penggunaAktif.Username);
+                        if (uUpdated) {
+                            penggunaAktif = uUpdated;
+                            localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() }));
+                        }
+                        siapkanProfilPribadi();
+                    }
+
+                    document.getElementById('loading').style.display='none'; 
                 } 
             } catch(err) { showToast("Gagal menyimpan profil", "error");} 
-            btn.innerText = modeEditUser ? 'Update Profil' : 'Simpan Profil'; btn.disabled = false; 
+            btn.innerText = (modeEditUser && penggunaAktif.Role === 'admin') ? 'Update Profil' : (modeEditUser ? 'Update Profil Saya' : 'Simpan Profil'); 
+            btn.disabled = false; 
         }
 
         async function hapusUser(un) { if(un==='admin') { showToast('Afwan, akun admin utama dilarang dihapus!', 'error'); return; } let acc = await showConfirm(`Bismillah, yakin hapus user ${un}?`); if(!acc) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { showToast('Alhamdulillah! User berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
