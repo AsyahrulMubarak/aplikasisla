@@ -142,6 +142,7 @@
         
         .code-badge { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--primary); border: 1px solid #e2e8f0; }
 
+        /* SISTEM NOTIFIKASI PROFESIONAL (TOAST & CUSTOM MODAL) */
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
         .toast { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-radius: 8px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-left: 5px solid; font-size: 14px; font-weight: 600; animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; max-width: 300px;}
         .toast-success { border-left-color: var(--success); color: #064e3b; }
@@ -426,7 +427,7 @@
                 <input type="text" id="search-prospek-input" placeholder="Cari Calon Customer, Kebutuhan, Sales..." onkeyup="renderProspek()">
             </div>
             
-            <!-- FORM INPUT PROSPEK (UPDATE: LOGIKA CLOSING WAJIB NOMINAL) -->
+            <!-- FORM INPUT PROSPEK -->
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
                 <h3 style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
                 <form id="form-prospek" onsubmit="submitProspek(event)">
@@ -463,18 +464,23 @@
             <div id="prospek-container"></div>
         </div>
 
-        <!-- HALAMAN INPUT DATA -->
+        <!-- HALAMAN INPUT DATA (ADMIN & MANAGER SAJA) -->
         <div id="page-input" class="tab-page">
             <div class="segment-control" id="input-segment">
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
                 <button class="segment-btn" id="btn-input-sls" onclick="switchInputTab('sls')">Penjualan Langsung</button>
             </div>
 
-            <!-- FORM TIKET SLA -->
+            <!-- FORM TIKET SLA (UPDATE: NO TRANSAKSI SELALU ADA) -->
             <div class="form-card" id="form-input-sla-container">
                 <h3 id="form-tiket-title" class="section-title">Form Tiket Baru</h3>
                 <form id="form-sla" onsubmit="submitData(event, 'sla')">
                     <label>ID Tiket</label><input type="text" id="input-id" class="input-terkunci" readonly>
+                    
+                    <!-- NO TRANSAKSI DIPINDAH KE ATAS AGAR BEBAS DIISI -->
+                    <label style="color:#166534;">No Transaksi / SO (iPOS - Opsional)</label>
+                    <input type="text" id="input-notrans-sla" placeholder="Contoh: 0761/KSR/UTM/0826" style="margin-bottom: 15px;">
+
                     <div style="display: flex; gap:15px;">
                         <div style="flex: 1;"><label>SLA Respon (Jam)</label><input type="number" id="input-sla-respon" step="0.1" required></div>
                         <div style="flex: 1;"><label>SLA Pengerjaan (Jam)</label><input type="number" id="input-sla" step="0.1" required></div>
@@ -486,9 +492,6 @@
                     <select id="input-sales" onchange="togglePenjualanInput()"></select>
                     
                     <div id="div-nilai-penjualan" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
-                        <label style="color:#166534; margin-top:0;">No Transaksi / SO (Opsional)</label>
-                        <input type="text" id="input-notrans-sla" placeholder="Contoh: 0761/KSR/UTM/0826" style="border-color:#86efac; background:#fff; margin-bottom:15px;">
-                        
                         <label style="color:#166534; margin-top:0;">Nilai Penjualan / Omzet (Rp)</label>
                         <input type="number" id="input-nilai-penjualan" placeholder="Contoh: 1500000" style="border-color:#86efac; background:#fff;">
                         <p style="font-size:11px; color:#15803d; margin:5px 0 0 0;">Nilai ini akan dihitung ke performa Target Sales jika tiket Selesai.</p>
@@ -1000,7 +1003,6 @@
             let searchInput = document.getElementById('search-sls'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let penDitampilkan = [];
             
-            // ADMIN, MANAGER, DIREKTUR, SALES MELIHAT SEMUA PENJUALAN
             if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
                 penDitampilkan = globalPenjualan; 
             }
@@ -1052,7 +1054,7 @@
             const btn = document.getElementById('btn-submit-prospek');
             btn.innerText = 'Simpan Prospek';
             btn.disabled = false;
-            cekStatusProspek(); // Reset logika wajib nominal
+            cekStatusProspek(); 
             setAutoIDs(); 
         }
         
@@ -1063,7 +1065,6 @@
             let searchInput = document.getElementById('search-prospek-input'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let pDitampilkan = [];
             
-            // ADMIN, MANAGER, DIREKTUR, SALES MELIHAT SEMUA PROSPEK
             if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
                 pDitampilkan = globalProspek; 
             }
@@ -1083,14 +1084,38 @@
                 let sc = 'status-aman'; let bc = 'badge-aman';
                 if (textStatus.includes('Closing')) { sc = 'status-terpenuhi'; bc = 'badge-selesai'; }
                 else if (textStatus.includes('Kunjungan')) { sc = 'status-terlambat'; bc = 'badge-status'; }
+                else if (textStatus.includes('Batal')) { sc = 'status-terlambat'; bc = 'badge-cancel'; }
+                else if (textStatus.includes('Tanpa Keterangan')) { sc = 'status-aman'; bc = 'badge-status'; }
 
                 let btnHtml = '';
-                // LOGIKA: HANYA OWNER PROSPEK, ADMIN, ATAU MANAGER YANG BISA EDIT STATUS PROSPEK
                 let isOwner = String(p['Sales Penanggung Jawab'] || '').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase();
                 let canEditProspek = ['admin', 'manager'].includes(penggunaAktif.Role) || (penggunaAktif.Role === 'sales' && isOwner);
 
-                if (canEditProspek && !textStatus.includes('Closing')) {
-                    btnHtml = `<div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;"><label style="font-size:11px; margin-top:0;">Update Status Prospek:</label><div style="display:flex; gap:5px;"><select id="update-prospek-${p['ID Prospek']}" style="flex:1; padding:6px; font-size:12px;"><option value="Tahap Penawaran">Tahap Penawaran</option><option value="Kunjungan Toko">Kunjungan Toko</option><option value="Closing / Deal">Closing / Deal</option></select><button class="btn-solid-primary" style="margin:0; width:auto; padding:6px 12px; font-size:11px;" onclick="updateStatusProspek('${p['ID Prospek']}')">Simpan</button></div></div>`;
+                // Kunci form update bagi Sales jika status sudah Batal/Tanpa Keterangan
+                let isBatalAtauTanpaKet = textStatus.includes('Batal') || textStatus.includes('Tanpa Keterangan');
+                let canSeeUpdateForm = canEditProspek && !textStatus.includes('Closing');
+                if (isBatalAtauTanpaKet && penggunaAktif.Role !== 'admin') {
+                    canSeeUpdateForm = false; 
+                }
+
+                if (canSeeUpdateForm) {
+                    let adminOptions = '';
+                    if (penggunaAktif.Role === 'admin') {
+                        adminOptions = `<option value="Batal" ${textStatus.includes('Batal')?'selected':''}>❌ Batal</option><option value="Tanpa Keterangan" ${textStatus.includes('Tanpa Keterangan')?'selected':''}>❓ Tanpa Keterangan</option>`;
+                    }
+
+                    btnHtml = `<div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;">
+                        <label style="font-size:11px; margin-top:0;">Update Status Prospek:</label>
+                        <div style="display:flex; gap:5px;">
+                            <select id="update-prospek-${p['ID Prospek']}" style="flex:1; padding:6px; font-size:12px;">
+                                <option value="Tahap Penawaran" ${textStatus.includes('Penawaran')?'selected':''}>Tahap Penawaran</option>
+                                <option value="Kunjungan Toko" ${textStatus.includes('Kunjungan')?'selected':''}>Kunjungan Toko</option>
+                                <option value="Closing / Deal" ${textStatus.includes('Closing')?'selected':''}>Closing / Deal</option>
+                                ${adminOptions}
+                            </select>
+                            <button class="btn-solid-primary" style="margin:0; width:auto; padding:6px 12px; font-size:11px;" onclick="updateStatusProspek('${p['ID Prospek']}')">Simpan</button>
+                        </div>
+                    </div>`;
                 }
                 
                 if (['admin', 'manager'].includes(penggunaAktif.Role)) { 
@@ -1102,7 +1127,8 @@
                 }
 
                 let tgl = p['Tanggal Input'] ? new Date(p['Tanggal Input']).toLocaleDateString('id-ID') : '-';
-                let estimasiHtml = p['Estimasi (Rp)'] ? `<p style="color:var(--success);"><strong>Potensi Nilai:</strong> ${formatRp(p['Estimasi (Rp)'])}</p>` : '';
+                let labelEstimasi = textStatus.includes('Closing') ? 'Nilai Deal:' : 'Potensi Nilai:';
+                let estimasiHtml = p['Estimasi (Rp)'] ? `<p style="color:var(--success);"><strong>${labelEstimasi}</strong> ${formatRp(p['Estimasi (Rp)'])}</p>` : '';
                 
                 let buktiChatHtml = p['Bukti Chat'] && p['Bukti Chat'].length > 10 ? `<div style="margin-top:10px;"><a href="${p['Bukti Chat']}" download="Bukti_Chat_${p['ID Prospek']}.jpg" class="dl-btn" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">⬇️ Unduh Bukti Chat</a></div>` : '';
                 
@@ -1161,20 +1187,19 @@
         }
 
         /* =========================================================
-           FUNGSI UPDATE PROSPEK (MEMAKSA ISI NOMINAL SAAT DEAL)
+           FUNGSI UPDATE PROSPEK DENGAN LOGIKA NOMINAL SUSULAN
         ========================================================= */
         async function updateStatusProspek(id) { 
             const newVal = document.getElementById('update-prospek-'+id).value; 
             let nominalUpdate = undefined;
             
-            // LOGIKA: Minta isi Nominal susulan jika tiba-tiba statusnya diubah jadi Deal/Closing
             if (newVal.includes('Closing')) {
                 const p = globalProspek.find(x => x['ID Prospek'] === id);
                 let estimasiLama = p['Estimasi (Rp)'] || '';
                 
                 if (!estimasiLama || parseInt(estimasiLama) <= 0) {
                     nominalUpdate = await showPrompt("Prospek Deal! Silakan masukkan Nominal / Nilai Proyek (Rp) yang disepakati:");
-                    if (nominalUpdate === null) return; // User membatalkan (klik tombol Batal)
+                    if (nominalUpdate === null) return; 
                     if (nominalUpdate.trim() === "" || isNaN(nominalUpdate)) {
                         showToast("Afwan, Nominal WAJIB diisi dengan angka untuk status Closing/Deal!", "warning");
                         return;
