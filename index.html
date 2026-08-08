@@ -142,7 +142,6 @@
         
         .code-badge { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--primary); border: 1px solid #e2e8f0; }
 
-        /* SISTEM NOTIFIKASI PROFESIONAL (TOAST & CUSTOM MODAL) */
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
         .toast { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-radius: 8px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-left: 5px solid; font-size: 14px; font-weight: 600; animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; max-width: 300px;}
         .toast-success { border-left-color: var(--success); color: #064e3b; }
@@ -167,10 +166,8 @@
 </head>
 <body>
 
-    <!-- WADAH NOTIFIKASI TOAST -->
     <div id="toast-container"></div>
 
-    <!-- MODAL CUSTOM CONFIRM -->
     <div id="custom-confirm-modal" class="custom-modal-backdrop">
         <div class="custom-modal-box">
             <h3 class="custom-modal-title" id="confirm-title">Konfirmasi</h3>
@@ -182,7 +179,6 @@
         </div>
     </div>
 
-    <!-- MODAL PWA INSTALL -->
     <div id="pwa-install-modal" class="custom-modal-backdrop" style="z-index: 9999;">
         <div class="custom-modal-box">
             <img src="depan_001.png" style="width:70px; margin-bottom:15px; border-radius:12px;">
@@ -203,7 +199,6 @@
         </div>
     </div>
 
-    <!-- MODAL CUSTOM PROMPT -->
     <div id="custom-prompt-modal" class="custom-modal-backdrop">
         <div class="custom-modal-box">
             <h3 class="custom-modal-title" id="prompt-title">Input Diperlukan</h3>
@@ -216,7 +211,6 @@
         </div>
     </div>
 
-    <!-- MODAL UPLOAD PENAWARAN -->
     <div id="modal-penawaran" class="modal">
         <div class="modal-content" style="border-top-color: var(--success);">
             <h3 class="modal-title" style="color:var(--success);">📄 Upload Surat Penawaran</h3>
@@ -232,7 +226,6 @@
         </div>
     </div>
 
-    <!-- MODAL EXPORT LAPORAN EXCEL -->
     <div id="modal-export" class="modal">
         <div class="modal-content" style="border-top-color: #0f766e;">
             <h3 class="modal-title" style="color:#0f766e;">📥 Export Laporan (Excel Resmi)</h3>
@@ -464,20 +457,19 @@
             <div id="prospek-container"></div>
         </div>
 
-        <!-- HALAMAN INPUT DATA (ADMIN & MANAGER SAJA) -->
+        <!-- HALAMAN INPUT DATA -->
         <div id="page-input" class="tab-page">
             <div class="segment-control" id="input-segment">
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
                 <button class="segment-btn" id="btn-input-sls" onclick="switchInputTab('sls')">Penjualan Langsung</button>
             </div>
 
-            <!-- FORM TIKET SLA (UPDATE: NO TRANSAKSI SELALU ADA) -->
+            <!-- FORM TIKET SLA -->
             <div class="form-card" id="form-input-sla-container">
                 <h3 id="form-tiket-title" class="section-title">Form Tiket Baru</h3>
                 <form id="form-sla" onsubmit="submitData(event, 'sla')">
                     <label>ID Tiket</label><input type="text" id="input-id" class="input-terkunci" readonly>
                     
-                    <!-- NO TRANSAKSI DIPINDAH KE ATAS AGAR BEBAS DIISI -->
                     <label style="color:#166534;">No Transaksi / SO (iPOS - Opsional)</label>
                     <input type="text" id="input-notrans-sla" placeholder="Contoh: 0761/KSR/UTM/0826" style="margin-bottom: 15px;">
 
@@ -571,7 +563,6 @@
             </div>
         </div>
 
-        <!-- MENU NAVIGASI BAWAH -->
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
             <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket SLA</div></div>
@@ -592,6 +583,16 @@
 
         const iconEyeOpen = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
         const iconEyeClosed = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+
+        /* =========================================================
+           FUNGSI FORMAT WAKTU AMAN DARI #VALUE!
+        ========================================================= */
+        function formatWaktu(val) {
+            if (!val || val === '#VALUE!' || val === 'Invalid Date') return '-';
+            let dt = new Date(val);
+            if (isNaN(dt.getTime())) return '-';
+            return dt.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        }
 
         function togglePasswordVisibility(inputId, iconEl) {
             const input = document.getElementById(inputId);
@@ -993,7 +994,22 @@
                     infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`; 
                 }
 
-                container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>${noTrans}<p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${ticket['Tenggat Respon'] ? new Date(ticket['Tenggat Respon']).toLocaleString('id-ID') : '-'}</p><p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${new Date(ticket['Tenggat Waktu']).toLocaleString('id-ID')}</p>`}</div>${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}</div>`;
+                container.innerHTML += `<div class="card ${sc}">
+                    <h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>
+                    ${noTrans}
+                    <p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p>
+                    <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
+                    <p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>
+                    ${infoPenjualanHtml}
+                    <p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
+                    <div class="waktu-box">
+                        ${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : 
+                        `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p>
+                        <p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Respon'])}</p>
+                        <p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${formatWaktu(ticket['Tenggat Waktu'])}</p>`}
+                    </div>
+                    ${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}
+                </div>`;
             });
             if(!htmlAda) container.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket ${currentTicketFilter === 'aktif' ? 'aktif' : 'di riwayat'}.</p>`;
         }
@@ -1031,9 +1047,6 @@
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan sesuai pencarian.</p>';
         }
 
-        /* =========================================================
-           FUNGSI CEK STATUS PROSPEK (WAJIB NOMINAL JIKA CLOSING)
-        ========================================================= */
         function cekStatusProspek() {
             const status = document.getElementById('prospek-status').value;
             const inputNominal = document.getElementById('prospek-nominal');
@@ -1091,7 +1104,6 @@
                 let isOwner = String(p['Sales Penanggung Jawab'] || '').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase();
                 let canEditProspek = ['admin', 'manager'].includes(penggunaAktif.Role) || (penggunaAktif.Role === 'sales' && isOwner);
 
-                // Kunci form update bagi Sales jika status sudah Batal/Tanpa Keterangan
                 let isBatalAtauTanpaKet = textStatus.includes('Batal') || textStatus.includes('Tanpa Keterangan');
                 let canSeeUpdateForm = canEditProspek && !textStatus.includes('Closing');
                 if (isBatalAtauTanpaKet && penggunaAktif.Role !== 'admin') {
@@ -1186,9 +1198,6 @@
             }
         }
 
-        /* =========================================================
-           FUNGSI UPDATE PROSPEK DENGAN LOGIKA NOMINAL SUSULAN
-        ========================================================= */
         async function updateStatusProspek(id) { 
             const newVal = document.getElementById('update-prospek-'+id).value; 
             let nominalUpdate = undefined;
