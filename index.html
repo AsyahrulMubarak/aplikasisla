@@ -291,7 +291,6 @@
         </div>
     </div>
 
-    <!-- MODAL PENGAJUAN BANDING -->
     <div id="modal-banding" class="modal">
         <div class="modal-content" style="border-top-color: #8e44ad;">
             <h3 class="modal-title" style="color:var(--purple);">📌 Ajukan Klaim Penjualan</h3>
@@ -310,7 +309,6 @@
         </div>
     </div>
 
-    <!-- MODAL UPDATE STATUS TIKET -->
     <div id="modal-update" class="modal">
         <div class="modal-content">
             <h3 id="update-title" class="modal-title">Update Status Tiket</h3>
@@ -366,13 +364,10 @@
 
         <div id="loading" style="display:none;">Sinkronisasi data sistem...</div>
         
-        <!-- HALAMAN DASBOR -->
         <div id="page-dashboard" class="tab-page">
-            
             <div id="admin-export-section" style="display:none; text-align:right; margin-bottom:15px;">
                 <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan (Excel)</button>
             </div>
-
             <div id="dash-segment" class="segment-control" style="display:none;">
                 <button class="segment-btn active" id="btn-dash-sales" onclick="switchDashTab('sales')">Pencapaian Sales</button>
                 <button class="segment-btn" id="btn-dash-tek" onclick="switchDashTab('tek')">Performa Teknisi</button>
@@ -381,24 +376,19 @@
             <div id="dash-tek-content" style="display:none;"></div>
         </div>
 
-        <!-- HALAMAN TIKET TEKNISI -->
         <div id="page-tiket" class="tab-page">
             <h3 class="section-title">Daftar Tiket SLA (Pekerjaan)</h3>
-            
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
                 <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." onkeyup="renderTickets()">
             </div>
-
             <div class="segment-control">
                 <button class="segment-btn active" id="btn-filter-aktif" onclick="setTicketFilter('aktif')">Pekerjaan Aktif</button>
                 <button class="segment-btn" id="btn-filter-riwayat" onclick="setTicketFilter('riwayat')">Riwayat (Selesai/Batal)</button>
             </div>
-
             <div id="ticket-container"></div>
         </div>
 
-        <!-- HALAMAN PENJUALAN KHUSUS -->
         <div id="page-penjualan" class="tab-page">
             <h3 class="section-title" style="color:var(--purple);">Daftar Penjualan Langsung</h3>
             <div class="search-wrapper">
@@ -408,19 +398,16 @@
             <div id="penjualan-container"></div>
         </div>
 
-        <!-- HALAMAN PROSPEK (LEADS) -->
         <div id="page-prospek" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:var(--success);">Data Prospek (Leads)</h3>
                 <button id="btn-tambah-prospek" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:var(--success);" onclick="bukaFormProspek()">+ Input Prospek</button>
             </div>
-            
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
                 <input type="text" id="search-prospek-input" placeholder="Cari Calon Customer, Kebutuhan, Sales..." onkeyup="renderProspek()">
             </div>
             
-            <!-- FORM INPUT PROSPEK -->
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
                 <h3 style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
                 <form id="form-prospek" onsubmit="submitProspek(event)">
@@ -429,66 +416,53 @@
                     <input type="text" id="prospek-nama" placeholder="Contoh: Pak Budi - Instansi X" required>
                     <label>Kebutuhan / Barang yang Diminati</label>
                     <textarea id="prospek-kebutuhan" placeholder="Contoh: Butuh 5 Kamera CCTV dan Jasa Pasang" required rows="2"></textarea>
-                    
                     <label>Bukti Chat / Interaksi (Screenshot)</label>
                     <input type="file" id="prospek-bukti" accept="image/*" style="font-size: 12px; margin-bottom:0;">
                     <p style="font-size:11px; color:var(--text-muted); margin:4px 0 15px 0;">*Opsional: Upload screenshot percakapan dengan calon customer.</p>
-
                     <div id="div-prospek-sales" style="display:none;">
                         <label>Sales Penanggung Jawab</label>
                         <select id="prospek-sales"></select>
                     </div>
-
                     <label>Status Prospek</label>
                     <select id="prospek-status" required onchange="cekStatusProspek()">
                         <option value="Tahap Penawaran">📝 Tahap Penawaran (Quotation / Surat Penawaran)</option>
                         <option value="Kunjungan Toko">🏪 Kunjungan Toko (Walk-in / Diarahkan ke Toko)</option>
                         <option value="Closing / Deal">✅ Closing / Deal (Siap Transaksi / Membeli)</option>
                     </select>
-                    
                     <label id="label-prospek-nominal">Estimasi Nilai Proyek (Rp) - Opsional</label>
                     <input type="number" id="prospek-nominal" placeholder="Contoh: 5000000">
-                    
                     <button type="submit" id="btn-submit-prospek" class="btn-solid-primary" style="background:var(--success);">Simpan Prospek</button>
                     <button type="button" class="btn-outline-cancel" onclick="tutupFormProspek()">Batal Input</button>
                 </form>
             </div>
-
             <div id="prospek-container"></div>
         </div>
 
-        <!-- HALAMAN INPUT DATA -->
         <div id="page-input" class="tab-page">
             <div class="segment-control" id="input-segment">
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
                 <button class="segment-btn" id="btn-input-sls" onclick="switchInputTab('sls')">Penjualan Langsung</button>
             </div>
 
-            <!-- FORM TIKET SLA -->
             <div class="form-card" id="form-input-sla-container">
                 <h3 id="form-tiket-title" class="section-title">Form Tiket Baru</h3>
                 <form id="form-sla" onsubmit="submitData(event, 'sla')">
                     <label>ID Tiket</label><input type="text" id="input-id" class="input-terkunci" readonly>
-                    
                     <label style="color:#166534;">No Transaksi / SO (iPOS - Opsional)</label>
                     <input type="text" id="input-notrans-sla" placeholder="Contoh: 0761/KSR/UTM/0826" style="margin-bottom: 15px;">
-
                     <div style="display: flex; gap:15px;">
                         <div style="flex: 1;"><label>SLA Respon (Jam)</label><input type="number" id="input-sla-respon" step="0.1" required></div>
                         <div style="flex: 1;"><label>SLA Pengerjaan (Jam)</label><input type="number" id="input-sla" step="0.1" required></div>
                     </div>
                     <label>Nama Klien & Lokasi</label><input type="text" id="input-klien" required>
                     <label>Jenis Pekerjaan</label><textarea id="input-pekerjaan" required rows="2"></textarea>
-                    
                     <label>Sales Penanggung Jawab</label>
                     <select id="input-sales" onchange="togglePenjualanInput()"></select>
-                    
                     <div id="div-nilai-penjualan" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
                         <label style="color:#166534; margin-top:0;">Nilai Penjualan / Omzet (Rp)</label>
                         <input type="number" id="input-nilai-penjualan" placeholder="Contoh: 1500000" style="border-color:#86efac; background:#fff;">
                         <p style="font-size:11px; color:#15803d; margin:5px 0 0 0;">Nilai ini akan dihitung ke performa Target Sales jika tiket Selesai.</p>
                     </div>
-
                     <label>Alokasi Teknisi</label>
                     <div class="checkbox-group" id="teknisi-group"></div>
                     <button type="submit" id="btn-submit-pekerjaan" class="btn-solid-primary">Simpan Tiket</button>
@@ -496,7 +470,6 @@
                 </form>
             </div>
 
-            <!-- FORM PENJUALAN LANGSUNG -->
             <div class="form-card" id="form-input-sls-container" style="display:none; border-top-color:var(--purple);">
                 <h3 class="section-title" style="color:var(--purple);">Form Penjualan Langsung</h3>
                 <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Gunakan form ini untuk mencatat penjualan dari Sales yang tidak memerlukan teknisi. Data akan langsung masuk ke Omzet Sales.</p>
@@ -520,18 +493,21 @@
                 <form onsubmit="simpanUserBaru(event)">
                     <label>Nama Lengkap</label><input type="text" id="new-nama" required>
                     <label>Email (Notifikasi)</label><input type="email" id="new-email" required>
+                    
+                    <!-- KOTAK INPUT NO WHATSAPP DIMUNCULKAN KEMBALI -->
+                    <label>No WhatsApp (Aktif)</label>
+                    <input type="number" id="new-wa" placeholder="Contoh: 081234567890" required>
+
                     <div style="display: flex; gap:15px;">
                         <div style="flex: 1;"><label>Username</label><input type="text" id="new-username" required></div>
                         <div style="flex: 1;">
                             <label>Password</label>
-                            
                             <div style="position:relative;">
                                 <input type="password" id="new-password" placeholder="Password Baru" required style="padding-right:40px; width:100%; box-sizing:border-box;">
                                 <span class="icon-btn-pwd" onclick="togglePasswordVisibility('new-password', this)" title="Tampilkan Password">
                                     <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                 </span>
                             </div>
-
                         </div>
                     </div>
                     <label>Hak Akses</label>
@@ -556,7 +532,7 @@
                 <h3 class="section-title" style="margin-top:30px;">Daftar Akun Sistem</h3>
                 <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 8px;">
                     <table>
-                        <thead><tr><th>Username</th><th>Nama</th><th>Email</th><th>Role</th><th>Opsi</th></tr></thead>
+                        <thead><tr><th>Username</th><th>Nama</th><th>No WA</th><th>Role</th><th>Opsi</th></tr></thead>
                         <tbody id="tabel-user-body"></tbody>
                     </table>
                 </div>
@@ -584,9 +560,6 @@
         const iconEyeOpen = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
         const iconEyeClosed = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
 
-        /* =========================================================
-           FUNGSI FORMAT WAKTU AMAN DARI #VALUE!
-        ========================================================= */
         function formatWaktu(val) {
             if (!val || val === '#VALUE!' || val === 'Invalid Date') return '-';
             let dt = new Date(val);
@@ -1336,7 +1309,7 @@
         async function hapusTiket(idTiket) { let acc = await showConfirm(`Bismillah, hapus data tiket ${idTiket} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Tiket berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         async function hapusPenjualan(idPenjualan) { let acc = await showConfirm(`Bismillah, hapus data penjualan ${idPenjualan} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         
-        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Email'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
+        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['No WA'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
         
         function aktifkanEditUser(un) { 
             const u = globalUsers.find(x => x.Username === un); if(!u) return; 
@@ -1344,6 +1317,10 @@
             document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; 
             document.getElementById('new-nama').value = u['Nama Asli']; 
             document.getElementById('new-email').value = u['Email'] || ''; 
+            
+            // MENGISI NO WA SAAT EDIT
+            document.getElementById('new-wa').value = u['No WA'] || ''; 
+            
             document.getElementById('new-username').value = u.Username; 
             
             document.getElementById('new-password').value = ''; 
@@ -1366,6 +1343,7 @@
             document.getElementById('form-user-title').innerText = 'Tambah User Baru'; 
             document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; 
             document.getElementById('new-username').value = ''; 
+            document.getElementById('new-wa').value = ''; 
             
             document.getElementById('new-password').value = ''; 
             document.getElementById('new-password').placeholder = 'Password Baru';
@@ -1400,7 +1378,8 @@
                 username: document.getElementById('new-username').value, 
                 password: finalPw, 
                 role: document.getElementById('new-role').value, 
-                targetSales: document.getElementById('new-target-sales').value 
+                targetSales: document.getElementById('new-target-sales').value,
+                noWA: document.getElementById('new-wa').value // MENGIRIM NO WA KE SERVER
             }; 
 
             if (!modeEditUser && globalUsers.find(u => String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { 
