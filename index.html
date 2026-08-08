@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#1e3a8a">
     <link rel="apple-touch-icon" href="depan_001.png">
 
-    <!-- MESIN EXCEL RINGAN -->
+    <!-- MESIN EXCEL RINGAN (ANTI-STUCK) -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
     <style>
@@ -466,7 +466,7 @@
             <div id="prospek-container"></div>
         </div>
 
-        <!-- HALAMAN INPUT DATA -->
+        <!-- HALAMAN INPUT DATA (ADMIN & MANAGER SAJA) -->
         <div id="page-input" class="tab-page">
             <div class="segment-control" id="input-segment">
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
@@ -760,7 +760,7 @@
         }
 
         /* =========================================================
-           FUNGSI KOMPRESI EKSTREM SEBELUM UPLOAD
+           FUNGSI KOMPRESI FOTO (KUALITAS TINGGI, ANTI-BURAM)
         ========================================================= */
         function prosesUploadBebas(file) {
             return new Promise((resolve, reject) => {
@@ -776,9 +776,9 @@
                         img.onload = function() {
                             const canvasG = document.createElement('canvas'); 
                             
-                            // PEMANGKASAN AGRESIF: Ukuran Maksimal sangat kecil (400px)
-                            const MAX_WIDTH = 400; 
-                            const MAX_HEIGHT = 600;
+                            // UKURAN RESOLUSI DITINGKATKAN AGAR TEKS CHAT JELAS
+                            const MAX_WIDTH = 1200; 
+                            const MAX_HEIGHT = 1600;
                             let width = img.width; 
                             let height = img.height;
                             
@@ -792,15 +792,8 @@
                             const ctxG = canvasG.getContext('2d'); 
                             ctxG.drawImage(img, 0, 0, width, height); 
                             
-                            // KOMPRESI AGRESIF: Kualitas hanya 30% (Sangat Ringan, cukup untuk baca tulisan)
-                            const base64SuperKecil = canvasG.toDataURL('image/jpeg', 0.3);
-                            
-                            // Validasi Darurat: Jika masih di atas ~50 Ribu karakter, Gagalkan
-                            if(base64SuperKecil.length > 50000) {
-                                reject("Gambar terlalu rumit, gagal dikompres.");
-                            } else {
-                                resolve(base64SuperKecil); 
-                            }
+                            // KUALITAS DITAIKKAN JADI 75% AGAR GAMBAR JERNIH
+                            resolve(canvasG.toDataURL('image/jpeg', 0.75)); 
                         };
                         img.onerror = function() { reject("Gagal memuat gambar."); }
                     }
