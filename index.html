@@ -172,7 +172,6 @@
 
     <div id="toast-container"></div>
 
-    <!-- MODAL LAPOR BUG -->
     <div id="modal-bug" class="modal">
         <div class="modal-content" style="border-top-color: var(--danger);">
             <h3 class="modal-title" style="color:var(--danger);">🐞 Laporkan Kendala / Bug</h3>
@@ -188,7 +187,6 @@
         </div>
     </div>
 
-    <!-- MODAL KONFIRMASI -->
     <div id="custom-confirm-modal" class="custom-modal-backdrop">
         <div class="custom-modal-box">
             <h3 class="custom-modal-title" id="confirm-title">Konfirmasi</h3>
@@ -200,7 +198,6 @@
         </div>
     </div>
 
-    <!-- MODAL PWA INSTALL -->
     <div id="pwa-install-modal" class="custom-modal-backdrop" style="z-index: 9999;">
         <div class="custom-modal-box">
             <img src="depan_001.png" style="width:70px; margin-bottom:15px; border-radius:12px;">
@@ -218,7 +215,6 @@
         </div>
     </div>
 
-    <!-- MODAL PROMPT -->
     <div id="custom-prompt-modal" class="custom-modal-backdrop">
         <div class="custom-modal-box">
             <h3 class="custom-modal-title" id="prompt-title">Input Diperlukan</h3>
@@ -231,7 +227,6 @@
         </div>
     </div>
 
-    <!-- MODAL UPLOAD PENAWARAN -->
     <div id="modal-penawaran" class="modal">
         <div class="modal-content" style="border-top-color: var(--success);">
             <h3 class="modal-title" style="color:var(--success);">📄 Upload Surat Penawaran</h3>
@@ -247,7 +242,6 @@
         </div>
     </div>
 
-    <!-- MODAL EXPORT LAPORAN EXCEL -->
     <div id="modal-export" class="modal">
         <div class="modal-content" style="border-top-color: #0f766e;">
             <h3 class="modal-title" style="color:#0f766e;">📥 Export Laporan (Excel Resmi)</h3>
@@ -451,10 +445,12 @@
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:#3b82f6;">Data Garansi Klien</h3>
                 <button id="btn-tambah-garansi" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:#3b82f6; display:none;" onclick="bukaFormGaransi()">+ Input Garansi</button>
             </div>
+            
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
                 <input type="text" id="search-garansi-input" placeholder="Cari Pelanggan, Barang, Referensi..." onkeyup="renderGaransi()">
             </div>
+            
             <div id="form-garansi-container" class="form-card" style="display:none; border-top-color:#3b82f6;">
                 <h3 style="color:#3b82f6; margin-top:0;">Form Input Garansi</h3>
                 <form id="form-garansi" onsubmit="submitGaransi(event)">
@@ -492,7 +488,7 @@
             <div id="garansi-container"></div>
         </div>
 
-        <!-- HALAMAN INPUT DATA -->
+        <!-- HALAMAN INPUT DATA (TIKET/PENJUALAN) -->
         <div id="page-input" class="tab-page">
             <div class="segment-control" id="input-segment">
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
@@ -1289,7 +1285,7 @@
                 let textStatus = g['Status'] || 'Masa Tunggu';
                 let sc = 'status-aman'; let bc = 'badge-tunggu';
                 if (textStatus === 'Aktif') { sc = 'status-terpenuhi'; bc = 'badge-aktif'; }
-                else if (textStatus.includes('Habis')) { sc = 'status-terlambat'; bc = 'badge-habis'; }
+                else if (textStatus.includes('Habis') || textStatus.includes('Hangus') || textStatus.includes('Diklaim')) { sc = 'status-terlambat'; bc = 'badge-habis'; }
 
                 let tglMulai = g['Tanggal Mulai'] ? formatWaktu(g['Tanggal Mulai']) : 'Belum Mulai';
                 let tglHabis = g['Tanggal Habis'] ? formatWaktu(g['Tanggal Habis']) : '-';
@@ -1298,6 +1294,11 @@
                 if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
                     if (textStatus === 'Masa Tunggu') {
                         btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#2563eb; border-color:#bfdbfe;" onclick="aktifkanGaransi('${idGrs}')">🚀 Aktifkan Garansi (Barang Diambil)</button>`;
+                    } else if (textStatus === 'Aktif') {
+                        // ===============================================
+                        // TOMBOL BARU: PROSES KLAIM (HANGUSKAN)
+                        // ===============================================
+                        btnHtml += `<button class="btn-action-primary" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;" onclick="prosesKlaimGaransi('${idGrs}')">⚠️ Proses Klaim (Hanguskan)</button>`;
                     }
                     if (penggunaAktif.Role === 'admin') {
                         btnHtml += `<div class="btn-grid"><button class="btn-del" onclick="hapusGaransi('${idGrs}')">Hapus Data</button></div>`;
@@ -1310,7 +1311,7 @@
                     <p><strong>Klien:</strong> ${g['Nama Pelanggan']}</p>
                     <p><strong>Barang:</strong> ${g['Barang / Jasa']}</p>
                     <div class="waktu-box" style="margin-top:10px;">
-                        <p style="margin:0 0 5px 0;"><strong>Durasi:</strong> ${g['Durasi (Hari)']} Hari</p>
+                        <p style="margin:0 0 5px 0;"><strong>Durasi Asli:</strong> ${g['Durasi (Hari)']} Hari</p>
                         <p style="margin:0 0 5px 0; color:var(--text-muted);">Mulai: ${tglMulai}</p>
                         <p style="margin:0 0 5px 0; color:var(--text-muted);">Habis: ${tglHabis}</p>
                     </div>
@@ -1355,6 +1356,20 @@
             try { 
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'aktifkanGaransi', idGaransi: id }) }); 
                 if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi Aktif.', 'success'); await ambilSemuaData(true); } 
+            } catch(err) {} 
+            document.getElementById('loading').style.display = 'none'; 
+        }
+
+        // ===============================================
+        // FUNGSI BARU: PROSES KLAIM GARANSI
+        // ===============================================
+        async function prosesKlaimGaransi(id) { 
+            let acc = await showConfirm(`Bismillah, Klien melakukan klaim garansi untuk ID ${id}? \nStatus garansi ini akan langsung berubah menjadi HANGUS/HABIS setelah diklaim.`); 
+            if(!acc) return; 
+            document.getElementById('loading').style.display = 'block'; 
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'klaimGaransi', idGaransi: id }) }); 
+                if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi berhasil diklaim (Hangus).', 'success'); await ambilSemuaData(true); } 
             } catch(err) {} 
             document.getElementById('loading').style.display = 'none'; 
         }
