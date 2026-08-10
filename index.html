@@ -37,7 +37,7 @@
         .logo { max-width: 180px; height: auto; }
         .top-bar { display: flex; justify-content: space-between; align-items: center; background: var(--surface); padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
         .top-bar span { font-weight: 700; font-size: 14px; color: var(--primary); }
-        .top-bar-buttons { display: flex; gap: 8px; }
+        .top-bar-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
         
         .btn-outline-warning { background: transparent; color: var(--warning); border: 1px solid var(--warning); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
         .btn-outline-warning:hover { background: var(--warning); color: white; }
@@ -168,6 +168,24 @@
 
     <div id="toast-container"></div>
 
+    <!-- MODAL LAPOR BUG (FITUR BARU) -->
+    <div id="modal-bug" class="modal">
+        <div class="modal-content" style="border-top-color: var(--danger);">
+            <h3 class="modal-title" style="color:var(--danger);">🐞 Laporkan Kendala / Bug</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Jelaskan kendala atau error yang Antum alami. Laporan akan langsung dikirim ke WhatsApp Admin.</p>
+            <form onsubmit="kirimBug(event)">
+                <label>Deskripsi Kendala</label>
+                <textarea id="bug-deskripsi" rows="3" placeholder="Contoh: Saat saya simpan status Closing, tiba-tiba loading tidak berhenti..." required></textarea>
+                
+                <label>Bukti Screenshot (Opsional)</label>
+                <input type="file" id="bug-bukti" accept="image/*" style="font-size: 12px; margin-bottom:15px;">
+                
+                <button type="submit" id="btn-submit-bug" class="btn-solid-primary" style="background:var(--danger);">Kirim Laporan</button>
+                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-bug').style.display='none'">Batal</button>
+            </form>
+        </div>
+    </div>
+
     <div id="custom-confirm-modal" class="custom-modal-backdrop">
         <div class="custom-modal-box">
             <h3 class="custom-modal-title" id="confirm-title">Konfirmasi</h3>
@@ -252,7 +270,7 @@
         </div>
     </div>
 
-    <!-- HALAMAN LOGIN (DENGAN FITUR LUPA SANDI) -->
+    <!-- HALAMAN LOGIN -->
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
@@ -337,6 +355,9 @@
         <div class="top-bar">
             <span id="nama-login">User</span>
             <div class="top-bar-buttons">
+                <!-- TOMBOL LAPOR BUG KINI ADA DI SINI -->
+                <button onclick="bukaModalBug()" class="btn-outline-danger" style="border-color:#ef4444; color:#ef4444;">🐞 Lapor Bug</button>
+                
                 <button onclick="refreshManual()" id="btn-refresh" class="btn-outline-warning">Sinkron Data</button>
                 <button class="btn-outline-danger" onclick="prosesLogout()">Keluar</button>
             </div>
@@ -517,7 +538,6 @@
             </div>
         </div>
 
-        <!-- MUNCULKAN MENU PENGATURAN UNTUK SEMUA ROLE -->
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
             <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket SLA</div></div>
@@ -567,6 +587,54 @@
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        /* =========================================================
+           FUNGSI LAPOR BUG (FITUR BARU)
+        ========================================================= */
+        function bukaModalBug() {
+            document.getElementById('bug-deskripsi').value = '';
+            document.getElementById('bug-bukti').value = '';
+            document.getElementById('modal-bug').style.display = 'flex';
+        }
+
+        async function kirimBug(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-bug');
+            btn.innerText = 'Mengirim Laporan...';
+            btn.disabled = true;
+
+            try {
+                const deskripsi = document.getElementById('bug-deskripsi').value;
+                const fileInput = document.getElementById('bug-bukti');
+                let base64Bukti = '';
+                
+                if (fileInput.files.length > 0) {
+                    base64Bukti = await prosesUploadBebas(fileInput.files[0]);
+                }
+
+                const payload = {
+                    action: 'laporBug',
+                    pelapor: penggunaAktif['Nama Asli'],
+                    deskripsi: deskripsi,
+                    buktiBug: base64Bukti
+                };
+
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
+                const jsonRes = await res.json();
+
+                if (jsonRes.status === 'sukses') {
+                    showToast('Alhamdulillah! Laporan bug terkirim ke Admin.', 'success');
+                    document.getElementById('modal-bug').style.display = 'none';
+                } else {
+                    showToast('Afwan, gagal dari server.', 'error');
+                }
+            } catch (err) {
+                showToast('Afwan, gagal mengirim laporan. Pastikan internet stabil.', 'error');
+            } finally {
+                btn.innerText = 'Kirim Laporan';
+                btn.disabled = false;
+            }
         }
 
         async function mintaResetSandi() {
@@ -706,7 +774,6 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             
-            // MENU PENGATURAN KINI MUNCUL UNTUK SEMUA ROLE
             document.getElementById('nav-user').style.display = 'flex'; 
 
             if (penggunaAktif.Role === 'admin') { 
@@ -762,7 +829,7 @@
             }
 
             renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderTabelUser(); switchTab('dashboard'); 
-            if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex' || document.getElementById('pwa-install-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
+            if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex' || document.getElementById('pwa-install-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
 
@@ -1327,9 +1394,6 @@
         
         function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; globalUsers.forEach(u => { if(!u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['No WA'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
         
-        /* =========================================================
-           FITUR BARU: PROFIL PRIBADI UNTUK NON-ADMIN
-        ========================================================= */
         function siapkanProfilPribadi() {
             modeEditUser = true; 
             document.getElementById('form-user-title').innerText = '👤 Profil Saya'; 
@@ -1338,7 +1402,6 @@
             document.getElementById('new-wa').value = penggunaAktif['No WA'] || ''; 
             document.getElementById('new-username').value = penggunaAktif.Username; 
             
-            // KUNCI USERNAME AGAR TIDAK BISA DIGANTI
             document.getElementById('new-username').classList.add('input-terkunci'); 
             document.getElementById('new-username').readOnly = true; 
             
@@ -1346,7 +1409,6 @@
             document.getElementById('new-password').placeholder = 'Kosongkan jika tidak ubah password';
             document.getElementById('new-password').required = false; 
 
-            // SEMBUNYIKAN MENU YANG TIDAK BOLEH DIAKSES NON-ADMIN
             document.getElementById('role-wrapper').style.display = 'none';
             document.getElementById('tabel-user-wrapper').style.display = 'none';
 
@@ -1445,7 +1507,6 @@
                     document.getElementById('loading').style.display='block'; 
                     await ambilSemuaData(true); 
                     
-                    // JIKA NON-ADMIN UPDATE PROFILNYA SENDIRI
                     if (penggunaAktif.Role !== 'admin') {
                         const uUpdated = globalUsers.find(x => x.Username === penggunaAktif.Username);
                         if (uUpdated) {
