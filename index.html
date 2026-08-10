@@ -97,7 +97,6 @@
         .badge-aman { background: #f3f4f6; color: #475569; }
         .badge-sales { background: #f3e8ff; color: #6b21a8; }
         .badge-prospek { background: #dcfce7; color: #166534; }
-        /* Badge Garansi Baru */
         .badge-tunggu { background: #fef3c7; color: #b45309; }
         .badge-aktif { background: #dcfce7; color: #15803d; }
         .badge-habis { background: #fee2e2; color: #b91c1c; }
@@ -437,13 +436,9 @@
             <div id="prospek-container"></div>
         </div>
 
-        <!-- ==============================================
-             FITUR BARU: MENU GARANSI KHUSUS
-        =============================================== -->
         <div id="page-garansi" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:#3b82f6;">Data Garansi Klien</h3>
-                <!-- Tombol Input Garansi ini HANYA untuk Admin/Manager -->
                 <button id="btn-tambah-garansi" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:#3b82f6; display:none;" onclick="bukaFormGaransi()">+ Input Garansi</button>
             </div>
             
@@ -456,8 +451,12 @@
                 <h3 style="color:#3b82f6; margin-top:0;">Form Input Garansi</h3>
                 <form id="form-garansi" onsubmit="submitGaransi(event)">
                     <input type="hidden" id="garansi-id">
-                    <label>Referensi (No Tiket / Penjualan - Opsional)</label>
-                    <input type="text" id="garansi-referensi" placeholder="Contoh: TKT-015 atau SLS-002">
+                    <label>Referensi (Otomatis dari Riwayat Pekerjaan)</label>
+                    <select id="garansi-referensi" onchange="autoFillGaransi()">
+                        <option value="">-- Tanpa Referensi (Input Manual) --</option>
+                    </select>
+                    <p style="font-size:11px; color:var(--text-muted); margin:4px 0 15px 0;">*Pilih ID tiket untuk otomatis mengisi nama pelanggan & barang.</p>
+
                     <label>Nama Pelanggan / Instansi</label>
                     <input type="text" id="garansi-pelanggan" required>
                     <label>Barang / Perangkat yang Digaransi</label>
@@ -591,7 +590,6 @@
             <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket</div></div>
             <div class="nav-btn" id="nav-penjualan" onclick="switchTab('penjualan')" style="display:none;"><div class="icon">🛒</div><div class="text">Penjualan</div></div>
             <div class="nav-btn" id="nav-prospek" onclick="switchTab('prospek')" style="display:none;"><div class="icon">🤝</div><div class="text">Prospek</div></div>
-            <!-- MENU GARANSI BARU DITAMBAHKAN DI NAVIGASI BAWAH -->
             <div class="nav-btn" id="nav-garansi" onclick="switchTab('garansi')" style="display:flex;"><div class="icon">🛡️</div><div class="text">Garansi</div></div>
             <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Input</div></div>
             <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:flex;"><div class="icon">⚙️</div><div class="text">Profil</div></div>
@@ -609,6 +607,39 @@
 
         const iconEyeOpen = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
         const iconEyeClosed = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+
+        function hitungTenggatJamKerja(waktuMulai, durasiJam) {
+            var dt = new Date(waktuMulai.getTime());
+            var msSisa = durasiJam * 3600 * 1000;
+            while (msSisa > 0) {
+                var hari = dt.getDay(); var jam = dt.getHours();
+                if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                if (jam < 8) { dt.setHours(8, 0, 0, 0); continue; }
+                if (jam >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                var batasSore = new Date(dt.getTime()); batasSore.setHours(17, 0, 0, 0);
+                var msTersedia = batasSore.getTime() - dt.getTime();
+                if (msSisa <= msTersedia) { dt = new Date(dt.getTime() + msSisa); msSisa = 0; } 
+                else { msSisa -= msTersedia; dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); }
+            }
+            return dt;
+        }
+
+        function hitungDurasiJamKerjaMs(awal, akhir) {
+            if (awal >= akhir) return 0;
+            var msTotal = 0; var dt = new Date(awal.getTime());
+            while (dt < akhir) {
+                var hari = dt.getDay(); var jam = dt.getHours();
+                if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                if (jam < 8) { dt.setHours(8, 0, 0, 0); continue; }
+                if (jam >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                var batasSore = new Date(dt.getTime()); batasSore.setHours(17, 0, 0, 0);
+                var targetAkhir = (akhir < batasSore) ? akhir : batasSore;
+                msTotal += targetAkhir.getTime() - dt.getTime();
+                dt = new Date(targetAkhir.getTime());
+                if (dt.getHours() >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); }
+            }
+            return msTotal;
+        }
 
         function formatWaktu(val) {
             if (!val || val === '#VALUE!' || val === 'Invalid Date') return '-';
@@ -725,8 +756,7 @@
                 }
             }
             if (!berhasil || !data) return;
-            globalTickets = data.tickets; globalUsers = data.users; globalPenjualan = data.penjualan || []; globalProspek = data.prospek || []; 
-            globalGaransi = data.garansi || [];
+            globalTickets = data.tickets; globalUsers = data.users; globalPenjualan = data.penjualan || []; globalProspek = data.prospek || []; globalGaransi = data.garansi || [];
             
             const savedSession = localStorage.getItem('sesiLoginSLA');
             if (savedSession) {
@@ -765,10 +795,10 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             document.getElementById('nav-user').style.display = 'flex'; 
-            document.getElementById('nav-garansi').style.display = 'flex'; // SEMUA BISA MELIHAT TAB GARANSI
+            document.getElementById('nav-garansi').style.display = 'flex';
 
             if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
-                document.getElementById('btn-tambah-garansi').style.display = 'block'; // TAPI HANYA ADMIN/MANAGER BISA INPUT
+                document.getElementById('btn-tambah-garansi').style.display = 'block';
             }
 
             if (penggunaAktif.Role === 'admin') { 
@@ -889,6 +919,12 @@
             const dashSalesContainer = document.getElementById('dash-sales-content'); dashSalesContainer.innerHTML = '';
             
             let statsTeknisi = {}; let statsSales = {}; let statsAdmin = { total: 0, tepat: 0, telat: 0, proses: 0 };
+            
+            // ===============================================
+            // TAMPILAN DASHBOARD: SLA NOTA/GARANSI
+            // ===============================================
+            let statsAdminNota = { aman: 0, telat: 0 };
+
             let now = new Date();
 
             globalUsers.forEach(u => { 
@@ -907,6 +943,7 @@
                 const statusRespon = t['Status SLA Respon']; const statusPengerjaan = t['Status SLA']; const statusTiket = t['Status'] || 'Menunggu';
                 let isUnassigned = t['Teknisi'] === 'Belum Ditugaskan' || t['Teknisi'] === '';
                 
+                // KALKULASI SLA 1 ADMIN (DISTRIBUSI TEKNISI 3 HARI)
                 statsAdmin.total++;
                 if (isUnassigned) {
                     let dtLaporStr = t[Object.keys(t)[2]];
@@ -916,6 +953,18 @@
                         if (jamKerjaUnassigned >= 27) { statsAdmin.telat++; } else { statsAdmin.proses++; }
                     }
                 } else { statsAdmin.tepat++; }
+
+                // KALKULASI SLA 2 ADMIN (NOTA/GARANSI 24 JAM SETELAH SELESAI)
+                if (statusTiket === 'Selesai') {
+                    let existsInGrs = globalGaransi.some(g => String(g['Referensi (Tiket/Nota)'] || '').trim() === idTkt);
+                    if (!existsInGrs) {
+                        let tSelesai = new Date(t[Object.keys(t)[9]]);
+                        if (!isNaN(tSelesai.getTime())) {
+                            let jamKerja = hitungDurasiJamKerjaMs(tSelesai, now) / 3600000;
+                            if (jamKerja >= 24) { statsAdminNota.telat++; } else { statsAdminNota.aman++; }
+                        }
+                    }
+                }
 
                 String(t['Teknisi'] || '').split(',').forEach(nama => {
                     let n = nama.trim(); if(!n || n === "Belum Ditugaskan" || n === "-") return; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
@@ -955,9 +1004,25 @@
             let aP2 = aTotal === 0 ? 0 : aP1 + (statsAdmin.telat / aTotal) * 100;
             let aBg = aTotal === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${aP1}%, var(--danger) ${aP1}% ${aP2}%, var(--warning) ${aP2}% 100%)`;
 
-            let htmlAdmin = `<h3 class="section-title">Performa Admin (Kecepatan Penugasan)</h3><p style="font-size:12px; color:var(--text-muted); margin-top:-10px; margin-bottom:15px;">Target SLA: Maks 3 Hari (27 Jam Kerja) tiket harus mendapat Teknisi. Jika banyak yang telat, pertimbangkan rekrutmen SDM.</p><div class="card" style="border-left-color:#3b82f6;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:#3b82f6; font-size:16px;">SLA Distribusi Tugas Admin</h3><div class="charts-container"><div class="chart-box" style="flex:1;"><div class="chart-title">DISTRIBUSI TUGAS</div><div class="donut" style="background: ${aBg};"><div class="donut-inner"><span class="donut-val" style="color:${aRate>=80?'var(--success)':(aRate>=50?'var(--warning)':'var(--danger)')}">${aTotal>0?aRate+'%':'-'}</span><span class="donut-label">Sukses</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Cepat</span> <b>${statsAdmin.tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat (>3 Hari)</span> <b>${statsAdmin.telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${statsAdmin.proses}</b></div></div></div></div></div>`;
+            let htmlAdmin = `<h3 class="section-title">Performa Admin (SLA Internal)</h3><div class="card" style="border-left-color:#3b82f6;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:#3b82f6; font-size:16px;">SLA 1: Distribusi Tugas Teknisi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 3 Hari (27 Jam Kerja).</p><div class="charts-container"><div class="chart-box" style="flex:1;"><div class="chart-title">DISTRIBUSI TUGAS</div><div class="donut" style="background: ${aBg};"><div class="donut-inner"><span class="donut-val" style="color:${aRate>=80?'var(--success)':(aRate>=50?'var(--warning)':'var(--danger)')}">${aTotal>0?aRate+'%':'-'}</span><span class="donut-label">Sukses</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Cepat</span> <b>${statsAdmin.tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat (>3 Hari)</span> <b>${statsAdmin.telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${statsAdmin.proses}</b></div></div></div></div></div>`;
 
-            let htmlTeknisi = '<h3 class="section-title">Papan Performa Teknisi</h3>';
+            // TAMBAHAN KARTU SLA NOTA & GARANSI UNTUK ADMIN
+            htmlAdmin += `<div class="card" style="border-left-color:var(--purple); margin-top:15px;">
+                <h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--purple); font-size:16px;">SLA 2: Pembuatan Nota & Garansi</h3>
+                <p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 24 Jam Kerja setelah teknisi menyelesaikan tiket.</p>
+                <div style="display:flex; justify-content:space-around; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);">
+                    <div style="text-align:center;">
+                        <div style="font-size:24px; font-weight:800; color:var(--warning);">${statsAdminNota.aman}</div>
+                        <div style="font-size:11px; color:var(--text-muted); font-weight:600;">Tiket Aman</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:24px; font-weight:800; color:var(--danger);">${statsAdminNota.telat}</div>
+                        <div style="font-size:11px; color:var(--text-muted); font-weight:600;">SLA GAGAL</div>
+                    </div>
+                </div>
+            </div>`;
+
+            let htmlTeknisi = '<h3 class="section-title" style="margin-top:30px;">Papan Performa Teknisi</h3>';
             let arrTeknisi = Object.values(statsTeknisi).sort((a, b) => { let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0; return rateB !== rateA ? rateB - rateA : (b.resp_total + b.peng_total) - (a.resp_total + a.peng_total); });
             if (arrTeknisi.length === 0) htmlTeknisi += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
             arrTeknisi.forEach(s => { 
@@ -1031,6 +1096,9 @@
                 
                 let infoSlaTeks = `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Respon'])}</p><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Waktu'])}</p>`;
 
+                // ===============================================
+                // TAMPILAN STATUS SLA ADMIN (DISTRIBUSI & NOTA/GARANSI)
+                // ===============================================
                 if (isUnassigned) { 
                     sc = 'status-aman'; bc = 'badge-pending'; textStatus = 'Menunggu Teknisi';
                     let dtLaporStr = ticket[Object.keys(ticket)[2]];
@@ -1045,6 +1113,25 @@
                             let batasAdmin = hitungTenggatJamKerja(dtLapor, 27);
                             infoSlaTeks = `<div style="background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ SLA Admin Berjalan...</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Batas 3 Hari Kerja: ${formatWaktu(batasAdmin)}</p></div>`;
                         }
+                    }
+                } 
+                else if (textStatus === 'Selesai') {
+                    // Cek apakah tiket ini sudah ada di tab Garansi
+                    let existsInGrs = globalGaransi.some(g => String(g['Referensi (Tiket/Nota)'] || '').trim() === idTkt);
+                    if (!existsInGrs) {
+                        let tSelesai = new Date(ticket[Object.keys(ticket)[9]]);
+                        if (!isNaN(tSelesai.getTime())) {
+                            let batasAdminNota = hitungTenggatJamKerja(tSelesai, 24);
+                            let jamKerjaTelat = hitungDurasiJamKerjaMs(tSelesai, new Date()) / 3600000;
+                            
+                            if (jamKerjaTelat >= 24) {
+                                infoSlaTeks += `<div style="margin-top:10px; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">🚨 SLA ADMIN (NOTA) GAGAL</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Belum input Garansi (>24 Jam Kerja)</p></div>`;
+                            } else {
+                                infoSlaTeks += `<div style="margin-top:10px; background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ SLA Admin: Menunggu Nota/Garansi</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Batas 24 Jam Kerja: ${formatWaktu(batasAdminNota)}</p></div>`;
+                            }
+                        }
+                    } else {
+                        infoSlaTeks += `<div style="margin-top:10px; background:#f0fdf4; padding:10px; border-radius:8px; border:1px solid #bbf7d0;"><p style="margin:0; text-align:center; color:#166534; font-weight:bold;">✅ Nota & Garansi Selesai</p></div>`;
                     }
                 }
 
@@ -1144,17 +1231,51 @@
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan sesuai pencarian.</p>';
         }
 
-        // ===============================================
-        // FUNGSI RENDER TAB GARANSI KLIEN
-        // ===============================================
         function bukaFormGaransi() { 
             document.getElementById('form-garansi-container').style.display = 'block'; 
             document.getElementById('form-garansi').reset(); 
             document.getElementById('btn-submit-garansi').innerText = 'Simpan Garansi';
             document.getElementById('btn-submit-garansi').disabled = false;
+            
+            const selRef = document.getElementById('garansi-referensi');
+            selRef.innerHTML = '<option value="">-- Tanpa Referensi (Input Manual) --</option>';
+            
+            globalTickets.slice().reverse().forEach(t => { 
+                if(t['Status'] === 'Selesai') { 
+                    selRef.innerHTML += `<option value="${t['ID Tiket']}">${t['ID Tiket']} - ${t['Klien & Lokasi']}</option>`; 
+                } 
+            });
+            globalPenjualan.slice().reverse().forEach(p => { 
+                if(p['ID Penjualan']) { 
+                    selRef.innerHTML += `<option value="${p['ID Penjualan']}">${p['ID Penjualan']} - ${p['Nama Pembeli']}</option>`; 
+                } 
+            });
+
             setAutoIDs(); 
         }
         function tutupFormGaransi() { document.getElementById('form-garansi-container').style.display = 'none'; }
+
+        function autoFillGaransi() {
+            let val = document.getElementById('garansi-referensi').value;
+            if(!val) {
+                document.getElementById('garansi-pelanggan').value = '';
+                document.getElementById('garansi-barang').value = '';
+                return;
+            }
+            if(val.startsWith('TKT-')) {
+                let t = globalTickets.find(x => x['ID Tiket'] === val);
+                if(t) {
+                    document.getElementById('garansi-pelanggan').value = t['Klien & Lokasi'] || '';
+                    document.getElementById('garansi-barang').value = t['Jenis Pekerjaan'] || '';
+                }
+            } else if (val.startsWith('SLS-')) {
+                let p = globalPenjualan.find(x => x['ID Penjualan'] === val);
+                if(p) {
+                    document.getElementById('garansi-pelanggan').value = p['Nama Pembeli'] || '';
+                    document.getElementById('garansi-barang').value = p['Barang / Jasa'] || '';
+                }
+            }
+        }
 
         function renderGaransi() {
             const container = document.getElementById('garansi-container'); container.innerHTML = ''; 
@@ -1254,7 +1375,6 @@
             } catch(err) {} 
             document.getElementById('loading').style.display = 'none'; 
         }
-        // =======================================================
 
         function cekStatusProspek() {
             const status = document.getElementById('prospek-status').value;
