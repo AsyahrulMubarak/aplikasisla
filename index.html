@@ -168,7 +168,6 @@
 
     <div id="toast-container"></div>
 
-    <!-- MODAL LAPOR BUG (FITUR BARU) -->
     <div id="modal-bug" class="modal">
         <div class="modal-content" style="border-top-color: var(--danger);">
             <h3 class="modal-title" style="color:var(--danger);">🐞 Laporkan Kendala / Bug</h3>
@@ -176,10 +175,8 @@
             <form onsubmit="kirimBug(event)">
                 <label>Deskripsi Kendala</label>
                 <textarea id="bug-deskripsi" rows="3" placeholder="Contoh: Saat saya simpan status Closing, tiba-tiba loading tidak berhenti..." required></textarea>
-                
                 <label>Bukti Screenshot (Opsional)</label>
                 <input type="file" id="bug-bukti" accept="image/*" style="font-size: 12px; margin-bottom:15px;">
-                
                 <button type="submit" id="btn-submit-bug" class="btn-solid-primary" style="background:var(--danger);">Kirim Laporan</button>
                 <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-bug').style.display='none'">Batal</button>
             </form>
@@ -355,9 +352,7 @@
         <div class="top-bar">
             <span id="nama-login">User</span>
             <div class="top-bar-buttons">
-                <!-- TOMBOL LAPOR BUG KINI ADA DI SINI -->
                 <button onclick="bukaModalBug()" class="btn-outline-danger" style="border-color:#ef4444; color:#ef4444;">🐞 Lapor Bug</button>
-                
                 <button onclick="refreshManual()" id="btn-refresh" class="btn-outline-warning">Sinkron Data</button>
                 <button class="btn-outline-danger" onclick="prosesLogout()">Keluar</button>
             </div>
@@ -589,9 +584,6 @@
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        /* =========================================================
-           FUNGSI LAPOR BUG (FITUR BARU)
-        ========================================================= */
         function bukaModalBug() {
             document.getElementById('bug-deskripsi').value = '';
             document.getElementById('bug-bukti').value = '';
@@ -613,28 +605,16 @@
                     base64Bukti = await prosesUploadBebas(fileInput.files[0]);
                 }
 
-                const payload = {
-                    action: 'laporBug',
-                    pelapor: penggunaAktif['Nama Asli'],
-                    deskripsi: deskripsi,
-                    buktiBug: base64Bukti
-                };
-
+                const payload = { action: 'laporBug', pelapor: penggunaAktif['Nama Asli'], deskripsi: deskripsi, buktiBug: base64Bukti };
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
                 const jsonRes = await res.json();
 
                 if (jsonRes.status === 'sukses') {
                     showToast('Alhamdulillah! Laporan bug terkirim ke Admin.', 'success');
                     document.getElementById('modal-bug').style.display = 'none';
-                } else {
-                    showToast('Afwan, gagal dari server.', 'error');
-                }
-            } catch (err) {
-                showToast('Afwan, gagal mengirim laporan. Pastikan internet stabil.', 'error');
-            } finally {
-                btn.innerText = 'Kirim Laporan';
-                btn.disabled = false;
-            }
+                } else { showToast('Afwan, gagal dari server.', 'error'); }
+            } catch (err) { showToast('Afwan, gagal mengirim laporan. Pastikan internet stabil.', 'error'); } 
+            finally { btn.innerText = 'Kirim Laporan'; btn.disabled = false; }
         }
 
         async function mintaResetSandi() {
@@ -649,26 +629,20 @@
                 const json = await res.json();
                 if(json.status === 'sukses') {
                     showToast('Alhamdulillah! Permintaan reset sandi terkirim ke Admin.', 'success');
-                } else {
-                    showToast(json.pesan, 'error');
-                }
-            } catch(e) {
-                showToast('Afwan, gagal mengirim permintaan. Pastikan internet lancar.', 'error');
-            }
+                } else { showToast(json.pesan, 'error'); }
+            } catch(e) { showToast('Afwan, gagal mengirim permintaan. Pastikan internet lancar.', 'error'); }
             document.getElementById('login-loading').innerHTML = 'Memeriksa koneksi aman...';
             document.getElementById('login-form').style.display = 'block';
         }
 
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
+            e.preventDefault(); deferredPrompt = e;
             const neverShow = localStorage.getItem('pwaNeverShow');
             if(!neverShow) { setTimeout(() => { document.getElementById('pwa-install-modal').style.display = 'flex'; }, 3000); }
         });
         function tolakInstall() { const cb = document.getElementById('pwa-never-show'); if(cb.checked) { localStorage.setItem('pwaNeverShow', 'true'); } document.getElementById('pwa-install-modal').style.display = 'none'; }
         async function terimaInstall() { document.getElementById('pwa-install-modal').style.display = 'none'; if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; deferredPrompt = null; } }
-        
         if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Error')); }); }
 
         function showToast(message, type = 'success') { const container = document.getElementById('toast-container'); const toast = document.createElement('div'); toast.className = `toast toast-${type}`; let icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : '⚠️'); toast.innerHTML = `<span style="font-size:18px;">${icon}</span> <span style="flex:1;">${message}</span>`; container.appendChild(toast); setTimeout(() => { toast.style.animation = 'toastOut 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'; setTimeout(() => { toast.remove(); }, 300); }, 3500); }
@@ -1001,8 +975,15 @@
                 htmlAda = true;
                 let sc = statusPengerjaanKartu === 'TERLAMBAT' ? 'status-terlambat' : (statusPengerjaanKartu === 'TERPENUHI' ? 'status-terpenuhi' : 'status-aman');
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status'));
+                
+                // ===============================================
+                // UPDATE: MENYAMAKAN TAMPILAN BADGE SLA PENGERJAAN
+                // ===============================================
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
-                if (isUnassigned) { sc = 'status-aman'; bc = 'badge-pending'; bRespon = 'badge-pending'; textStatus = 'Menunggu Teknisi'; }
+                let textSlaPengerjaan = ticket['Status SLA'] === 'TERLAMBAT' ? 'GAGAL' : (ticket['Status SLA'] || '-');
+                let bSelesai = textSlaPengerjaan === 'GAGAL' ? 'badge-cancel' : (textSlaPengerjaan === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
+                
+                if (isUnassigned) { sc = 'status-aman'; bc = 'badge-pending'; bRespon = 'badge-pending'; bSelesai = 'badge-pending'; textStatus = 'Menunggu Teknisi'; textSlaPengerjaan = '-'; }
 
                 let noTransData = ticket['No Transaksi'] || ticket[Object.keys(ticket)[1]];
                 let noTrans = noTransData ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${noTransData}</span></p>` : '';
@@ -1062,7 +1043,8 @@
                         ${isUnassigned ? `<p style="text-align:center; color:var(--warning); margin:0;">Menunggu Penugasan Teknisi</p>` : 
                         `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p>
                         <p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Respon'])}</p>
-                        <p style="margin:0 0 5px 0;"><strong>SLA Selesai:</strong> ${formatWaktu(ticket['Tenggat Waktu'])}</p>`}
+                        <p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p>
+                        <p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Waktu'])}</p>`}
                     </div>
                     ${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}
                 </div>`;
