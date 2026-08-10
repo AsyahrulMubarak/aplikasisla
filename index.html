@@ -47,8 +47,9 @@
         .tab-page { display: none; animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--surface); box-shadow: 0 -4px 15px rgba(0,0,0,0.03); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--border); }
-        .nav-btn { flex: 1; padding: 10px 0; text-align: center; color: var(--text-muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; border-top: 3px solid transparent; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--surface); box-shadow: 0 -4px 15px rgba(0,0,0,0.03); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+        .bottom-nav::-webkit-scrollbar { display: none; }
+        .nav-btn { flex: 1; min-width: 60px; padding: 10px 0; text-align: center; color: var(--text-muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; border-top: 3px solid transparent; }
         .nav-btn .icon { font-size: 18px; margin-bottom: 2px; }
         .nav-btn .text { font-size: 9px; font-weight: 700; letter-spacing: 0; }
         .nav-btn.active { color: var(--primary); border-top-color: var(--primary); background: #f8fafc; }
@@ -96,6 +97,10 @@
         .badge-aman { background: #f3f4f6; color: #475569; }
         .badge-sales { background: #f3e8ff; color: #6b21a8; }
         .badge-prospek { background: #dcfce7; color: #166534; }
+        /* Badge Garansi Baru */
+        .badge-tunggu { background: #fef3c7; color: #b45309; }
+        .badge-aktif { background: #dcfce7; color: #15803d; }
+        .badge-habis { background: #fee2e2; color: #b91c1c; }
 
         .waktu-box { background: #f8fafc; border: 1px dashed var(--border); padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 12px; }
         .history-box { background: #f8fafc; border: 1px solid var(--border); border-left: 3px solid #cbd5e1; border-radius: 8px; padding: 12px; font-size: 12px; max-height: 120px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 15px; color: #4a5568; }
@@ -432,6 +437,54 @@
             <div id="prospek-container"></div>
         </div>
 
+        <!-- ==============================================
+             FITUR BARU: MENU GARANSI KHUSUS
+        =============================================== -->
+        <div id="page-garansi" class="tab-page">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 class="section-title" style="margin:0; border:none; padding:0; color:#3b82f6;">Data Garansi Klien</h3>
+                <!-- Tombol Input Garansi ini HANYA untuk Admin/Manager -->
+                <button id="btn-tambah-garansi" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:#3b82f6; display:none;" onclick="bukaFormGaransi()">+ Input Garansi</button>
+            </div>
+            
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-garansi-input" placeholder="Cari Pelanggan, Barang, Referensi..." onkeyup="renderGaransi()">
+            </div>
+            
+            <div id="form-garansi-container" class="form-card" style="display:none; border-top-color:#3b82f6;">
+                <h3 style="color:#3b82f6; margin-top:0;">Form Input Garansi</h3>
+                <form id="form-garansi" onsubmit="submitGaransi(event)">
+                    <input type="hidden" id="garansi-id">
+                    <label>Referensi (No Tiket / Penjualan - Opsional)</label>
+                    <input type="text" id="garansi-referensi" placeholder="Contoh: TKT-015 atau SLS-002">
+                    <label>Nama Pelanggan / Instansi</label>
+                    <input type="text" id="garansi-pelanggan" required>
+                    <label>Barang / Perangkat yang Digaransi</label>
+                    <textarea id="garansi-barang" required rows="2" placeholder="Contoh: 2 Unit Kamera CCTV Hikvision"></textarea>
+                    
+                    <label>Durasi Garansi</label>
+                    <select id="garansi-durasi" required>
+                        <option value="" disabled selected>-- Pilih Durasi --</option>
+                        <option value="7">7 Hari (1 Minggu)</option>
+                        <option value="30">30 Hari (1 Bulan)</option>
+                        <option value="90">90 Hari (3 Bulan)</option>
+                        <option value="365">365 Hari (1 Tahun)</option>
+                    </select>
+                    
+                    <label>Status Saat Ini</label>
+                    <select id="garansi-status" required>
+                        <option value="Masa Tunggu">⏳ Masa Tunggu (Barang Belum Diambil)</option>
+                        <option value="Aktif">🟢 Langsung Aktif</option>
+                    </select>
+                    
+                    <button type="submit" id="btn-submit-garansi" class="btn-solid-primary" style="background:#3b82f6;">Simpan Garansi</button>
+                    <button type="button" class="btn-outline-cancel" onclick="tutupFormGaransi()">Batal</button>
+                </form>
+            </div>
+            <div id="garansi-container"></div>
+        </div>
+
         <div id="page-input" class="tab-page">
             <div class="segment-control" id="input-segment">
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
@@ -535,59 +588,27 @@
 
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
-            <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket SLA</div></div>
+            <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket</div></div>
             <div class="nav-btn" id="nav-penjualan" onclick="switchTab('penjualan')" style="display:none;"><div class="icon">🛒</div><div class="text">Penjualan</div></div>
             <div class="nav-btn" id="nav-prospek" onclick="switchTab('prospek')" style="display:none;"><div class="icon">🤝</div><div class="text">Prospek</div></div>
-            <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Input Data</div></div>
-            <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:flex;"><div class="icon">⚙️</div><div class="text">Pengaturan</div></div>
+            <!-- MENU GARANSI BARU DITAMBAHKAN DI NAVIGASI BAWAH -->
+            <div class="nav-btn" id="nav-garansi" onclick="switchTab('garansi')" style="display:flex;"><div class="icon">🛡️</div><div class="text">Garansi</div></div>
+            <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Input</div></div>
+            <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:flex;"><div class="icon">⚙️</div><div class="text">Profil</div></div>
         </div>
     </div>
 
     <script>
         const apiUrl = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
-        
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
 
-        let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let globalProspek = [];
+        let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let globalProspek = []; let globalGaransi = [];
         let penggunaAktif = null;
         let modeEditUser = false; let modeEditTiket = false; let intervalAutoRefresh; let currentTabId = 'dashboard';
         let currentTicketFilter = 'aktif'; 
 
         const iconEyeOpen = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
         const iconEyeClosed = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
-
-        function hitungTenggatJamKerja(waktuMulai, durasiJam) {
-            var dt = new Date(waktuMulai.getTime());
-            var msSisa = durasiJam * 3600 * 1000;
-            while (msSisa > 0) {
-                var hari = dt.getDay(); var jam = dt.getHours();
-                if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
-                if (jam < 8) { dt.setHours(8, 0, 0, 0); continue; }
-                if (jam >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
-                var batasSore = new Date(dt.getTime()); batasSore.setHours(17, 0, 0, 0);
-                var msTersedia = batasSore.getTime() - dt.getTime();
-                if (msSisa <= msTersedia) { dt = new Date(dt.getTime() + msSisa); msSisa = 0; } 
-                else { msSisa -= msTersedia; dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); }
-            }
-            return dt;
-        }
-
-        function hitungDurasiJamKerjaMs(awal, akhir) {
-            if (awal >= akhir) return 0;
-            var msTotal = 0; var dt = new Date(awal.getTime());
-            while (dt < akhir) {
-                var hari = dt.getDay(); var jam = dt.getHours();
-                if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
-                if (jam < 8) { dt.setHours(8, 0, 0, 0); continue; }
-                if (jam >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
-                var batasSore = new Date(dt.getTime()); batasSore.setHours(17, 0, 0, 0);
-                var targetAkhir = (akhir < batasSore) ? akhir : batasSore;
-                msTotal += targetAkhir.getTime() - dt.getTime();
-                dt = new Date(targetAkhir.getTime());
-                if (dt.getHours() >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); }
-            }
-            return msTotal;
-        }
 
         function formatWaktu(val) {
             if (!val || val === '#VALUE!' || val === 'Invalid Date') return '-';
@@ -598,11 +619,8 @@
 
         function togglePasswordVisibility(inputId, iconEl) {
             const input = document.getElementById(inputId);
-            if (input.type === 'password') {
-                input.type = 'text'; iconEl.innerHTML = iconEyeClosed; iconEl.title = 'Sembunyikan Password'; iconEl.style.color = 'var(--danger)'; 
-            } else {
-                input.type = 'password'; iconEl.innerHTML = iconEyeOpen; iconEl.title = 'Tampilkan Password'; iconEl.style.color = 'var(--text-muted)';
-            }
+            if (input.type === 'password') { input.type = 'text'; iconEl.innerHTML = iconEyeClosed; iconEl.title = 'Sembunyikan Password'; iconEl.style.color = 'var(--danger)'; } 
+            else { input.type = 'password'; iconEl.innerHTML = iconEyeOpen; iconEl.title = 'Tampilkan Password'; iconEl.style.color = 'var(--text-muted)'; }
         }
 
         async function hashPassword(text) {
@@ -613,10 +631,7 @@
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        function bukaModalBug() {
-            document.getElementById('bug-deskripsi').value = ''; document.getElementById('bug-bukti').value = ''; document.getElementById('modal-bug').style.display = 'flex';
-        }
-
+        function bukaModalBug() { document.getElementById('bug-deskripsi').value = ''; document.getElementById('bug-bukti').value = ''; document.getElementById('modal-bug').style.display = 'flex'; }
         async function kirimBug(e) {
             e.preventDefault(); const btn = document.getElementById('btn-submit-bug'); btn.innerText = 'Mengirim Laporan...'; btn.disabled = true;
             try {
@@ -625,8 +640,7 @@
                 const payload = { apiKey: API_KEY, action: 'laporBug', pelapor: penggunaAktif['Nama Asli'], deskripsi: deskripsi, buktiBug: base64Bukti };
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const jsonRes = await res.json();
                 if (jsonRes.status === 'sukses') { showToast('Alhamdulillah! Laporan bug terkirim ke Admin.', 'success'); document.getElementById('modal-bug').style.display = 'none'; } else { showToast('Afwan, gagal dari server: ' + jsonRes.pesan, 'error'); }
-            } catch (err) { showToast('Afwan, gagal mengirim laporan. Pastikan internet stabil.', 'error'); } 
-            finally { btn.innerText = 'Kirim Laporan'; btn.disabled = false; }
+            } catch (err) { showToast('Afwan, gagal mengirim laporan. Pastikan internet stabil.', 'error'); } finally { btn.innerText = 'Kirim Laporan'; btn.disabled = false; }
         }
 
         async function mintaResetSandi() {
@@ -640,8 +654,7 @@
             document.getElementById('login-loading').innerHTML = 'Memeriksa koneksi aman...'; document.getElementById('login-form').style.display = 'block';
         }
 
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; const neverShow = localStorage.getItem('pwaNeverShow'); if(!neverShow) { setTimeout(() => { document.getElementById('pwa-install-modal').style.display = 'flex'; }, 3000); } });
+        let deferredPrompt; window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; const neverShow = localStorage.getItem('pwaNeverShow'); if(!neverShow) { setTimeout(() => { document.getElementById('pwa-install-modal').style.display = 'flex'; }, 3000); } });
         function tolakInstall() { const cb = document.getElementById('pwa-never-show'); if(cb.checked) { localStorage.setItem('pwaNeverShow', 'true'); } document.getElementById('pwa-install-modal').style.display = 'none'; }
         async function terimaInstall() { document.getElementById('pwa-install-modal').style.display = 'none'; if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; deferredPrompt = null; } }
         if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Error')); }); }
@@ -712,7 +725,8 @@
                 }
             }
             if (!berhasil || !data) return;
-            globalTickets = data.tickets; globalUsers = data.users; globalPenjualan = data.penjualan || []; globalProspek = data.prospek || [];
+            globalTickets = data.tickets; globalUsers = data.users; globalPenjualan = data.penjualan || []; globalProspek = data.prospek || []; 
+            globalGaransi = data.garansi || [];
             
             const savedSession = localStorage.getItem('sesiLoginSLA');
             if (savedSession) {
@@ -724,7 +738,7 @@
                 }
             }
             if(!penggunaAktif) { document.getElementById('login-loading').style.display = 'none'; document.getElementById('login-form').style.display = 'block'; document.getElementById('login-wrapper').style.display = 'flex'; document.getElementById('app-wrapper').style.display = 'none'; } 
-            else { if (!isSilentRefresh) { masukKeAplikasi(); } else { renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderTabelUser(); if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } } }
+            else { if (!isSilentRefresh) { masukKeAplikasi(); } else { renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } } }
         }
 
         async function prosesLogin(e) {
@@ -751,6 +765,11 @@
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
             document.getElementById('nav-user').style.display = 'flex'; 
+            document.getElementById('nav-garansi').style.display = 'flex'; // SEMUA BISA MELIHAT TAB GARANSI
+
+            if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
+                document.getElementById('btn-tambah-garansi').style.display = 'block'; // TAPI HANYA ADMIN/MANAGER BISA INPUT
+            }
 
             if (penggunaAktif.Role === 'admin') { 
                 document.getElementById('admin-export-section').style.display = 'block';
@@ -804,7 +823,7 @@
                 document.getElementById('btn-tambah-prospek').style.display = 'none';
             }
 
-            renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderTabelUser(); switchTab('dashboard'); 
+            renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); switchTab('dashboard'); 
             if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex' || document.getElementById('pwa-install-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
@@ -835,7 +854,7 @@
         }
 
         function setAutoIDs() {
-            let maxTkt = 0; let maxSls = 0; let maxPrp = 0;
+            let maxTkt = 0; let maxSls = 0; let maxPrp = 0; let maxGrs = 0;
             globalTickets.forEach(t => { 
                 let id = String(t['ID Tiket'] || '');
                 if(id.startsWith('TKT-')) { let num = parseInt(id.split('-')[1]); if (num > maxTkt) maxTkt = num; } 
@@ -848,6 +867,10 @@
                 let id = String(pr['ID Prospek'] || '');
                 if(id.startsWith('PRP-')) { let num = parseInt(id.split('-')[1]); if (num > maxPrp) maxPrp = num; } 
             });
+            globalGaransi.forEach(g => { 
+                let id = String(g['ID Garansi'] || '');
+                if(id.startsWith('GRS-')) { let num = parseInt(id.split('-')[1]); if (num > maxGrs) maxGrs = num; } 
+            });
 
             if (!modeEditTiket) { 
                 document.getElementById('input-id').value = 'TKT-' + String(maxTkt + 1).padStart(3, '0'); 
@@ -856,6 +879,9 @@
             
             let prospekEl = document.getElementById('prospek-id');
             if(prospekEl) { prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0'); }
+
+            let garansiEl = document.getElementById('garansi-id');
+            if(garansiEl) { garansiEl.value = 'GRS-' + String(maxGrs + 1).padStart(3, '0'); }
         }
 
         function renderDashboard() {
@@ -1117,6 +1143,118 @@
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan sesuai pencarian.</p>';
         }
+
+        // ===============================================
+        // FUNGSI RENDER TAB GARANSI KLIEN
+        // ===============================================
+        function bukaFormGaransi() { 
+            document.getElementById('form-garansi-container').style.display = 'block'; 
+            document.getElementById('form-garansi').reset(); 
+            document.getElementById('btn-submit-garansi').innerText = 'Simpan Garansi';
+            document.getElementById('btn-submit-garansi').disabled = false;
+            setAutoIDs(); 
+        }
+        function tutupFormGaransi() { document.getElementById('form-garansi-container').style.display = 'none'; }
+
+        function renderGaransi() {
+            const container = document.getElementById('garansi-container'); container.innerHTML = ''; 
+            let searchInput = document.getElementById('search-garansi-input'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
+            
+            let htmlAda = false;
+            globalGaransi.slice().reverse().forEach(g => {
+                let idGrs = String(g['ID Garansi'] || '');
+                if (!idGrs) return;
+                
+                if (searchVal !== '') {
+                    let strCari = `${g['ID Garansi']} ${g['Referensi (Tiket/Nota)']} ${g['Nama Pelanggan']} ${g['Barang / Jasa']}`.toLowerCase();
+                    if (!strCari.includes(searchVal)) return;
+                }
+                htmlAda = true;
+                
+                let textStatus = g['Status'] || 'Masa Tunggu';
+                let sc = 'status-aman'; let bc = 'badge-tunggu';
+                if (textStatus === 'Aktif') { sc = 'status-terpenuhi'; bc = 'badge-aktif'; }
+                else if (textStatus.includes('Habis')) { sc = 'status-terlambat'; bc = 'badge-habis'; }
+
+                let tglMulai = g['Tanggal Mulai'] ? formatWaktu(g['Tanggal Mulai']) : 'Belum Mulai';
+                let tglHabis = g['Tanggal Habis'] ? formatWaktu(g['Tanggal Habis']) : '-';
+
+                let btnHtml = '';
+                if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
+                    if (textStatus === 'Masa Tunggu') {
+                        btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#2563eb; border-color:#bfdbfe;" onclick="aktifkanGaransi('${idGrs}')">🚀 Aktifkan Garansi (Barang Diambil)</button>`;
+                    }
+                    if (penggunaAktif.Role === 'admin') {
+                        btnHtml += `<div class="btn-grid"><button class="btn-del" onclick="hapusGaransi('${idGrs}')">Hapus Data</button></div>`;
+                    }
+                }
+
+                container.innerHTML += `<div class="card ${sc}">
+                    <h3><span>${idGrs}</span><span class="badge ${bc}">${textStatus}</span></h3>
+                    ${g['Referensi (Tiket/Nota)'] ? `<p><strong>Ref:</strong> <span class="code-badge">${g['Referensi (Tiket/Nota)']}</span></p>` : ''}
+                    <p><strong>Klien:</strong> ${g['Nama Pelanggan']}</p>
+                    <p><strong>Barang:</strong> ${g['Barang / Jasa']}</p>
+                    <div class="waktu-box" style="margin-top:10px;">
+                        <p style="margin:0 0 5px 0;"><strong>Durasi:</strong> ${g['Durasi (Hari)']} Hari</p>
+                        <p style="margin:0 0 5px 0; color:var(--text-muted);">Mulai: ${tglMulai}</p>
+                        <p style="margin:0 0 5px 0; color:var(--text-muted);">Habis: ${tglHabis}</p>
+                    </div>
+                    ${btnHtml}
+                </div>`;
+            });
+            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada data Garansi.</p>';
+        }
+
+        async function submitGaransi(e) {
+            e.preventDefault(); 
+            const btn = document.getElementById('btn-submit-garansi'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
+            
+            try {
+                let idGrs = document.getElementById('garansi-id').value;
+                if(!idGrs || idGrs === "") { setAutoIDs(); idGrs = document.getElementById('garansi-id').value; }
+
+                const payload = { 
+                    apiKey: API_KEY, action: 'addGaransi', idGaransi: idGrs, 
+                    referensi: document.getElementById('garansi-referensi').value, 
+                    pelanggan: document.getElementById('garansi-pelanggan').value, 
+                    barang: document.getElementById('garansi-barang').value, 
+                    durasi: document.getElementById('garansi-durasi').value, 
+                    status: document.getElementById('garansi-status').value 
+                };
+
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
+                const jsonRes = await res.json();
+                
+                if (jsonRes.status === 'sukses') { 
+                    showToast('Alhamdulillah! Data Garansi berhasil disimpan.', 'success');
+                    tutupFormGaransi(); document.getElementById('loading').style.display = 'block'; 
+                    await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
+                } else { showToast('Afwan, gagal dari server.', 'error'); }
+            } catch (err) { showToast('Afwan, gagal menyimpan garansi.', 'error'); } finally { btn.innerText = 'Simpan Garansi'; btn.disabled = false; }
+        }
+
+        async function aktifkanGaransi(id) { 
+            let acc = await showConfirm(`Bismillah, barang sudah diambil Klien? Waktu garansi akan dihitung mulai detik ini.`); 
+            if(!acc) return; 
+            document.getElementById('loading').style.display = 'block'; 
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'aktifkanGaransi', idGaransi: id }) }); 
+                if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi Aktif.', 'success'); await ambilSemuaData(true); } 
+            } catch(err) {} 
+            document.getElementById('loading').style.display = 'none'; 
+        }
+
+        async function hapusGaransi(id) { 
+            let acc = await showConfirm(`Bismillah, yakin hapus data garansi ${id}?`); 
+            if(!acc) return; 
+            document.getElementById('loading').style.display = 'block'; 
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'deleteGaransi', idGaransi: id}) }); 
+                if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data dihapus.', 'success'); await ambilSemuaData(true); } 
+            } catch(err) {} 
+            document.getElementById('loading').style.display = 'none'; 
+        }
+        // =======================================================
 
         function cekStatusProspek() {
             const status = document.getElementById('prospek-status').value;
