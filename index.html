@@ -1366,16 +1366,19 @@
             let htmlAda = false;
             let garansiDitampilkan = [...(globalGaransi || [])];
             
-            // LOGIKA SORTING BARU: Garansi Aktif/Tunggu di Atas, Habis/Hangus di Bawah
+            // LOGIKA SORTING BARU: 1. Masa Tunggu, 2. Aktif, 3. Habis/Hangus
             garansiDitampilkan.sort((a, b) => {
                 function getPrio(g) {
                     if(!g) return 99;
                     let s = String(g['Status'] || '').toLowerCase();
-                    if (s.includes('habis') || s.includes('hangus') || s.includes('diklaim')) return 2; // Prioritas bawah
-                    return 1; // Prioritas atas (Aktif, Masa Tunggu)
+                    if (s.includes('tunggu')) return 1; // Prioritas Paling Atas
+                    if (s.includes('aktif')) return 2;  // Prioritas Tengah
+                    if (s.includes('habis') || s.includes('hangus') || s.includes('diklaim')) return 3; // Prioritas Bawah
+                    return 4;
                 }
                 let pA = getPrio(a);
                 let pB = getPrio(b);
+                
                 if (pA !== pB) return pA - pB;
                 
                 // Urutkan berdasarkan ID terbaru jika prioritasnya sama
