@@ -46,10 +46,16 @@
         .segment-control { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 20px; }
         .segment-btn { flex: 1; padding: 8px 0; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
         .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        
+        /* PEMBARUAN CSS UNTUK TOMBOL X PADA PENCARIAN */
         .search-wrapper { position: relative; margin-bottom: 15px; display: block; width: 100%; }
-        .search-wrapper input { width: 100%; padding: 12px 15px 12px 40px !important; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; box-sizing: border-box !important;}
+        .search-wrapper input { width: 100%; padding: 12px 40px 12px 40px !important; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; box-sizing: border-box !important;}
         .search-wrapper input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(30,58,138,0.1); }
         .search-icon { position: absolute; left: 14px; top: 12px; color: var(--text-muted); font-size: 16px; pointer-events: none; z-index: 2; }
+        .clear-icon { position: absolute; right: 14px; top: 12px; color: var(--text-muted); font-size: 14px; cursor: pointer; z-index: 2; transition: 0.2s; display: none; background: #e2e8f0; border-radius: 50%; width: 20px; height: 20px; text-align: center; line-height: 20px; font-weight: bold;}
+        .clear-icon:hover { background: var(--danger); color: white; }
+        /* =========================================== */
+
         label { display: block; margin: 15px 0 6px; font-weight: 600; font-size: 13px; color: var(--text-main); }
         input[type="text"], input[type="number"], input[type="email"], input[type="password"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #f8fafc; transition: 0.2s; }
         input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); background-color: var(--surface); box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1); }
@@ -118,7 +124,7 @@
         .custom-modal-title { font-size: 18px; font-weight: 700; color: var(--text-main); margin: 0 0 10px 0; }
         .custom-modal-msg { font-size: 14px; color: var(--text-muted); margin: 0 0 20px 0; line-height: 1.5; }
         .custom-modal-actions { display: flex; gap: 10px; justify-content: center; }
-        .custom-modal-btn { flex: 1; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: border: none; transition: 0.2s;}
+        .custom-modal-btn { flex: 1; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s;}
         .btn-cm-cancel { background: #f1f5f9; color: var(--text-main); } .btn-cm-cancel:hover { background: #e2e8f0; }
         .btn-cm-confirm { background: var(--primary); color: white; } .btn-cm-confirm:hover { background: var(--primary-hover); }
         .btn-cm-danger { background: var(--danger); color: white; } .btn-cm-danger:hover { background: #dc2626; }
@@ -327,10 +333,14 @@
         <!-- TIKET -->
         <div id="page-tiket" class="tab-page">
             <h3 class="section-title">Daftar Tiket SLA (Pekerjaan)</h3>
+            
+            <!-- UPDATE: PENCARIAN TIKET DENGAN TOMBOL X -->
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." onkeyup="renderTickets()">
+                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." oninput="toggleClearBtn(this); renderTickets()">
+                <span class="clear-icon" onclick="clearSearch('search-tiket')">✖</span>
             </div>
+
             <div class="segment-control">
                 <button class="segment-btn active" id="btn-filter-aktif" onclick="setTicketFilter('aktif')">Pekerjaan Aktif</button>
                 <button class="segment-btn" id="btn-filter-riwayat" onclick="setTicketFilter('riwayat')">Riwayat (Selesai/Batal)</button>
@@ -341,10 +351,14 @@
         <!-- PENJUALAN -->
         <div id="page-penjualan" class="tab-page">
             <h3 class="section-title" style="color:var(--purple);">Daftar Penjualan Langsung</h3>
+            
+            <!-- UPDATE: PENCARIAN PENJUALAN DENGAN TOMBOL X -->
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-sls" placeholder="Cari ID, No Trx, Pembeli, Barang..." onkeyup="renderPenjualan()">
+                <input type="text" id="search-sls" placeholder="Cari ID, No Trx, Pembeli, Barang..." oninput="toggleClearBtn(this); renderPenjualan()">
+                <span class="clear-icon" onclick="clearSearch('search-sls')">✖</span>
             </div>
+
             <div id="penjualan-container"></div>
         </div>
 
@@ -354,10 +368,14 @@
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:var(--success);">Data Prospek (Leads)</h3>
                 <button id="btn-tambah-prospek" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:var(--success);" onclick="bukaFormProspek()">+ Input Prospek</button>
             </div>
+            
+            <!-- UPDATE: PENCARIAN PROSPEK DENGAN TOMBOL X -->
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-prospek-input" placeholder="Cari Calon Customer, Kebutuhan, Sales..." onkeyup="renderProspek()">
+                <input type="text" id="search-prospek-input" placeholder="Cari Calon Customer, Kebutuhan, Sales..." oninput="toggleClearBtn(this); renderProspek()">
+                <span class="clear-icon" onclick="clearSearch('search-prospek-input')">✖</span>
             </div>
+
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
                 <h3 style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
                 <form id="form-prospek" onsubmit="submitProspek(event)">
@@ -393,10 +411,14 @@
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:#3b82f6;">Data Garansi Klien</h3>
                 <button id="btn-tambah-garansi" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:#3b82f6; display:none;" onclick="bukaFormGaransi()">+ Input Garansi</button>
             </div>
+            
+            <!-- UPDATE: PENCARIAN GARANSI DENGAN TOMBOL X -->
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-garansi-input" placeholder="Cari Pelanggan, Barang, Referensi..." onkeyup="renderGaransi()">
+                <input type="text" id="search-garansi-input" placeholder="Cari Pelanggan, Barang, Referensi..." oninput="toggleClearBtn(this); renderGaransi()">
+                <span class="clear-icon" onclick="clearSearch('search-garansi-input')">✖</span>
             </div>
+
             <div id="form-garansi-container" class="form-card" style="display:none; border-top-color:#3b82f6;">
                 <h3 style="color:#3b82f6; margin-top:0;">Form Input Garansi</h3>
                 <form id="form-garansi" onsubmit="submitGaransi(event)">
@@ -412,7 +434,6 @@
                     <label>Barang / Perangkat yang Digaransi</label>
                     <textarea id="garansi-barang" required rows="2"></textarea>
                     
-                    <!-- PENAMBAHAN FITUR INPUT SALES & OMZET PADA GARANSI -->
                     <label>Sales Penanggung Jawab (Opsional)</label>
                     <select id="garansi-sales" onchange="toggleGaransiOmzet()">
                         <option value="" selected>-- Pilih Sales (Opsional) --</option>
@@ -421,7 +442,6 @@
                         <label style="color:#166534; margin-top:0;">Nilai Penjualan / Omzet (Rp)</label>
                         <input type="number" id="garansi-omzet" style="border-color:#86efac; background:#fff;">
                     </div>
-                    <!-- END OF FITUR BARU -->
                     
                     <label>Durasi Garansi</label>
                     <select id="garansi-durasi" required>
@@ -641,6 +661,26 @@
         function showConfirm(message, isDanger = true) { return new Promise((resolve) => { const modal = document.getElementById('custom-confirm-modal'); document.getElementById('confirm-msg').innerText = message; const btnYes = document.getElementById('btn-confirm-yes'); btnYes.className = isDanger ? 'custom-modal-btn btn-cm-danger' : 'custom-modal-btn btn-cm-confirm'; modal.style.display = 'flex'; btnYes.onclick = function() { modal.style.display = 'none'; resolve(true); }; document.getElementById('btn-confirm-no').onclick = function() { modal.style.display = 'none'; resolve(false); }; }); }
         function showPrompt(message) { return new Promise((resolve) => { const modal = document.getElementById('custom-prompt-modal'); const inputField = document.getElementById('prompt-input'); document.getElementById('prompt-msg').innerText = message; inputField.value = ''; modal.style.display = 'flex'; inputField.focus(); document.getElementById('btn-prompt-submit').onclick = function() { modal.style.display = 'none'; resolve(inputField.value); }; document.getElementById('btn-prompt-cancel').onclick = function() { modal.style.display = 'none'; resolve(null); }; }); }
 
+        // FUNGSI BARU UNTUK TOMBOL X PENCARIAN
+        function toggleClearBtn(el) {
+            const btn = el.nextElementSibling;
+            if(btn && btn.classList.contains('clear-icon')) {
+                btn.style.display = el.value.length > 0 ? 'block' : 'none';
+            }
+        }
+
+        function clearSearch(inputId) {
+            const el = document.getElementById(inputId);
+            if(el) {
+                el.value = '';
+                toggleClearBtn(el);
+                if(inputId === 'search-tiket') renderTickets();
+                else if(inputId === 'search-sls') renderPenjualan();
+                else if(inputId === 'search-prospek-input') renderProspek();
+                else if(inputId === 'search-garansi-input') renderGaransi();
+            }
+        }
+
         async function prosesExportExcel(e) {
             e.preventDefault(); const jenis = document.getElementById('export-jenis').value; const bulan = document.getElementById('export-bulan').value; const tahun = document.getElementById('export-tahun').value;
             const btn = e.target.querySelector('button[type="submit"]'); let textAwal = btn.innerText; btn.innerText = "Merakit Excel..."; btn.disabled = true;
@@ -813,7 +853,6 @@
         function toggleTargetSales() { const role = document.getElementById('new-role').value; document.getElementById('div-target-sales').style.display = (role === 'sales') ? 'block' : 'none'; }
         function togglePenjualanInput() { const sales = document.getElementById('input-sales').value; document.getElementById('div-nilai-penjualan').style.display = (sales !== "") ? 'block' : 'none'; }
         
-        // FUNGSI BARU UNTUK TOGGLE OMZET DI GARANSI
         function toggleGaransiOmzet() {
             const salesG = document.getElementById('garansi-sales');
             const wadahOmzet = document.getElementById('div-garansi-omzet');
@@ -830,9 +869,8 @@
                 const salesSelect = document.getElementById('input-sales'); const currentSalesVal = salesSelect.value;
                 const salesSelectSls = document.getElementById('input-sales-sls'); const currentSalesSlsVal = salesSelectSls.value;
                 const salesSelectProspek = document.getElementById('prospek-sales'); const currentProspekVal = salesSelectProspek.value;
-                
-                // ELEMEN BARU UNTUK GARANSI
                 const salesSelectGaransi = document.getElementById('garansi-sales'); 
+                
                 let currentGaransiVal = '';
                 if(salesSelectGaransi) currentGaransiVal = salesSelectGaransi.value;
                 
@@ -1010,19 +1048,48 @@
             dashSalesContainer.innerHTML = htmlSales;
         }
 
+        // ===============================================
+        // FUNGSI RENDER TIKET: UPDATE SORTING PRIORITAS
+        // ===============================================
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let tiketDitampilkan = [];
             
             if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
-                tiketDitampilkan = globalTickets || []; 
+                tiketDitampilkan = [...(globalTickets || [])]; 
             } else { 
                 tiketDitampilkan = (globalTickets || []).filter(t => t && String(t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); 
             }
             
+            // Dapatkan seluruh ID referensi yang sudah ada di sheet Garansi
+            let refsDiGaransi = (globalGaransi || []).map(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim());
+            
+            // Logika Pengurutan: Paksa Unassigned, Pending, dan Selesai (Tanpa Garansi) ke ATAS
+            tiketDitampilkan.sort((a, b) => {
+                function getPriority(t) {
+                    if(!t) return 99;
+                    let textStatus = t['Status'] || 'Menunggu';
+                    let teknisiVal = String(t['Teknisi'] || '').trim();
+                    let isUnassigned = (teknisiVal === 'Belum Ditugaskan' || teknisiVal === '-' || teknisiVal === '');
+                    
+                    if (isUnassigned || textStatus === 'Pending') return 1;
+                    if (textStatus === 'Selesai' && !refsDiGaransi.includes(String(t['ID Tiket']).trim())) return 1;
+                    return 2;
+                }
+                
+                let pA = getPriority(a);
+                let pB = getPriority(b);
+                
+                if (pA !== pB) return pA - pB;
+                
+                let numA = parseInt(String(a['ID Tiket']).replace(/\D/g, '')) || 0;
+                let numB = parseInt(String(b['ID Tiket']).replace(/\D/g, '')) || 0;
+                return numB - numA; // Urutkan terbaru di atas jika prioritasnya sama
+            });
+            
             let htmlAda = false;
-            tiketDitampilkan.slice().reverse().forEach(ticket => {
+            tiketDitampilkan.forEach(ticket => {
                 if(!ticket) return;
                 let idTkt = String(ticket['ID Tiket'] || '');
                 if (!idTkt || idTkt.startsWith('SLS-')) return; 
@@ -1079,8 +1146,7 @@
                     infoSlaTeks = `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Respon'])}</p><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Waktu'])}</p>`;
                     
                     if (textStatus === 'Selesai') {
-                        let existsInGrs = (globalGaransi || []).some(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim() === idTkt);
-                        if (!existsInGrs) {
+                        if (!refsDiGaransi.includes(String(ticket['ID Tiket']).trim())) {
                             let tSelesai = new Date(ticket[Object.keys(ticket)[9]]);
                             if (!isNaN(tSelesai.getTime())) {
                                 let batasAdminNota = hitungTenggatJamKerja(tSelesai, 24);
@@ -1167,11 +1233,11 @@
             let penDitampilkan = [];
             
             if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
-                penDitampilkan = globalPenjualan || []; 
+                penDitampilkan = [...(globalPenjualan || [])]; 
             }
             
             let htmlAda = false;
-            penDitampilkan.slice().reverse().forEach(p => {
+            penDitampilkan.reverse().forEach(p => {
                 if(!p) return;
                 let idP = String(p['ID Penjualan'] || '');
                 if (!idP) return;
@@ -1298,7 +1364,8 @@
             let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             
             let htmlAda = false;
-            (globalGaransi || []).slice().reverse().forEach(g => {
+            let garansiDitampilkan = [...(globalGaransi || [])];
+            garansiDitampilkan.reverse().forEach(g => {
                 if(!g) return;
                 let idGrs = String(g['ID Garansi'] || '');
                 if (!idGrs) return;
@@ -1440,11 +1507,11 @@
             let pDitampilkan = [];
             
             if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
-                pDitampilkan = globalProspek || []; 
+                pDitampilkan = [...(globalProspek || [])]; 
             }
             
             let htmlAda = false;
-            pDitampilkan.slice().reverse().forEach(p => {
+            pDitampilkan.reverse().forEach(p => {
                 if(!p) return;
                 let idPrp = String(p['ID Prospek'] || '');
                 if (!idPrp) return;
