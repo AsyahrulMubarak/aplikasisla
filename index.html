@@ -337,7 +337,7 @@
             <!-- UPDATE: PENCARIAN TIKET DENGAN TOMBOL X -->
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." oninput="toggleClearBtn(this); renderTickets()">
+                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." oninput="toggleClearBtn(this); Tickets()">
                 <span class="clear-icon" onclick="clearSearch('search-tiket')">✖</span>
             </div>
 
@@ -1365,7 +1365,28 @@
             
             let htmlAda = false;
             let garansiDitampilkan = [...(globalGaransi || [])];
-            garansiDitampilkan.reverse().forEach(g => {
+            
+            // LOGIKA SORTING BARU: Garansi Aktif/Tunggu di Atas, Habis/Hangus di Bawah
+            garansiDitampilkan.sort((a, b) => {
+                function getPrio(g) {
+                    if(!g) return 99;
+                    let s = String(g['Status'] || '').toLowerCase();
+                    if (s.includes('habis') || s.includes('hangus') || s.includes('diklaim')) return 2; // Prioritas bawah
+                    return 1; // Prioritas atas (Aktif, Masa Tunggu)
+                }
+                let pA = getPrio(a);
+                let pB = getPrio(b);
+                if (pA !== pB) return pA - pB;
+                
+                // Urutkan berdasarkan ID terbaru jika prioritasnya sama
+                let nA = parseInt(String(a['ID Garansi']).replace(/\D/g, '')) || 0;
+                let nB = parseInt(String(b['ID Garansi']).replace(/\D/g, '')) || 0;
+                return nB - nA;
+            });
+
+            let flagPembatasHabis = false;
+
+            garansiDitampilkan.forEach(g => {
                 if(!g) return;
                 let idGrs = String(g['ID Garansi'] || '');
                 if (!idGrs) return;
@@ -1378,8 +1399,20 @@
                 
                 let textStatus = g['Status'] || 'Masa Tunggu';
                 let sc = 'status-aman'; let bc = 'badge-tunggu';
-                if (textStatus === 'Aktif') { sc = 'status-terpenuhi'; bc = 'badge-aktif'; }
-                else if (textStatus.includes('Habis') || textStatus.includes('Hangus') || textStatus.includes('Diklaim')) { sc = 'status-terlambat'; bc = 'badge-habis'; }
+                let isExpired = false;
+
+                if (textStatus === 'Aktif') { 
+                    sc = 'status-terpenuhi'; bc = 'badge-aktif'; 
+                } else if (textStatus.includes('Habis') || textStatus.includes('Hangus') || textStatus.includes('Diklaim')) { 
+                    sc = 'status-terlambat'; bc = 'badge-habis'; 
+                    isExpired = true;
+                }
+
+                // Memunculkan garis pembatas visual jika mulai memasuki data garansi habis
+                if (isExpired && !flagPembatasHabis && searchVal === '') {
+                    container.innerHTML += `<div style="margin: 30px 0 15px 0; text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 10px;"><span style="background: #f1f5f9; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #64748b;">↓ RIWAYAT GARANSI HABIS / DIKLAIM ↓</span></div>`;
+                    flagPembatasHabis = true;
+                }
 
                 let tglMulai = g['Tanggal Mulai'] ? formatWaktu(g['Tanggal Mulai']) : 'Belum Mulai';
                 let tglHabis = g['Tanggal Habis'] ? formatWaktu(g['Tanggal Habis']) : '-';
@@ -1416,7 +1449,6 @@
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada data Garansi.</p>';
         }
-
         async function submitGaransi(e) {
             e.preventDefault(); 
             const btn = document.getElementById('btn-submit-garansi'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
