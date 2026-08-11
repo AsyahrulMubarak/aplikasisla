@@ -118,7 +118,7 @@
         .custom-modal-title { font-size: 18px; font-weight: 700; color: var(--text-main); margin: 0 0 10px 0; }
         .custom-modal-msg { font-size: 14px; color: var(--text-muted); margin: 0 0 20px 0; line-height: 1.5; }
         .custom-modal-actions { display: flex; gap: 10px; justify-content: center; }
-        .custom-modal-btn { flex: 1; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s;}
+        .custom-modal-btn { flex: 1; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: border: none; transition: 0.2s;}
         .btn-cm-cancel { background: #f1f5f9; color: var(--text-main); } .btn-cm-cancel:hover { background: #e2e8f0; }
         .btn-cm-confirm { background: var(--primary); color: white; } .btn-cm-confirm:hover { background: var(--primary-hover); }
         .btn-cm-danger { background: var(--danger); color: white; } .btn-cm-danger:hover { background: #dc2626; }
@@ -411,6 +411,18 @@
                     <input type="text" id="garansi-pelanggan" required>
                     <label>Barang / Perangkat yang Digaransi</label>
                     <textarea id="garansi-barang" required rows="2"></textarea>
+                    
+                    <!-- PENAMBAHAN FITUR INPUT SALES & OMZET PADA GARANSI -->
+                    <label>Sales Penanggung Jawab (Opsional)</label>
+                    <select id="garansi-sales" onchange="toggleGaransiOmzet()">
+                        <option value="" selected>-- Pilih Sales (Opsional) --</option>
+                    </select>
+                    <div id="div-garansi-omzet" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px; margin-bottom:15px;">
+                        <label style="color:#166534; margin-top:0;">Nilai Penjualan / Omzet (Rp)</label>
+                        <input type="number" id="garansi-omzet" style="border-color:#86efac; background:#fff;">
+                    </div>
+                    <!-- END OF FITUR BARU -->
+                    
                     <label>Durasi Garansi</label>
                     <select id="garansi-durasi" required>
                         <option value="" disabled selected>-- Pilih Durasi --</option>
@@ -800,6 +812,15 @@
 
         function toggleTargetSales() { const role = document.getElementById('new-role').value; document.getElementById('div-target-sales').style.display = (role === 'sales') ? 'block' : 'none'; }
         function togglePenjualanInput() { const sales = document.getElementById('input-sales').value; document.getElementById('div-nilai-penjualan').style.display = (sales !== "") ? 'block' : 'none'; }
+        
+        // FUNGSI BARU UNTUK TOGGLE OMZET DI GARANSI
+        function toggleGaransiOmzet() {
+            const salesG = document.getElementById('garansi-sales');
+            const wadahOmzet = document.getElementById('div-garansi-omzet');
+            if(salesG && wadahOmzet) {
+                wadahOmzet.style.display = (salesG.value !== "") ? 'block' : 'none';
+            }
+        }
 
         function renderDynamicInputs() {
             try {
@@ -810,18 +831,26 @@
                 const salesSelectSls = document.getElementById('input-sales-sls'); const currentSalesSlsVal = salesSelectSls.value;
                 const salesSelectProspek = document.getElementById('prospek-sales'); const currentProspekVal = salesSelectProspek.value;
                 
+                // ELEMEN BARU UNTUK GARANSI
+                const salesSelectGaransi = document.getElementById('garansi-sales'); 
+                let currentGaransiVal = '';
+                if(salesSelectGaransi) currentGaransiVal = salesSelectGaransi.value;
+                
                 salesSelect.innerHTML = '<option value="" selected>-- Tanpa Sales --</option>';
                 salesSelectSls.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
                 salesSelectProspek.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
+                if(salesSelectGaransi) salesSelectGaransi.innerHTML = '<option value="" selected>-- Pilih Sales (Opsional) --</option>';
                 
                 let salesList = (globalUsers || []).filter(u => u && u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
                 salesList.forEach(s => { 
                     salesSelect.innerHTML += `<option value="${s}">${s}</option>`; 
                     salesSelectSls.innerHTML += `<option value="${s}">${s}</option>`;
                     salesSelectProspek.innerHTML += `<option value="${s}">${s}</option>`;
+                    if(salesSelectGaransi) salesSelectGaransi.innerHTML += `<option value="${s}">${s}</option>`;
                 });
                 if (currentSalesVal && !salesList.includes(currentSalesVal)) { salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Nonaktif)</option>`; }
                 salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
+                if(salesSelectGaransi) salesSelectGaransi.value = currentGaransiVal;
             } catch(e) { console.error("Error render inputs:", e); }
         }
 
@@ -1027,9 +1056,6 @@
                 
                 let infoSlaTeks = "";
 
-                // ===============================================
-                // MENCEGAH BUG SLA TEKNISI MUNCUL SAAT BELUM DITUGASKAN
-                // ===============================================
                 if (isUnassigned) { 
                     sc = 'status-aman'; bc = 'badge-pending'; textStatus = 'Menunggu Teknisi';
                     let dtLaporStr = ticket[Object.keys(ticket)[2]];
@@ -1173,6 +1199,8 @@
             try {
                 document.getElementById('form-garansi-container').style.display = 'block'; 
                 document.getElementById('form-garansi').reset(); 
+                document.getElementById('div-garansi-omzet').style.display = 'none';
+                
                 document.getElementById('btn-submit-garansi').innerText = 'Simpan Garansi';
                 document.getElementById('btn-submit-garansi').disabled = false;
                 
@@ -1217,6 +1245,9 @@
                     document.getElementById('garansi-pelanggan').value = '';
                     document.getElementById('garansi-barang').value = '';
                     document.getElementById('garansi-notrans').value = '';
+                    document.getElementById('garansi-sales').value = '';
+                    document.getElementById('garansi-omzet').value = '';
+                    toggleGaransiOmzet();
                     return;
                 }
                 if(val.startsWith('TKT-')) {
@@ -1225,6 +1256,17 @@
                         document.getElementById('garansi-pelanggan').value = t['Klien & Lokasi'] || '';
                         document.getElementById('garansi-barang').value = t['Jenis Pekerjaan'] || '';
                         document.getElementById('garansi-notrans').value = t['No Transaksi'] || t[Object.keys(t)[1]] || '';
+                        
+                        if(t['Sales'] && t['Sales'] !== '-') {
+                            document.getElementById('garansi-sales').value = t['Sales'];
+                            toggleGaransiOmzet();
+                            let omzetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || '';
+                            document.getElementById('garansi-omzet').value = omzetVal;
+                        } else {
+                            document.getElementById('garansi-sales').value = '';
+                            document.getElementById('garansi-omzet').value = '';
+                            toggleGaransiOmzet();
+                        }
                     }
                 } else if (val.startsWith('SLS-')) {
                     let p = (globalPenjualan || []).find(x => x && x['ID Penjualan'] === val);
@@ -1232,6 +1274,17 @@
                         document.getElementById('garansi-pelanggan').value = p['Nama Pembeli'] || '';
                         document.getElementById('garansi-barang').value = p['Barang / Jasa'] || '';
                         document.getElementById('garansi-notrans').value = p['No Transaksi'] || p[Object.keys(p)[1]] || '';
+                        
+                        if(p['Sales'] && p['Sales'] !== '-') {
+                            document.getElementById('garansi-sales').value = p['Sales'];
+                            toggleGaransiOmzet();
+                            let omzetVal = p['Nominal (Rp)'] || p['Nominal'] || '';
+                            document.getElementById('garansi-omzet').value = omzetVal;
+                        } else {
+                            document.getElementById('garansi-sales').value = '';
+                            document.getElementById('garansi-omzet').value = '';
+                            toggleGaransiOmzet();
+                        }
                     }
                 }
             } catch(e) { console.error("Error autofill"); }
@@ -1312,7 +1365,9 @@
                     pelanggan: document.getElementById('garansi-pelanggan').value, 
                     barang: document.getElementById('garansi-barang').value, 
                     durasi: document.getElementById('garansi-durasi').value, 
-                    status: document.getElementById('garansi-status').value 
+                    status: document.getElementById('garansi-status').value,
+                    sales: document.getElementById('garansi-sales').value,
+                    omzet: document.getElementById('garansi-omzet').value
                 };
 
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
