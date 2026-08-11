@@ -8,7 +8,6 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1e3a8a">
     <link rel="apple-touch-icon" href="depan_001.png">
-
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
     <style>
@@ -48,7 +47,6 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--surface); box-shadow: 0 -4px 15px rgba(0,0,0,0.03); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
-        .bottom-nav::-webkit-scrollbar { display: none; }
         .nav-btn { flex: 1; min-width: 60px; padding: 10px 0; text-align: center; color: var(--text-muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; border-top: 3px solid transparent; }
         .nav-btn .icon { font-size: 18px; margin-bottom: 2px; }
         .nav-btn .text { font-size: 9px; font-weight: 700; letter-spacing: 0; }
@@ -267,7 +265,6 @@
         </div>
     </div>
 
-    <!-- HALAMAN LOGIN -->
     <div id="login-wrapper">
         <div class="login-card">
             <img src="depan_001.png" alt="Logo Alfacom">
@@ -289,7 +286,6 @@
         </div>
     </div>
 
-    <!-- MODAL KLAIM / BANDING -->
     <div id="modal-banding" class="modal">
         <div class="modal-content" style="border-top-color: #8e44ad;">
             <h3 class="modal-title" style="color:var(--purple);">📌 Ajukan Klaim Penjualan</h3>
@@ -306,7 +302,6 @@
         </div>
     </div>
 
-    <!-- MODAL UPDATE STATUS TIKET -->
     <div id="modal-update" class="modal">
         <div class="modal-content">
             <h3 id="update-title" class="modal-title">Update Status Tiket</h3>
@@ -357,10 +352,9 @@
         </div>
         <div id="loading" style="display:none;">Sinkronisasi data sistem...</div>
         
-        <!-- DASHBOARD -->
         <div id="page-dashboard" class="tab-page">
             <div id="admin-export-section" style="display:none; text-align:right; margin-bottom:15px;">
-                <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan (Excel)</button>
+                <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan</button>
             </div>
             <div id="dash-segment" class="segment-control" style="display:none;">
                 <button class="segment-btn active" id="btn-dash-sales" onclick="switchDashTab('sales')">Pencapaian Sales</button>
@@ -370,7 +364,6 @@
             <div id="dash-tek-content" style="display:none;"></div>
         </div>
 
-        <!-- TIKET -->
         <div id="page-tiket" class="tab-page">
             <h3 class="section-title">Daftar Tiket SLA (Pekerjaan)</h3>
             <div class="search-wrapper">
@@ -384,7 +377,6 @@
             <div id="ticket-container"></div>
         </div>
 
-        <!-- PENJUALAN -->
         <div id="page-penjualan" class="tab-page">
             <h3 class="section-title" style="color:var(--purple);">Daftar Penjualan Langsung</h3>
             <div class="search-wrapper">
@@ -394,7 +386,6 @@
             <div id="penjualan-container"></div>
         </div>
 
-        <!-- PROSPEK -->
         <div id="page-prospek" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:var(--success);">Data Prospek (Leads)</h3>
@@ -433,7 +424,6 @@
             <div id="prospek-container"></div>
         </div>
 
-        <!-- GARANSI -->
         <div id="page-garansi" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:#3b82f6;">Data Garansi Klien</h3>
@@ -475,7 +465,6 @@
             <div id="garansi-container"></div>
         </div>
 
-        <!-- INPUT TIKET / SLS -->
         <div id="page-input" class="tab-page">
             <div class="segment-control" id="input-segment">
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
@@ -497,7 +486,7 @@
                     <select id="input-sales" onchange="togglePenjualanInput()"></select>
                     <div id="div-nilai-penjualan" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
                         <label style="color:#166534; margin-top:0;">Nilai Penjualan / Omzet (Rp)</label>
-                        <input type="number" id="input-nilai-penjualan" placeholder="Contoh: 1500000" style="border-color:#86efac; background:#fff;">
+                        <input type="number" id="input-nilai-penjualan" style="border-color:#86efac; background:#fff;">
                     </div>
                     <label>Alokasi Teknisi</label>
                     <div class="checkbox-group" id="teknisi-group"></div>
@@ -521,7 +510,6 @@
             </div>
         </div>
 
-        <!-- PENGATURAN USER -->
         <div id="page-user" class="tab-page">
             <div class="form-card" id="user-management-container">
                 <h3 id="form-user-title" class="section-title">⚙️ Manajemen User</h3>
@@ -592,12 +580,8 @@
         let modeEditUser = false; let modeEditTiket = false; let intervalAutoRefresh; let currentTabId = 'dashboard';
         let currentTicketFilter = 'aktif'; 
 
-        const iconEyeOpen = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
-        const iconEyeClosed = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
-
         function hitungTenggatJamKerja(waktuMulai, durasiJam) {
-            var dt = new Date(waktuMulai.getTime());
-            var msSisa = durasiJam * 3600 * 1000;
+            var dt = new Date(waktuMulai.getTime()); var msSisa = durasiJam * 3600 * 1000;
             while (msSisa > 0) {
                 var hari = dt.getDay(); var jam = dt.getHours();
                 if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
@@ -607,13 +591,11 @@
                 var msTersedia = batasSore.getTime() - dt.getTime();
                 if (msSisa <= msTersedia) { dt = new Date(dt.getTime() + msSisa); msSisa = 0; } 
                 else { msSisa -= msTersedia; dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); }
-            }
-            return dt;
+            } return dt;
         }
 
         function hitungDurasiJamKerjaMs(awal, akhir) {
-            if (awal >= akhir) return 0;
-            var msTotal = 0; var dt = new Date(awal.getTime());
+            if (awal >= akhir) return 0; var msTotal = 0; var dt = new Date(awal.getTime());
             while (dt < akhir) {
                 var hari = dt.getDay(); var jam = dt.getHours();
                 if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
@@ -624,29 +606,25 @@
                 msTotal += targetAkhir.getTime() - dt.getTime();
                 dt = new Date(targetAkhir.getTime());
                 if (dt.getHours() >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); }
-            }
-            return msTotal;
+            } return msTotal;
         }
 
         function formatWaktu(val) {
             if (!val || val === '#VALUE!' || val === 'Invalid Date') return '-';
-            let dt = new Date(val);
-            if (isNaN(dt.getTime())) return '-';
+            let dt = new Date(val); if (isNaN(dt.getTime())) return '-';
             return dt.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
         }
 
         function togglePasswordVisibility(inputId, iconEl) {
             const input = document.getElementById(inputId);
-            if (input.type === 'password') { input.type = 'text'; iconEl.innerHTML = iconEyeClosed; } 
-            else { input.type = 'password'; iconEl.innerHTML = iconEyeOpen; }
+            if (input.type === 'password') { input.type = 'text'; iconEl.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`; iconEl.style.color = 'var(--danger)'; } 
+            else { input.type = 'password'; iconEl.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`; iconEl.style.color = 'var(--text-muted)'; }
         }
 
         async function hashPassword(text) {
             if (!crypto || !crypto.subtle) { return btoa(text).replace(/=/g, ''); }
-            const msgUint8 = new TextEncoder().encode(text);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            const msgUint8 = new TextEncoder().encode(text); const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer)); return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         function bukaModalBug() { document.getElementById('bug-deskripsi').value = ''; document.getElementById('bug-bukti').value = ''; document.getElementById('modal-bug').style.display = 'flex'; }
@@ -658,18 +636,18 @@
                 if (fileInput.files.length > 0) { base64Bukti = await prosesUploadBebas(fileInput.files[0]); }
                 const payload = { apiKey: API_KEY, action: 'laporBug', pelapor: penggunaAktif['Nama Asli'], deskripsi: deskripsi, buktiBug: base64Bukti };
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const jsonRes = await res.json();
-                if (jsonRes.status === 'sukses') { showToast('Alhamdulillah! Laporan bug terkirim ke Admin.', 'success'); document.getElementById('modal-bug').style.display = 'none'; } else { showToast('Afwan, gagal dari server: ' + jsonRes.pesan, 'error'); }
-            } catch (err) { showToast('Afwan, gagal mengirim laporan. Pastikan internet stabil.', 'error'); } finally { btn.innerText = 'Kirim Laporan'; btn.disabled = false; }
+                if (jsonRes.status === 'sukses') { showToast('Laporan bug terkirim.', 'success'); document.getElementById('modal-bug').style.display = 'none'; } else { showToast('Gagal: ' + jsonRes.pesan, 'error'); }
+            } catch (err) { showToast('Gagal mengirim laporan.', 'error'); } finally { btn.innerText = 'Kirim Laporan'; btn.disabled = false; }
         }
 
         async function mintaResetSandi() {
-            let un = await showPrompt("Masukkan Username Anda. Sistem akan mengirim notifikasi ke Admin (via WA) untuk membantu mereset sandi Anda:");
-            if(!un) return; if(un.trim() === "") return;
+            let un = await showPrompt("Masukkan Username Anda untuk Reset Sandi:");
+            if(!un || un.trim() === "") return;
             document.getElementById('login-loading').innerHTML = 'Mengirim permintaan...'; document.getElementById('login-form').style.display = 'none';
             try {
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'lupaSandi', username: un }) }); const json = await res.json();
-                if(json.status === 'sukses') { showToast('Alhamdulillah! Permintaan reset sandi terkirim ke Admin.', 'success'); } else { showToast(json.pesan, 'error'); }
-            } catch(e) { showToast('Afwan, gagal mengirim permintaan. Pastikan internet lancar.', 'error'); }
+                if(json.status === 'sukses') { showToast('Permintaan reset terkirim.', 'success'); } else { showToast(json.pesan, 'error'); }
+            } catch(e) { showToast('Gagal mengirim permintaan.', 'error'); }
             document.getElementById('login-loading').innerHTML = 'Memeriksa koneksi aman...'; document.getElementById('login-form').style.display = 'block';
         }
 
@@ -688,9 +666,9 @@
             let dataSource = []; let dateKeyIndex = 2; 
             if (jenis === 'tiket') { dataSource = globalTickets.filter(t => t['ID Tiket'] && t['ID Tiket'].startsWith('TKT-')); dateKeyIndex = 2; } else if (jenis === 'penjualan') { dataSource = globalPenjualan; dateKeyIndex = 2; } else if (jenis === 'prospek') { dataSource = globalProspek; dateKeyIndex = 1; }
             let dataToExport = dataSource.filter(d => { if(bulan === "all") return true; let rawDate = d[Object.keys(d)[dateKeyIndex]]; if(!rawDate) return false; let dt = new Date(rawDate); if(isNaN(dt.getTime())) return false; let m = String(dt.getMonth() + 1).padStart(2, '0'); let y = String(dt.getFullYear()); return (m === bulan && y === tahun); });
-            if(dataToExport.length === 0) { showToast(`Afwan, tidak ada data ${jenis} pada waktu tersebut.`, 'warning'); btn.innerText = textAwal; btn.disabled = false; return; }
+            if(dataToExport.length === 0) { showToast(`Tidak ada data ${jenis} pada waktu tersebut.`, 'warning'); btn.innerText = textAwal; btn.disabled = false; return; }
             let cleanData = dataToExport.map(row => { let newRow = {}; for (let key in row) { let val = row[key] === null || row[key] === undefined ? "" : String(row[key]); if (val.includes('base64,') || val.includes('data:image') || val.includes('drive.google.com')) { newRow[key] = val.includes('drive.google.com') ? val : "[FILE TERSIMPAN DI SISTEM]"; } else if (val.includes('\n')) { newRow[key] = val.replace(/(\r\n|\n|\r)/gm, " ➔ "); } else { newRow[key] = val; } } return newRow; });
-            try { const worksheet = XLSX.utils.json_to_sheet(cleanData); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan " + jenis.toUpperCase()); XLSX.writeFile(workbook, `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`); showToast('Alhamdulillah! Laporan Excel berhasil diunduh.', 'success'); document.getElementById('modal-export').style.display = 'none'; } catch(err) { showToast('Afwan, terjadi kesalahan saat merakit Excel.', 'error'); }
+            try { const worksheet = XLSX.utils.json_to_sheet(cleanData); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan " + jenis.toUpperCase()); XLSX.writeFile(workbook, `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`); showToast('Laporan Excel berhasil diunduh.', 'success'); document.getElementById('modal-export').style.display = 'none'; } catch(err) { showToast('Gagal merakit Excel.', 'error'); }
             btn.innerText = textAwal; btn.disabled = false;
         }
 
@@ -714,11 +692,7 @@
             if(tabId === 'input' && !modeEditTiket) batalEditTiket(); 
             
             if(tabId === 'user') {
-                if (penggunaAktif && penggunaAktif.Role === 'admin') {
-                    batalEditUser(); 
-                } else if (penggunaAktif) {
-                    siapkanProfilPribadi(); 
-                }
+                if (penggunaAktif && penggunaAktif.Role === 'admin') { batalEditUser(); } else if (penggunaAktif) { siapkanProfilPribadi(); }
             } 
             window.scrollTo(0,0); 
         }
@@ -736,7 +710,7 @@
                     if (!isSilentRefresh) { document.getElementById('login-loading').innerHTML = i === 0 ? 'Menghubungkan ke database...' : `<span style="color:var(--warning);">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`; document.getElementById('login-loading').style.display = 'block'; }
                     const response = await fetch(apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: "follow" }); 
                     data = await response.json(); 
-                    if (data.status === "gagal") { showToast(data.pesan, 'error'); document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Akses Ditolak API Key. Hubungi Admin.</span>'; return; }
+                    if (data.status === "gagal") { showToast(data.pesan, 'error'); document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Akses Ditolak API Key.</span>'; return; }
                     berhasil = true; break; 
                 } catch (error) {
                     if (i === maxRetries - 1) { if (!isSilentRefresh) { document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Gagal memuat. <a href="#" onclick="window.location.reload();">Muat Ulang</a>.</span>'; } return; }
@@ -745,16 +719,12 @@
             }
             if (!berhasil || !data) return;
             
-            globalTickets = data.tickets || []; 
-            globalUsers = data.users || []; 
-            globalPenjualan = data.penjualan || []; 
-            globalProspek = data.prospek || []; 
-            globalGaransi = data.garansi || [];
+            globalTickets = data.tickets || []; globalUsers = data.users || []; globalPenjualan = data.penjualan || []; globalProspek = data.prospek || []; globalGaransi = data.garansi || [];
             
             const savedSession = localStorage.getItem('sesiLoginSLA');
             if (savedSession) {
                 const parsedSession = JSON.parse(savedSession);
-                if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Afwan, sesi login telah berakhir.', 'error'); } 
+                if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Sesi login berakhir.', 'error'); } 
                 else { 
                     const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); 
                     if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
@@ -770,80 +740,33 @@
             const pwRaw = document.getElementById('password').value;
             const pwHashed = await hashPassword(pwRaw);
 
-            const cocok = globalUsers.find(u => {
-                let uName = String(u.Username || '').toLowerCase();
-                return uName === un && (u.Password === pwHashed || u.Password == pwRaw);
-            });
-
+            const cocok = globalUsers.find(u => { return String(u.Username || '').toLowerCase() === un && (u.Password === pwHashed || u.Password == pwRaw); });
             if (cocok) { 
-                penggunaAktif = cocok; 
-                localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); 
-                masukKeAplikasi(); 
-            } else { 
-                showToast('Afwan, Username atau Password tidak valid!', 'error'); 
-            }
+                penggunaAktif = cocok; localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); masukKeAplikasi(); 
+            } else { showToast('Username atau Password tidak valid!', 'error'); }
         }
 
         function masukKeAplikasi() {
             document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
             document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
-            document.getElementById('nav-user').style.display = 'flex'; 
-            document.getElementById('nav-garansi').style.display = 'flex';
+            document.getElementById('nav-user').style.display = 'flex'; document.getElementById('nav-garansi').style.display = 'flex';
 
-            if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
-                document.getElementById('btn-tambah-garansi').style.display = 'block';
-            }
+            if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { document.getElementById('btn-tambah-garansi').style.display = 'block'; }
 
             if (penggunaAktif.Role === 'admin') { 
-                document.getElementById('admin-export-section').style.display = 'block';
-                document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'flex';
-                document.getElementById('nav-prospek').style.display = 'flex';
-                document.getElementById('nav-input').style.display = 'flex'; 
-                document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
-                document.getElementById('div-prospek-sales').style.display = 'block'; 
-                document.getElementById('btn-tambah-prospek').style.display = 'block';
+                document.getElementById('admin-export-section').style.display = 'block'; document.getElementById('nav-tiket').style.display = 'flex'; document.getElementById('nav-penjualan').style.display = 'flex'; document.getElementById('nav-prospek').style.display = 'flex'; document.getElementById('nav-input').style.display = 'flex'; document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales'); document.getElementById('div-prospek-sales').style.display = 'block'; document.getElementById('btn-tambah-prospek').style.display = 'block';
             } 
             else if (penggunaAktif.Role === 'direktur') { 
-                document.getElementById('admin-export-section').style.display = 'block';
-                document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'flex';
-                document.getElementById('nav-prospek').style.display = 'flex';
-                document.getElementById('nav-input').style.display = 'none'; 
-                document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
-                document.getElementById('div-prospek-sales').style.display = 'none'; 
-                document.getElementById('btn-tambah-prospek').style.display = 'none'; 
+                document.getElementById('admin-export-section').style.display = 'block'; document.getElementById('nav-tiket').style.display = 'flex'; document.getElementById('nav-penjualan').style.display = 'flex'; document.getElementById('nav-prospek').style.display = 'flex'; document.getElementById('nav-input').style.display = 'none'; document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales'); document.getElementById('div-prospek-sales').style.display = 'none'; document.getElementById('btn-tambah-prospek').style.display = 'none'; 
             }
             else if (penggunaAktif.Role === 'manager') { 
-                document.getElementById('admin-export-section').style.display = 'block';
-                document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'flex';
-                document.getElementById('nav-prospek').style.display = 'flex';
-                document.getElementById('nav-input').style.display = 'flex'; 
-                document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
-                document.getElementById('div-prospek-sales').style.display = 'block'; 
-                document.getElementById('btn-tambah-prospek').style.display = 'block';
+                document.getElementById('admin-export-section').style.display = 'block'; document.getElementById('nav-tiket').style.display = 'flex'; document.getElementById('nav-penjualan').style.display = 'flex'; document.getElementById('nav-prospek').style.display = 'flex'; document.getElementById('nav-input').style.display = 'flex'; document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales'); document.getElementById('div-prospek-sales').style.display = 'block'; document.getElementById('btn-tambah-prospek').style.display = 'block';
             }
             else if (penggunaAktif.Role === 'sales') { 
-                document.getElementById('admin-export-section').style.display = 'none';
-                document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'flex';
-                document.getElementById('nav-prospek').style.display = 'flex';
-                document.getElementById('nav-input').style.display = 'none'; 
-                document.getElementById('dash-segment').style.display = 'none'; 
-                document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
-                document.getElementById('div-prospek-sales').style.display = 'none'; 
-                document.getElementById('btn-tambah-prospek').style.display = 'block';
+                document.getElementById('admin-export-section').style.display = 'none'; document.getElementById('nav-tiket').style.display = 'flex'; document.getElementById('nav-penjualan').style.display = 'flex'; document.getElementById('nav-prospek').style.display = 'flex'; document.getElementById('nav-input').style.display = 'none'; document.getElementById('dash-segment').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block'; document.getElementById('div-prospek-sales').style.display = 'none'; document.getElementById('btn-tambah-prospek').style.display = 'block';
             } 
             else { 
-                document.getElementById('admin-export-section').style.display = 'none';
-                document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'none'; 
-                document.getElementById('nav-prospek').style.display = 'none';
-                document.getElementById('nav-input').style.display = 'none'; 
-                document.getElementById('dash-segment').style.display = 'none'; 
-                document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'block';
-                document.getElementById('btn-tambah-prospek').style.display = 'none';
+                document.getElementById('admin-export-section').style.display = 'none'; document.getElementById('nav-tiket').style.display = 'flex'; document.getElementById('nav-penjualan').style.display = 'none'; document.getElementById('nav-prospek').style.display = 'none'; document.getElementById('nav-input').style.display = 'none'; document.getElementById('dash-segment').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'block'; document.getElementById('btn-tambah-prospek').style.display = 'none';
             }
 
             renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); switchTab('dashboard'); 
@@ -863,19 +786,13 @@
                 const salesSelectSls = document.getElementById('input-sales-sls'); const currentSalesSlsVal = salesSelectSls.value;
                 const salesSelectProspek = document.getElementById('prospek-sales'); const currentProspekVal = salesSelectProspek.value;
                 
-                salesSelect.innerHTML = '<option value="" selected>-- Tanpa Sales --</option>';
-                salesSelectSls.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
-                salesSelectProspek.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
+                salesSelect.innerHTML = '<option value="" selected>-- Tanpa Sales --</option>'; salesSelectSls.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>'; salesSelectProspek.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
                 
                 let salesList = (globalUsers || []).filter(u => u && u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
-                salesList.forEach(s => { 
-                    salesSelect.innerHTML += `<option value="${s}">${s}</option>`; 
-                    salesSelectSls.innerHTML += `<option value="${s}">${s}</option>`;
-                    salesSelectProspek.innerHTML += `<option value="${s}">${s}</option>`;
-                });
+                salesList.forEach(s => { salesSelect.innerHTML += `<option value="${s}">${s}</option>`; salesSelectSls.innerHTML += `<option value="${s}">${s}</option>`; salesSelectProspek.innerHTML += `<option value="${s}">${s}</option>`; });
                 if (currentSalesVal && !salesList.includes(currentSalesVal)) { salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Nonaktif)</option>`; }
                 salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
-            } catch(e) { console.error("Error render inputs:", e); }
+            } catch(e) {}
         }
 
         function setAutoIDs() {
@@ -890,13 +807,9 @@
                     let elTkt = document.getElementById('input-id'); if(elTkt) elTkt.value = 'TKT-' + String(maxTkt + 1).padStart(3, '0'); 
                     let elSls = document.getElementById('input-id-sls'); if(elSls) elSls.value = 'SLS-' + String(maxSls + 1).padStart(3, '0'); 
                 }
-                
-                let prospekEl = document.getElementById('prospek-id');
-                if(prospekEl) { prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0'); }
-
-                let garansiEl = document.getElementById('garansi-id');
-                if(garansiEl) { garansiEl.value = 'GRS-' + String(maxGrs + 1).padStart(3, '0'); }
-            } catch(e) { console.error("Error setAutoIDs:", e); }
+                let prospekEl = document.getElementById('prospek-id'); if(prospekEl) { prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0'); }
+                let garansiEl = document.getElementById('garansi-id'); if(garansiEl) { garansiEl.value = 'GRS-' + String(maxGrs + 1).padStart(3, '0'); }
+            } catch(e) {}
         }
 
         function renderDashboard() {
@@ -904,45 +817,30 @@
             const dashSalesContainer = document.getElementById('dash-sales-content'); dashSalesContainer.innerHTML = '';
             
             let statsTeknisi = {}; let statsSales = {}; let statsAdmin = { total: 0, tepat: 0, telat: 0, proses: 0 };
-            let statsAdminNota = { aman: 0, telat: 0 };
-            let now = new Date();
+            let statsAdminNota = { aman: 0, telat: 0 }; let now = new Date();
 
             (globalUsers || []).forEach(u => { 
                 if (u && u.Role === 'teknisi' && u['Nama Asli']) { let namaAsli = u['Nama Asli']; if (namaAsli.toLowerCase() === 'syawal') namaAsli = 'Muhammad Syawal'; if (!statsTeknisi[namaAsli]) { statsTeknisi[namaAsli] = { nama: namaAsli, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0 }; } }
-                if (u && u.Role === 'sales' && u['Nama Asli']) { 
-                    let namaSales = u['Nama Asli']; 
-                    let rawTarget = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || 0;
-                    if (!statsSales[namaSales]) { statsSales[namaSales] = { nama: namaSales, target: parseInt(rawTarget) || 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; } 
-                }
+                if (u && u.Role === 'sales' && u['Nama Asli']) { let namaSales = u['Nama Asli']; let rawTarget = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || 0; if (!statsSales[namaSales]) { statsSales[namaSales] = { nama: namaSales, target: parseInt(rawTarget) || 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; } }
             });
 
             (globalTickets || []).forEach(t => {
-                if(!t) return;
-                let idTkt = String(t['ID Tiket'] || '');
-                if(!idTkt || idTkt.startsWith('SLS-')) return;
+                if(!t) return; let idTkt = String(t['ID Tiket'] || ''); if(!idTkt || idTkt.startsWith('SLS-')) return;
                 
                 const statusRespon = t['Status SLA Respon']; const statusPengerjaan = t['Status SLA']; const statusTiket = t['Status'] || 'Menunggu';
-                let teknisiVal = String(t['Teknisi'] || '').trim();
-                let isUnassigned = (teknisiVal === 'Belum Ditugaskan' || teknisiVal === '-' || teknisiVal === '');
+                let teknisiVal = String(t['Teknisi'] || '').trim(); let isUnassigned = (teknisiVal === 'Belum Ditugaskan' || teknisiVal === '-' || teknisiVal === '');
                 
                 statsAdmin.total++;
                 if (isUnassigned) {
-                    let dtLaporStr = t[Object.keys(t)[2]];
-                    let waktuLaporTiket = dtLaporStr instanceof Date ? dtLaporStr : new Date(String(dtLaporStr).replace(/-/g, "/"));
-                    if (!isNaN(waktuLaporTiket.getTime())) {
-                        let jamKerjaUnassigned = hitungDurasiJamKerjaMs(waktuLaporTiket, now) / (1000 * 60 * 60);
-                        if (jamKerjaUnassigned >= 27) { statsAdmin.telat++; } else { statsAdmin.proses++; }
-                    }
+                    let dtLaporStr = t[Object.keys(t)[2]]; let waktuLaporTiket = dtLaporStr instanceof Date ? dtLaporStr : new Date(String(dtLaporStr).replace(/-/g, "/"));
+                    if (!isNaN(waktuLaporTiket.getTime())) { let jamKerjaUnassigned = hitungDurasiJamKerjaMs(waktuLaporTiket, now) / (1000 * 60 * 60); if (jamKerjaUnassigned >= 27) { statsAdmin.telat++; } else { statsAdmin.proses++; } }
                 } else { statsAdmin.tepat++; }
 
                 if (statusTiket === 'Selesai') {
                     let existsInGrs = (globalGaransi || []).some(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim() === idTkt);
                     if (!existsInGrs) {
                         let tSelesai = new Date(t[Object.keys(t)[9]]);
-                        if (!isNaN(tSelesai.getTime())) {
-                            let jamKerja = hitungDurasiJamKerjaMs(tSelesai, now) / 3600000;
-                            if (jamKerja >= 24) { statsAdminNota.telat++; } else { statsAdminNota.aman++; }
-                        }
+                        if (!isNaN(tSelesai.getTime())) { let jamKerja = hitungDurasiJamKerjaMs(tSelesai, now) / 3600000; if (jamKerja >= 24) { statsAdminNota.telat++; } else { statsAdminNota.aman++; } }
                     }
                 }
 
@@ -954,53 +852,22 @@
                     if (statusTiket === 'Cancel') { } else if (statusTiket === 'Pending') { statsTeknisi[key].peng_aman++; } else if (statusTiket === 'On Progress') { if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } else { statsTeknisi[key].peng_aman++; } } else if (statusTiket === 'Menunggu') { if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } } else if (statusTiket === 'Selesai') { if(statusPengerjaan === 'TERPENUHI') { statsTeknisi[key].peng_tepat++; statsTeknisi[key].peng_total++; } else if(statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } }
                 });
 
-                let sName = String(t['Sales'] || '').trim(); 
-                let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
+                let sName = String(t['Sales'] || '').trim(); let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                 if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
-                if (sKey) { 
-                    statsSales[sKey].total++; 
-                    if (statusTiket === 'Selesai') { 
-                        let rawRev = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0;
-                        statsSales[sKey].revenue += parseInt(rawRev) || 0; 
-                        statsSales[sKey].selesai++;
-                    } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; }
-                }
+                if (sKey) { statsSales[sKey].total++; if (statusTiket === 'Selesai') { let rawRev = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0; statsSales[sKey].revenue += parseInt(rawRev) || 0; statsSales[sKey].selesai++; } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; } }
             });
 
             (globalPenjualan || []).forEach(p => {
-                if(!p) return;
-                let sName = String(p['Sales'] || '').trim(); 
-                let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
+                if(!p) return; let sName = String(p['Sales'] || '').trim(); let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                 if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
-                if (sKey) {
-                    statsSales[sKey].total++; statsSales[sKey].selesai++; 
-                    let rawRev = p['Nominal (Rp)'] || p['Nominal'] || 0;
-                    statsSales[sKey].revenue += parseInt(rawRev) || 0; 
-                }
+                if (sKey) { statsSales[sKey].total++; statsSales[sKey].selesai++; let rawRev = p['Nominal (Rp)'] || p['Nominal'] || 0; statsSales[sKey].revenue += parseInt(rawRev) || 0; }
             });
             
-            let aTotal = statsAdmin.tepat + statsAdmin.telat + statsAdmin.proses;
-            let aRate = aTotal > 0 ? Math.round((statsAdmin.tepat / aTotal) * 100) : 0;
-            let aP1 = aTotal === 0 ? 0 : (statsAdmin.tepat / aTotal) * 100;
-            let aP2 = aTotal === 0 ? 0 : aP1 + (statsAdmin.telat / aTotal) * 100;
-            let aBg = aTotal === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${aP1}%, var(--danger) ${aP1}% ${aP2}%, var(--warning) ${aP2}% 100%)`;
+            let aTotal = statsAdmin.tepat + statsAdmin.telat + statsAdmin.proses; let aRate = aTotal > 0 ? Math.round((statsAdmin.tepat / aTotal) * 100) : 0; let aP1 = aTotal === 0 ? 0 : (statsAdmin.tepat / aTotal) * 100; let aP2 = aTotal === 0 ? 0 : aP1 + (statsAdmin.telat / aTotal) * 100; let aBg = aTotal === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${aP1}%, var(--danger) ${aP1}% ${aP2}%, var(--warning) ${aP2}% 100%)`;
 
             let htmlAdmin = `<h3 class="section-title">Performa Admin (SLA Internal)</h3><div class="card" style="border-left-color:#3b82f6;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:#3b82f6; font-size:16px;">SLA 1: Distribusi Tugas Teknisi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 3 Hari (27 Jam Kerja).</p><div class="charts-container"><div class="chart-box" style="flex:1;"><div class="chart-title">DISTRIBUSI TUGAS</div><div class="donut" style="background: ${aBg};"><div class="donut-inner"><span class="donut-val" style="color:${aRate>=80?'var(--success)':(aRate>=50?'var(--warning)':'var(--danger)')}">${aTotal>0?aRate+'%':'-'}</span><span class="donut-label">Sukses</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Cepat</span> <b>${statsAdmin.tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat (>3 Hari)</span> <b>${statsAdmin.telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${statsAdmin.proses}</b></div></div></div></div></div>`;
 
-            htmlAdmin += `<div class="card" style="border-left-color:var(--purple); margin-top:15px;">
-                <h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--purple); font-size:16px;">SLA 2: Pembuatan Nota & Garansi</h3>
-                <p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 24 Jam Kerja setelah teknisi menyelesaikan tiket.</p>
-                <div style="display:flex; justify-content:space-around; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);">
-                    <div style="text-align:center;">
-                        <div style="font-size:24px; font-weight:800; color:var(--warning);">${statsAdminNota.aman}</div>
-                        <div style="font-size:11px; color:var(--text-muted); font-weight:600;">Tiket Aman</div>
-                    </div>
-                    <div style="text-align:center;">
-                        <div style="font-size:24px; font-weight:800; color:var(--danger);">${statsAdminNota.telat}</div>
-                        <div style="font-size:11px; color:var(--text-muted); font-weight:600;">SLA GAGAL</div>
-                    </div>
-                </div>
-            </div>`;
+            htmlAdmin += `<div class="card" style="border-left-color:var(--purple); margin-top:15px;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--purple); font-size:16px;">SLA 2: Pembuatan Nota & Garansi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 24 Jam Kerja setelah tiket selesai.</p><div style="display:flex; justify-content:space-around; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);"><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--warning);">${statsAdminNota.aman}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Tiket Aman</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--danger);">${statsAdminNota.telat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">SLA GAGAL</div></div></div></div>`;
 
             let htmlTeknisi = '<h3 class="section-title" style="margin-top:30px;">Papan Performa Teknisi</h3>';
             let arrTeknisi = Object.values(statsTeknisi).sort((a, b) => { let rateA = (a.resp_total + a.peng_total) > 0 ? ((a.resp_tepat + a.peng_tepat) / (a.resp_total + a.peng_total)) : 0; let rateB = (b.resp_total + b.peng_total) > 0 ? ((b.resp_tepat + b.peng_tepat) / (b.resp_total + b.peng_total)) : 0; return rateB !== rateA ? rateB - rateA : (b.resp_total + b.peng_total) - (a.resp_total + a.peng_total); });
@@ -1017,19 +884,9 @@
             if (arrSales.length === 0) htmlSales += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data.</p>';
             arrSales.forEach(s => { 
                 let winRate = s.target > 0 ? Math.min(((s.revenue / s.target) * 100), 100).toFixed(0) : 0;
-                let trTotal = s.selesai + s.progress + s.batal;
-                let pp1 = trTotal === 0 ? 0 : (s.selesai / trTotal) * 100; let pp2 = trTotal === 0 ? 0 : pp1 + (s.progress / trTotal) * 100;
-                let pBg = trTotal === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${pp1}%, var(--warning) ${pp1}% ${pp2}%, var(--danger) ${pp2}% 100%)`;
-                let tBg = `conic-gradient(var(--purple) 0% ${winRate}%, #e2e8f0 ${winRate}% 100%)`;
-
-                htmlSales += `
-                <div class="card" style="border-left-color:var(--purple);">
-                    <h3 style="margin-bottom:5px; color:var(--purple); border-bottom:1px solid var(--border); padding-bottom:10px; font-size:16px;">💼 ${s.nama}</h3>
-                    <div class="charts-container">
-                        <div class="chart-box"><div class="chart-title">PENCAPAIAN TARGET</div><div class="donut" style="background: ${tBg};"><div class="donut-inner"><span class="donut-val" style="color:var(--purple);">${winRate}%</span></div></div><div style="margin-top:12px; font-size:11px; width:100%;"><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="color:var(--text-muted);">Target:</span> <strong>${formatRp(s.target)}</strong></div><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="color:var(--success);">Omzet:</span> <strong>${formatRp(s.revenue)}</strong></div></div></div>
-                        <div class="chart-box"><div class="chart-title">STATUS TRANSAKSI</div><div class="donut" style="background: ${pBg};"><div class="donut-inner"><span class="donut-val">${s.total}</span><span class="donut-label">Total</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Selesai</span> <b>${s.selesai}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.progress}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Batal</span> <b>${s.batal}</b></div></div></div>
-                    </div>
-                </div>`;
+                let trTotal = s.selesai + s.progress + s.batal; let pp1 = trTotal === 0 ? 0 : (s.selesai / trTotal) * 100; let pp2 = trTotal === 0 ? 0 : pp1 + (s.progress / trTotal) * 100;
+                let pBg = trTotal === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${pp1}%, var(--warning) ${pp1}% ${pp2}%, var(--danger) ${pp2}% 100%)`; let tBg = `conic-gradient(var(--purple) 0% ${winRate}%, #e2e8f0 ${winRate}% 100%)`;
+                htmlSales += `<div class="card" style="border-left-color:var(--purple);"><h3 style="margin-bottom:5px; color:var(--purple); border-bottom:1px solid var(--border); padding-bottom:10px; font-size:16px;">💼 ${s.nama}</h3><div class="charts-container"><div class="chart-box"><div class="chart-title">PENCAPAIAN TARGET</div><div class="donut" style="background: ${tBg};"><div class="donut-inner"><span class="donut-val" style="color:var(--purple);">${winRate}%</span></div></div><div style="margin-top:12px; font-size:11px; width:100%;"><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="color:var(--text-muted);">Target:</span> <strong>${formatRp(s.target)}</strong></div><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="color:var(--success);">Omzet:</span> <strong>${formatRp(s.revenue)}</strong></div></div></div><div class="chart-box"><div class="chart-title">STATUS TRANSAKSI</div><div class="donut" style="background: ${pBg};"><div class="donut-inner"><span class="donut-val">${s.total}</span><span class="donut-label">Total</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Selesai</span> <b>${s.selesai}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.progress}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Batal</span> <b>${s.batal}</b></div></div></div></div></div>`;
             });
             dashSalesContainer.innerHTML = htmlSales;
         }
@@ -1039,54 +896,39 @@
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let tiketDitampilkan = [];
             
-            if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
-                tiketDitampilkan = globalTickets || []; 
-            } else { 
-                tiketDitampilkan = (globalTickets || []).filter(t => t && String(t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); 
-            }
+            if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { tiketDitampilkan = globalTickets || []; } 
+            else { tiketDitampilkan = (globalTickets || []).filter(t => t && String(t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); }
             
             let htmlAda = false;
             tiketDitampilkan.slice().reverse().forEach(ticket => {
-                if(!ticket) return;
-                let idTkt = String(ticket['ID Tiket'] || '');
-                if (!idTkt || idTkt.startsWith('SLS-')) return; 
+                if(!ticket) return; let idTkt = String(ticket['ID Tiket'] || ''); if (!idTkt || idTkt.startsWith('SLS-')) return; 
                 
-                let textStatus = ticket['Status'] || 'Menunggu'; 
-                let teknisiVal = String(ticket['Teknisi'] || '').trim();
+                let textStatus = ticket['Status'] || 'Menunggu'; let teknisiVal = String(ticket['Teknisi'] || '').trim();
                 let isUnassigned = (teknisiVal === 'Belum Ditugaskan' || teknisiVal === '-' || teknisiVal === '');
-                
                 let statusPengerjaanKartu = ticket['Status SLA']; if(textStatus === 'Pending') statusPengerjaanKartu = 'AMAN';
                 
                 let isAktif = ['Menunggu', 'On Progress', 'Pending'].includes(textStatus);
                 let isRiwayat = ['Selesai', 'Cancel'].includes(textStatus);
                 if (isUnassigned) { textStatus = 'Menunggu Teknisi'; isAktif = true; isRiwayat = false; }
                 
-                if (currentTicketFilter === 'aktif' && !isAktif) return;
-                if (currentTicketFilter === 'riwayat' && !isRiwayat) return;
-
-                if (searchVal !== '') {
-                    let noTransData = ticket['No Transaksi'] || ticket[Object.keys(ticket)[1]] || '';
-                    let strCari = `${ticket['ID Tiket']} ${ticket['Klien & Lokasi']} ${ticket['Jenis Pekerjaan']} ${ticket['Sales']} ${ticket['Teknisi']} ${noTransData}`.toLowerCase();
-                    if (!strCari.includes(searchVal)) return;
-                }
+                if (currentTicketFilter === 'aktif' && !isAktif) return; if (currentTicketFilter === 'riwayat' && !isRiwayat) return;
+                if (searchVal !== '') { let noTransData = ticket['No Transaksi'] || ticket[Object.keys(ticket)[1]] || ''; let strCari = `${ticket['ID Tiket']} ${ticket['Klien & Lokasi']} ${ticket['Jenis Pekerjaan']} ${ticket['Sales']} ${ticket['Teknisi']} ${noTransData}`.toLowerCase(); if (!strCari.includes(searchVal)) return; }
 
                 htmlAda = true;
                 let sc = statusPengerjaanKartu === 'TERLAMBAT' ? 'status-terlambat' : (statusPengerjaanKartu === 'TERPENUHI' ? 'status-terpenuhi' : 'status-aman');
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status'));
-                
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 let textSlaPengerjaan = ticket['Status SLA'] === 'TERLAMBAT' ? 'GAGAL' : (ticket['Status SLA'] || '-');
                 let bSelesai = textSlaPengerjaan === 'GAGAL' ? 'badge-cancel' : (textSlaPengerjaan === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 
-                let infoSlaTeks = `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Respon'])}</p><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Waktu'])}</p>`;
+                let infoSlaTeks = "";
 
                 // ===============================================
                 // MENCEGAH BUG SLA TEKNISI MUNCUL SAAT BELUM DITUGASKAN
                 // ===============================================
                 if (isUnassigned) { 
                     sc = 'status-aman'; bc = 'badge-pending'; textStatus = 'Menunggu Teknisi';
-                    let dtLaporStr = ticket[Object.keys(ticket)[2]];
-                    let dtLapor = new Date(dtLaporStr);
+                    let dtLaporStr = ticket[Object.keys(ticket)[2]]; let dtLapor = new Date(dtLaporStr);
                     
                     if (!isNaN(dtLapor.getTime())) {
                         let jamKerjaNganggur = hitungDurasiJamKerjaMs(dtLapor, new Date()) / 3600000;
@@ -1097,37 +939,31 @@
                             let batasAdmin = hitungTenggatJamKerja(dtLapor, 27);
                             infoSlaTeks = `<div style="background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ SLA Admin Berjalan...</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Batas 3 Hari Kerja: ${formatWaktu(batasAdmin)}</p></div>`;
                         }
-                    } else {
-                        infoSlaTeks = `<div style="background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ Menunggu Penugasan Teknisi</p></div>`;
-                    }
+                    } else { infoSlaTeks = `<div style="background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ Menunggu Penugasan Teknisi</p></div>`; }
+                    
+                    infoSlaTeks += `<div style="margin-top:10px; border-top:1px dashed var(--border); padding-top:10px;"><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas Selesai: ${formatWaktu(ticket['Tenggat Waktu'])}</p><p style="margin:0 0 5px 0; color:var(--warning); font-size:11px;">*SLA Respon di-pause hingga Teknisi ditugaskan.</p></div>`;
                 } 
-                else if (textStatus === 'Selesai') {
-                    let existsInGrs = (globalGaransi || []).some(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim() === idTkt);
-                    if (!existsInGrs) {
-                        let tSelesai = new Date(ticket[Object.keys(ticket)[9]]);
-                        if (!isNaN(tSelesai.getTime())) {
-                            let batasAdminNota = hitungTenggatJamKerja(tSelesai, 24);
-                            let jamKerjaTelat = hitungDurasiJamKerjaMs(tSelesai, new Date()) / 3600000;
-                            
-                            if (jamKerjaTelat >= 24) {
-                                infoSlaTeks += `<div style="margin-top:10px; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">🚨 SLA ADMIN (NOTA) GAGAL</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Belum input Garansi (>24 Jam Kerja)</p></div>`;
-                            } else {
-                                infoSlaTeks += `<div style="margin-top:10px; background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ SLA Admin: Menunggu Nota/Garansi</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Batas 24 Jam Kerja: ${formatWaktu(batasAdminNota)}</p></div>`;
+                else {
+                    infoSlaTeks = `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Respon'])}</p><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Waktu'])}</p>`;
+                    
+                    if (textStatus === 'Selesai') {
+                        let existsInGrs = (globalGaransi || []).some(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim() === idTkt);
+                        if (!existsInGrs) {
+                            let tSelesai = new Date(ticket[Object.keys(ticket)[9]]);
+                            if (!isNaN(tSelesai.getTime())) {
+                                let batasAdminNota = hitungTenggatJamKerja(tSelesai, 24); let jamKerjaTelat = hitungDurasiJamKerjaMs(tSelesai, new Date()) / 3600000;
+                                if (jamKerjaTelat >= 24) { infoSlaTeks += `<div style="margin-top:10px; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">🚨 SLA ADMIN (NOTA) GAGAL</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Belum input Garansi (>24 Jam Kerja)</p></div>`; } 
+                                else { infoSlaTeks += `<div style="margin-top:10px; background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ SLA Admin: Menunggu Nota/Garansi</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Batas 24 Jam Kerja: ${formatWaktu(batasAdminNota)}</p></div>`; }
                             }
-                        }
-                    } else {
-                        infoSlaTeks += `<div style="margin-top:10px; background:#f0fdf4; padding:10px; border-radius:8px; border:1px solid #bbf7d0;"><p style="margin:0; text-align:center; color:#166534; font-weight:bold;">✅ Nota & Garansi Selesai</p></div>`;
+                        } else { infoSlaTeks += `<div style="margin-top:10px; background:#f0fdf4; padding:10px; border-radius:8px; border:1px solid #bbf7d0;"><p style="margin:0; text-align:center; color:#166534; font-weight:bold;">✅ Nota & Garansi Selesai</p></div>`; }
                     }
                 }
 
-                let noTransData = ticket['No Transaksi'] || ticket[Object.keys(ticket)[1]];
-                let noTrans = noTransData ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${noTransData}</span></p>` : '';
-
+                let noTransData = ticket['No Transaksi'] || ticket[Object.keys(ticket)[1]]; let noTrans = noTransData ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${noTransData}</span></p>` : '';
                 let htmlBA = ''; if (ticket['Deskripsi Pekerjaan (BA)']) { htmlBA = `<div class="ba-box"><h4 style="margin:0 0 10px 0; font-size:13px; color:var(--primary); border-bottom:1px solid var(--border); padding-bottom:5px;">Berita Acara / Laporan</h4><p style="margin:0; font-size:12px; white-space:pre-wrap;">${ticket['Deskripsi Pekerjaan (BA)']}</p>${ticket['Kritik & Saran'] ? `<p style="margin:8px 0 0 0; font-size:12px; color:var(--text-muted);"><i>Catatan Klien: ${ticket['Kritik & Saran']}</i></p>` : ''}<p style="margin:8px 0 0 0; font-size:12px; font-weight:600;">Oleh: ${ticket['Nama Customer'] || '-'}</p></div>`; }
                 let htmlTracking = ''; if (ticket['Keterangan']) { htmlTracking = `<div class="history-box"><b>Riwayat Update:</b>\n${ticket['Keterangan']}</div>`; }
 
                 let htmlBanding = ''; let btnHtml = '';
-                
                 if (penggunaAktif.Role === 'sales') {
                     if (!ticket['Sales'] || ticket['Sales'].trim() === '-' || ticket['Sales'].trim() === '') {
                         if (!ticket['Status Banding']) { htmlBanding = `<button class="btn-action-primary" style="background:#f3e8ff; color:var(--purple); border-color:#d8b4fe;" onclick="bukaModalBanding('${ticket['ID Tiket']}')">📌 Klaim Pekerjaan Ini</button>`; } 
@@ -1141,44 +977,20 @@
                         imgs.forEach((imgSrc, idx) => { if(imgSrc && imgSrc.length > 10) { imgHtml += `<div style="display:flex; flex-direction:column; align-items:center;"><img src="${imgSrc}"><a href="${imgSrc}" download="Bukti_${ticket['ID Tiket']}_${idx+1}.jpg" class="dl-btn">Unduh Foto ${idx+1}</a></div>`; } });
                         htmlBanding = `<div style="margin-top:15px; padding:15px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px;"><h4 style="margin:0 0 10px 0; color:var(--purple); font-size:14px;">Klaim Sales: ${ticket['Sales Pengaju']}</h4>${ticket['Keterangan Sales'] ? `<p style="font-size:12px; margin:0 0 10px 0; color:#4a5568;"><i>"${ticket['Keterangan Sales']}"</i></p>` : ''}<div class="img-grid">${imgHtml}</div><div class="btn-grid"><button class="btn-acc" onclick="responBanding('${ticket['ID Tiket']}', 'Diterima', '${ticket['Sales Pengaju']}')">Terima Klaim</button><button class="btn-del" onclick="responBanding('${ticket['ID Tiket']}', 'Ditolak', '')">Tolak Klaim</button></div></div>`;
                     }
-                    
                     let delBtn = penggunaAktif.Role === 'admin' ? `<button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button>` : '';
-
-                    if (isUnassigned) { 
-                        btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid">${delBtn}</div>`; 
-                    } else { 
-                        let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status'; 
-                        btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button><div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button>${delBtn}</div>`; 
-                    }
+                    if (isUnassigned) { btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid">${delBtn}</div>`; } 
+                    else { let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status'; btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button><div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button>${delBtn}</div>`; }
                 } else if (penggunaAktif.Role === 'teknisi') {
                     let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status'; btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
                 }
 
                 let pdfUrl = ticket['Link PDF BA'] || ticket[Object.keys(ticket)[30]];
-                let pdfHtml = (pdfUrl && pdfUrl.length > 10) ? 
-                    `<div style="margin-top:10px; padding:10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
-                        <p style="margin:0 0 5px 0; font-size:12px; color:#1e3a8a; font-weight:bold;">📄 Dokumen Berita Acara (PDF)</p>
-                        <a href="${pdfUrl}" target="_blank" class="dl-btn" style="background:#1e3a8a; color:white; border:none; display:block; text-align:center;">⬇️ Download / Cetak BA</a>
-                    </div>` : '';
+                let pdfHtml = (pdfUrl && pdfUrl.length > 10) ? `<div style="margin-top:10px; padding:10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;"><p style="margin:0 0 5px 0; font-size:12px; color:#1e3a8a; font-weight:bold;">📄 Dokumen Berita Acara (PDF)</p><a href="${pdfUrl}" target="_blank" class="dl-btn" style="background:#1e3a8a; color:white; border:none; display:block; text-align:center;">⬇️ Download / Cetak BA</a></div>` : '';
 
                 let nilaiPenjualanCek = ticket['Nilai Penjualan (Rp)'] || ticket['Nilai Penjualan'] || 0; let infoPenjualanHtml = '';
-                if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role) && parseInt(nilaiPenjualanCek) > 0) { 
-                    infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`; 
-                }
+                if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role) && parseInt(nilaiPenjualanCek) > 0) { infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`; }
 
-                container.innerHTML += `<div class="card ${sc}">
-                    <h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>
-                    ${noTrans}
-                    <p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p>
-                    <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
-                    <p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>
-                    ${infoPenjualanHtml}
-                    <p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
-                    <div class="waktu-box">
-                        ${infoSlaTeks}
-                    </div>
-                    ${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}
-                </div>`;
+                container.innerHTML += `<div class="card ${sc}"><h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>${noTrans}<p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p><p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p><p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>${infoPenjualanHtml}<p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p><div class="waktu-box">${infoSlaTeks}</div>${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}</div>`;
             });
             if(!htmlAda) container.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket ${currentTicketFilter === 'aktif' ? 'aktif' : 'di riwayat'}.</p>`;
         }
@@ -1187,65 +999,28 @@
             const container = document.getElementById('penjualan-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-sls'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let penDitampilkan = [];
-            
-            if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
-                penDitampilkan = globalPenjualan || []; 
-            }
-            
+            if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { penDitampilkan = globalPenjualan || []; }
             let htmlAda = false;
             penDitampilkan.slice().reverse().forEach(p => {
-                if(!p) return;
-                let idP = String(p['ID Penjualan'] || '');
-                if (!idP) return;
-                
-                if (searchVal !== '') {
-                    let strCari = `${p['ID Penjualan']} ${p['No Transaksi']} ${p['Nama Pembeli']} ${p['Barang / Jasa']} ${p['Sales']}`.toLowerCase();
-                    if (!strCari.includes(searchVal)) return;
-                }
+                if(!p) return; let idP = String(p['ID Penjualan'] || ''); if (!idP) return;
+                if (searchVal !== '') { let strCari = `${p['ID Penjualan']} ${p['No Transaksi']} ${p['Nama Pembeli']} ${p['Barang / Jasa']} ${p['Sales']}`.toLowerCase(); if (!strCari.includes(searchVal)) return; }
                 htmlAda = true;
-                
-                let btnHtml = ''; 
-                if (penggunaAktif.Role === 'admin') { 
-                    btnHtml = `<div class="btn-grid"><button class="btn-del" onclick="hapusPenjualan('${p['ID Penjualan']}')">Hapus Data Penjualan</button></div>`; 
-                }
-                
+                let btnHtml = ''; if (penggunaAktif.Role === 'admin') { btnHtml = `<div class="btn-grid"><button class="btn-del" onclick="hapusPenjualan('${p['ID Penjualan']}')">Hapus Data</button></div>`; }
                 let noTrans = p['No Transaksi'] ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${p['No Transaksi']}</span></p>` : '';
                 let tgl = p['Waktu Lapor'] ? new Date(p['Waktu Lapor']).toLocaleDateString('id-ID') : '-';
-
                 container.innerHTML += `<div class="card status-terpenuhi"><h3><span>${p['ID Penjualan']}</span><span class="badge badge-sales">Lunas</span></h3>${noTrans}<p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Pembeli:</strong> ${p['Nama Pembeli']}</p><p><strong>Barang:</strong> ${p['Barang / Jasa']}</p><p><strong>Sales:</strong> ${p['Sales']}</p><p style="color:var(--success);"><strong>Nominal Omzet:</strong> ${formatRp(p['Nominal (Rp)'] || p['Nominal'])}</p>${btnHtml}</div>`;
             });
-            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan sesuai pencarian.</p>';
+            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan.</p>';
         }
 
         function bukaFormGaransi() { 
             try {
-                document.getElementById('form-garansi-container').style.display = 'block'; 
-                document.getElementById('form-garansi').reset(); 
-                document.getElementById('btn-submit-garansi').innerText = 'Simpan Garansi';
-                document.getElementById('btn-submit-garansi').disabled = false;
-                
-                const selRef = document.getElementById('garansi-referensi');
-                selRef.innerHTML = '<option value="">-- Tanpa Referensi (Input Manual) --</option>';
-                
-                if(Array.isArray(globalTickets)) {
-                    globalTickets.slice().reverse().forEach(t => { 
-                        if(t && t['Status'] === 'Selesai') { 
-                            selRef.innerHTML += `<option value="${t['ID Tiket']}">${t['ID Tiket']} - ${t['Klien & Lokasi']}</option>`; 
-                        } 
-                    });
-                }
-
-                if(Array.isArray(globalPenjualan)) {
-                    globalPenjualan.slice().reverse().forEach(p => { 
-                        if(p && p['ID Penjualan']) { 
-                            selRef.innerHTML += `<option value="${p['ID Penjualan']}">${p['ID Penjualan']} - ${p['Nama Pembeli']}</option>`; 
-                        } 
-                    });
-                }
+                document.getElementById('form-garansi-container').style.display = 'block'; document.getElementById('form-garansi').reset(); document.getElementById('btn-submit-garansi').innerText = 'Simpan Garansi'; document.getElementById('btn-submit-garansi').disabled = false;
+                const selRef = document.getElementById('garansi-referensi'); selRef.innerHTML = '<option value="">-- Tanpa Referensi (Input Manual) --</option>';
+                if(Array.isArray(globalTickets)) { globalTickets.slice().reverse().forEach(t => { if(t && t['Status'] === 'Selesai') { selRef.innerHTML += `<option value="${t['ID Tiket']}">${t['ID Tiket']} - ${t['Klien & Lokasi']}</option>`; } }); }
+                if(Array.isArray(globalPenjualan)) { globalPenjualan.slice().reverse().forEach(p => { if(p && p['ID Penjualan']) { selRef.innerHTML += `<option value="${p['ID Penjualan']}">${p['ID Penjualan']} - ${p['Nama Pembeli']}</option>`; } }); }
                 setAutoIDs(); 
-            } catch(e) {
-                showToast("Sistem memuat form garansi.", "success");
-            }
+            } catch(e) {}
         }
 
         function tutupFormGaransi() { document.getElementById('form-garansi-container').style.display = 'none'; }
@@ -1253,454 +1028,231 @@
         function autoFillGaransi() {
             try {
                 let val = document.getElementById('garansi-referensi').value;
-                if(!val) {
-                    document.getElementById('garansi-pelanggan').value = '';
-                    document.getElementById('garansi-barang').value = '';
-                    return;
-                }
-                if(val.startsWith('TKT-')) {
-                    let t = (globalTickets || []).find(x => x && x['ID Tiket'] === val);
-                    if(t) {
-                        document.getElementById('garansi-pelanggan').value = t['Klien & Lokasi'] || '';
-                        document.getElementById('garansi-barang').value = t['Jenis Pekerjaan'] || '';
-                    }
-                } else if (val.startsWith('SLS-')) {
-                    let p = (globalPenjualan || []).find(x => x && x['ID Penjualan'] === val);
-                    if(p) {
-                        document.getElementById('garansi-pelanggan').value = p['Nama Pembeli'] || '';
-                        document.getElementById('garansi-barang').value = p['Barang / Jasa'] || '';
-                    }
-                }
-            } catch(e) { console.error("Error autofill"); }
+                if(!val) { document.getElementById('garansi-pelanggan').value = ''; document.getElementById('garansi-barang').value = ''; return; }
+                if(val.startsWith('TKT-')) { let t = (globalTickets || []).find(x => x && x['ID Tiket'] === val); if(t) { document.getElementById('garansi-pelanggan').value = t['Klien & Lokasi'] || ''; document.getElementById('garansi-barang').value = t['Jenis Pekerjaan'] || ''; } } 
+                else if (val.startsWith('SLS-')) { let p = (globalPenjualan || []).find(x => x && x['ID Penjualan'] === val); if(p) { document.getElementById('garansi-pelanggan').value = p['Nama Pembeli'] || ''; document.getElementById('garansi-barang').value = p['Barang / Jasa'] || ''; } }
+            } catch(e) {}
         }
 
         function renderGaransi() {
-            const container = document.getElementById('garansi-container'); 
-            if(!container) return;
-            container.innerHTML = ''; 
-            let searchInput = document.getElementById('search-garansi-input'); 
-            let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
-            
+            const container = document.getElementById('garansi-container'); if(!container) return; container.innerHTML = ''; 
+            let searchInput = document.getElementById('search-garansi-input'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let htmlAda = false;
             (globalGaransi || []).slice().reverse().forEach(g => {
-                if(!g) return;
-                let idGrs = String(g['ID Garansi'] || '');
-                if (!idGrs) return;
-                
-                if (searchVal !== '') {
-                    let strCari = `${g['ID Garansi']} ${g['Referensi (Tiket/Nota)']} ${g['Nama Pelanggan']} ${g['Barang / Jasa']}`.toLowerCase();
-                    if (!strCari.includes(searchVal)) return;
-                }
+                if(!g) return; let idGrs = String(g['ID Garansi'] || ''); if (!idGrs) return;
+                if (searchVal !== '') { let strCari = `${g['ID Garansi']} ${g['Referensi (Tiket/Nota)']} ${g['Nama Pelanggan']} ${g['Barang / Jasa']}`.toLowerCase(); if (!strCari.includes(searchVal)) return; }
                 htmlAda = true;
-                
-                let textStatus = g['Status'] || 'Masa Tunggu';
-                let sc = 'status-aman'; let bc = 'badge-tunggu';
-                if (textStatus === 'Aktif') { sc = 'status-terpenuhi'; bc = 'badge-aktif'; }
-                else if (textStatus.includes('Habis') || textStatus.includes('Hangus') || textStatus.includes('Diklaim')) { sc = 'status-terlambat'; bc = 'badge-habis'; }
-
-                let tglMulai = g['Tanggal Mulai'] ? formatWaktu(g['Tanggal Mulai']) : 'Belum Mulai';
-                let tglHabis = g['Tanggal Habis'] ? formatWaktu(g['Tanggal Habis']) : '-';
-
+                let textStatus = g['Status'] || 'Masa Tunggu'; let sc = 'status-aman'; let bc = 'badge-tunggu';
+                if (textStatus === 'Aktif') { sc = 'status-terpenuhi'; bc = 'badge-aktif'; } else if (textStatus.includes('Habis') || textStatus.includes('Hangus') || textStatus.includes('Diklaim')) { sc = 'status-terlambat'; bc = 'badge-habis'; }
+                let tglMulai = g['Tanggal Mulai'] ? formatWaktu(g['Tanggal Mulai']) : 'Belum Mulai'; let tglHabis = g['Tanggal Habis'] ? formatWaktu(g['Tanggal Habis']) : '-';
                 let btnHtml = '';
                 if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
-                    if (textStatus === 'Masa Tunggu') {
-                        btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#2563eb; border-color:#bfdbfe;" onclick="aktifkanGaransi('${idGrs}')">🚀 Aktifkan Garansi (Barang Diambil)</button>`;
-                    } else if (textStatus === 'Aktif') {
-                        btnHtml += `<button class="btn-action-primary" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;" onclick="prosesKlaimGaransi('${idGrs}')">⚠️ Proses Klaim (Hanguskan)</button>`;
-                    }
-                    if (penggunaAktif.Role === 'admin') {
-                        btnHtml += `<div class="btn-grid"><button class="btn-del" onclick="hapusGaransi('${idGrs}')">Hapus Data</button></div>`;
-                    }
+                    if (textStatus === 'Masa Tunggu') { btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#2563eb; border-color:#bfdbfe;" onclick="aktifkanGaransi('${idGrs}')">🚀 Aktifkan Garansi (Barang Diambil)</button>`; } 
+                    else if (textStatus === 'Aktif') { btnHtml += `<button class="btn-action-primary" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;" onclick="prosesKlaimGaransi('${idGrs}')">⚠️ Proses Klaim (Hanguskan)</button>`; }
+                    if (penggunaAktif.Role === 'admin') { btnHtml += `<div class="btn-grid"><button class="btn-del" onclick="hapusGaransi('${idGrs}')">Hapus Data</button></div>`; }
                 }
-
-                container.innerHTML += `<div class="card ${sc}">
-                    <h3><span>${idGrs}</span><span class="badge ${bc}">${textStatus}</span></h3>
-                    ${g['Referensi (Tiket/Nota)'] ? `<p><strong>Ref:</strong> <span class="code-badge">${g['Referensi (Tiket/Nota)']}</span></p>` : ''}
-                    <p><strong>Klien:</strong> ${g['Nama Pelanggan']}</p>
-                    <p><strong>Barang:</strong> ${g['Barang / Jasa']}</p>
-                    <div class="waktu-box" style="margin-top:10px;">
-                        <p style="margin:0 0 5px 0;"><strong>Durasi Asli:</strong> ${g['Durasi (Hari)']} Hari</p>
-                        <p style="margin:0 0 5px 0; color:var(--text-muted);">Mulai: ${tglMulai}</p>
-                        <p style="margin:0 0 5px 0; color:var(--text-muted);">Habis: ${tglHabis}</p>
-                    </div>
-                    ${btnHtml}
-                </div>`;
+                container.innerHTML += `<div class="card ${sc}"><h3><span>${idGrs}</span><span class="badge ${bc}">${textStatus}</span></h3>${g['Referensi (Tiket/Nota)'] ? `<p><strong>Ref:</strong> <span class="code-badge">${g['Referensi (Tiket/Nota)']}</span></p>` : ''}<p><strong>Klien:</strong> ${g['Nama Pelanggan']}</p><p><strong>Barang:</strong> ${g['Barang / Jasa']}</p><div class="waktu-box" style="margin-top:10px;"><p style="margin:0 0 5px 0;"><strong>Durasi Asli:</strong> ${g['Durasi (Hari)']} Hari</p><p style="margin:0 0 5px 0; color:var(--text-muted);">Mulai: ${tglMulai}</p><p style="margin:0 0 5px 0; color:var(--text-muted);">Habis: ${tglHabis}</p></div>${btnHtml}</div>`;
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada data Garansi.</p>';
         }
 
         async function submitGaransi(e) {
-            e.preventDefault(); 
-            const btn = document.getElementById('btn-submit-garansi'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
-            
+            e.preventDefault(); const btn = document.getElementById('btn-submit-garansi'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
             try {
-                let idGrs = document.getElementById('garansi-id').value;
-                if(!idGrs || idGrs === "") { setAutoIDs(); idGrs = document.getElementById('garansi-id').value; }
-
-                const payload = { 
-                    apiKey: API_KEY, action: 'addGaransi', idGaransi: idGrs, 
-                    referensi: document.getElementById('garansi-referensi').value, 
-                    pelanggan: document.getElementById('garansi-pelanggan').value, 
-                    barang: document.getElementById('garansi-barang').value, 
-                    durasi: document.getElementById('garansi-durasi').value, 
-                    status: document.getElementById('garansi-status').value 
-                };
-
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                const jsonRes = await res.json();
-                
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data Garansi berhasil disimpan.', 'success');
-                    tutupFormGaransi(); document.getElementById('loading').style.display = 'block'; 
-                    await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
-                } else { showToast('Afwan, gagal dari server.', 'error'); }
-            } catch (err) { showToast('Afwan, gagal menyimpan garansi.', 'error'); } finally { btn.innerText = 'Simpan Garansi'; btn.disabled = false; }
+                let idGrs = document.getElementById('garansi-id').value; if(!idGrs || idGrs === "") { setAutoIDs(); idGrs = document.getElementById('garansi-id').value; }
+                const payload = { apiKey: API_KEY, action: 'addGaransi', idGaransi: idGrs, referensi: document.getElementById('garansi-referensi').value, pelanggan: document.getElementById('garansi-pelanggan').value, barang: document.getElementById('garansi-barang').value, durasi: document.getElementById('garansi-durasi').value, status: document.getElementById('garansi-status').value };
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const jsonRes = await res.json();
+                if (jsonRes.status === 'sukses') { showToast('Data Garansi disimpan.', 'success'); tutupFormGaransi(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { showToast('Gagal dari server.', 'error'); }
+            } catch (err) { showToast('Gagal menyimpan garansi.', 'error'); } finally { btn.innerText = 'Simpan Garansi'; btn.disabled = false; }
         }
 
-        async function aktifkanGaransi(id) { 
-            let acc = await showConfirm(`Bismillah, barang sudah diambil Klien? Waktu garansi akan dihitung mulai detik ini.`); 
-            if(!acc) return; 
-            document.getElementById('loading').style.display = 'block'; 
-            try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'aktifkanGaransi', idGaransi: id }) }); 
-                if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi Aktif.', 'success'); await ambilSemuaData(true); } 
-            } catch(err) {} 
-            document.getElementById('loading').style.display = 'none'; 
-        }
-
-        async function prosesKlaimGaransi(id) { 
-            let acc = await showConfirm(`Bismillah, Klien melakukan klaim garansi untuk ID ${id}? \nStatus garansi ini akan langsung berubah menjadi HANGUS/HABIS setelah diklaim.`); 
-            if(!acc) return; 
-            document.getElementById('loading').style.display = 'block'; 
-            try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'klaimGaransi', idGaransi: id }) }); 
-                if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi berhasil diklaim (Hangus).', 'success'); await ambilSemuaData(true); } 
-            } catch(err) {} 
-            document.getElementById('loading').style.display = 'none'; 
-        }
-
-        async function hapusGaransi(id) { 
-            let acc = await showConfirm(`Bismillah, yakin hapus data garansi ${id}?`); 
-            if(!acc) return; 
-            document.getElementById('loading').style.display = 'block'; 
-            try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'deleteGaransi', idGaransi: id}) }); 
-                if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data dihapus.', 'success'); await ambilSemuaData(true); } 
-            } catch(err) {} 
-            document.getElementById('loading').style.display = 'none'; 
-        }
+        async function aktifkanGaransi(id) { let acc = await showConfirm(`Barang sudah diambil Klien? Waktu garansi akan dihitung mulai detik ini.`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'aktifkanGaransi', idGaransi: id }) }); if ((await res.json()).status === 'sukses') { showToast('Garansi Aktif.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        async function prosesKlaimGaransi(id) { let acc = await showConfirm(`Klien melakukan klaim garansi untuk ID ${id}? \nStatus garansi ini akan langsung berubah menjadi HANGUS.`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'klaimGaransi', idGaransi: id }) }); if ((await res.json()).status === 'sukses') { showToast('Garansi diklaim (Hangus).', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        async function hapusGaransi(id) { let acc = await showConfirm(`Yakin hapus data garansi ${id}?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'deleteGaransi', idGaransi: id}) }); if ((await res.json()).status === 'sukses') { showToast('Data dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
 
         function cekStatusProspek() {
-            const status = document.getElementById('prospek-status').value;
-            const inputNominal = document.getElementById('prospek-nominal');
-            const labelNominal = document.getElementById('label-prospek-nominal');
-            if (status.includes('Closing')) { labelNominal.innerHTML = 'Nilai Proyek / Nominal Deal (Rp) <span style="color:var(--danger);">*Wajib Diisi</span>'; inputNominal.required = true; } 
-            else { labelNominal.innerHTML = 'Estimasi Nilai Proyek (Rp) - Opsional'; inputNominal.required = false; }
+            const status = document.getElementById('prospek-status').value; const inputNominal = document.getElementById('prospek-nominal'); const labelNominal = document.getElementById('label-prospek-nominal');
+            if (status.includes('Closing')) { labelNominal.innerHTML = 'Nilai Proyek / Nominal Deal (Rp) <span style="color:var(--danger);">*Wajib Diisi</span>'; inputNominal.required = true; } else { labelNominal.innerHTML = 'Estimasi Nilai Proyek (Rp) - Opsional'; inputNominal.required = false; }
         }
-
-        function bukaFormProspek() { 
-            document.getElementById('form-prospek-container').style.display = 'block'; 
-            document.getElementById('form-prospek').reset(); 
-            const btn = document.getElementById('btn-submit-prospek');
-            btn.innerText = 'Simpan Prospek';
-            btn.disabled = false;
-            cekStatusProspek(); 
-            setAutoIDs(); 
-        }
-        
+        function bukaFormProspek() { document.getElementById('form-prospek-container').style.display = 'block'; document.getElementById('form-prospek').reset(); const btn = document.getElementById('btn-submit-prospek'); btn.innerText = 'Simpan Prospek'; btn.disabled = false; cekStatusProspek(); setAutoIDs(); }
         function tutupFormProspek() { document.getElementById('form-prospek-container').style.display = 'none'; }
 
         function renderProspek() {
             const container = document.getElementById('prospek-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-prospek-input'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let pDitampilkan = [];
-            
-            if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
-                pDitampilkan = globalProspek || []; 
-            }
-            
+            if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { pDitampilkan = globalProspek || []; }
             let htmlAda = false;
             pDitampilkan.slice().reverse().forEach(p => {
-                if(!p) return;
-                let idPrp = String(p['ID Prospek'] || '');
-                if (!idPrp) return;
-                
-                if (searchVal !== '') {
-                    let strCari = `${p['ID Prospek']} ${p['Nama Calon Customer']} ${p['Kebutuhan']} ${p['Status Prospek']} ${p['Sales Penanggung Jawab']}`.toLowerCase();
-                    if (!strCari.includes(searchVal)) return;
-                }
+                if(!p) return; let idPrp = String(p['ID Prospek'] || ''); if (!idPrp) return;
+                if (searchVal !== '') { let strCari = `${p['ID Prospek']} ${p['Nama Calon Customer']} ${p['Kebutuhan']} ${p['Status Prospek']} ${p['Sales Penanggung Jawab']}`.toLowerCase(); if (!strCari.includes(searchVal)) return; }
                 htmlAda = true;
-                
-                let textStatus = p['Status Prospek'] || 'Tahap Penawaran';
-                let sc = 'status-aman'; let bc = 'badge-aman';
-                if (textStatus.includes('Closing')) { sc = 'status-terpenuhi'; bc = 'badge-selesai'; }
-                else if (textStatus.includes('Kunjungan')) { sc = 'status-terlambat'; bc = 'badge-status'; }
-                else if (textStatus.includes('Batal')) { sc = 'status-terlambat'; bc = 'badge-cancel'; }
-                else if (textStatus.includes('Tanpa Keterangan')) { sc = 'status-aman'; bc = 'badge-status'; }
+                let textStatus = p['Status Prospek'] || 'Tahap Penawaran'; let sc = 'status-aman'; let bc = 'badge-aman';
+                if (textStatus.includes('Closing')) { sc = 'status-terpenuhi'; bc = 'badge-selesai'; } else if (textStatus.includes('Kunjungan')) { sc = 'status-terlambat'; bc = 'badge-status'; } else if (textStatus.includes('Batal')) { sc = 'status-terlambat'; bc = 'badge-cancel'; } else if (textStatus.includes('Tanpa Keterangan')) { sc = 'status-aman'; bc = 'badge-status'; }
 
-                let btnHtml = '';
-                let isOwner = String(p['Sales Penanggung Jawab'] || '').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase();
+                let btnHtml = ''; let isOwner = String(p['Sales Penanggung Jawab'] || '').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase();
                 let canEditProspek = ['admin', 'manager'].includes(penggunaAktif.Role) || (penggunaAktif.Role === 'sales' && isOwner);
-
-                let isBatalAtauTanpaKet = textStatus.includes('Batal') || textStatus.includes('Tanpa Keterangan');
-                let canSeeUpdateForm = canEditProspek && !textStatus.includes('Closing');
-                if (isBatalAtauTanpaKet && penggunaAktif.Role !== 'admin') {
-                    canSeeUpdateForm = false; 
-                }
+                let isBatalAtauTanpaKet = textStatus.includes('Batal') || textStatus.includes('Tanpa Keterangan'); let canSeeUpdateForm = canEditProspek && !textStatus.includes('Closing');
+                if (isBatalAtauTanpaKet && penggunaAktif.Role !== 'admin') { canSeeUpdateForm = false; }
 
                 if (canSeeUpdateForm) {
-                    let adminOptions = '';
-                    if (penggunaAktif.Role === 'admin') {
-                        adminOptions = `<option value="Batal" ${textStatus.includes('Batal')?'selected':''}>❌ Batal</option><option value="Tanpa Keterangan" ${textStatus.includes('Tanpa Keterangan')?'selected':''}>❓ Tanpa Keterangan</option>`;
-                    }
-
-                    btnHtml = `<div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;">
-                        <label style="font-size:11px; margin-top:0;">Update Status Prospek:</label>
-                        <div style="display:flex; gap:5px;">
-                            <select id="update-prospek-${p['ID Prospek']}" style="flex:1; padding:6px; font-size:12px;">
-                                <option value="Tahap Penawaran" ${textStatus.includes('Penawaran')?'selected':''}>Tahap Penawaran</option>
-                                <option value="Kunjungan Toko" ${textStatus.includes('Kunjungan')?'selected':''}>Kunjungan Toko</option>
-                                <option value="Closing / Deal" ${textStatus.includes('Closing')?'selected':''}>Closing / Deal</option>
-                                ${adminOptions}
-                            </select>
-                            <button class="btn-solid-primary" style="margin:0; width:auto; padding:6px 12px; font-size:11px;" onclick="updateStatusProspek('${p['ID Prospek']}')">Simpan</button>
-                        </div>
-                    </div>`;
+                    let adminOptions = ''; if (penggunaAktif.Role === 'admin') { adminOptions = `<option value="Batal" ${textStatus.includes('Batal')?'selected':''}>❌ Batal</option><option value="Tanpa Keterangan" ${textStatus.includes('Tanpa Keterangan')?'selected':''}>❓ Tanpa Keterangan</option>`; }
+                    btnHtml = `<div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;"><label style="font-size:11px; margin-top:0;">Update Status Prospek:</label><div style="display:flex; gap:5px;"><select id="update-prospek-${p['ID Prospek']}" style="flex:1; padding:6px; font-size:12px;"><option value="Tahap Penawaran" ${textStatus.includes('Penawaran')?'selected':''}>Tahap Penawaran</option><option value="Kunjungan Toko" ${textStatus.includes('Kunjungan')?'selected':''}>Kunjungan Toko</option><option value="Closing / Deal" ${textStatus.includes('Closing')?'selected':''}>Closing / Deal</option>${adminOptions}</select><button class="btn-solid-primary" style="margin:0; width:auto; padding:6px 12px; font-size:11px;" onclick="updateStatusProspek('${p['ID Prospek']}')">Simpan</button></div></div>`;
                 }
-                
-                if (['admin', 'manager'].includes(penggunaAktif.Role)) { 
-                    let delBtn = penggunaAktif.Role === 'admin' ? `<button class="btn-del" onclick="hapusProspek('${p['ID Prospek']}')">Hapus</button>` : '';
-                    btnHtml += `<div class="btn-grid">
-                        <button class="btn-action-primary" style="background:#ecfdf5; color:#065f46; border-color:#a7f3d0;" onclick="bukaModalPenawaran('${p['ID Prospek']}')">Upload Surat Penawaran</button>
-                        ${delBtn}
-                    </div>`; 
-                }
-
-                let tgl = p['Tanggal Input'] ? new Date(p['Tanggal Input']).toLocaleDateString('id-ID') : '-';
-                let labelEstimasi = textStatus.includes('Closing') ? 'Nilai Deal:' : 'Potensi Nilai:';
-                let estimasiHtml = p['Estimasi (Rp)'] ? `<p style="color:var(--success);"><strong>${labelEstimasi}</strong> ${formatRp(p['Estimasi (Rp)'])}</p>` : '';
-                
+                if (['admin', 'manager'].includes(penggunaAktif.Role)) { let delBtn = penggunaAktif.Role === 'admin' ? `<button class="btn-del" onclick="hapusProspek('${p['ID Prospek']}')">Hapus</button>` : ''; btnHtml += `<div class="btn-grid"><button class="btn-action-primary" style="background:#ecfdf5; color:#065f46; border-color:#a7f3d0;" onclick="bukaModalPenawaran('${p['ID Prospek']}')">Upload Surat Penawaran</button>${delBtn}</div>`; }
+                let tgl = p['Tanggal Input'] ? new Date(p['Tanggal Input']).toLocaleDateString('id-ID') : '-'; let labelEstimasi = textStatus.includes('Closing') ? 'Nilai Deal:' : 'Potensi Nilai:'; let estimasiHtml = p['Estimasi (Rp)'] ? `<p style="color:var(--success);"><strong>${labelEstimasi}</strong> ${formatRp(p['Estimasi (Rp)'])}</p>` : '';
                 let buktiChatHtml = p['Bukti Chat'] && p['Bukti Chat'].length > 10 ? `<div style="margin-top:10px;"><a href="${p['Bukti Chat']}" download="Bukti_Chat_${p['ID Prospek']}.jpg" class="dl-btn" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">⬇️ Unduh Bukti Chat</a></div>` : '';
-                
-                let penawaranHtml = '';
-                if (p['Surat Penawaran'] && p['Surat Penawaran'].length > 10) {
-                    let linkP = p['Surat Penawaran'];
-                    penawaranHtml = `<div style="margin-top:10px; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;"><p style="margin:0 0 5px 0; font-size:12px; color:#065f46; font-weight:bold;">📄 Surat Penawaran Tersedia</p><a href="${linkP}" target="_blank" class="dl-btn" style="background:#10b981; color:white; border:none; display:block; text-align:center;">⬇️ Buka / Download Penawaran</a></div>`;
-                }
-
+                let penawaranHtml = ''; if (p['Surat Penawaran'] && p['Surat Penawaran'].length > 10) { let linkP = p['Surat Penawaran']; penawaranHtml = `<div style="margin-top:10px; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;"><p style="margin:0 0 5px 0; font-size:12px; color:#065f46; font-weight:bold;">📄 Surat Penawaran Tersedia</p><a href="${linkP}" target="_blank" class="dl-btn" style="background:#10b981; color:white; border:none; display:block; text-align:center;">⬇️ Buka / Download Penawaran</a></div>`; }
                 container.innerHTML += `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p><p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${buktiChatHtml}${penawaranHtml}${btnHtml}</div>`;
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada daftar calon customer (Leads).</p>';
         }
 
         async function submitProspek(e) {
-            e.preventDefault(); 
-            const btn = document.getElementById('btn-submit-prospek'); 
-            btn.innerText = 'Menyimpan...'; 
-            btn.disabled = true; 
-            
+            e.preventDefault(); const btn = document.getElementById('btn-submit-prospek'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
             try {
-                let idPrp = document.getElementById('prospek-id').value;
-                if(!idPrp || idPrp === "") { setAutoIDs(); idPrp = document.getElementById('prospek-id').value; }
-
-                let salesPenanggung = penggunaAktif['Nama Asli'];
-                if(penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
-                    salesPenanggung = document.getElementById('prospek-sales').value || penggunaAktif['Nama Asli']; 
-                }
-
-                const fileInput = document.getElementById('prospek-bukti');
-                let base64Bukti = '';
-                if(fileInput && fileInput.files.length > 0) { 
-                    base64Bukti = await prosesUploadBebas(fileInput.files[0]); 
-                }
-
+                let idPrp = document.getElementById('prospek-id').value; if(!idPrp || idPrp === "") { setAutoIDs(); idPrp = document.getElementById('prospek-id').value; }
+                let salesPenanggung = penggunaAktif['Nama Asli']; if(penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { salesPenanggung = document.getElementById('prospek-sales').value || penggunaAktif['Nama Asli']; }
+                const fileInput = document.getElementById('prospek-bukti'); let base64Bukti = ''; if(fileInput && fileInput.files.length > 0) { base64Bukti = await prosesUploadBebas(fileInput.files[0]); }
                 const payload = { apiKey: API_KEY, action: 'addProspek', idProspek: idPrp, customer: document.getElementById('prospek-nama').value, kebutuhan: document.getElementById('prospek-kebutuhan').value, statusProspek: document.getElementById('prospek-status').value, sales: salesPenanggung, estimasi: document.getElementById('prospek-nominal').value, buktiChat: base64Bukti };
-
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                const jsonRes = await res.json();
-                
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data Prospek berhasil disimpan.', 'success');
-                    tutupFormProspek(); 
-                    document.getElementById('loading').style.display = 'block'; 
-                    await ambilSemuaData(true); 
-                    document.getElementById('loading').style.display = 'none'; 
-                } else { 
-                    showToast('Afwan, gagal dari server: ' + jsonRes.pesan, 'error'); 
-                }
-            } catch (err) { 
-                showToast('Afwan, gagal menyimpan. File foto mungkin terlalu besar atau sinyal tidak stabil.', 'error'); 
-            } finally {
-                btn.innerText = 'Simpan Prospek'; 
-                btn.disabled = false;
-            }
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const jsonRes = await res.json();
+                if (jsonRes.status === 'sukses') { showToast('Data Prospek disimpan.', 'success'); tutupFormProspek(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { showToast('Gagal dari server.', 'error'); }
+            } catch (err) { showToast('Gagal menyimpan.', 'error'); } finally { btn.innerText = 'Simpan Prospek'; btn.disabled = false; }
         }
 
         async function updateStatusProspek(id) { 
-            const newVal = document.getElementById('update-prospek-'+id).value; 
-            let nominalUpdate = undefined;
-            
+            const newVal = document.getElementById('update-prospek-'+id).value; let nominalUpdate = undefined;
             if (newVal.includes('Closing')) {
-                const p = (globalProspek || []).find(x => x && x['ID Prospek'] === id);
-                let estimasiLama = p ? p['Estimasi (Rp)'] || '' : '';
-                
-                if (!estimasiLama || parseInt(estimasiLama) <= 0) {
-                    nominalUpdate = await showPrompt("Prospek Deal! Silakan masukkan Nominal / Nilai Proyek (Rp) yang disepakati:");
-                    if (nominalUpdate === null) return; 
-                    if (nominalUpdate.trim() === "" || isNaN(nominalUpdate)) {
-                        showToast("Afwan, Nominal WAJIB diisi dengan angka untuk status Closing/Deal!", "warning");
-                        return;
-                    }
-                }
+                const p = (globalProspek || []).find(x => x && x['ID Prospek'] === id); let estimasiLama = p ? p['Estimasi (Rp)'] || '' : '';
+                if (!estimasiLama || parseInt(estimasiLama) <= 0) { nominalUpdate = await showPrompt("Prospek Deal! Masukkan Nilai Proyek (Rp):"); if (nominalUpdate === null) return; if (nominalUpdate.trim() === "" || isNaN(nominalUpdate)) { showToast("Nominal wajib angka!", "warning"); return; } }
             }
-
             document.getElementById('loading').style.display = 'block'; 
             try { 
-                const payload = { apiKey: API_KEY, action: 'updateProspekStatus', idProspek: id, statusBaru: newVal };
-                if (nominalUpdate !== undefined) {
-                    payload.estimasi = nominalUpdate;
-                }
-
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                if ((await res.json()).status === 'sukses') { 
-                    showToast('Alhamdulillah! Status berhasil diperbarui.', 'success'); 
-                    await ambilSemuaData(true); 
-                } 
-            } catch (err) { 
-                showToast('Afwan, gagal mengupdate status.', 'error'); 
-            } 
-            document.getElementById('loading').style.display = 'none'; 
+                const payload = { apiKey: API_KEY, action: 'updateProspekStatus', idProspek: id, statusBaru: newVal }; if (nominalUpdate !== undefined) { payload.estimasi = nominalUpdate; }
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); if ((await res.json()).status === 'sukses') { showToast('Status diperbarui.', 'success'); await ambilSemuaData(true); } 
+            } catch (err) { showToast('Gagal mengupdate.', 'error'); } document.getElementById('loading').style.display = 'none'; 
         }
 
-        async function hapusProspek(id) { let acc = await showConfirm(`Bismillah, hapus data prospek ${id} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'deleteProspek', idProspek: id}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Prospek berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        async function hapusProspek(id) { let acc = await showConfirm(`Hapus prospek ${id}?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'deleteProspek', idProspek: id}) }); if ((await res.json()).status === 'sukses') { showToast('Dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
 
         function bukaModalPenawaran(id) { document.getElementById('penawaran-id').value = id; document.getElementById('penawaran-file').value = ''; document.getElementById('modal-penawaran').style.display = 'flex'; }
-        
         async function kirimPenawaran(e) {
-            e.preventDefault(); const fileInput = document.getElementById('penawaran-file');
-            if(fileInput.files.length === 0) { showToast('Afwan, harap pilih file PDF/Foto surat penawaran!', 'warning'); return; }
+            e.preventDefault(); const fileInput = document.getElementById('penawaran-file'); if(fileInput.files.length === 0) { showToast('Pilih file!', 'warning'); return; }
             const btn = document.getElementById('btn-submit-penawaran'); btn.innerText = 'Mengupload...'; btn.disabled = true;
-            
             try {
-                let base64Doc = await prosesUploadBebas(fileInput.files[0]);
-                const idPrp = document.getElementById('penawaran-id').value;
-                
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'updateProspekStatus', idProspek: idPrp, statusBaru: "Tahap Penawaran", suratPenawaran: base64Doc }) });
-                const jsonRes = await res.json();
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Surat Penawaran tersimpan & terkirim.', 'success'); 
-                    document.getElementById('modal-penawaran').style.display = 'none'; 
-                    await ambilSemuaData(true); 
-                } else { showToast('Afwan, gagal mengupload.', 'error'); }
-            } catch (err) { showToast('Afwan, jaringan tidak stabil atau file terlalu besar.', 'error'); }
-            btn.innerText = 'Kirim Penawaran'; btn.disabled = false;
+                let base64Doc = await prosesUploadBebas(fileInput.files[0]); const idPrp = document.getElementById('penawaran-id').value;
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'updateProspekStatus', idProspek: idPrp, statusBaru: "Tahap Penawaran", suratPenawaran: base64Doc }) }); const jsonRes = await res.json();
+                if (jsonRes.status === 'sukses') { showToast('Penawaran tersimpan.', 'success'); document.getElementById('modal-penawaran').style.display = 'none'; await ambilSemuaData(true); } else { showToast('Gagal upload.', 'error'); }
+            } catch (err) { showToast('Jaringan tidak stabil.', 'error'); } btn.innerText = 'Kirim Penawaran'; btn.disabled = false;
         }
 
         async function submitData(e, type) { 
-            e.preventDefault(); 
-            const payload = { apiKey: API_KEY };
+            e.preventDefault(); const payload = { apiKey: API_KEY };
             if (type === 'sla') {
                 const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
                 const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
-                payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; 
-                payload.idTiket = document.getElementById('input-id').value; payload.noTransaksi = document.getElementById('input-notrans-sla').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
+                payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; payload.idTiket = document.getElementById('input-id').value; payload.noTransaksi = document.getElementById('input-notrans-sla').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
             } else if (type === 'sls') {
                 const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
-                payload.action = 'addPenjualan'; 
-                payload.idPenjualan = document.getElementById('input-id-sls').value; payload.noTransaksi = document.getElementById('input-notrans-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
+                payload.action = 'addPenjualan'; payload.idPenjualan = document.getElementById('input-id-sls').value; payload.noTransaksi = document.getElementById('input-notrans-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
             }
-
             try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                const hasil = await res.json();
-                if (hasil.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data berhasil disimpan.', 'success');
-                    if (type === 'sla') { batalEditTiket(); switchTab('tiket'); } else { document.getElementById('form-sls').reset(); switchTab('penjualan'); }
-                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
-                } else { showToast('Afwan, gagal menyimpan: ' + hasil.pesan, 'error'); }
-            } catch (err) { showToast('Afwan, kesalahan jaringan. Pastikan internet stabil.', 'error'); } 
-            
-            if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
-            else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; }
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const hasil = await res.json();
+                if (hasil.status === 'sukses') { showToast('Data disimpan.', 'success'); if (type === 'sla') { batalEditTiket(); switchTab('tiket'); } else { document.getElementById('form-sls').reset(); switchTab('penjualan'); } document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { showToast('Gagal: ' + hasil.pesan, 'error'); }
+            } catch (err) { showToast('Kesalahan jaringan.', 'error'); } 
+            if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; } else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; }
         }
 
         function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
-        
         async function kirimBanding(e) { 
-            e.preventDefault(); 
-            const fileInput = document.getElementById('banding-bukti'); 
-            if(fileInput.files.length === 0) { showToast('Afwan, harap pilih minimal 1 foto bukti!', 'warning'); return; } 
-            if(fileInput.files.length > 3) { showToast('Afwan, maksimal 3 foto yang bisa diunggah sekaligus!', 'warning'); return; } 
-            
-            document.getElementById('banding-status').style.display = 'block'; 
-            document.getElementById('btn-submit-banding').disabled = true; 
-            document.getElementById('btn-submit-banding').innerText = 'Mengompres & Mengirim...'; 
-            
-            try {
-                let arrayBase64 = []; 
-                for(let i=0; i<fileInput.files.length; i++){ 
-                    arrayBase64.push(await prosesUploadBebas(fileInput.files[i])); 
-                } 
-                const gabunganBukti = arrayBase64.join('|#|'); 
-                const ketSales = document.getElementById('banding-keterangan').value; 
-                const idTiket = document.getElementById('banding-id').value; 
-                
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) }); 
-                if ((await res.json()).status === 'sukses') { 
-                    showToast('Alhamdulillah! Klaim terkirim, menunggu persetujuan Admin.', 'success'); 
-                    document.getElementById('modal-banding').style.display = 'none'; 
-                    await ambilSemuaData(true); 
-                } else {
-                    showToast('Afwan, gagal mengirim klaim.', 'error');
-                }
-            } catch (err) { 
-                showToast('Afwan, gagal kompresi foto atau sinyal lemah.', 'error'); 
-            } 
-            document.getElementById('banding-status').style.display = 'none'; 
-            document.getElementById('btn-submit-banding').disabled = false; 
-            document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti'; 
+            e.preventDefault(); const fileInput = document.getElementById('banding-bukti'); if(fileInput.files.length === 0) { showToast('Pilih foto bukti!', 'warning'); return; } 
+            document.getElementById('banding-status').style.display = 'block'; document.getElementById('btn-submit-banding').disabled = true; document.getElementById('btn-submit-banding').innerText = 'Mengompres...'; 
+            try { let arrayBase64 = []; for(let i=0; i<fileInput.files.length; i++){ arrayBase64.push(await prosesUploadBebas(fileInput.files[i])); } const gabunganBukti = arrayBase64.join('|#|'); const ketSales = document.getElementById('banding-keterangan').value; const idTiket = document.getElementById('banding-id').value; const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) }); if ((await res.json()).status === 'sukses') { showToast('Klaim terkirim.', 'success'); document.getElementById('modal-banding').style.display = 'none'; await ambilSemuaData(true); } } catch (err) { showToast('Gagal mengirim.', 'error'); } 
+            document.getElementById('banding-status').style.display = 'none'; document.getElementById('btn-submit-banding').disabled = false; document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti'; 
         }
-        
-        async function responBanding(idTiket, keputusan, namaSales) { let alasan = ''; if (keputusan === 'Ditolak') { alasan = await showPrompt("Tuliskan alasan penolakan untuk Sales:"); if(alasan === null) return; if(alasan.trim() === "") { showToast("Afwan, alasan penolakan wajib diisi!", "warning"); return; } } else { let acc = await showConfirm(`Bismillah, yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`, false); if(!acc) return; } document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'responBanding', idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); if ((await res.json()).status === 'sukses') { showToast(`Alhamdulillah! Klaim berhasil diproses (${keputusan}).`, 'success'); await ambilSemuaData(true); } } catch (err) {} document.getElementById('loading').style.display = 'none'; }
-        
+        async function responBanding(idTiket, keputusan, namaSales) { 
+            let alasan = ''; if (keputusan === 'Ditolak') { alasan = await showPrompt("Tulis alasan penolakan:"); if(alasan === null) return; if(alasan.trim() === "") { showToast("Alasan wajib diisi!", "warning"); return; } } else { let acc = await showConfirm(`Terima klaim ini?`, false); if(!acc) return; } 
+            document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'responBanding', idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); if ((await res.json()).status === 'sukses') { showToast('Diproses.', 'success'); await ambilSemuaData(true); } } catch (err) {} document.getElementById('loading').style.display = 'none'; 
+        }
+
         function toggleBAT() { const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); if (baSection.style.display === 'none' || baSection.style.display === '') { baSection.style.display = 'block'; btnToggle.innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 50); } else { baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; } }
         function bukaModalUpdate(id) { const t = (globalTickets || []).find(x => x && x['ID Tiket'] === id); if(!t) return; document.getElementById('update-id').value = id; const statusElement = document.getElementById('update-status'); statusElement.value = t['Status'] || 'Menunggu'; document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat.'; document.getElementById('update-keterangan').value = ''; document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || ''; document.getElementById('ba-nama-customer').value = t['Nama Customer'] || ''; document.getElementById('ba-kritik').value = t['Kritik & Saran'] || ''; const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; document.getElementById('status-ttd').innerText = hasExistingTTD ? '(Tersimpan)' : ''; clearSignature(); cekKeterangan(); if (t['Status'] === 'Selesai') { document.getElementById('update-title').innerText = 'Revisi BAT: ' + id; statusElement.disabled = true; statusElement.classList.add('input-terkunci'); document.getElementById('update-keterangan').style.display = 'none'; document.getElementById('label-keterangan').style.display = 'none'; document.getElementById('btn-submit-update').innerHTML = 'Simpan Revisi'; document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').style.display = 'none'; setTimeout(resizeCanvas, 100); } else { document.getElementById('update-title').innerText = 'Update: ' + id; statusElement.disabled = false; statusElement.classList.remove('input-terkunci'); document.getElementById('update-keterangan').style.display = 'block'; document.getElementById('label-keterangan').style.display = 'block'; document.getElementById('btn-submit-update').innerHTML = 'Simpan Data'; if (t['Deskripsi Pekerjaan (BA)']) { document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 100); } } document.getElementById('modal-update').style.display = 'flex'; }
         function tutupModal() { document.getElementById('modal-update').style.display = 'none'; }
-        function cekKeterangan() { const status = document.getElementById('update-status').value; const ket = document.getElementById('update-keterangan'); const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); const baDesk = document.getElementById('ba-deskripsi'); const baNama = document.getElementById('ba-nama-customer'); const infoText = document.getElementById('info-wajib-text'); if (status === 'Pending' || status === 'Cancel') { ket.placeholder = "Wajib diisi! Masukkan alasan di sini..."; } else { ket.placeholder = "Ketik update kegiatan di sini..."; } if (status === 'Selesai') { btnToggle.style.display = 'none'; baSection.style.display = 'block'; baDesk.required = true; baNama.required = true; infoText.innerText = "*Wajib diisi beserta Tanda Tangan Customer"; setTimeout(resizeCanvas, 50); } else if (status === 'On Progress' || status === 'Pending') { btnToggle.style.display = 'block'; baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; baDesk.required = false; baNama.required = false; infoText.innerText = "*Bisa dicicil tanpa harus Tanda Tangan"; } else { btnToggle.style.display = 'none'; baSection.style.display = 'none'; baDesk.required = false; baNama.required = false; } }
-        async function submitUpdate(e) { e.preventDefault(); const status = document.getElementById('update-status').value; const catatanBaru = document.getElementById('update-keterangan').value.trim(); const idTiket = document.getElementById('update-id').value; const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); let ttdBase64 = ""; if ((status === 'Pending' || status === 'Cancel') && catatanBaru === "") { showToast("Afwan, catatan baru WAJIB diisi untuk status ini!", "warning"); return; } if (status === 'Selesai') { const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; if (!isCanvasDrawn && !hasExistingTTD) { showToast("Afwan, tanda tangan WAJIB diisi sebelum Selesai!", "warning"); return; } } if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); } const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true; let isStatusChanged = t['Status'] !== status; let keteranganFinal = t['Keterangan'] || ''; if ((catatanBaru !== "" || isStatusChanged) && t['Status'] !== 'Selesai') { const now = new Date(); const timeStr = now.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); let teksLogBaru = `[${timeStr}] ➔ ${status}`; if (catatanBaru !== "") teksLogBaru += `\n ${catatanBaru}`; keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru; } const payload = { apiKey: API_KEY, action: 'updateTicket', idTiket: idTiket, status: status, keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, baTTD: ttdBase64 }; try { const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if (result.status === 'sukses') { showToast('Alhamdulillah! Data berhasil diupdate.', 'success'); tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { showToast('Afwan, gagal mengupdate data: ' + result.pesan, 'error'); } } catch(err) { window.location.reload(); } btn.innerText = 'Simpan Data'; btn.disabled = false; }
-        
+        function cekKeterangan() { const status = document.getElementById('update-status').value; const ket = document.getElementById('update-keterangan'); const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); const baDesk = document.getElementById('ba-deskripsi'); const baNama = document.getElementById('ba-nama-customer'); const infoText = document.getElementById('info-wajib-text'); if (status === 'Pending' || status === 'Cancel') { ket.placeholder = "Wajib diisi alasan..."; } else { ket.placeholder = "Ketik update kegiatan..."; } if (status === 'Selesai') { btnToggle.style.display = 'none'; baSection.style.display = 'block'; baDesk.required = true; baNama.required = true; infoText.innerText = "*Wajib diisi beserta Tanda Tangan"; setTimeout(resizeCanvas, 50); } else if (status === 'On Progress' || status === 'Pending') { btnToggle.style.display = 'block'; baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; baDesk.required = false; baNama.required = false; } else { btnToggle.style.display = 'none'; baSection.style.display = 'none'; } }
+        async function submitUpdate(e) { 
+            e.preventDefault(); const status = document.getElementById('update-status').value; const catatanBaru = document.getElementById('update-keterangan').value.trim(); const idTiket = document.getElementById('update-id').value; const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); let ttdBase64 = ""; 
+            if ((status === 'Pending' || status === 'Cancel') && catatanBaru === "") { showToast("Catatan wajib diisi!", "warning"); return; } 
+            if (status === 'Selesai') { const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; if (!isCanvasDrawn && !hasExistingTTD) { showToast("Tanda tangan wajib diisi!", "warning"); return; } } 
+            if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); } 
+            const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
+            let isStatusChanged = t['Status'] !== status; let keteranganFinal = t['Keterangan'] || ''; 
+            if ((catatanBaru !== "" || isStatusChanged) && t['Status'] !== 'Selesai') { const now = new Date(); const timeStr = now.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); let teksLogBaru = `[${timeStr}] ➔ ${status}`; if (catatanBaru !== "") teksLogBaru += `\n ${catatanBaru}`; keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru; } 
+            const payload = { apiKey: API_KEY, action: 'updateTicket', idTiket: idTiket, status: status, keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, baTTD: ttdBase64 }; 
+            try { const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if (result.status === 'sukses') { showToast('Diupdate.', 'success'); tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { showToast('Gagal: ' + result.pesan, 'error'); } } catch(err) { window.location.reload(); } btn.innerText = 'Simpan Data'; btn.disabled = false; 
+        }
+
         function aktifkanEditTiket(idTiket) { const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); if(!t) return; modeEditTiket = true; switchTab('input'); switchInputTab('sla'); document.getElementById('form-tiket-title').innerText = 'Edit Tiket SLA: ' + idTiket; document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; const salesSelect = document.getElementById('input-sales'); let found = Array.from(salesSelect.options).some(opt => opt.value === (t['Sales'] || '')); if (!found && t['Sales']) { salesSelect.innerHTML += `<option value="${t['Sales']}">${t['Sales']} (Nonaktif)</option>`; } salesSelect.value = t['Sales'] || ''; let noTransVal = t['No Transaksi'] || t[Object.keys(t)[1]] || ''; document.getElementById('input-notrans-sla').value = noTransVal; let targetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || ''; document.getElementById('input-nilai-penjualan').value = targetVal; togglePenjualanInput(); const tArr = String(t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-tiket').style.display = 'block'; }
         function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; document.getElementById('input-notrans-sla').value = ''; togglePenjualanInput(); setAutoIDs(); }
-        async function hapusTiket(idTiket) { let acc = await showConfirm(`Bismillah, hapus data tiket ${idTiket} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Tiket berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
-        async function hapusPenjualan(idPenjualan) { let acc = await showConfirm(`Bismillah, hapus data penjualan ${idPenjualan} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        async function hapusTiket(idTiket) { let acc = await showConfirm(`Hapus tiket ${idTiket}?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { showToast('Dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        async function hapusPenjualan(idPenjualan) { let acc = await showConfirm(`Hapus penjualan ${idPenjualan}?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { showToast('Dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         
-        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).forEach(u => { if(!u || !u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['No WA'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
+        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).forEach(u => { if(!u || !u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Role']}</td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
         
         function siapkanProfilPribadi() {
-            modeEditUser = true; 
-            document.getElementById('form-user-title').innerText = '👤 Profil Saya'; 
-            document.getElementById('new-nama').value = penggunaAktif['Nama Asli']; 
-            document.getElementById('new-email').value = penggunaAktif['Email'] || ''; 
-            document.getElementById('new-wa').value = penggunaAktif['No WA'] || ''; 
-            document.getElementById('new-username').value = penggunaAktif.Username; 
-            
-            document.getElementById('new-username').classList.add('input-terkunci'); 
-            document.getElementById('new-username').readOnly = true; 
-            
-            document.getElementById('new-password').value = ''; 
-            document.getElementById('new-password').placeholder = 'Kosongkan jika tidak ubah password';
-            document.getElementById('new-password').required = false; 
-
-            document.getElementById('role-wrapper').style.display = 'none';
-            document.getElementById('tabel-user-wrapper').style.display = 'none';
-
-            document.getElementById('new-role').value = penggunaAktif.Role; 
-            document.getElementById('new-target-sales').value = penggunaAktif['Target Sales'] || ''; 
-            
-            document.getElementById('btn-tambah-user').innerText = 'Update Profil Saya'; 
-            document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; 
-            document.getElementById('btn-batal-edit-user').style.display = 'none'; 
+            modeEditUser = true; document.getElementById('form-user-title').innerText = '👤 Profil Saya'; 
+            document.getElementById('new-nama').value = penggunaAktif['Nama Asli']; document.getElementById('new-email').value = penggunaAktif['Email'] || ''; document.getElementById('new-wa').value = penggunaAktif['No WA'] || ''; document.getElementById('new-username').value = penggunaAktif.Username; 
+            document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; 
+            document.getElementById('new-password').value = ''; document.getElementById('new-password').placeholder = 'Kosongkan jika tak ubah'; document.getElementById('new-password').required = false; 
+            document.getElementById('role-wrapper').style.display = 'none'; document.getElementById('tabel-user-wrapper').style.display = 'none';
+            document.getElementById('new-role').value = penggunaAktif.Role; document.getElementById('new-target-sales').value = penggunaAktif['Target Sales'] || ''; 
+            document.getElementById('btn-tambah-user').innerText = 'Update Profil Saya'; document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-user').style.display = 'none'; 
         }
 
         function aktifkanEditUser(un) { 
-            const u = (globalSaya tidak bisa membantu Anda soal itu karena saya hanya model bahasa dan tidak mengerti hal tersebut.
+            const u = (globalUsers || []).find(x => x && x.Username === un); if(!u) return; modeEditUser = true; 
+            document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; document.getElementById('new-nama').value = u['Nama Asli']; document.getElementById('new-email').value = u['Email'] || ''; document.getElementById('new-wa').value = u['No WA'] || ''; document.getElementById('new-username').value = u.Username; 
+            document.getElementById('new-password').value = ''; document.getElementById('new-password').placeholder = 'Kosongkan jika tak ubah'; document.getElementById('new-password').required = false; 
+            document.getElementById('role-wrapper').style.display = 'block'; document.getElementById('new-role').value = u.Role; toggleTargetSales(); 
+            document.getElementById('new-target-sales').value = u['Target Sales (Rp)'] || u['Target Sales'] || ''; 
+            document.getElementById('new-username').classList.add('input-terkunci'); document.getElementById('new-username').readOnly = true; 
+            document.getElementById('btn-tambah-user').innerText = 'Update Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-user').style.display = 'block'; window.scrollTo(0,0); 
+        }
+
+        function batalEditUser() { 
+            modeEditUser = false; document.getElementById('form-user-title').innerText = 'Tambah User Baru'; 
+            document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; document.getElementById('new-username').value = ''; document.getElementById('new-wa').value = ''; 
+            document.getElementById('new-password').value = ''; document.getElementById('new-password').placeholder = 'Password Baru'; document.getElementById('new-password').required = true;
+            document.getElementById('role-wrapper').style.display = 'block'; document.getElementById('new-role').value = ''; toggleTargetSales(); document.getElementById('new-target-sales').value = ''; 
+            document.getElementById('new-username').classList.remove('input-terkunci'); document.getElementById('new-username').readOnly = false; 
+            document.getElementById('btn-tambah-user').innerText = 'Simpan Profil'; document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-user').style.display = 'none'; 
+        }
+
+        async function simpanUserBaru(e) { 
+            e.preventDefault(); const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
+            let inputPw = document.getElementById('new-password').value; let finalPw = "";
+            if (modeEditUser) { const oldUser = (globalUsers || []).find(u => u && u.Username === document.getElementById('new-username').value); finalPw = inputPw === "" ? (oldUser ? oldUser.Password : '') : await hashPassword(inputPw); } 
+            else { finalPw = await hashPassword(inputPw); }
+            const payload = { apiKey: API_KEY, action: modeEditUser ? 'editUser' : 'addUser', namaAsli: document.getElementById('new-nama').value, email: document.getElementById('new-email').value, username: document.getElementById('new-username').value, password: finalPw, role: document.getElementById('new-role').value, targetSales: document.getElementById('new-target-sales').value, noWA: document.getElementById('new-wa').value }; 
+            if (!modeEditUser && (globalUsers || []).find(u => u && String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { showToast("Username sudah digunakan.", "error"); btn.innerText='Simpan Profil'; btn.disabled=false; return; } 
+            try { 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
+                if((await res.json()).status==='sukses') { 
+                    showToast('Profil disimpan.', 'success'); 
+                    if (penggunaAktif.Role === 'admin') { batalEditUser(); }
+                    document.getElementById('loading').style.display='block'; await ambilSemuaData(true); 
+                    if (penggunaAktif.Role !== 'admin') {
+                        const uUpdated = (globalUsers || []).find(x => x && x.Username === penggunaAktif.Username);
+                        if (uUpdated) { penggunaAktif = uUpdated; localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); }
+                        siapkanProfilPribadi();
+                    }
+                    document.getElementById('loading').style.display='none'; 
+                } 
+            } catch(err) { showToast("Gagal menyimpan profil", "error");} btn.innerText = (modeEditUser && penggunaAktif.Role === 'admin') ? 'Update Profil' : (modeEditUser ? 'Update Profil Saya' : 'Simpan Profil'); btn.disabled = false; 
+        }
+
+        async function hapusUser(un) { if(un==='admin') { showToast('Admin utama dilarang dihapus!', 'error'); return; } let acc = await showConfirm(`Yakin hapus user ${un}?`); if(!acc) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({apiKey: API_KEY, action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { showToast('Dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
+
+        ambilSemuaData();
+    </script>
+</body>
+</html>
