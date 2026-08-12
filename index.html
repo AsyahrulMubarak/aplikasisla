@@ -1695,14 +1695,28 @@
         }
 
         async function hapusGaransi(id) { 
-            let acc = await showConfirm(`Bismillah, yakin hapus data garansi ${id}?`); 
-            if(!acc) return; 
-            document.getElementById('loading').style.display = 'block'; 
-            try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'deleteGaransi', idGaransi: id}) }); 
-                if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data dihapus.', 'success'); await ambilSemuaData(true); } 
-            } catch(err) {} 
-            document.getElementById('loading').style.display = 'none'; 
+            try {
+                let acc = await showConfirm(`Bismillah, yakin hapus data garansi ${id}?`); 
+                if(!acc) return; 
+                document.getElementById('loading').style.display = 'block'; 
+                
+                const res = await fetch(apiUrl, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteGaransi', idGaransi: String(id).trim() }) 
+                }); 
+                
+                const jsonRes = await res.json();
+                if (jsonRes.status === 'sukses') { 
+                    showToast('Alhamdulillah! Data dihapus.', 'success'); 
+                    await ambilSemuaData(true); 
+                } else {
+                    showToast('Afwan, gagal menghapus: ' + jsonRes.pesan, 'error');
+                }
+            } catch(err) {
+                showToast('Afwan, terjadi kesalahan jaringan saat menghapus.', 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none'; 
+            }
         }
 
         function cekStatusProspek() {
@@ -1887,7 +1901,30 @@
             document.getElementById('loading').style.display = 'none'; 
         }
 
-        async function hapusProspek(id) { let acc = await showConfirm(`Bismillah, hapus data prospek ${id} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'deleteProspek', idProspek: id}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Prospek berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        async function hapusProspek(id) { 
+            try {
+                let acc = await showConfirm(`Bismillah, hapus data prospek ${id} permanen?`); 
+                if(!acc) return; 
+                document.getElementById('loading').style.display = 'block'; 
+                
+                const res = await fetch(apiUrl, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteProspek', idProspek: String(id).trim() }) 
+                }); 
+                
+                const jsonRes = await res.json();
+                if (jsonRes.status === 'sukses') { 
+                    showToast('Alhamdulillah! Data Prospek berhasil dihapus.', 'success'); 
+                    await ambilSemuaData(true); 
+                } else {
+                    showToast('Afwan, gagal menghapus: ' + jsonRes.pesan, 'error');
+                }
+            } catch(err) {
+                showToast('Afwan, terjadi kesalahan jaringan saat menghapus.', 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none'; 
+            }
+        }
 
         function bukaModalPenawaran(id) { document.getElementById('penawaran-id').value = id; document.getElementById('penawaran-file').value = ''; document.getElementById('modal-penawaran').style.display = 'flex'; }
         
@@ -2113,7 +2150,30 @@
             }
         }
         
-        async function hapusPenjualan(idPenjualan) { let acc = await showConfirm(`Bismillah, hapus data penjualan ${idPenjualan} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
+        async function hapusPenjualan(idPenjualan) { 
+            try {
+                let acc = await showConfirm(`Bismillah, hapus data penjualan ${idPenjualan} permanen?`); 
+                if(!acc) return; 
+                document.getElementById('loading').style.display = 'block'; 
+                
+                const res = await fetch(apiUrl, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'deletePenjualan', idPenjualan: String(idPenjualan).trim() }) 
+                }); 
+                
+                const jsonRes = await res.json();
+                if (jsonRes.status === 'sukses') { 
+                    showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success'); 
+                    await ambilSemuaData(true); 
+                } else {
+                    showToast('Afwan, gagal menghapus: ' + jsonRes.pesan, 'error');
+                }
+            } catch(err) {
+                showToast('Afwan, terjadi kesalahan jaringan saat menghapus.', 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none'; 
+            }
+        }
         
         function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).forEach(u => { if(!u || !u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['No WA'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
         
@@ -2267,8 +2327,36 @@
             btn.disabled = false; 
         }
 
-        async function hapusUser(un) { if(un==='admin') { showToast('Afwan, akun admin utama dilarang dihapus!', 'error'); return; } let acc = await showConfirm(`Bismillah, yakin hapus user ${un}?`); if(!acc) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({apiKey: API_KEY, action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { showToast('Alhamdulillah! User berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
-
+        async function hapusUser(un) { 
+            try {
+                if (String(un).trim().toLowerCase() === 'admin') { 
+                    showToast('Afwan, akun admin utama dilarang dihapus!', 'error'); 
+                    return; 
+                } 
+                
+                let acc = await showConfirm(`Bismillah, yakin hapus user ${un}?`); 
+                if(!acc) return; 
+                
+                document.getElementById('loading').style.display = 'block'; 
+                
+                const res = await fetch(apiUrl, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteUser', username: String(un).trim() }) 
+                }); 
+                
+                const jsonRes = await res.json();
+                if (jsonRes.status === 'sukses') { 
+                    showToast('Alhamdulillah! User berhasil dihapus.', 'success'); 
+                    await ambilSemuaData(true); 
+                } else {
+                    showToast('Afwan, gagal menghapus: ' + jsonRes.pesan, 'error');
+                }
+            } catch(err) {
+                showToast('Afwan, terjadi kesalahan jaringan saat menghapus.', 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none'; 
+            }
+        }
         // ==========================================
         // DETEKTOR LINK TRACKING KLIEN
         // ==========================================
