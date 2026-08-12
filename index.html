@@ -13,6 +13,18 @@
     <link rel="apple-touch-icon" href="depan_001.png">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
+    <!-- PENGHANCUR CACHE OTOMATIS -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) { registration.unregister(); }
+            });
+            caches.keys().then(function(names) {
+                for (let name of names) caches.delete(name);
+            });
+        }
+    </script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         :root { --primary: #1e3a8a; --primary-hover: #1e40af; --surface: #ffffff; --bg: #f7fafc; --text-main: #2d3748; --text-muted: #718096; --border: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --purple: #8b5cf6; }
@@ -244,7 +256,11 @@
                         <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     </span>
                 </div>
-                <div style="text-align:right; margin-bottom:20px;">
+                <!-- FITUR BARU: CHECKBOX INGAT SAYA -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; text-align:left;">
+                    <label style="display:flex; align-items:center; font-size:12px; margin:0; cursor:pointer; font-weight:600; color:var(--text-main);">
+                        <input type="checkbox" id="ingat-saya" style="width:14px; height:14px; margin:0 8px 0 0; accent-color:var(--primary);" checked> Ingat Saya
+                    </label>
                     <a href="#" onclick="mintaResetSandi()" style="font-size:12px; color:var(--primary); text-decoration:none; font-weight:600;">Lupa Sandi?</a>
                 </div>
                 <button type="submit" class="btn-login">Masuk Workspace</button>
@@ -617,8 +633,8 @@
                 if (fileInput.files.length > 0) { base64Bukti = await prosesUploadBebas(fileInput.files[0]); }
                 const payload = { apiKey: API_KEY, action: 'laporBug', pelapor: penggunaAktif ? penggunaAktif['Nama Asli'] : 'Unknown', deskripsi: deskripsi, buktiBug: base64Bukti };
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const jsonRes = await res.json();
-                if (jsonRes.status === 'sukses') { showToast('Laporan bug terkirim.', 'success'); document.getElementById('modal-bug').style.display = 'none'; } else { showToast('Gagal: ' + jsonRes.pesan, 'error'); }
-            } catch (err) { showToast('Gagal mengirim laporan.', 'error'); } finally { btn.innerText = 'Kirim Laporan'; btn.disabled = false; }
+                if (jsonRes.status === 'sukses') { showToast('Alhamdulillah! Laporan bug terkirim.', 'success'); document.getElementById('modal-bug').style.display = 'none'; } else { showToast('Afwan, Gagal: ' + jsonRes.pesan, 'error'); }
+            } catch (err) { showToast('Afwan, Gagal mengirim laporan.', 'error'); } finally { btn.innerText = 'Kirim Laporan'; btn.disabled = false; }
         }
 
         async function mintaResetSandi() {
@@ -627,8 +643,8 @@
             document.getElementById('login-loading').innerHTML = 'Mengirim permintaan...'; document.getElementById('login-form').style.display = 'none';
             try {
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'lupaSandi', username: un }) }); const json = await res.json();
-                if(json.status === 'sukses') { showToast('Permintaan reset terkirim.', 'success'); } else { showToast(json.pesan, 'error'); }
-            } catch(e) { showToast('Gagal mengirim permintaan.', 'error'); }
+                if(json.status === 'sukses') { showToast('Alhamdulillah! Permintaan reset terkirim.', 'success'); } else { showToast('Afwan, '+json.pesan, 'error'); }
+            } catch(e) { showToast('Afwan, Gagal mengirim permintaan.', 'error'); }
             document.getElementById('login-loading').innerHTML = 'Memeriksa koneksi aman...'; document.getElementById('login-form').style.display = 'block';
         }
 
@@ -659,7 +675,6 @@
             }
         }
 
-        // FUNGSI PENGHANCUR CACHE MANUAL
         function hapusCacheTotal() {
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -680,9 +695,9 @@
             let dataSource = []; let dateKeyIndex = 2; 
             if (jenis === 'tiket') { dataSource = globalTickets.filter(t => t['ID Tiket'] && t['ID Tiket'].startsWith('TKT-')); dateKeyIndex = 2; } else if (jenis === 'penjualan') { dataSource = globalPenjualan; dateKeyIndex = 2; } else if (jenis === 'prospek') { dataSource = globalProspek; dateKeyIndex = 1; }
             let dataToExport = dataSource.filter(d => { if(bulan === "all") return true; let rawDate = d[Object.keys(d)[dateKeyIndex]]; if(!rawDate) return false; let dt = new Date(rawDate); if(isNaN(dt.getTime())) return false; let m = String(dt.getMonth() + 1).padStart(2, '0'); let y = String(dt.getFullYear()); return (m === bulan && y === tahun); });
-            if(dataToExport.length === 0) { showToast(`Tidak ada data ${jenis} pada waktu tersebut.`, 'warning'); btn.innerText = textAwal; btn.disabled = false; return; }
+            if(dataToExport.length === 0) { showToast('Afwan, Tidak ada data '+jenis+' pada waktu tersebut.', 'warning'); btn.innerText = textAwal; btn.disabled = false; return; }
             let cleanData = dataToExport.map(row => { let newRow = {}; for (let key in row) { let val = row[key] === null || row[key] === undefined ? "" : String(row[key]); if (val.includes('base64,') || val.includes('data:image') || val.includes('drive.google.com')) { newRow[key] = val.includes('drive.google.com') ? val : "[FILE TERSIMPAN DI SISTEM]"; } else if (val.includes('\n')) { newRow[key] = val.replace(/(\r\n|\n|\r)/gm, " ➔ "); } else { newRow[key] = val; } } return newRow; });
-            try { const worksheet = XLSX.utils.json_to_sheet(cleanData); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan " + jenis.toUpperCase()); XLSX.writeFile(workbook, `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`); showToast('Laporan Excel berhasil diunduh.', 'success'); document.getElementById('modal-export').style.display = 'none'; } catch(err) { showToast('Gagal merakit Excel.', 'error'); }
+            try { const worksheet = XLSX.utils.json_to_sheet(cleanData); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan " + jenis.toUpperCase()); XLSX.writeFile(workbook, `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`); showToast('Alhamdulillah! Laporan Excel berhasil diunduh.', 'success'); document.getElementById('modal-export').style.display = 'none'; } catch(err) { showToast('Afwan, Gagal merakit Excel.', 'error'); }
             btn.innerText = textAwal; btn.disabled = false;
         }
 
@@ -721,9 +736,6 @@
 
         async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
 
-        // ===============================================
-        // SISTEM FETCH ANTI-STUCK (TANPA TIMEOUT PROMISE)
-        // ===============================================
         async function ambilSemuaData(isSilentRefresh = false) {
             let maxRetries = 3; let data = null; let berhasil = false;
             let lastErrorMsg = "";
@@ -751,7 +763,7 @@
                     }
                     
                     if (data && data.status === "gagal") { 
-                        showToast(data.pesan, 'error'); 
+                        showToast("Afwan, "+data.pesan, 'error'); 
                         if(!isSilentRefresh) {
                             document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Akses Ditolak API Key. Hubungi Admin.</span>'; 
                         }
@@ -783,21 +795,21 @@
             globalGaransi = data.garansi || [];
             
             try {
-                const savedSession = localStorage.getItem('sesiLoginSLA');
+                let savedSession = localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA');
                 if (savedSession) {
                     const parsedSession = JSON.parse(savedSession);
                     if (!parsedSession || !parsedSession.user || !parsedSession.loginTime) {
                         throw new Error("Sesi tidak valid");
                     }
                     if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { 
-                        localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Sesi login telah berakhir.', 'warning'); 
+                        localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Afwan, sesi login telah berakhir.', 'warning'); 
                     } else { 
                         const cekDB = globalUsers.find(u => u && u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); 
-                        if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
+                        if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
                     }
                 }
             } catch(e) {
-                localStorage.removeItem('sesiLoginSLA');
+                localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA');
                 penggunaAktif = null;
             }
 
@@ -815,7 +827,7 @@
                     } 
                 }
             } catch(e) {
-                showToast("Error merender aplikasi", "error");
+                showToast("Afwan, Error merender aplikasi", "error");
             }
         }
 
@@ -832,7 +844,12 @@
 
             if (cocok) { 
                 penggunaAktif = cocok; 
-                localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); 
+                let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
+                if(document.getElementById('ingat-saya').checked) {
+                    localStorage.setItem('sesiLoginSLA', dataSesi);
+                } else {
+                    sessionStorage.setItem('sesiLoginSLA', dataSesi);
+                }
                 masukKeAplikasi(); 
             } else { 
                 showToast('Afwan, Username atau Password tidak valid!', 'error'); 
@@ -910,10 +927,10 @@
                 renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); switchTab('dashboard'); 
                 if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex' || document.getElementById('pwa-install-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
             } catch(e) {
-                showToast("Error merender aplikasi", "error");
+                showToast("Afwan, Error merender aplikasi", "error");
             }
         }
-        function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
+        function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
 
         function toggleTargetSales() { const role = document.getElementById('new-role').value; document.getElementById('div-target-sales').style.display = (role === 'sales') ? 'block' : 'none'; }
         function togglePenjualanInput() { const sales = document.getElementById('input-sales').value; document.getElementById('div-nilai-penjualan').style.display = (sales !== "") ? 'block' : 'none'; }
@@ -1331,7 +1348,7 @@
                 document.getElementById('btn-submit-garansi').disabled = false;
                 
                 const selRef = document.getElementById('garansi-referensi');
-                selRef.innerHTML = '<option value="">-- Tanpa Referensi (Input Manual) --</option>';
+                selRef.innerHTML = '<option value="">-- Bismillah, Tanpa Referensi (Input Manual) --</option>';
                 
                 let existingRefs = (globalGaransi || []).map(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim());
 
@@ -1357,8 +1374,9 @@
                     });
                 }
                 setAutoIDs(); 
+                showToast("Bismillah, memuat form garansi...", "success");
             } catch(e) {
-                showToast("Sistem memuat form garansi.", "success");
+                showToast("Bismillah, memuat form garansi...", "success");
             }
         }
 
@@ -1969,11 +1987,11 @@
                 if(jsonRes.status === 'sukses') { 
                     showToast('Alhamdulillah! Profil tersimpan.', 'success'); 
                     
-                    // PERBAIKAN BUG: Update memori sesi lokal sebelum mengambil data baru
-                    // Mencegah auto-logout & error saat mengubah password diri sendiri
                     if (penggunaAktif && penggunaAktif.Username === payload.username) {
                         penggunaAktif.Password = payload.password;
-                        localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() }));
+                        let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
+                        if(localStorage.getItem('sesiLoginSLA')) localStorage.setItem('sesiLoginSLA', dataSesi);
+                        else sessionStorage.setItem('sesiLoginSLA', dataSesi);
                     }
 
                     if (penggunaAktif && penggunaAktif.Role === 'admin') {
@@ -1987,20 +2005,21 @@
                         const uUpdated = (globalUsers || []).find(x => x && x.Username === penggunaAktif.Username);
                         if (uUpdated) {
                             penggunaAktif = uUpdated;
-                            localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() }));
+                            let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
+                            if(localStorage.getItem('sesiLoginSLA')) localStorage.setItem('sesiLoginSLA', dataSesi);
+                            else sessionStorage.setItem('sesiLoginSLA', dataSesi);
                         }
                         siapkanProfilPribadi();
                     }
 
                     document.getElementById('loading').style.display='none'; 
                 } else {
-                    showToast('Gagal dari server: ' + jsonRes.pesan, 'error');
+                    showToast('Afwan, Gagal dari server: ' + jsonRes.pesan, 'error');
                 }
             } catch(err) { 
-                showToast("Gagal menyimpan profil", "error");
+                showToast("Afwan, Gagal menyimpan profil", "error");
             } 
             
-            // Pengaman tombol agar tidak error jika akun ter-logout otomatis
             let teksTombol = 'Simpan Profil';
             if (modeEditUser && penggunaAktif) {
                 teksTombol = (penggunaAktif.Role === 'admin') ? 'Update Profil' : 'Update Profil Saya';
