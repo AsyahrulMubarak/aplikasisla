@@ -313,6 +313,7 @@
         </div>
         <div id="loading" style="display:none;">Sinkronisasi data sistem...</div>
         
+        <!-- DASHBOARD -->
         <div id="page-dashboard" class="tab-page">
             <div id="admin-export-section" style="display:none; text-align:right; margin-bottom:15px;">
                 <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan</button>
@@ -325,6 +326,7 @@
             <div id="dash-tek-content" style="display:none;"></div>
         </div>
 
+        <!-- TIKET -->
         <div id="page-tiket" class="tab-page">
             <h3 class="section-title">Daftar Tiket SLA (Pekerjaan)</h3>
             <div class="search-wrapper">
@@ -339,6 +341,7 @@
             <div id="ticket-container"></div>
         </div>
 
+        <!-- PENJUALAN -->
         <div id="page-penjualan" class="tab-page">
             <h3 class="section-title" style="color:var(--purple);">Daftar Penjualan Langsung</h3>
             <div class="search-wrapper">
@@ -349,6 +352,7 @@
             <div id="penjualan-container"></div>
         </div>
 
+        <!-- PROSPEK -->
         <div id="page-prospek" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:var(--success);">Data Prospek (Leads)</h3>
@@ -388,6 +392,7 @@
             <div id="prospek-container"></div>
         </div>
 
+        <!-- GARANSI -->
         <div id="page-garansi" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:#3b82f6;">Data Garansi Klien</h3>
@@ -441,6 +446,7 @@
             <div id="garansi-container"></div>
         </div>
 
+        <!-- INPUT TIKET / SLS -->
         <div id="page-input" class="tab-page">
             <div class="segment-control" id="input-segment">
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
@@ -486,6 +492,7 @@
             </div>
         </div>
 
+        <!-- PENGATURAN USER -->
         <div id="page-user" class="tab-page">
             <div class="form-card" id="user-management-container">
                 <h3 id="form-user-title" class="section-title">⚙️ Manajemen User</h3>
@@ -610,14 +617,14 @@
             try {
                 const deskripsi = document.getElementById('bug-deskripsi').value; const fileInput = document.getElementById('bug-bukti'); let base64Bukti = '';
                 if (fileInput.files.length > 0) { base64Bukti = await prosesUploadBebas(fileInput.files[0]); }
-                const payload = { apiKey: API_KEY, action: 'laporBug', pelapor: penggunaAktif['Nama Asli'], deskripsi: deskripsi, buktiBug: base64Bukti };
+                const payload = { apiKey: API_KEY, action: 'laporBug', pelapor: penggunaAktif ? penggunaAktif['Nama Asli'] : 'Unknown', deskripsi: deskripsi, buktiBug: base64Bukti };
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const jsonRes = await res.json();
                 if (jsonRes.status === 'sukses') { showToast('Laporan bug terkirim.', 'success'); document.getElementById('modal-bug').style.display = 'none'; } else { showToast('Gagal: ' + jsonRes.pesan, 'error'); }
             } catch (err) { showToast('Gagal mengirim laporan.', 'error'); } finally { btn.innerText = 'Kirim Laporan'; btn.disabled = false; }
         }
 
         async function mintaResetSandi() {
-            let un = await showPrompt("Masukkan Username Anda untuk Reset Sandi:");
+            let un = await showPrompt("Masukkan Username Anda:");
             if(!un || un.trim() === "") return;
             document.getElementById('login-loading').innerHTML = 'Mengirim permintaan...'; document.getElementById('login-form').style.display = 'none';
             try {
@@ -702,17 +709,47 @@
 
         async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
 
+        // ===============================================
+        // UPDATE ANTI-STUCK: PENAMBAHAN TIMEOUT & ABORT CONTROLLER
+        // ===============================================
         async function ambilSemuaData(isSilentRefresh = false) {
             let maxRetries = 3; let data = null; let berhasil = false;
+            
             for (let i = 0; i < maxRetries; i++) {
                 try {
-                    if (!isSilentRefresh) { document.getElementById('login-loading').innerHTML = i === 0 ? 'Menghubungkan ke database...' : `<span style="color:var(--warning);">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`; document.getElementById('login-loading').style.display = 'block'; }
-                    const response = await fetch(apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: "follow" }); 
+                    if (!isSilentRefresh) { 
+                        document.getElementById('login-loading').innerHTML = i === 0 ? 'Menghubungkan ke database...' : `<span style="color:var(--warning);">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`; 
+                        document.getElementById('login-loading').style.display = 'block'; 
+                    }
+                    
+                    // Fitur Anti-Nyangkut: Paksa putus koneksi jika 15 detik Google tidak membalas
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000); 
+                    
+                    const response = await fetch(apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { 
+                        redirect: "follow",
+                        signal: controller.signal
+                    }); 
+                    
+                    clearTimeout(timeoutId); // Batalkan timer jika berhasil masuk
+                    
                     data = await response.json(); 
-                    if (data.status === "gagal") { showToast(data.pesan, 'error'); document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Akses Ditolak API Key.</span>'; return; }
+                    
+                    if (data.status === "gagal") { 
+                        showToast(data.pesan, 'error'); 
+                        if(!isSilentRefresh) {
+                            document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Akses Ditolak API Key. Hubungi Admin.</span>'; 
+                        }
+                        return; 
+                    }
                     berhasil = true; break; 
                 } catch (error) {
-                    if (i === maxRetries - 1) { if (!isSilentRefresh) { document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Gagal memuat. <a href="#" onclick="window.location.reload();">Muat Ulang</a>.</span>'; } return; }
+                    if (i === maxRetries - 1) { 
+                        if (!isSilentRefresh) { 
+                            document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Gagal memuat. <a href="#" onclick="window.location.reload();">Muat Ulang</a>.</span>'; 
+                        } 
+                        return; 
+                    }
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
             }
@@ -724,17 +761,42 @@
             globalProspek = data.prospek || []; 
             globalGaransi = data.garansi || [];
             
-            const savedSession = localStorage.getItem('sesiLoginSLA');
-            if (savedSession) {
-                const parsedSession = JSON.parse(savedSession);
-                if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Afwan, sesi login telah berakhir.', 'error'); } 
-                else { 
-                    const cekDB = globalUsers.find(u => u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); 
-                    if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
+            // Pengaman Anti-Crash Sesi Lokal
+            try {
+                const savedSession = localStorage.getItem('sesiLoginSLA');
+                if (savedSession) {
+                    const parsedSession = JSON.parse(savedSession);
+                    if (!parsedSession || !parsedSession.user || !parsedSession.loginTime) {
+                        throw new Error("Sesi tidak valid");
+                    }
+                    if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { 
+                        localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Sesi login telah berakhir.', 'warning'); 
+                    } else { 
+                        const cekDB = globalUsers.find(u => u && u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); 
+                        if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
+                    }
                 }
+            } catch(e) {
+                localStorage.removeItem('sesiLoginSLA');
+                penggunaAktif = null;
             }
-            if(!penggunaAktif) { document.getElementById('login-loading').style.display = 'none'; document.getElementById('login-form').style.display = 'block'; document.getElementById('login-wrapper').style.display = 'flex'; document.getElementById('app-wrapper').style.display = 'none'; } 
-            else { if (!isSilentRefresh) { masukKeAplikasi(); } else { renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } } }
+
+            try {
+                if(!penggunaAktif) { 
+                    document.getElementById('login-loading').style.display = 'none'; 
+                    document.getElementById('login-form').style.display = 'block'; 
+                    document.getElementById('login-wrapper').style.display = 'flex'; 
+                    document.getElementById('app-wrapper').style.display = 'none'; 
+                } else { 
+                    if (!isSilentRefresh) { masukKeAplikasi(); } 
+                    else { 
+                        renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); 
+                        if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } 
+                    } 
+                }
+            } catch(e) {
+                console.error("Rendering Error", e);
+            }
         }
 
         async function prosesLogin(e) {
@@ -753,74 +815,83 @@
                 localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); 
                 masukKeAplikasi(); 
             } else { 
-                showToast('Afwan, Username atau Password tidak valid!', 'error'); 
+                showToast('Username atau Password tidak valid!', 'error'); 
             }
         }
 
         function masukKeAplikasi() {
-            document.getElementById('login-wrapper').style.display = 'none'; document.getElementById('app-wrapper').style.display = 'block';
-            document.getElementById('nama-login').innerText = `${penggunaAktif['Nama Asli']} (${penggunaAktif.Role.toUpperCase()})`;
-            document.getElementById('nav-user').style.display = 'flex'; 
-            document.getElementById('nav-garansi').style.display = 'flex';
+            try {
+                document.getElementById('login-wrapper').style.display = 'none'; 
+                document.getElementById('app-wrapper').style.display = 'block';
+                
+                let namaTampil = penggunaAktif['Nama Asli'] || 'User';
+                let roleTampil = String(penggunaAktif.Role || '').toUpperCase();
+                document.getElementById('nama-login').innerText = `${namaTampil} (${roleTampil})`;
+                
+                document.getElementById('nav-user').style.display = 'flex'; 
+                document.getElementById('nav-garansi').style.display = 'flex';
 
-            if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
-                document.getElementById('btn-tambah-garansi').style.display = 'block';
-            }
+                if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
+                    document.getElementById('btn-tambah-garansi').style.display = 'block';
+                }
 
-            if (penggunaAktif.Role === 'admin') { 
-                document.getElementById('admin-export-section').style.display = 'block';
-                document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'flex';
-                document.getElementById('nav-prospek').style.display = 'flex';
-                document.getElementById('nav-input').style.display = 'flex'; 
-                document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
-                document.getElementById('div-prospek-sales').style.display = 'block'; 
-                document.getElementById('btn-tambah-prospek').style.display = 'block';
-            } 
-            else if (penggunaAktif.Role === 'direktur') { 
-                document.getElementById('admin-export-section').style.display = 'block';
-                document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'flex';
-                document.getElementById('nav-prospek').style.display = 'flex';
-                document.getElementById('nav-input').style.display = 'none'; 
-                document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
-                document.getElementById('div-prospek-sales').style.display = 'none'; 
-                document.getElementById('btn-tambah-prospek').style.display = 'none'; 
-            }
-            else if (penggunaAktif.Role === 'manager') { 
-                document.getElementById('admin-export-section').style.display = 'block';
-                document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'flex';
-                document.getElementById('nav-prospek').style.display = 'flex';
-                document.getElementById('nav-input').style.display = 'flex'; 
-                document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
-                document.getElementById('div-prospek-sales').style.display = 'block'; 
-                document.getElementById('btn-tambah-prospek').style.display = 'block';
-            }
-            else if (penggunaAktif.Role === 'sales') { 
-                document.getElementById('admin-export-section').style.display = 'none';
-                document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'flex';
-                document.getElementById('nav-prospek').style.display = 'flex';
-                document.getElementById('nav-input').style.display = 'none'; 
-                document.getElementById('dash-segment').style.display = 'none'; 
-                document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
-                document.getElementById('div-prospek-sales').style.display = 'none'; 
-                document.getElementById('btn-tambah-prospek').style.display = 'block';
-            } 
-            else { 
-                document.getElementById('admin-export-section').style.display = 'none';
-                document.getElementById('nav-tiket').style.display = 'flex';
-                document.getElementById('nav-penjualan').style.display = 'none'; 
-                document.getElementById('nav-prospek').style.display = 'none';
-                document.getElementById('nav-input').style.display = 'none'; 
-                document.getElementById('dash-segment').style.display = 'none'; 
-                document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'block';
-                document.getElementById('btn-tambah-prospek').style.display = 'none';
-            }
+                if (penggunaAktif.Role === 'admin') { 
+                    document.getElementById('admin-export-section').style.display = 'block';
+                    document.getElementById('nav-tiket').style.display = 'flex';
+                    document.getElementById('nav-penjualan').style.display = 'flex';
+                    document.getElementById('nav-prospek').style.display = 'flex';
+                    document.getElementById('nav-input').style.display = 'flex'; 
+                    document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
+                    document.getElementById('div-prospek-sales').style.display = 'block'; 
+                    document.getElementById('btn-tambah-prospek').style.display = 'block';
+                } 
+                else if (penggunaAktif.Role === 'direktur') { 
+                    document.getElementById('admin-export-section').style.display = 'block';
+                    document.getElementById('nav-tiket').style.display = 'flex';
+                    document.getElementById('nav-penjualan').style.display = 'flex';
+                    document.getElementById('nav-prospek').style.display = 'flex';
+                    document.getElementById('nav-input').style.display = 'none'; 
+                    document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
+                    document.getElementById('div-prospek-sales').style.display = 'none'; 
+                    document.getElementById('btn-tambah-prospek').style.display = 'none'; 
+                }
+                else if (penggunaAktif.Role === 'manager') { 
+                    document.getElementById('admin-export-section').style.display = 'block';
+                    document.getElementById('nav-tiket').style.display = 'flex';
+                    document.getElementById('nav-penjualan').style.display = 'flex';
+                    document.getElementById('nav-prospek').style.display = 'flex';
+                    document.getElementById('nav-input').style.display = 'flex'; 
+                    document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
+                    document.getElementById('div-prospek-sales').style.display = 'block'; 
+                    document.getElementById('btn-tambah-prospek').style.display = 'block';
+                }
+                else if (penggunaAktif.Role === 'sales') { 
+                    document.getElementById('admin-export-section').style.display = 'none';
+                    document.getElementById('nav-tiket').style.display = 'flex';
+                    document.getElementById('nav-penjualan').style.display = 'flex';
+                    document.getElementById('nav-prospek').style.display = 'flex';
+                    document.getElementById('nav-input').style.display = 'none'; 
+                    document.getElementById('dash-segment').style.display = 'none'; 
+                    document.getElementById('dash-tek-content').style.display = 'none'; document.getElementById('dash-sales-content').style.display = 'block';
+                    document.getElementById('div-prospek-sales').style.display = 'none'; 
+                    document.getElementById('btn-tambah-prospek').style.display = 'block';
+                } 
+                else { 
+                    document.getElementById('admin-export-section').style.display = 'none';
+                    document.getElementById('nav-tiket').style.display = 'flex';
+                    document.getElementById('nav-penjualan').style.display = 'none'; 
+                    document.getElementById('nav-prospek').style.display = 'none';
+                    document.getElementById('nav-input').style.display = 'none'; 
+                    document.getElementById('dash-segment').style.display = 'none'; 
+                    document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'block';
+                    document.getElementById('btn-tambah-prospek').style.display = 'none';
+                }
 
-            renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); switchTab('dashboard'); 
-            if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex' || document.getElementById('pwa-install-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
+                renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); switchTab('dashboard'); 
+                if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex' || document.getElementById('pwa-install-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
+            } catch(e) {
+                showToast("Error merender aplikasi", "error");
+            }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
 
@@ -863,7 +934,7 @@
                 if (currentSalesVal && !salesList.includes(currentSalesVal)) { salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Nonaktif)</option>`; }
                 salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
                 if(salesSelectGaransi) salesSelectGaransi.value = currentGaransiVal;
-            } catch(e) { console.error("Error render inputs:", e); }
+            } catch(e) { }
         }
 
         function setAutoIDs() {
@@ -884,7 +955,7 @@
 
                 let garansiEl = document.getElementById('garansi-id');
                 if(garansiEl) { garansiEl.value = 'GRS-' + String(maxGrs + 1).padStart(3, '0'); }
-            } catch(e) { console.error("Error setAutoIDs:", e); }
+            } catch(e) { }
         }
 
         function renderDashboard() {
@@ -1022,9 +1093,6 @@
             dashSalesContainer.innerHTML = htmlSales;
         }
 
-        // ===============================================
-        // FUNGSI RENDER TIKET: UPDATE SORTING PRIORITAS
-        // ===============================================
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
@@ -1421,6 +1489,7 @@
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada data Garansi.</p>';
         }
+
         async function submitGaransi(e) {
             e.preventDefault(); 
             const btn = document.getElementById('btn-submit-garansi'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
@@ -1769,7 +1838,7 @@
         async function hapusTiket(idTiket) { let acc = await showConfirm(`Bismillah, hapus data tiket ${idTiket} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Tiket berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         async function hapusPenjualan(idPenjualan) { let acc = await showConfirm(`Bismillah, hapus data penjualan ${idPenjualan} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         
-        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).forEach(u => { if(!u || !u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['Role']}</td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
+        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).forEach(u => { if(!u || !u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['No WA'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
         
         function siapkanProfilPribadi() {
             modeEditUser = true; 
