@@ -2031,6 +2031,91 @@
         async function hapusUser(un) { if(un==='admin') { showToast('Afwan, akun admin utama dilarang dihapus!', 'error'); return; } let acc = await showConfirm(`Bismillah, yakin hapus user ${un}?`); if(!acc) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({apiKey: API_KEY, action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { showToast('Alhamdulillah! User berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
 
         ambilSemuaData();
+        // ===============================================
+        // FUNGSI MODE TRACKING KLIEN (AMAN DARI KEBOCORAN)
+        // ===============================================
+        function renderClientTracking(id) {
+            currentTrackTicket = id;
+            document.getElementById('login-wrapper').style.display = 'none';
+            document.getElementById('app-wrapper').style.display = 'none';
+            document.getElementById('client-tracking-wrapper').style.display = 'flex';
+            document.getElementById('track-id-text').innerText = "ID Tiket Perbaikan: " + id;
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function verifyClientTracking() {
+            let keyword = document.getElementById('track-keyword').value.toLowerCase().trim();
+            if(keyword === "") { showToast("Bismillah, harap masukkan kata kunci pencarian!", "warning"); return; }
+            
+            let t = globalTickets.find(x => x && x['ID Tiket'] === currentTrackTicket);
+            if(!t) { showToast("Afwan, Tiket tidak ditemukan di sistem kami.", "error"); return; }
+            
+            let namaKlien = String(t['Klien & Lokasi'] || "").toLowerCase();
+            let namaCust = String(t['Nama Customer'] || "").toLowerCase();
+            
+            // Pengecekan Keamanan: Kata kunci Klien harus cocok dengan database
+            if(namaKlien.includes(keyword) || (namaCust !== "" && namaCust.includes(keyword))) {
+                tampilkanDataPelacakanKlien(t);
+            } else {
+                showToast("Afwan, Kata Kunci tidak cocok demi keamanan data Anda.", "error");
+            }
+        }
+
+        function tampilkanDataPelacakanKlien(t) {
+            document.getElementById('track-auth-section').style.display = 'none';
+            let resSection = document.getElementById('track-result-section');
+            resSection.style.display = 'block';
+            
+            let textStatus = t['Status'] || 'Menunggu'; 
+            let sc = 'status-aman'; let bc = 'badge-pending';
+            if (textStatus === 'Selesai') { sc = 'status-terpenuhi'; bc = 'badge-selesai'; }
+            else if (textStatus === 'On Progress') { sc = 'status-aman'; bc = 'badge-status'; }
+            else if (textStatus === 'Cancel') { sc = 'status-terlambat'; bc = 'badge-cancel'; }
+
+            // Integrasi Modul Garansi ke layar Klien
+            let htmlGaransi = '';
+            let refsDiGaransi = globalGaransi.filter(g => g && String(g['Referensi (Tiket/Nota)']).trim() === currentTrackTicket);
+            
+            if (refsDiGaransi.length > 0) {
+                htmlGaransi = `<h4 style="margin:25px 0 10px 0; color:#3b82f6; border-bottom:1px solid var(--border); padding-bottom:5px;">🛡️ Status Garansi Anda</h4>`;
+                refsDiGaransi.forEach(g => {
+                    let statGrs = g['Status'] || 'Masa Tunggu';
+                    let scG = 'status-aman'; let bcG = 'badge-tunggu';
+                    if (statGrs === 'Aktif') { scG = 'status-terpenuhi'; bcG = 'badge-aktif'; }
+                    else if (statGrs.includes('Habis') || statGrs.includes('Hangus') || statGrs.includes('Diklaim')) { scG = 'status-terlambat'; bcG = 'badge-habis'; }
+                    
+                    let tglHabis = g['Tanggal Habis'] ? formatWaktu(g['Tanggal Habis']) : '-';
+                    let ketKlien = g['Keterangan'] || g[Object.keys(g)[11]] || '';
+                    let ketKlienHtml = ketKlien ? `<p style="margin:0 0 5px 0; font-size:12px; color:var(--text-muted);"><i>Catatan: ${ketKlien}</i></p>` : '';
+                    
+                    let waAdmin = "6285134817914"; // Nomor admin pusat
+                    let pesanWa = encodeURIComponent(`Assalamu'alaikum Admin Alfacom,\nSaya klien atas nama *${t['Klien & Lokasi']}*.\n\nSaya ingin bertanya/mengklaim garansi terkait pekerjaan dengan ID: *${currentTrackTicket}*.`);
+                    let btnKlaim = statGrs === 'Aktif' ? `<a href="https://wa.me/${waAdmin}?text=${pesanWa}" target="_blank" class="btn-solid-primary" style="background:#10b981; display:block; text-align:center; text-decoration:none; padding:10px; margin-top:10px;">💬 Klaim via WhatsApp</a>` : '';
+
+                    htmlGaransi += `<div class="card ${scG}" style="padding:15px; margin-bottom:10px; background:#f8fafc; border-radius:8px;">
+                        <h3 style="font-size:14px; margin:0 0 10px 0;">${g['Barang / Jasa']} <span class="badge ${bcG}" style="float:right;">${statGrs}</span></h3>
+                        <p style="margin:0 0 5px 0; font-size:12px;"><strong>Durasi:</strong> ${g['Durasi (Hari)']} Hari</p>
+                        <p style="margin:0 0 5px 0; font-size:12px;"><strong>Habis Pada:</strong> ${tglHabis}</p>
+                        ${ketKlienHtml}
+                        ${btnKlaim}
+                    </div>`;
+                });
+            }
+
+            let pdfUrl = t['Link PDF BA'] || t[Object.keys(t)[30]];
+            let pdfHtml = (pdfUrl && pdfUrl.length > 10) ? `<div style="margin-top:15px;"><a href="${pdfUrl}" target="_blank" class="dl-btn" style="background:#1e3a8a; color:white; border:none; display:block; text-align:center; padding:10px;">⬇️ Download Dokumen Berita Acara</a></div>` : '';
+
+            resSection.innerHTML = `
+                <div class="card ${sc}" style="margin-bottom:0; padding:15px; border-radius:8px;">
+                    <h3 style="margin-bottom:10px; font-size:15px;">Status Pekerjaan <span class="badge ${bc}" style="float:right;">${textStatus}</span></h3>
+                    <p style="font-size:13px; margin:5px 0;"><strong>Pekerjaan:</strong> ${t['Jenis Pekerjaan']}</p>
+                    <p style="font-size:13px; margin:5px 0;"><strong>Teknisi:</strong> ${t['Teknisi']}</p>
+                    <p style="font-size:13px; margin:5px 0; color:var(--text-muted);"><strong>Waktu Lapor:</strong> ${formatWaktu(t['Waktu Lapor'])}</p>
+                    ${pdfHtml}
+                </div>
+                ${htmlGaransi}
+            `;
+        }
     </script>
 </body>
 </html>
