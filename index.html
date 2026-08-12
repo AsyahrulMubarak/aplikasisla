@@ -487,6 +487,11 @@
                     </div>
                     <label>Alokasi Teknisi</label>
                     <div class="checkbox-group" id="teknisi-group"></div>
+                    <!-- FITUR BARU: KANVAS TTD DI AWAL (OPSIONAL) -->
+                    <label>Tanda Tangan Klien (Opsional - Jika Klien di Toko)</label>
+                    <div class="signature-wrapper"><canvas id="signature-pad-input"></canvas></div>
+                    <button type="button" class="btn-outline-cancel" style="margin-top:0; margin-bottom:15px;" onclick="clearSignatureInput()">Bersihkan TTD</button>
+                    <!-- ========================================= -->
                     <button type="submit" id="btn-submit-pekerjaan" class="btn-solid-primary">Simpan Tiket</button>
                     <button type="button" id="btn-batal-edit-tiket" class="btn-outline-cancel" style="display:none;" onclick="batalEditTiket()">Batal Mode Edit</button>
                 </form>
@@ -711,6 +716,17 @@
         function stopDrawing(e) { e.preventDefault(); isDrawing = false; }
         canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stopDrawing); canvas.addEventListener('mouseout', stopDrawing); canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); canvas.addEventListener('touchend', stopDrawing);
         function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); isCanvasDrawn = false; }
+        // ===============================================
+        // KANVAS TANDA TANGAN UNTUK FORM INPUT TIKET
+        // ===============================================
+        const canvasInput = document.getElementById('signature-pad-input'); const ctxInput = canvasInput.getContext('2d'); let isDrawingInput = false; let isCanvasInputDrawn = false; 
+        function resizeCanvasInput() { const ratio = Math.max(window.devicePixelRatio || 1, 1); canvasInput.width = canvasInput.offsetWidth * ratio; canvasInput.height = canvasInput.offsetHeight * ratio; ctxInput.scale(ratio, ratio); ctxInput.lineWidth = 3; ctxInput.lineCap = 'round'; ctxInput.strokeStyle = '#000'; clearSignatureInput(); }
+        function getMousePosInput(evt) { const rect = canvasInput.getBoundingClientRect(); let clientX = evt.clientX; let clientY = evt.clientY; if (evt.touches && evt.touches.length > 0) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; } return { x: clientX - rect.left, y: clientY - rect.top }; }
+        function startDrawingInput(e) { e.preventDefault(); isDrawingInput = true; isCanvasInputDrawn = true; const pos = getMousePosInput(e); ctxInput.beginPath(); ctxInput.moveTo(pos.x, pos.y); }
+        function drawInput(e) { e.preventDefault(); if (!isDrawingInput) return; const pos = getMousePosInput(e); ctxInput.lineTo(pos.x, pos.y); ctxInput.stroke(); }
+        function stopDrawingInput(e) { e.preventDefault(); isDrawingInput = false; }
+        canvasInput.addEventListener('mousedown', startDrawingInput); canvasInput.addEventListener('mousemove', drawInput); canvasInput.addEventListener('mouseup', stopDrawingInput); canvasInput.addEventListener('mouseout', stopDrawingInput); canvasInput.addEventListener('touchstart', startDrawingInput, {passive: false}); canvasInput.addEventListener('touchmove', drawInput, {passive: false}); canvasInput.addEventListener('touchend', stopDrawingInput);
+        function clearSignatureInput() { ctxInput.clearRect(0, 0, canvasInput.width, canvasInput.height); isCanvasInputDrawn = false; }
 
         function switchTab(tabId) { 
             currentTabId = tabId; 
@@ -718,21 +734,27 @@
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active')); 
             document.getElementById('page-' + tabId).style.display = 'block'; 
             document.getElementById('nav-' + tabId).classList.add('active'); 
-            if(tabId === 'input' && !modeEditTiket) batalEditTiket(); 
-            
+            if(tabId === 'input' && !modeEditTiket) {
+                batalEditTiket();
+                setTimeout(resizeCanvasInput, 100); // Merender kanvas input
+            }
             if(tabId === 'user') {
-                if (penggunaAktif && penggunaAktif.Role === 'admin') {
-                    batalEditUser(); 
-                } else if (penggunaAktif) {
-                    siapkanProfilPribadi(); 
-                }
+                if (penggunaAktif && penggunaAktif.Role === 'admin') { batalEditUser(); } 
+                else if (penggunaAktif) { siapkanProfilPribadi(); }
             } 
             window.scrollTo(0,0); 
         }
 
         function switchDashTab(type) { document.getElementById('btn-dash-sales').classList.remove('active'); document.getElementById('btn-dash-tek').classList.remove('active'); document.getElementById('dash-sales-content').style.display = 'none'; document.getElementById('dash-tek-content').style.display = 'none'; if(type === 'sales') { document.getElementById('btn-dash-sales').classList.add('active'); document.getElementById('dash-sales-content').style.display = 'block'; } else { document.getElementById('btn-dash-tek').classList.add('active'); document.getElementById('dash-tek-content').style.display = 'block'; } }
-        function switchInputTab(type) { document.getElementById('btn-input-sla').classList.remove('active'); document.getElementById('btn-input-sls').classList.remove('active'); document.getElementById('form-input-sla-container').style.display = 'none'; document.getElementById('form-input-sls-container').style.display = 'none'; if(type === 'sla') { document.getElementById('btn-input-sla').classList.add('active'); document.getElementById('form-input-sla-container').style.display = 'block'; } else { document.getElementById('btn-input-sls').classList.add('active'); document.getElementById('form-input-sls-container').style.display = 'block'; } }
-        function setTicketFilter(filterType) { currentTicketFilter = filterType; document.getElementById('btn-filter-aktif').classList.remove('active'); document.getElementById('btn-filter-riwayat').classList.remove('active'); if(filterType === 'aktif') document.getElementById('btn-filter-aktif').classList.add('active'); else document.getElementById('btn-filter-riwayat').classList.add('active'); renderTickets(); }
+        function switchInputTab(type) { 
+            document.getElementById('btn-input-sla').classList.remove('active'); document.getElementById('btn-input-sls').classList.remove('active'); document.getElementById('form-input-sla-container').style.display = 'none'; document.getElementById('form-input-sls-container').style.display = 'none'; 
+            if(type === 'sla') { 
+                document.getElementById('btn-input-sla').classList.add('active'); document.getElementById('form-input-sla-container').style.display = 'block'; 
+                setTimeout(resizeCanvasInput, 100); // Merender kanvas input
+            } else { 
+                document.getElementById('btn-input-sls').classList.add('active'); document.getElementById('form-input-sls-container').style.display = 'block'; 
+            } 
+        }
 
         async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
 
@@ -1806,6 +1828,11 @@
                 const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
                 payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; 
                 payload.idTiket = document.getElementById('input-id').value; payload.noTransaksi = document.getElementById('input-notrans-sla').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
+                payload.waKlien = document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '';
+                
+                // Menangkap Tanda Tangan jika ada
+                payload.ttdKlienAwal = isCanvasInputDrawn ? canvasInput.toDataURL('image/png') : "";
+
             } else if (type === 'sls') {
                 const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
                 payload.action = 'addPenjualan'; 
@@ -1825,7 +1852,6 @@
             if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
             else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; }
         }
-
         function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
         
         async function kirimBanding(e) { 
@@ -1872,7 +1898,18 @@
         async function submitUpdate(e) { e.preventDefault(); const status = document.getElementById('update-status').value; const catatanBaru = document.getElementById('update-keterangan').value.trim(); const idTiket = document.getElementById('update-id').value; const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); let ttdBase64 = ""; if ((status === 'Pending' || status === 'Cancel') && catatanBaru === "") { showToast("Afwan, catatan baru WAJIB diisi untuk status ini!", "warning"); return; } if (status === 'Selesai') { const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; if (!isCanvasDrawn && !hasExistingTTD) { showToast("Afwan, tanda tangan WAJIB diisi sebelum Selesai!", "warning"); return; } } if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); } const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true; let isStatusChanged = t['Status'] !== status; let keteranganFinal = t['Keterangan'] || ''; if ((catatanBaru !== "" || isStatusChanged) && t['Status'] !== 'Selesai') { const now = new Date(); const timeStr = now.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); let teksLogBaru = `[${timeStr}] ➔ ${status}`; if (catatanBaru !== "") teksLogBaru += `\n ${catatanBaru}`; keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru; } const payload = { apiKey: API_KEY, action: 'updateTicket', idTiket: idTiket, status: status, keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, baTTD: ttdBase64 }; try { const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if (result.status === 'sukses') { showToast('Alhamdulillah! Data berhasil diupdate.', 'success'); tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { showToast('Afwan, gagal mengupdate data: ' + result.pesan, 'error'); } } catch(err) { window.location.reload(); } btn.innerText = 'Simpan Data'; btn.disabled = false; }
         
         function aktifkanEditTiket(idTiket) { const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); if(!t) return; modeEditTiket = true; switchTab('input'); switchInputTab('sla'); document.getElementById('form-tiket-title').innerText = 'Edit Tiket SLA: ' + idTiket; document.getElementById('input-id').value = idTiket; document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; document.getElementById('input-sla').value = t['Target SLA (Jam)']; document.getElementById('input-klien').value = t['Klien & Lokasi']; document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; const salesSelect = document.getElementById('input-sales'); let found = Array.from(salesSelect.options).some(opt => opt.value === (t['Sales'] || '')); if (!found && t['Sales']) { salesSelect.innerHTML += `<option value="${t['Sales']}">${t['Sales']} (Nonaktif)</option>`; } salesSelect.value = t['Sales'] || ''; let noTransVal = t['No Transaksi'] || t[Object.keys(t)[1]] || ''; document.getElementById('input-notrans-sla').value = noTransVal; let targetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || ''; document.getElementById('input-nilai-penjualan').value = targetVal; togglePenjualanInput(); const tArr = String(t['Teknisi'] || '').split(',').map(n => n.trim()); document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--warning)'; document.getElementById('btn-batal-edit-tiket').style.display = 'block'; }
-        function batalEditTiket() { modeEditTiket = false; document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; document.getElementById('form-sla').reset(); document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; document.getElementById('btn-batal-edit-tiket').style.display = 'none'; document.getElementById('input-notrans-sla').value = ''; togglePenjualanInput(); setAutoIDs(); }
+        function batalEditTiket() { 
+            modeEditTiket = false; 
+            document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; 
+            document.getElementById('form-sla').reset(); 
+            if(document.getElementById('input-wa-klien')) document.getElementById('input-wa-klien').value = '';
+            clearSignatureInput(); // Membersihkan kanvas saat batal edit
+            document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; 
+            document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; 
+            document.getElementById('btn-batal-edit-tiket').style.display = 'none'; 
+            document.getElementById('input-notrans-sla').value = ''; 
+            togglePenjualanInput(); setAutoIDs(); 
+        }
         async function hapusTiket(idTiket) { let acc = await showConfirm(`Bismillah, hapus data tiket ${idTiket} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Tiket berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         async function hapusPenjualan(idPenjualan) { let acc = await showConfirm(`Bismillah, hapus data penjualan ${idPenjualan} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
         
