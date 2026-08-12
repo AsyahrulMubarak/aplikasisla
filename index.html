@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- PENGHANCUR CACHE BROWSER (NO-CACHE META TAGS) -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Sistem Manajemen SLA</title>
     
     <link rel="manifest" href="manifest.json">
@@ -10,11 +14,14 @@
     <link rel="apple-touch-icon" href="depan_001.png">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
-    <!-- PENGHANCUR CACHE OTOMATIS -->
+    <!-- PENGHANCUR SERVICE WORKER (PWA) OTOMATIS -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {
                 for(let registration of registrations) { registration.unregister(); }
+            });
+            caches.keys().then(function(names) {
+                for (let name of names) caches.delete(name);
             });
         }
     </script>
@@ -714,11 +721,13 @@
         async function ambilSemuaData(isSilentRefresh = false) {
             let maxRetries = 3; let data = null; let berhasil = false;
             
+            // TIMEOUT DIPERPANJANG MENJADI 60 DETIK
             const fetchWithTimeout = (url, options, timeout = 60000) => {
-                return Promise.race([
-                    fetch(url, options),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
-                ]);
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), timeout);
+                return fetch(url, { ...options, signal: controller.signal })
+                    .then(response => { clearTimeout(id); return response; })
+                    .catch(error => { clearTimeout(id); throw error; });
             };
 
             for (let i = 0; i < maxRetries; i++) {
@@ -1088,9 +1097,6 @@
             dashSalesContainer.innerHTML = htmlSales;
         }
 
-        // ===============================================
-        // FUNGSI RENDER TIKET: UPDATE SORTING PRIORITAS
-        // ===============================================
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
