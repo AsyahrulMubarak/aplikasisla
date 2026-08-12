@@ -47,14 +47,12 @@
         .segment-btn { flex: 1; padding: 8px 0; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
         .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         
-        /* PEMBARUAN CSS UNTUK TOMBOL X PADA PENCARIAN */
         .search-wrapper { position: relative; margin-bottom: 15px; display: block; width: 100%; }
         .search-wrapper input { width: 100%; padding: 12px 40px 12px 40px !important; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; box-sizing: border-box !important;}
         .search-wrapper input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(30,58,138,0.1); }
         .search-icon { position: absolute; left: 14px; top: 12px; color: var(--text-muted); font-size: 16px; pointer-events: none; z-index: 2; }
         .clear-icon { position: absolute; right: 14px; top: 12px; color: var(--text-muted); font-size: 14px; cursor: pointer; z-index: 2; transition: 0.2s; display: none; background: #e2e8f0; border-radius: 50%; width: 20px; height: 20px; text-align: center; line-height: 20px; font-weight: bold;}
         .clear-icon:hover { background: var(--danger); color: white; }
-        /* =========================================== */
 
         label { display: block; margin: 15px 0 6px; font-weight: 600; font-size: 13px; color: var(--text-main); }
         input[type="text"], input[type="number"], input[type="email"], input[type="password"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #f8fafc; transition: 0.2s; }
@@ -337,7 +335,7 @@
             <!-- UPDATE: PENCARIAN TIKET DENGAN TOMBOL X -->
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." oninput="toggleClearBtn(this); Tickets()">
+                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." oninput="toggleClearBtn(this); renderTickets()">
                 <span class="clear-icon" onclick="clearSearch('search-tiket')">✖</span>
             </div>
 
@@ -1048,9 +1046,6 @@
             dashSalesContainer.innerHTML = htmlSales;
         }
 
-        // ===============================================
-        // FUNGSI RENDER TIKET: UPDATE SORTING PRIORITAS
-        // ===============================================
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
@@ -1062,10 +1057,8 @@
                 tiketDitampilkan = (globalTickets || []).filter(t => t && String(t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); 
             }
             
-            // Dapatkan seluruh ID referensi yang sudah ada di sheet Garansi
             let refsDiGaransi = (globalGaransi || []).map(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim());
             
-            // Logika Pengurutan: Paksa Unassigned, Pending, dan Selesai (Tanpa Garansi) ke ATAS
             tiketDitampilkan.sort((a, b) => {
                 function getPriority(t) {
                     if(!t) return 99;
@@ -1085,7 +1078,7 @@
                 
                 let numA = parseInt(String(a['ID Tiket']).replace(/\D/g, '')) || 0;
                 let numB = parseInt(String(b['ID Tiket']).replace(/\D/g, '')) || 0;
-                return numB - numA; // Urutkan terbaru di atas jika prioritasnya sama
+                return numB - numA; 
             });
             
             let htmlAda = false;
@@ -1452,6 +1445,7 @@
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada data Garansi.</p>';
         }
+
         async function submitGaransi(e) {
             e.preventDefault(); 
             const btn = document.getElementById('btn-submit-garansi'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
