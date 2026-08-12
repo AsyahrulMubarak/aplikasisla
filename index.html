@@ -55,12 +55,14 @@
         .segment-control { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 20px; }
         .segment-btn { flex: 1; padding: 8px 0; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
         .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        
         .search-wrapper { position: relative; margin-bottom: 15px; display: block; width: 100%; }
         .search-wrapper input { width: 100%; padding: 12px 40px 12px 40px !important; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; box-sizing: border-box !important;}
         .search-wrapper input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(30,58,138,0.1); }
         .search-icon { position: absolute; left: 14px; top: 12px; color: var(--text-muted); font-size: 16px; pointer-events: none; z-index: 2; }
         .clear-icon { position: absolute; right: 14px; top: 12px; color: var(--text-muted); font-size: 14px; cursor: pointer; z-index: 2; transition: 0.2s; display: none; background: #e2e8f0; border-radius: 50%; width: 20px; height: 20px; text-align: center; line-height: 20px; font-weight: bold;}
         .clear-icon:hover { background: var(--danger); color: white; }
+
         label { display: block; margin: 15px 0 6px; font-weight: 600; font-size: 13px; color: var(--text-main); }
         input[type="text"], input[type="number"], input[type="email"], input[type="password"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background-color: #f8fafc; transition: 0.2s; }
         input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); background-color: var(--surface); box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1); }
@@ -177,7 +179,7 @@
             </div>
             <div class="custom-modal-actions">
                 <button class="custom-modal-btn btn-cm-cancel" onclick="tolakInstall()">Nanti Saja</button>
-                <button class="custom-modal-btn btn-cm-confirm" onclick="terimaInstall()">Install</button>
+                <button class="custom-modal-btn btn-cm-confirm" onclick="terimaInstall()">Install Sekarang</button>
             </div>
         </div>
     </div>
@@ -309,7 +311,6 @@
         </div>
     </div>
 
-    <!-- APLIKASI UTAMA -->
     <div class="container" id="app-wrapper">
         <div class="header-branding"><img src="depan_001.png" alt="Logo Alfacom" class="logo"></div>
         <div class="top-bar">
@@ -710,13 +711,10 @@
 
         async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
 
-        // ===============================================
-        // UPDATE ANTI-STUCK: FETCH DENGAN TIMEOUT
-        // ===============================================
         async function ambilSemuaData(isSilentRefresh = false) {
             let maxRetries = 3; let data = null; let berhasil = false;
             
-            const fetchWithTimeout = (url, options, timeout = 15000) => {
+            const fetchWithTimeout = (url, options, timeout = 60000) => {
                 return Promise.race([
                     fetch(url, options),
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
@@ -730,7 +728,7 @@
                         document.getElementById('login-loading').style.display = 'block'; 
                     }
                     
-                    const response = await fetchWithTimeout(apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: "follow" }, 15000); 
+                    const response = await fetchWithTimeout(apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: "follow" }, 60000); 
                     data = await response.json(); 
                     
                     if (data.status === "gagal") { 
@@ -1492,6 +1490,7 @@
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada data Garansi.</p>';
         }
+
         async function submitGaransi(e) {
             e.preventDefault(); 
             const btn = document.getElementById('btn-submit-garansi'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
