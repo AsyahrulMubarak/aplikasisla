@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- PENGHANCUR CACHE BROWSER (NO-CACHE META TAGS) -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -13,18 +12,6 @@
     <meta name="theme-color" content="#1e3a8a">
     <link rel="apple-touch-icon" href="depan_001.png">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    
-    <!-- PENGHANCUR SERVICE WORKER (PWA) OTOMATIS -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) { registration.unregister(); }
-            });
-            caches.keys().then(function(names) {
-                for (let name of names) caches.delete(name);
-            });
-        }
-    </script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -38,7 +25,7 @@
         .login-card input:focus { outline: none; border-color: var(--primary); }
         .btn-login { background-color: var(--primary); color: white; border: none; padding: 12px; width: 100%; font-size: 15px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
         .btn-login:hover { background-color: var(--primary-hover); }
-        #login-loading { font-style: italic; color: var(--text-muted); margin-bottom: 15px; font-size: 13px; }
+        #login-loading { font-style: italic; color: var(--text-muted); margin-bottom: 15px; font-size: 13px; line-height: 1.5; }
         #app-wrapper { display: none; }
         .header-branding { text-align: center; margin-bottom: 20px; }
         .logo { max-width: 180px; height: auto; }
@@ -318,6 +305,7 @@
         </div>
     </div>
 
+    <!-- APLIKASI UTAMA -->
     <div class="container" id="app-wrapper">
         <div class="header-branding"><img src="depan_001.png" alt="Logo Alfacom" class="logo"></div>
         <div class="top-bar">
@@ -671,6 +659,21 @@
             }
         }
 
+        // FUNGSI PENGHANCUR CACHE MANUAL
+        function hapusCacheTotal() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) { registration.unregister(); }
+                });
+                caches.keys().then(function(names) {
+                    for (let name of names) caches.delete(name);
+                });
+            }
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = window.location.pathname + "?v=" + new Date().getTime();
+        }
+
         async function prosesExportExcel(e) {
             e.preventDefault(); const jenis = document.getElementById('export-jenis').value; const bulan = document.getElementById('export-bulan').value; const tahun = document.getElementById('export-tahun').value;
             const btn = e.target.querySelector('button[type="submit"]'); let textAwal = btn.innerText; btn.innerText = "Merakit Excel..."; btn.disabled = true;
@@ -718,40 +721,53 @@
 
         async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
 
+        // ===============================================
+        // SISTEM FETCH ANTI-STUCK (TANPA TIMEOUT PROMISE)
+        // ===============================================
         async function ambilSemuaData(isSilentRefresh = false) {
             let maxRetries = 3; let data = null; let berhasil = false;
-            
-            // TIMEOUT DIPERPANJANG MENJADI 60 DETIK
-            const fetchWithTimeout = (url, options, timeout = 60000) => {
-                const controller = new AbortController();
-                const id = setTimeout(() => controller.abort(), timeout);
-                return fetch(url, { ...options, signal: controller.signal })
-                    .then(response => { clearTimeout(id); return response; })
-                    .catch(error => { clearTimeout(id); throw error; });
-            };
+            let lastErrorMsg = "";
 
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     if (!isSilentRefresh) { 
-                        document.getElementById('login-loading').innerHTML = i === 0 ? 'Menghubungkan ke database...' : `<span style="color:var(--warning);">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`; 
+                        document.getElementById('login-loading').innerHTML = i === 0 ? 'Menghubungkan ke server database...' : `<span style="color:var(--warning);">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`; 
                         document.getElementById('login-loading').style.display = 'block'; 
                     }
                     
-                    const response = await fetchWithTimeout(apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: "follow" }, 60000); 
-                    data = await response.json(); 
+                    const urlTarget = apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY;
+                    const response = await fetch(urlTarget, { redirect: "follow" }); 
                     
-                    if (data.status === "gagal") { 
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error: ${response.status}`);
+                    }
+                    
+                    const rawText = await response.text();
+                    
+                    try {
+                        data = JSON.parse(rawText);
+                    } catch(errJson) {
+                        throw new Error("Server menolak akses atau API URL bermasalah.");
+                    }
+                    
+                    if (data && data.status === "gagal") { 
                         showToast(data.pesan, 'error'); 
                         if(!isSilentRefresh) {
                             document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Akses Ditolak API Key. Hubungi Admin.</span>'; 
                         }
                         return; 
                     }
+                    
                     berhasil = true; break; 
+                    
                 } catch (error) {
+                    lastErrorMsg = error.message;
                     if (i === maxRetries - 1) { 
                         if (!isSilentRefresh) { 
-                            document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Gagal memuat. <a href="#" onclick="window.location.reload();">Muat Ulang</a>.</span>'; 
+                            document.getElementById('login-loading').innerHTML = `
+                                <span style="color:var(--danger); font-weight:bold; font-size:12px;">Error: ${lastErrorMsg}</span><br><br>
+                                <button class="btn-outline-cancel" onclick="hapusCacheTotal()">Hapus Cache & Perbaiki Aplikasi</button>
+                            `; 
                         } 
                         return; 
                     }
@@ -1410,14 +1426,13 @@
             let htmlAda = false;
             let garansiDitampilkan = [...(globalGaransi || [])];
             
-            // LOGIKA SORTING BARU: 1. Masa Tunggu, 2. Aktif, 3. Habis/Hangus
             garansiDitampilkan.sort((a, b) => {
                 function getPrio(g) {
                     if(!g) return 99;
                     let s = String(g['Status'] || '').toLowerCase();
-                    if (s.includes('tunggu')) return 1; // Prioritas Paling Atas
-                    if (s.includes('aktif')) return 2;  // Prioritas Tengah
-                    if (s.includes('habis') || s.includes('hangus') || s.includes('diklaim')) return 3; // Prioritas Bawah
+                    if (s.includes('tunggu')) return 1; 
+                    if (s.includes('aktif')) return 2;  
+                    if (s.includes('habis') || s.includes('hangus') || s.includes('diklaim')) return 3; 
                     return 4;
                 }
                 let pA = getPrio(a);
@@ -1425,7 +1440,6 @@
                 
                 if (pA !== pB) return pA - pB;
                 
-                // Urutkan berdasarkan ID terbaru jika prioritasnya sama
                 let nA = parseInt(String(a['ID Garansi']).replace(/\D/g, '')) || 0;
                 let nB = parseInt(String(b['ID Garansi']).replace(/\D/g, '')) || 0;
                 return nB - nA;
@@ -1455,7 +1469,6 @@
                     isExpired = true;
                 }
 
-                // Memunculkan garis pembatas visual jika mulai memasuki data garansi habis
                 if (isExpired && !flagPembatasHabis && searchVal === '') {
                     container.innerHTML += `<div style="margin: 30px 0 15px 0; text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 10px;"><span style="background: #f1f5f9; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #64748b;">↓ RIWAYAT GARANSI HABIS / DIKLAIM ↓</span></div>`;
                     flagPembatasHabis = true;
