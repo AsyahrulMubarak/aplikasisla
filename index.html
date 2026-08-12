@@ -10,6 +10,15 @@
     <link rel="apple-touch-icon" href="depan_001.png">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
+    <!-- PENGHANCUR CACHE OTOMATIS -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) { registration.unregister(); }
+            });
+        }
+    </script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         :root { --primary: #1e3a8a; --primary-hover: #1e40af; --surface: #ffffff; --bg: #f7fafc; --text-main: #2d3748; --text-muted: #718096; --border: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --purple: #8b5cf6; }
@@ -313,7 +322,6 @@
         </div>
         <div id="loading" style="display:none;">Sinkronisasi data sistem...</div>
         
-        <!-- DASHBOARD -->
         <div id="page-dashboard" class="tab-page">
             <div id="admin-export-section" style="display:none; text-align:right; margin-bottom:15px;">
                 <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan</button>
@@ -326,7 +334,6 @@
             <div id="dash-tek-content" style="display:none;"></div>
         </div>
 
-        <!-- TIKET -->
         <div id="page-tiket" class="tab-page">
             <h3 class="section-title">Daftar Tiket SLA (Pekerjaan)</h3>
             <div class="search-wrapper">
@@ -341,7 +348,6 @@
             <div id="ticket-container"></div>
         </div>
 
-        <!-- PENJUALAN -->
         <div id="page-penjualan" class="tab-page">
             <h3 class="section-title" style="color:var(--purple);">Daftar Penjualan Langsung</h3>
             <div class="search-wrapper">
@@ -352,7 +358,6 @@
             <div id="penjualan-container"></div>
         </div>
 
-        <!-- PROSPEK -->
         <div id="page-prospek" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:var(--success);">Data Prospek (Leads)</h3>
@@ -392,7 +397,6 @@
             <div id="prospek-container"></div>
         </div>
 
-        <!-- GARANSI -->
         <div id="page-garansi" class="tab-page">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:#3b82f6;">Data Garansi Klien</h3>
@@ -446,7 +450,6 @@
             <div id="garansi-container"></div>
         </div>
 
-        <!-- INPUT TIKET / SLS -->
         <div id="page-input" class="tab-page">
             <div class="segment-control" id="input-segment">
                 <button class="segment-btn active" id="btn-input-sla" onclick="switchInputTab('sla')">Tiket Pengerjaan SLA</button>
@@ -492,7 +495,6 @@
             </div>
         </div>
 
-        <!-- PENGATURAN USER -->
         <div id="page-user" class="tab-page">
             <div class="form-card" id="user-management-container">
                 <h3 id="form-user-title" class="section-title">⚙️ Manajemen User</h3>
@@ -637,7 +639,6 @@
         let deferredPrompt; window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; const neverShow = localStorage.getItem('pwaNeverShow'); if(!neverShow) { setTimeout(() => { document.getElementById('pwa-install-modal').style.display = 'flex'; }, 3000); } });
         function tolakInstall() { const cb = document.getElementById('pwa-never-show'); if(cb.checked) { localStorage.setItem('pwaNeverShow', 'true'); } document.getElementById('pwa-install-modal').style.display = 'none'; }
         async function terimaInstall() { document.getElementById('pwa-install-modal').style.display = 'none'; if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; deferredPrompt = null; } }
-        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(err => {}); }); }
 
         function showToast(message, type = 'success') { const container = document.getElementById('toast-container'); const toast = document.createElement('div'); toast.className = `toast toast-${type}`; let icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : '⚠️'); toast.innerHTML = `<span style="font-size:18px;">${icon}</span> <span style="flex:1;">${message}</span>`; container.appendChild(toast); setTimeout(() => { toast.style.animation = 'toastOut 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'; setTimeout(() => { toast.remove(); }, 300); }, 3500); }
         function showConfirm(message, isDanger = true) { return new Promise((resolve) => { const modal = document.getElementById('custom-confirm-modal'); document.getElementById('confirm-msg').innerText = message; const btnYes = document.getElementById('btn-confirm-yes'); btnYes.className = isDanger ? 'custom-modal-btn btn-cm-danger' : 'custom-modal-btn btn-cm-confirm'; modal.style.display = 'flex'; btnYes.onclick = function() { modal.style.display = 'none'; resolve(true); }; document.getElementById('btn-confirm-no').onclick = function() { modal.style.display = 'none'; resolve(false); }; }); }
@@ -670,7 +671,7 @@
             let dataToExport = dataSource.filter(d => { if(bulan === "all") return true; let rawDate = d[Object.keys(d)[dateKeyIndex]]; if(!rawDate) return false; let dt = new Date(rawDate); if(isNaN(dt.getTime())) return false; let m = String(dt.getMonth() + 1).padStart(2, '0'); let y = String(dt.getFullYear()); return (m === bulan && y === tahun); });
             if(dataToExport.length === 0) { showToast(`Tidak ada data ${jenis} pada waktu tersebut.`, 'warning'); btn.innerText = textAwal; btn.disabled = false; return; }
             let cleanData = dataToExport.map(row => { let newRow = {}; for (let key in row) { let val = row[key] === null || row[key] === undefined ? "" : String(row[key]); if (val.includes('base64,') || val.includes('data:image') || val.includes('drive.google.com')) { newRow[key] = val.includes('drive.google.com') ? val : "[FILE TERSIMPAN DI SISTEM]"; } else if (val.includes('\n')) { newRow[key] = val.replace(/(\r\n|\n|\r)/gm, " ➔ "); } else { newRow[key] = val; } } return newRow; });
-            try { const worksheet = XLSX.utils.json_to_sheet(cleanData); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan"); XLSX.writeFile(workbook, `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`); showToast('Laporan Excel berhasil diunduh.', 'success'); document.getElementById('modal-export').style.display = 'none'; } catch(err) { showToast('Gagal merakit Excel.', 'error'); }
+            try { const worksheet = XLSX.utils.json_to_sheet(cleanData); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan " + jenis.toUpperCase()); XLSX.writeFile(workbook, `Laporan_${jenis}_Alfacom_${bulan==="all"?"Semua":bulan+"-"+tahun}.xlsx`); showToast('Laporan Excel berhasil diunduh.', 'success'); document.getElementById('modal-export').style.display = 'none'; } catch(err) { showToast('Gagal merakit Excel.', 'error'); }
             btn.innerText = textAwal; btn.disabled = false;
         }
 
@@ -710,11 +711,18 @@
         async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
 
         // ===============================================
-        // UPDATE ANTI-STUCK: PENAMBAHAN TIMEOUT & ABORT CONTROLLER
+        // UPDATE ANTI-STUCK: FETCH DENGAN TIMEOUT
         // ===============================================
         async function ambilSemuaData(isSilentRefresh = false) {
             let maxRetries = 3; let data = null; let berhasil = false;
             
+            const fetchWithTimeout = (url, options, timeout = 15000) => {
+                return Promise.race([
+                    fetch(url, options),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
+                ]);
+            };
+
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     if (!isSilentRefresh) { 
@@ -722,17 +730,7 @@
                         document.getElementById('login-loading').style.display = 'block'; 
                     }
                     
-                    // Fitur Anti-Nyangkut: Paksa putus koneksi jika 15 detik Google tidak membalas
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000); 
-                    
-                    const response = await fetch(apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { 
-                        redirect: "follow",
-                        signal: controller.signal
-                    }); 
-                    
-                    clearTimeout(timeoutId); // Batalkan timer jika berhasil masuk
-                    
+                    const response = await fetchWithTimeout(apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: "follow" }, 15000); 
                     data = await response.json(); 
                     
                     if (data.status === "gagal") { 
@@ -761,7 +759,6 @@
             globalProspek = data.prospek || []; 
             globalGaransi = data.garansi || [];
             
-            // Pengaman Anti-Crash Sesi Lokal
             try {
                 const savedSession = localStorage.getItem('sesiLoginSLA');
                 if (savedSession) {
@@ -795,7 +792,7 @@
                     } 
                 }
             } catch(e) {
-                console.error("Rendering Error", e);
+                showToast("Error merender aplikasi", "error");
             }
         }
 
@@ -815,7 +812,7 @@
                 localStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() })); 
                 masukKeAplikasi(); 
             } else { 
-                showToast('Username atau Password tidak valid!', 'error'); 
+                showToast('Afwan, Username atau Password tidak valid!', 'error'); 
             }
         }
 
@@ -934,7 +931,7 @@
                 if (currentSalesVal && !salesList.includes(currentSalesVal)) { salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Nonaktif)</option>`; }
                 salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
                 if(salesSelectGaransi) salesSelectGaransi.value = currentGaransiVal;
-            } catch(e) { }
+            } catch(e) { console.error("Error render inputs:", e); }
         }
 
         function setAutoIDs() {
@@ -955,7 +952,7 @@
 
                 let garansiEl = document.getElementById('garansi-id');
                 if(garansiEl) { garansiEl.value = 'GRS-' + String(maxGrs + 1).padStart(3, '0'); }
-            } catch(e) { }
+            } catch(e) { console.error("Error setAutoIDs:", e); }
         }
 
         function renderDashboard() {
@@ -1093,6 +1090,9 @@
             dashSalesContainer.innerHTML = htmlSales;
         }
 
+        // ===============================================
+        // FUNGSI RENDER TIKET: UPDATE SORTING PRIORITAS
+        // ===============================================
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = ''; 
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
@@ -1406,13 +1406,14 @@
             let htmlAda = false;
             let garansiDitampilkan = [...(globalGaransi || [])];
             
+            // LOGIKA SORTING BARU: 1. Masa Tunggu, 2. Aktif, 3. Habis/Hangus
             garansiDitampilkan.sort((a, b) => {
                 function getPrio(g) {
                     if(!g) return 99;
                     let s = String(g['Status'] || '').toLowerCase();
-                    if (s.includes('tunggu')) return 1; 
-                    if (s.includes('aktif')) return 2;  
-                    if (s.includes('habis') || s.includes('hangus') || s.includes('diklaim')) return 3; 
+                    if (s.includes('tunggu')) return 1; // Prioritas Paling Atas
+                    if (s.includes('aktif')) return 2;  // Prioritas Tengah
+                    if (s.includes('habis') || s.includes('hangus') || s.includes('diklaim')) return 3; // Prioritas Bawah
                     return 4;
                 }
                 let pA = getPrio(a);
@@ -1420,6 +1421,7 @@
                 
                 if (pA !== pB) return pA - pB;
                 
+                // Urutkan berdasarkan ID terbaru jika prioritasnya sama
                 let nA = parseInt(String(a['ID Garansi']).replace(/\D/g, '')) || 0;
                 let nB = parseInt(String(b['ID Garansi']).replace(/\D/g, '')) || 0;
                 return nB - nA;
@@ -1449,6 +1451,7 @@
                     isExpired = true;
                 }
 
+                // Memunculkan garis pembatas visual jika mulai memasuki data garansi habis
                 if (isExpired && !flagPembatasHabis && searchVal === '') {
                     container.innerHTML += `<div style="margin: 30px 0 15px 0; text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 10px;"><span style="background: #f1f5f9; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #64748b;">↓ RIWAYAT GARANSI HABIS / DIKLAIM ↓</span></div>`;
                     flagPembatasHabis = true;
@@ -1489,7 +1492,6 @@
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada data Garansi.</p>';
         }
-
         async function submitGaransi(e) {
             e.preventDefault(); 
             const btn = document.getElementById('btn-submit-garansi'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
