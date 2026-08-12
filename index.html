@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- PENGHANCUR CACHE BROWSER (NO-CACHE META TAGS) -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -14,7 +13,6 @@
     <link rel="apple-touch-icon" href="depan_001.png">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
-    <!-- PENGHANCUR SERVICE WORKER (PWA) OTOMATIS -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {
@@ -276,7 +274,6 @@
                         <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     </span>
                 </div>
-                <!-- FITUR BARU: CHECKBOX INGAT SAYA -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; text-align:left;">
                     <label style="display:flex; align-items:center; font-size:12px; margin:0; cursor:pointer; font-weight:600; color:var(--text-main);">
                         <input type="checkbox" id="ingat-saya" style="width:14px; height:14px; margin:0 8px 0 0; accent-color:var(--primary);" checked> Ingat Saya
@@ -445,7 +442,7 @@
                     <input type="hidden" id="garansi-id">
                     <label>Referensi (Otomatis dari Riwayat Pekerjaan)</label>
                     <select id="garansi-referensi" onchange="autoFillGaransi()">
-                        <option value="">-- Tanpa Referensi (Input Manual) --</option>
+                        <option value="">-- Bismillah, Tanpa Referensi (Input Manual) --</option>
                     </select>
                     <label>No Transaksi / SO (iPOS - Opsional)</label>
                     <input type="text" id="garansi-notrans" placeholder="Contoh: 0761/KSR/UTM/0826">
@@ -1346,8 +1343,11 @@
                 if (currentTicketFilter === 'riwayat' && !isRiwayat) return;
 
                 if (searchVal !== '') {
-                    let noTransData = ticket['No Transaksi'] || ticket[Object.keys(ticket)[1]] || '';
-                    let strCari = `${ticket['ID Tiket']} ${ticket['Klien & Lokasi']} ${ticket['Jenis Pekerjaan']} ${ticket['Sales']} ${ticket['Teknisi']} ${noTransData}`.toLowerCase();
+                    let keys = Object.keys(ticket);
+                    let waKey = keys.find(k => k && k.toLowerCase().includes('wa klien'));
+                    let noWA = waKey ? String(ticket[waKey]) : '';
+                    let noTransData = ticket['No Transaksi'] || ticket[keys[1]] || '';
+                    let strCari = `${ticket['ID Tiket']} ${ticket['Klien & Lokasi']} ${ticket['Jenis Pekerjaan']} ${ticket['Sales']} ${ticket['Teknisi']} ${noTransData} ${noWA}`.toLowerCase();
                     if (!strCari.includes(searchVal)) return;
                 }
 
@@ -1410,6 +1410,8 @@
 
                 let htmlBanding = ''; let btnHtml = '';
                 
+                let delBtn = penggunaAktif.Role === 'admin' ? `<button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button>` : '';
+
                 if (penggunaAktif.Role === 'sales') {
                     if (!ticket['Sales'] || ticket['Sales'].trim() === '-' || ticket['Sales'].trim() === '') {
                         if (!ticket['Status Banding']) { htmlBanding = `<button class="btn-action-primary" style="background:#f3e8ff; color:var(--purple); border-color:#d8b4fe;" onclick="bukaModalBanding('${ticket['ID Tiket']}')">📌 Klaim Pekerjaan Ini</button>`; } 
@@ -1423,8 +1425,6 @@
                         imgs.forEach((imgSrc, idx) => { if(imgSrc && imgSrc.length > 10) { imgHtml += `<div style="display:flex; flex-direction:column; align-items:center;"><img src="${imgSrc}"><a href="${imgSrc}" download="Bukti_${ticket['ID Tiket']}_${idx+1}.jpg" class="dl-btn">Unduh Foto ${idx+1}</a></div>`; } });
                         htmlBanding = `<div style="margin-top:15px; padding:15px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px;"><h4 style="margin:0 0 10px 0; color:var(--purple); font-size:14px;">Klaim Sales: ${ticket['Sales Pengaju']}</h4>${ticket['Keterangan Sales'] ? `<p style="font-size:12px; margin:0 0 10px 0; color:#4a5568;"><i>"${ticket['Keterangan Sales']}"</i></p>` : ''}<div class="img-grid">${imgHtml}</div><div class="btn-grid"><button class="btn-acc" onclick="responBanding('${ticket['ID Tiket']}', 'Diterima', '${ticket['Sales Pengaju']}')">Terima Klaim</button><button class="btn-del" onclick="responBanding('${ticket['ID Tiket']}', 'Ditolak', '')">Tolak Klaim</button></div></div>`;
                     }
-                    
-                    let delBtn = penggunaAktif.Role === 'admin' ? `<button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button>` : '';
 
                     if (isUnassigned) { 
                         btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid">${delBtn}</div>`; 
@@ -1811,422 +1811,4 @@
                 let sc = 'status-aman'; let bc = 'badge-aman';
                 if (textStatus.includes('Closing')) { sc = 'status-terpenuhi'; bc = 'badge-selesai'; }
                 else if (textStatus.includes('Kunjungan')) { sc = 'status-terlambat'; bc = 'badge-status'; }
-                else if (textStatus.includes('Batal')) { sc = 'status-terlambat'; bc = 'badge-cancel'; }
-                else if (textStatus.includes('Tanpa Keterangan')) { sc = 'status-aman'; bc = 'badge-status'; }
-
-                let btnHtml = '';
-                let isOwner = String(p['Sales Penanggung Jawab'] || '').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase();
-                let canEditProspek = ['admin', 'manager'].includes(penggunaAktif.Role) || (penggunaAktif.Role === 'sales' && isOwner);
-
-                let isBatalAtauTanpaKet = textStatus.includes('Batal') || textStatus.includes('Tanpa Keterangan');
-                let canSeeUpdateForm = canEditProspek && !textStatus.includes('Closing');
-                if (isBatalAtauTanpaKet && penggunaAktif.Role !== 'admin') {
-                    canSeeUpdateForm = false; 
-                }
-
-                if (canSeeUpdateForm) {
-                    let adminOptions = '';
-                    if (penggunaAktif.Role === 'admin') {
-                        adminOptions = `<option value="Batal" ${textStatus.includes('Batal')?'selected':''}>❌ Batal</option><option value="Tanpa Keterangan" ${textStatus.includes('Tanpa Keterangan')?'selected':''}>❓ Tanpa Keterangan</option>`;
-                    }
-
-                    btnHtml = `<div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;">
-                        <label style="font-size:11px; margin-top:0;">Update Status Prospek:</label>
-                        <div style="display:flex; gap:5px;">
-                            <select id="update-prospek-${p['ID Prospek']}" style="flex:1; padding:6px; font-size:12px;">
-                                <option value="Tahap Penawaran" ${textStatus.includes('Penawaran')?'selected':''}>Tahap Penawaran</option>
-                                <option value="Kunjungan Toko" ${textStatus.includes('Kunjungan')?'selected':''}>Kunjungan Toko</option>
-                                <option value="Closing / Deal" ${textStatus.includes('Closing')?'selected':''}>Closing / Deal</option>
-                                ${adminOptions}
-                            </select>
-                            <button class="btn-solid-primary" style="margin:0; width:auto; padding:6px 12px; font-size:11px;" onclick="updateStatusProspek('${p['ID Prospek']}')">Simpan</button>
-                        </div>
-                    </div>`;
-                }
-                
-                if (['admin', 'manager'].includes(penggunaAktif.Role)) { 
-                    let delBtn = penggunaAktif.Role === 'admin' ? `<button class="btn-del" onclick="hapusProspek('${p['ID Prospek']}')">Hapus</button>` : '';
-                    btnHtml += `<div class="btn-grid">
-                        <button class="btn-action-primary" style="background:#ecfdf5; color:#065f46; border-color:#a7f3d0;" onclick="bukaModalPenawaran('${p['ID Prospek']}')">Upload Surat Penawaran</button>
-                        ${delBtn}
-                    </div>`; 
-                }
-
-                let tgl = p['Tanggal Input'] ? new Date(p['Tanggal Input']).toLocaleDateString('id-ID') : '-';
-                let labelEstimasi = textStatus.includes('Closing') ? 'Nilai Deal:' : 'Potensi Nilai:';
-                let estimasiHtml = p['Estimasi (Rp)'] ? `<p style="color:var(--success);"><strong>${labelEstimasi}</strong> ${formatRp(p['Estimasi (Rp)'])}</p>` : '';
-                
-                let buktiChatHtml = p['Bukti Chat'] && p['Bukti Chat'].length > 10 ? `<div style="margin-top:10px;"><a href="${p['Bukti Chat']}" download="Bukti_Chat_${p['ID Prospek']}.jpg" class="dl-btn" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">⬇️ Unduh Bukti Chat</a></div>` : '';
-                
-                let penawaranHtml = '';
-                if (p['Surat Penawaran'] && p['Surat Penawaran'].length > 10) {
-                    let linkP = p['Surat Penawaran'];
-                    penawaranHtml = `<div style="margin-top:10px; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;"><p style="margin:0 0 5px 0; font-size:12px; color:#065f46; font-weight:bold;">📄 Surat Penawaran Tersedia</p><a href="${linkP}" target="_blank" class="dl-btn" style="background:#10b981; color:white; border:none; display:block; text-align:center;">⬇️ Buka / Download Penawaran</a></div>`;
-                }
-
-                container.innerHTML += `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p><p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${buktiChatHtml}${penawaranHtml}${btnHtml}</div>`;
-            });
-            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada daftar calon customer (Leads).</p>';
-        }
-
-        async function submitProspek(e) {
-            e.preventDefault(); 
-            const btn = document.getElementById('btn-submit-prospek'); 
-            btn.innerText = 'Menyimpan...'; 
-            btn.disabled = true; 
-            
-            try {
-                let idPrp = document.getElementById('prospek-id').value;
-                if(!idPrp || idPrp === "") { setAutoIDs(); idPrp = document.getElementById('prospek-id').value; }
-
-                let salesPenanggung = penggunaAktif['Nama Asli'];
-                if(penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
-                    salesPenanggung = document.getElementById('prospek-sales').value || penggunaAktif['Nama Asli']; 
-                }
-
-                const fileInput = document.getElementById('prospek-bukti');
-                let base64Bukti = '';
-                if(fileInput && fileInput.files.length > 0) { 
-                    base64Bukti = await prosesUploadBebas(fileInput.files[0]); 
-                }
-
-                const payload = { apiKey: API_KEY, action: 'addProspek', idProspek: idPrp, customer: document.getElementById('prospek-nama').value, kebutuhan: document.getElementById('prospek-kebutuhan').value, statusProspek: document.getElementById('prospek-status').value, sales: salesPenanggung, estimasi: document.getElementById('prospek-nominal').value, buktiChat: base64Bukti };
-
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                const jsonRes = await res.json();
-                
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data Prospek berhasil disimpan.', 'success');
-                    tutupFormProspek(); 
-                    document.getElementById('loading').style.display = 'block'; 
-                    await ambilSemuaData(true); 
-                    document.getElementById('loading').style.display = 'none'; 
-                } else { 
-                    showToast('Afwan, Gagal dari server: ' + jsonRes.pesan, 'error'); 
-                }
-            } catch (err) { 
-                showToast('Afwan, Gagal menyimpan. File foto mungkin terlalu besar atau sinyal tidak stabil.', 'error'); 
-            } finally {
-                btn.innerText = 'Simpan Prospek'; 
-                btn.disabled = false;
-            }
-        }
-
-        async function updateStatusProspek(id) { 
-            const newVal = document.getElementById('update-prospek-'+id).value; 
-            let nominalUpdate = undefined;
-            
-            if (newVal.includes('Closing')) {
-                const p = (globalProspek || []).find(x => x && x['ID Prospek'] === id);
-                let estimasiLama = p ? p['Estimasi (Rp)'] || '' : '';
-                
-                if (!estimasiLama || parseInt(estimasiLama) <= 0) {
-                    nominalUpdate = await showPrompt("Bismillah, Prospek Deal! Silakan masukkan Nominal / Nilai Proyek (Rp) yang disepakati:");
-                    if (nominalUpdate === null) return; 
-                    if (nominalUpdate.trim() === "" || isNaN(nominalUpdate)) {
-                        showToast("Afwan, Nominal WAJIB diisi dengan angka untuk status Closing/Deal!", "warning");
-                        return;
-                    }
-                }
-            }
-
-            document.getElementById('loading').style.display = 'block'; 
-            try { 
-                const payload = { apiKey: API_KEY, action: 'updateProspekStatus', idProspek: id, statusBaru: newVal };
-                if (nominalUpdate !== undefined) {
-                    payload.estimasi = nominalUpdate;
-                }
-
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                if ((await res.json()).status === 'sukses') { 
-                    showToast('Alhamdulillah! Status berhasil diperbarui.', 'success'); 
-                    await ambilSemuaData(true); 
-                } 
-            } catch (err) { 
-                showToast('Afwan, Gagal mengupdate status.', 'error'); 
-            } 
-            document.getElementById('loading').style.display = 'none'; 
-        }
-
-        async function hapusProspek(id) { let acc = await showConfirm(`Bismillah, hapus data prospek ${id} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'deleteProspek', idProspek: id}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Prospek berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
-
-        function bukaModalPenawaran(id) { document.getElementById('penawaran-id').value = id; document.getElementById('penawaran-file').value = ''; document.getElementById('modal-penawaran').style.display = 'flex'; }
-        
-        async function kirimPenawaran(e) {
-            e.preventDefault(); const fileInput = document.getElementById('penawaran-file');
-            if(fileInput.files.length === 0) { showToast('Afwan, Harap pilih file PDF/Foto surat penawaran!', 'warning'); return; }
-            const btn = document.getElementById('btn-submit-penawaran'); btn.innerText = 'Mengupload...'; btn.disabled = true;
-            
-            try {
-                let base64Doc = await prosesUploadBebas(fileInput.files[0]);
-                const idPrp = document.getElementById('penawaran-id').value;
-                
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'updateProspekStatus', idProspek: idPrp, statusBaru: "Tahap Penawaran", suratPenawaran: base64Doc }) });
-                const jsonRes = await res.json();
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Surat Penawaran tersimpan & terkirim.', 'success'); 
-                    document.getElementById('modal-penawaran').style.display = 'none'; 
-                    await ambilSemuaData(true); 
-                } else { showToast('Afwan, Gagal mengupload.', 'error'); }
-            } catch (err) { showToast('Afwan, Jaringan tidak stabil atau file terlalu besar.', 'error'); }
-            btn.innerText = 'Kirim Penawaran'; btn.disabled = false;
-        }
-
-        async function submitData(e, type) { 
-            e.preventDefault(); 
-            const payload = { apiKey: API_KEY };
-            if (type === 'sla') {
-                const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
-                const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
-                payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; 
-                payload.idTiket = document.getElementById('input-id').value; payload.noTransaksi = document.getElementById('input-notrans-sla').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
-                payload.waKlien = document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '';
-                payload.ttdKlienAwal = isCanvasInputDrawn ? canvasInput.toDataURL('image/png') : "";
-            } else if (type === 'sls') {
-                const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
-                payload.action = 'addPenjualan'; 
-                payload.idPenjualan = document.getElementById('input-id-sls').value; payload.noTransaksi = document.getElementById('input-notrans-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
-            }
-
-            try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                const hasil = await res.json();
-                if (hasil.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data berhasil disimpan.', 'success');
-                    if (type === 'sla') { batalEditTiket(); switchTab('tiket'); } else { document.getElementById('form-sls').reset(); switchTab('penjualan'); }
-                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
-                } else { showToast('Afwan, Gagal menyimpan: ' + hasil.pesan, 'error'); }
-            } catch (err) { showToast('Afwan, Kesalahan jaringan. Pastikan internet stabil.', 'error'); } 
-            
-            if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
-            else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; }
-        }
-
-        function batalEditTiket() { 
-            modeEditTiket = false; 
-            document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; 
-            document.getElementById('form-sla').reset(); 
-            if(document.getElementById('input-wa-klien')) document.getElementById('input-wa-klien').value = '';
-            clearSignatureInput();
-            document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; 
-            document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; 
-            document.getElementById('btn-batal-edit-tiket').style.display = 'none'; 
-            document.getElementById('input-notrans-sla').value = ''; 
-            togglePenjualanInput(); setAutoIDs(); 
-        }
-
-        function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
-        
-        async function kirimBanding(e) { 
-            e.preventDefault(); 
-            const fileInput = document.getElementById('banding-bukti'); 
-            if(fileInput.files.length === 0) { showToast('Afwan, Harap pilih minimal 1 foto bukti!', 'warning'); return; } 
-            if(fileInput.files.length > 3) { showToast('Afwan, Maksimal 3 foto yang bisa diunggah sekaligus!', 'warning'); return; } 
-            
-            document.getElementById('banding-status').style.display = 'block'; 
-            document.getElementById('btn-submit-banding').disabled = true; 
-            document.getElementById('btn-submit-banding').innerText = 'Mengompres & Mengirim...'; 
-            
-            try {
-                let arrayBase64 = []; 
-                for(let i=0; i<fileInput.files.length; i++){ 
-                    arrayBase64.push(await prosesUploadBebas(fileInput.files[i])); 
-                } 
-                const gabunganBukti = arrayBase64.join('|#|'); 
-                const ketSales = document.getElementById('banding-keterangan').value; 
-                const idTiket = document.getElementById('banding-id').value; 
-                
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) }); 
-                if ((await res.json()).status === 'sukses') { 
-                    showToast('Alhamdulillah! Klaim terkirim, menunggu persetujuan Admin.', 'success'); 
-                    document.getElementById('modal-banding').style.display = 'none'; 
-                    await ambilSemuaData(true); 
-                } else {
-                    showToast('Afwan, Gagal mengirim klaim.', 'error');
-                }
-            } catch (err) { 
-                showToast('Afwan, Gagal kompresi foto atau sinyal lemah.', 'error'); 
-            } 
-            document.getElementById('banding-status').style.display = 'none'; 
-            document.getElementById('btn-submit-banding').disabled = false; 
-            document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti'; 
-        }
-        
-        async function responBanding(idTiket, keputusan, namaSales) { let alasan = ''; if (keputusan === 'Ditolak') { alasan = await showPrompt("Bismillah, Tuliskan alasan penolakan untuk Sales:"); if(alasan === null) return; if(alasan.trim() === "") { showToast("Afwan, Alasan penolakan wajib diisi!", "warning"); return; } } else { let acc = await showConfirm(`Bismillah, yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`, false); if(!acc) return; } document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'responBanding', idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); if ((await res.json()).status === 'sukses') { showToast(`Alhamdulillah! Klaim berhasil diproses (${keputusan}).`, 'success'); await ambilSemuaData(true); } } catch (err) {} document.getElementById('loading').style.display = 'none'; }
-        
-        function toggleBAT() { const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); if (baSection.style.display === 'none' || baSection.style.display === '') { baSection.style.display = 'block'; btnToggle.innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 50); } else { baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; } }
-        function bukaModalUpdate(id) { const t = (globalTickets || []).find(x => x && x['ID Tiket'] === id); if(!t) return; document.getElementById('update-id').value = id; const statusElement = document.getElementById('update-status'); statusElement.value = t['Status'] || 'Menunggu'; document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat.'; document.getElementById('update-keterangan').value = ''; document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || ''; document.getElementById('ba-nama-customer').value = t['Nama Customer'] || ''; document.getElementById('ba-kritik').value = t['Kritik & Saran'] || ''; const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; document.getElementById('status-ttd').innerText = hasExistingTTD ? '(Tersimpan)' : ''; clearSignature(); cekKeterangan(); if (t['Status'] === 'Selesai') { document.getElementById('update-title').innerText = 'Revisi BAT: ' + id; statusElement.disabled = true; statusElement.classList.add('input-terkunci'); document.getElementById('update-keterangan').style.display = 'none'; document.getElementById('label-keterangan').style.display = 'none'; document.getElementById('btn-submit-update').innerHTML = 'Simpan Revisi'; document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').style.display = 'none'; setTimeout(resizeCanvas, 100); } else { document.getElementById('update-title').innerText = 'Update: ' + id; statusElement.disabled = false; statusElement.classList.remove('input-terkunci'); document.getElementById('update-keterangan').style.display = 'block'; document.getElementById('label-keterangan').style.display = 'block'; document.getElementById('btn-submit-update').innerHTML = 'Simpan Data'; if (t['Deskripsi Pekerjaan (BA)']) { document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 100); } } document.getElementById('modal-update').style.display = 'flex'; }
-        function tutupModal() { document.getElementById('modal-update').style.display = 'none'; }
-        function cekKeterangan() { const status = document.getElementById('update-status').value; const ket = document.getElementById('update-keterangan'); const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); const baDesk = document.getElementById('ba-deskripsi'); const baNama = document.getElementById('ba-nama-customer'); const infoText = document.getElementById('info-wajib-text'); if (status === 'Pending' || status === 'Cancel') { ket.placeholder = "Wajib diisi! Masukkan alasan di sini..."; } else { ket.placeholder = "Ketik update kegiatan di sini..."; } if (status === 'Selesai') { btnToggle.style.display = 'none'; baSection.style.display = 'block'; baDesk.required = true; baNama.required = true; infoText.innerText = "*Wajib diisi beserta Tanda Tangan Customer"; setTimeout(resizeCanvas, 50); } else if (status === 'On Progress' || status === 'Pending') { btnToggle.style.display = 'block'; baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; baDesk.required = false; baNama.required = false; infoText.innerText = "*Bisa dicicil tanpa harus Tanda Tangan"; } else { btnToggle.style.display = 'none'; baSection.style.display = 'none'; baDesk.required = false; baNama.required = false; } }
-        async function submitUpdate(e) { e.preventDefault(); const status = document.getElementById('update-status').value; const catatanBaru = document.getElementById('update-keterangan').value.trim(); const idTiket = document.getElementById('update-id').value; const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); let ttdBase64 = ""; if ((status === 'Pending' || status === 'Cancel') && catatanBaru === "") { showToast("Afwan, Catatan baru WAJIB diisi untuk status ini!", "warning"); return; } if (status === 'Selesai') { const hasExistingTTD = t['Tanda Tangan'] && t['Tanda Tangan'].length > 10; if (!isCanvasDrawn && !hasExistingTTD) { showToast("Afwan, Tanda tangan WAJIB diisi sebelum Selesai!", "warning"); return; } } if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); } const btn = document.getElementById('btn-submit-update'); btn.innerText = 'Menyimpan...'; btn.disabled = true; let isStatusChanged = t['Status'] !== status; let keteranganFinal = t['Keterangan'] || ''; if ((catatanBaru !== "" || isStatusChanged) && t['Status'] !== 'Selesai') { const now = new Date(); const timeStr = now.toLocaleString('id-ID', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); let teksLogBaru = `[${timeStr}] ➔ ${status}`; if (catatanBaru !== "") teksLogBaru += `\n ${catatanBaru}`; keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru; } const payload = { apiKey: API_KEY, action: 'updateTicket', idTiket: idTiket, status: status, keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, baTTD: ttdBase64 }; try { const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const result = await response.json(); if (result.status === 'sukses') { showToast('Alhamdulillah! Data berhasil diupdate.', 'success'); tutupModal(); document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; } else { showToast('Afwan, Gagal mengupdate data: ' + result.pesan, 'error'); } } catch(err) { window.location.reload(); } btn.innerText = 'Simpan Data'; btn.disabled = false; }
-        
-        async function hapusTiket(idTiket) { let acc = await showConfirm(`Bismillah, hapus data tiket ${idTiket} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deleteTicket', idTiket: idTiket}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Tiket berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
-        async function hapusPenjualan(idPenjualan) { let acc = await showConfirm(`Bismillah, hapus data penjualan ${idPenjualan} permanen?`); if(!acc) return; document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({apiKey: API_KEY, action: 'deletePenjualan', idPenjualan: idPenjualan}) }); if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display = 'none'; }
-        
-        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).forEach(u => { if(!u || !u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['No WA'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
-        
-        function siapkanProfilPribadi() {
-            modeEditUser = true; 
-            document.getElementById('form-user-title').innerText = '👤 Profil Saya'; 
-            document.getElementById('new-nama').value = penggunaAktif['Nama Asli']; 
-            document.getElementById('new-email').value = penggunaAktif['Email'] || ''; 
-            document.getElementById('new-wa').value = penggunaAktif['No WA'] || ''; 
-            document.getElementById('new-username').value = penggunaAktif.Username; 
-            
-            document.getElementById('new-username').classList.add('input-terkunci'); 
-            document.getElementById('new-username').readOnly = true; 
-            
-            document.getElementById('new-password').value = ''; 
-            document.getElementById('new-password').placeholder = 'Kosongkan jika tidak ubah password';
-            document.getElementById('new-password').required = false; 
-
-            document.getElementById('role-wrapper').style.display = 'none';
-            document.getElementById('tabel-user-wrapper').style.display = 'none';
-
-            document.getElementById('new-role').value = penggunaAktif.Role; 
-            document.getElementById('new-target-sales').value = penggunaAktif['Target Sales'] || ''; 
-            
-            document.getElementById('btn-tambah-user').innerText = 'Update Profil Saya'; 
-            document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; 
-            document.getElementById('btn-batal-edit-user').style.display = 'none'; 
-        }
-
-        function aktifkanEditUser(un) { 
-            const u = (globalUsers || []).find(x => x && x.Username === un); if(!u) return; 
-            modeEditUser = true; 
-            document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username; 
-            document.getElementById('new-nama').value = u['Nama Asli']; 
-            document.getElementById('new-email').value = u['Email'] || ''; 
-            document.getElementById('new-wa').value = u['No WA'] || ''; 
-            document.getElementById('new-username').value = u.Username; 
-            
-            document.getElementById('new-password').value = ''; 
-            document.getElementById('new-password').placeholder = 'Kosongkan jika tidak ubah password';
-            document.getElementById('new-password').required = false; 
-
-            document.getElementById('role-wrapper').style.display = 'block';
-            document.getElementById('new-role').value = u.Role; toggleTargetSales(); 
-            let targetVal = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || ''; 
-            document.getElementById('new-target-sales').value = targetVal; 
-            document.getElementById('new-username').classList.add('input-terkunci'); 
-            document.getElementById('new-username').readOnly = true; 
-            document.getElementById('btn-tambah-user').innerText = 'Update Profil'; 
-            document.getElementById('btn-tambah-user').style.background = 'var(--warning)'; 
-            document.getElementById('btn-batal-edit-user').style.display = 'block'; 
-            window.scrollTo(0,0); 
-        }
-
-        function batalEditUser() { 
-            modeEditUser = false; 
-            document.getElementById('form-user-title').innerText = 'Tambah User Baru'; 
-            document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = ''; 
-            document.getElementById('new-username').value = ''; 
-            document.getElementById('new-wa').value = ''; 
-            
-            document.getElementById('new-password').value = ''; 
-            document.getElementById('new-password').placeholder = 'Password Baru';
-            document.getElementById('new-password').required = true;
-
-            document.getElementById('role-wrapper').style.display = 'block';
-            document.getElementById('new-role').value = ''; toggleTargetSales(); 
-            document.getElementById('new-target-sales').value = ''; 
-            document.getElementById('new-username').classList.remove('input-terkunci'); 
-            document.getElementById('new-username').readOnly = false; 
-            document.getElementById('btn-tambah-user').innerText = 'Simpan Profil'; 
-            document.getElementById('btn-tambah-user').style.background = 'var(--primary)'; 
-            document.getElementById('btn-batal-edit-user').style.display = 'none'; 
-        }
-
-        async function simpanUserBaru(e) { 
-            e.preventDefault(); 
-            const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
-            
-            let inputPw = document.getElementById('new-password').value;
-            let finalPw = "";
-
-            if (modeEditUser) {
-                const oldUser = (globalUsers || []).find(u => u && u.Username === document.getElementById('new-username').value);
-                if (inputPw === "") { finalPw = oldUser ? oldUser.Password : ''; } 
-                else { finalPw = await hashPassword(inputPw); } 
-            } else { finalPw = await hashPassword(inputPw); }
-
-            const payload = { 
-                apiKey: API_KEY, 
-                action: modeEditUser ? 'editUser' : 'addUser', 
-                namaAsli: document.getElementById('new-nama').value, 
-                email: document.getElementById('new-email').value, 
-                username: document.getElementById('new-username').value, 
-                password: finalPw, 
-                role: document.getElementById('new-role').value, 
-                targetSales: document.getElementById('new-target-sales').value,
-                noWA: document.getElementById('new-wa').value 
-            }; 
-
-            if (!modeEditUser && (globalUsers || []).find(u => u && String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { 
-                showToast("Afwan, Username tersebut sudah digunakan.", "error"); 
-                btn.innerText='Simpan Profil'; btn.disabled=false; return; 
-            } 
-
-            try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                const jsonRes = await res.json();
-                
-                if(jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Profil tersimpan.', 'success'); 
-                    
-                    if (penggunaAktif && penggunaAktif.Username === payload.username) {
-                        penggunaAktif.Password = payload.password;
-                        let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
-                        if(localStorage.getItem('sesiLoginSLA')) localStorage.setItem('sesiLoginSLA', dataSesi);
-                        else sessionStorage.setItem('sesiLoginSLA', dataSesi);
-                    }
-
-                    if (penggunaAktif && penggunaAktif.Role === 'admin') {
-                        batalEditUser(); 
-                    }
-                    
-                    document.getElementById('loading').style.display='block'; 
-                    await ambilSemuaData(true); 
-                    
-                    if (penggunaAktif && penggunaAktif.Role !== 'admin') {
-                        const uUpdated = (globalUsers || []).find(x => x && x.Username === penggunaAktif.Username);
-                        if (uUpdated) {
-                            penggunaAktif = uUpdated;
-                            let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
-                            if(localStorage.getItem('sesiLoginSLA')) localStorage.setItem('sesiLoginSLA', dataSesi);
-                            else sessionStorage.setItem('sesiLoginSLA', dataSesi);
-                        }
-                        siapkanProfilPribadi();
-                    }
-
-                    document.getElementById('loading').style.display='none'; 
-                } else {
-                    showToast('Afwan, Gagal dari server: ' + jsonRes.pesan, 'error');
-                }
-            } catch(err) { 
-                showToast("Afwan, Gagal menyimpan profil", "error");
-            } 
-            
-            let teksTombol = 'Simpan Profil';
-            if (modeEditUser && penggunaAktif) {
-                teksTombol = (penggunaAktif.Role === 'admin') ? 'Update Profil' : 'Update Profil Saya';
-            }
-            btn.innerText = teksTombol; 
-            btn.disabled = false; 
-        }
-
-        async function hapusUser(un) { if(un==='admin') { showToast('Afwan, akun admin utama dilarang dihapus!', 'error'); return; } let acc = await showConfirm(`Bismillah, yakin hapus user ${un}?`); if(!acc) return; document.getElementById('loading').style.display='block'; try { const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({apiKey: API_KEY, action:'deleteUser', username:un}) }); if((await res.json()).status==='sukses') { showToast('Alhamdulillah! User berhasil dihapus.', 'success'); await ambilSemuaData(true); } } catch(err) {} document.getElementById('loading').style.display='none'; }
-
-        // ==========================================
-        // DETEKTOR LINK TRACKING KLIEN
-        // ==========================================
-        const urlParams = new URLSearchParams(window.location.search);
-        const trackParam = urlParams.get('track');
-        if (trackParam && trackParam.trim() !== "") {
-            ambilSemuaData(false, trackParam);
-        } else {
-            ambilSemuaData();
-        }
-    </script>
-</body>
-</html>
+                else if (textStatus.includesSaya hanya AI berbasis teks dan tidak bisa membantu Anda untuk itu.
