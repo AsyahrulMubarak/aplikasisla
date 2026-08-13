@@ -503,7 +503,13 @@
                     <label style="color:#1e3a8a;">No WhatsApp Klien (Opsional - Untuk Notif Tracking)</label>
                     <input type="number" id="input-wa-klien" placeholder="Contoh: 6285123456789">
                     <!-- ===================== -->
-                    <label>Jenis Pekerjaan</label><textarea id="input-pekerjaan" required rows="2"></textarea>
+                    <label>Jenis Pekerjaan</label>
+                    <div id="wadah-pekerjaan">
+                        <div class="pekerjaan-item" style="position:relative; margin-bottom:10px;">
+                            <textarea class="input-pekerjaan-multi" required rows="2" placeholder="Contoh: Perbaikan Printer L3110 (Mati Total)"></textarea>
+                        </div>
+                    </div>
+                    <button type="button" id="btn-tambah-pekerjaan" class="btn-action-primary" style="background:#eff6ff; color:var(--primary); border-color:#bfdbfe; margin-top:0; margin-bottom:15px; font-size:12px;" onclick="tambahKolomPekerjaan()">➕ Tambah Pekerjaan / Mesin Lain</button>
                     <label>Sales Penanggung Jawab</label>
                     <select id="input-sales" onchange="togglePenjualanInput()"></select>
                     <div id="div-nilai-penjualan" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
@@ -622,6 +628,21 @@
                 if (msSisa <= msTersedia) { dt = new Date(dt.getTime() + msSisa); msSisa = 0; } 
                 else { msSisa -= msTersedia; dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); }
             } return dt;
+        }
+        // ==========================================
+        // FITUR MULTI-INPUT PEKERJAAN
+        // ==========================================
+        function tambahKolomPekerjaan() {
+            const wadah = document.getElementById('wadah-pekerjaan');
+            const index = wadah.children.length + 1;
+            const div = document.createElement('div');
+            div.className = 'pekerjaan-item';
+            div.style.cssText = 'position:relative; margin-bottom:10px; display:flex; gap:10px; align-items:flex-start;';
+            div.innerHTML = `
+                <textarea class="input-pekerjaan-multi" required rows="2" placeholder="Deskripsi pekerjaan/mesin ${index}..." style="flex:1; margin-bottom:0;"></textarea>
+                <button type="button" class="btn-del" style="padding:10px; margin:0; border-radius:8px; height: 100%;" onclick="this.parentElement.remove()">X</button>
+            `;
+            wadah.appendChild(div);
         }
 
         function hitungDurasiJamKerjaMs(awal, akhir) {
@@ -2057,63 +2078,86 @@
             let btnID = type === 'sla' ? 'btn-submit-pekerjaan' : 'btn-submit-sls';
             let btn = document.getElementById(btnID);
             
-            if(btn) { btn.innerText = 'Menyimpan...'; btn.disabled = true; }
+            if(btn) { btn.innerText = 'Menyiapkan Data...'; btn.disabled = true; }
             
-            if (type === 'sla') {
-                const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
-                payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; 
-                payload.idTiket = document.getElementById('input-id').value; 
-                payload.noTransaksi = document.getElementById('input-notrans-sla').value; 
-                payload.targetSLA = document.getElementById('input-sla').value; 
-                payload.targetRespon = document.getElementById('input-sla-respon').value; 
-                payload.klien = document.getElementById('input-klien').value; 
-                payload.pekerjaan = document.getElementById('input-pekerjaan').value; 
-                payload.sales = document.getElementById('input-sales').value; 
-                payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; 
-                payload.teknisi = t;
-                payload.waKlien = document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '';
-                payload.ttdKlienAwal = isCanvasInputDrawn ? canvasInput.toDataURL('image/png') : "";
-            } else if (type === 'sls') {
-                payload.action = 'addPenjualan'; 
-                payload.idPenjualan = document.getElementById('input-id-sls').value; 
-                payload.noTransaksi = document.getElementById('input-notrans-sls').value; 
-                payload.pembeli = document.getElementById('input-pembeli-sls').value; 
-                payload.barang = document.getElementById('input-barang-sls').value; 
-                payload.sales = document.getElementById('input-sales-sls').value; 
-                payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
-            }
-
             try { 
-                // Gunakan AbortController untuk mencegah timeout menggantung
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 20000); // Tunggu maks 20 detik
-                
-                document.getElementById('loading').style.display = 'block'; 
-                
-                const res = await fetch(apiUrl, { 
-                    method: 'POST', 
-                    body: JSON.stringify(payload),
-                    signal: controller.signal
-                }); 
-                
-                clearTimeout(timeoutId);
-                const hasil = await res.json();
-                
-                if (hasil.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data berhasil disimpan.', 'success');
-                    if (type === 'sla') { 
-                        batalEditTiket(); switchTab('tiket'); 
-                    } else { 
-                        document.getElementById('form-sls').reset(); switchTab('penjualan'); 
+                if (type === 'sla') {
+                    const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
+                    
+                    // Ambil semua teks pekerjaan, hilangkan yang kosong
+                    let listPekerjaan = Array.from(document.querySelectorAll('.input-pekerjaan-multi')).map(ta => ta.value.trim()).filter(v => v !== "");
+                    
+                    let baseId = document.getElementById('input-id').value;
+                    let idPrefix = baseId.split('-')[0]; // "TKT"
+                    let idNum = parseInt(baseId.split('-')[1]); // Angka ID
+                    
+                    let successCount = 0;
+                    document.getElementById('loading').style.display = 'block'; 
+
+                    // Looping: Kirim satu per satu agar ID berurutan di database
+                    for (let i = 0; i < listPekerjaan.length; i++) {
+                        let currentId = modeEditTiket ? baseId : `${idPrefix}-${String(idNum + i).padStart(3, '0')}`;
+                        
+                        btn.innerText = `Menyimpan (${i+1}/${listPekerjaan.length})...`;
+                        
+                        let loopPayload = { 
+                            apiKey: API_KEY, 
+                            action: modeEditTiket ? 'editTicket' : 'addTicket',
+                            idTiket: currentId,
+                            noTransaksi: document.getElementById('input-notrans-sla').value,
+                            targetSLA: document.getElementById('input-sla').value,
+                            targetRespon: document.getElementById('input-sla-respon').value,
+                            klien: document.getElementById('input-klien').value,
+                            pekerjaan: listPekerjaan[i],
+                            sales: document.getElementById('input-sales').value,
+                            nilaiPenjualan: document.getElementById('input-nilai-penjualan').value,
+                            teknisi: t,
+                            waKlien: document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '',
+                            ttdKlienAwal: isCanvasInputDrawn ? canvasInput.toDataURL('image/png') : ""
+                        };
+
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 20000);
+                        const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(loopPayload), signal: controller.signal }); 
+                        clearTimeout(timeoutId);
+                        const hasil = await res.json();
+                        
+                        if (hasil.status === 'sukses') successCount++;
                     }
-                    await ambilSemuaData(true); 
-                } else { 
-                    showToast('Afwan, Gagal menyimpan: ' + hasil.pesan, 'error'); 
+
+                    if (successCount > 0) { 
+                        showToast(`Alhamdulillah! ${successCount} Pekerjaan berhasil disimpan.`, 'success');
+                        batalEditTiket(); switchTab('tiket'); 
+                        await ambilSemuaData(true); 
+                    } else { 
+                        showToast('Afwan, Gagal menyimpan data.', 'error'); 
+                    }
+
+                } else if (type === 'sls') {
+                    btn.innerText = 'Menyimpan...';
+                    payload.action = 'addPenjualan'; 
+                    payload.idPenjualan = document.getElementById('input-id-sls').value; 
+                    payload.noTransaksi = document.getElementById('input-notrans-sls').value; 
+                    payload.pembeli = document.getElementById('input-pembeli-sls').value; 
+                    payload.barang = document.getElementById('input-barang-sls').value; 
+                    payload.sales = document.getElementById('input-sales-sls').value; 
+                    payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
+
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 20000);
+                    const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload), signal: controller.signal }); 
+                    clearTimeout(timeoutId);
+                    const hasil = await res.json();
+                    
+                    if (hasil.status === 'sukses') { 
+                        showToast('Alhamdulillah! Data berhasil disimpan.', 'success');
+                        document.getElementById('form-sls').reset(); switchTab('penjualan'); 
+                        await ambilSemuaData(true); 
+                    } else { showToast('Afwan, Gagal menyimpan: ' + hasil.pesan, 'error'); }
                 }
             } catch (err) { 
-                // JIKA TIMEOUT TAPI DATA SEBENARNYA MASUK KE SERVER (Bug Google Script lambat merespon)
                 if (err.name === 'AbortError' || err.message.includes('fetch')) {
-                    showToast('Alhamdulillah! Data terkirim (Respons server lambat).', 'success');
+                    showToast('Alhamdulillah! Data terkirim (Respons lambat).', 'success');
                     if (type === 'sla') { batalEditTiket(); switchTab('tiket'); } else { document.getElementById('form-sls').reset(); switchTab('penjualan'); }
                     await ambilSemuaData(true); 
                 } else {
@@ -2136,7 +2180,11 @@
             document.getElementById('input-sla-respon').value = t['Target SLA Respon (Jam)'] || ''; 
             document.getElementById('input-sla').value = t['Target SLA (Jam)']; 
             document.getElementById('input-klien').value = t['Klien & Lokasi']; 
-            document.getElementById('input-pekerjaan').value = t['Jenis Pekerjaan']; 
+            
+            // Kunci agar tidak bisa nambah mesin saat mode Edit
+            document.getElementById('wadah-pekerjaan').innerHTML = `<div class="pekerjaan-item"><textarea class="input-pekerjaan-multi" required rows="2" id="input-pekerjaan-edit"></textarea></div>`;
+            document.getElementById('input-pekerjaan-edit').value = t['Jenis Pekerjaan'];
+            document.getElementById('btn-tambah-pekerjaan').style.display = 'none';
             
             let keys = Object.keys(t);
             let waKey = keys.find(k => k && k.toLowerCase().includes('wa klien'));
@@ -2167,6 +2215,11 @@
             modeEditTiket = false; 
             document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; 
             document.getElementById('form-sla').reset(); 
+            
+            // Kembalikan form ke semula (1 text area + tombol)
+            document.getElementById('wadah-pekerjaan').innerHTML = `<div class="pekerjaan-item" style="position:relative; margin-bottom:10px;"><textarea class="input-pekerjaan-multi" required rows="2" placeholder="Contoh: Perbaikan Printer L3110 (Mati Total)"></textarea></div>`;
+            document.getElementById('btn-tambah-pekerjaan').style.display = 'block';
+
             if(document.getElementById('input-wa-klien')) document.getElementById('input-wa-klien').value = '';
             clearSignatureInput();
             document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; 
