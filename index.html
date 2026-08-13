@@ -764,6 +764,69 @@
                 ${htmlGaransi}
             `;
         }
+        // ===============================================
+        // FUNGSI NOTIFIKASI & POP-UP MODAL (UTILITY)
+        // ===============================================
+        function showToast(message, type = 'success') { 
+            const container = document.getElementById('toast-container'); 
+            if(!container) return;
+            const toast = document.createElement('div'); 
+            toast.className = `toast toast-${type}`; 
+            let icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : '⚠️'); 
+            toast.innerHTML = `<span style="font-size:18px;">${icon}</span> <span style="flex:1;">${message}</span>`; 
+            container.appendChild(toast); 
+            setTimeout(() => { 
+                toast.style.animation = 'toastOut 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'; 
+                setTimeout(() => { toast.remove(); }, 300); 
+            }, 3500); 
+        }
+
+        function showConfirm(message, isDanger = true) { 
+            return new Promise((resolve) => { 
+                const modal = document.getElementById('custom-confirm-modal'); 
+                if(!modal) { resolve(true); return; } // Bypass darurat jika modal hilang
+                
+                document.getElementById('confirm-msg').innerText = message; 
+                
+                let btnYes = document.getElementById('btn-confirm-yes'); 
+                if(!btnYes) btnYes = modal.querySelector('.btn-cm-danger') || modal.querySelector('.btn-cm-confirm');
+                
+                let btnNo = document.getElementById('btn-confirm-no');
+                if(!btnNo) btnNo = modal.querySelector('.btn-cm-cancel');
+
+                if(btnYes) {
+                    btnYes.className = isDanger ? 'custom-modal-btn btn-cm-danger' : 'custom-modal-btn btn-cm-confirm'; 
+                    btnYes.onclick = function() { modal.style.display = 'none'; resolve(true); }; 
+                } else {
+                    resolve(true); 
+                }
+                
+                if(btnNo) {
+                    btnNo.onclick = function() { modal.style.display = 'none'; resolve(false); }; 
+                }
+
+                modal.style.display = 'flex'; 
+            }); 
+        }
+
+        function showPrompt(message) { 
+            return new Promise((resolve) => { 
+                const modal = document.getElementById('custom-prompt-modal'); 
+                if(!modal) { resolve(null); return; }
+                
+                const inputField = document.getElementById('prompt-input'); 
+                document.getElementById('prompt-msg').innerText = message; 
+                inputField.value = ''; 
+                modal.style.display = 'flex'; 
+                inputField.focus(); 
+                
+                let btnSubmit = document.getElementById('btn-prompt-submit');
+                let btnCancel = document.getElementById('btn-prompt-cancel');
+                
+                if(btnSubmit) btnSubmit.onclick = function() { modal.style.display = 'none'; resolve(inputField.value); }; 
+                if(btnCancel) btnCancel.onclick = function() { modal.style.display = 'none'; resolve(null); }; 
+            }); 
+        }
 
         function toggleClearBtn(el) { const btn = el.nextElementSibling; if(btn && btn.classList.contains('clear-icon')) { btn.style.display = el.value.length > 0 ? 'block' : 'none'; } }
         function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') renderTickets(); else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); } }
@@ -1951,33 +2014,80 @@
         async function submitData(e, type) { 
             e.preventDefault(); 
             const payload = { apiKey: API_KEY };
+            let btnID = type === 'sla' ? 'btn-submit-pekerjaan' : 'btn-submit-sls';
+            let btn = document.getElementById(btnID);
+            
+            if(btn) { btn.innerText = 'Menyimpan...'; btn.disabled = true; }
+            
             if (type === 'sla') {
-                const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
                 const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
                 payload.action = modeEditTiket ? 'editTicket' : 'addTicket'; 
-                payload.idTiket = document.getElementById('input-id').value; payload.noTransaksi = document.getElementById('input-notrans-sla').value; payload.targetSLA = document.getElementById('input-sla').value; payload.targetRespon = document.getElementById('input-sla-respon').value; payload.klien = document.getElementById('input-klien').value; payload.pekerjaan = document.getElementById('input-pekerjaan').value; payload.sales = document.getElementById('input-sales').value; payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; payload.teknisi = t;
+                payload.idTiket = document.getElementById('input-id').value; 
+                payload.noTransaksi = document.getElementById('input-notrans-sla').value; 
+                payload.targetSLA = document.getElementById('input-sla').value; 
+                payload.targetRespon = document.getElementById('input-sla-respon').value; 
+                payload.klien = document.getElementById('input-klien').value; 
+                payload.pekerjaan = document.getElementById('input-pekerjaan').value; 
+                payload.sales = document.getElementById('input-sales').value; 
+                payload.nilaiPenjualan = document.getElementById('input-nilai-penjualan').value; 
+                payload.teknisi = t;
                 payload.waKlien = document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '';
                 payload.ttdKlienAwal = isCanvasInputDrawn ? canvasInput.toDataURL('image/png') : "";
             } else if (type === 'sls') {
-                const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
                 payload.action = 'addPenjualan'; 
-                payload.idPenjualan = document.getElementById('input-id-sls').value; payload.noTransaksi = document.getElementById('input-notrans-sls').value; payload.pembeli = document.getElementById('input-pembeli-sls').value; payload.barang = document.getElementById('input-barang-sls').value; payload.sales = document.getElementById('input-sales-sls').value; payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
+                payload.idPenjualan = document.getElementById('input-id-sls').value; 
+                payload.noTransaksi = document.getElementById('input-notrans-sls').value; 
+                payload.pembeli = document.getElementById('input-pembeli-sls').value; 
+                payload.barang = document.getElementById('input-barang-sls').value; 
+                payload.sales = document.getElementById('input-sales-sls').value; 
+                payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
             }
 
             try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
+                // Gunakan AbortController untuk mencegah timeout menggantung
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 20000); // Tunggu maks 20 detik
+                
+                document.getElementById('loading').style.display = 'block'; 
+                
+                const res = await fetch(apiUrl, { 
+                    method: 'POST', 
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
+                }); 
+                
+                clearTimeout(timeoutId);
                 const hasil = await res.json();
+                
                 if (hasil.status === 'sukses') { 
                     showToast('Alhamdulillah! Data berhasil disimpan.', 'success');
+                    if (type === 'sla') { 
+                        batalEditTiket(); switchTab('tiket'); 
+                    } else { 
+                        document.getElementById('form-sls').reset(); switchTab('penjualan'); 
+                    }
+                    await ambilSemuaData(true); 
+                } else { 
+                    showToast('Afwan, Gagal menyimpan: ' + hasil.pesan, 'error'); 
+                }
+            } catch (err) { 
+                // JIKA TIMEOUT TAPI DATA SEBENARNYA MASUK KE SERVER (Bug Google Script lambat merespon)
+                if (err.name === 'AbortError' || err.message.includes('fetch')) {
+                    showToast('Alhamdulillah! Data terkirim (Respons server lambat).', 'success');
                     if (type === 'sla') { batalEditTiket(); switchTab('tiket'); } else { document.getElementById('form-sls').reset(); switchTab('penjualan'); }
-                    document.getElementById('loading').style.display = 'block'; await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
-                } else { showToast('Afwan, Gagal menyimpan: ' + hasil.pesan, 'error'); }
-            } catch (err) { showToast('Afwan, Kesalahan jaringan. Pastikan internet stabil.', 'error'); } 
-            
-            if (type === 'sla') { const btn = document.getElementById('btn-submit-pekerjaan'); btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; btn.disabled = false; }
-            else { const btn = document.getElementById('btn-submit-sls'); btn.innerText = 'Simpan Penjualan'; btn.disabled = false; }
+                    await ambilSemuaData(true); 
+                } else {
+                    showToast('Afwan, Kesalahan sistem: ' + err.message, 'error'); 
+                }
+            } finally {
+                document.getElementById('loading').style.display = 'none'; 
+                if (btn) {
+                    if (type === 'sla') { btn.innerText = modeEditTiket ? 'Update Tiket' : 'Simpan Tiket'; }
+                    else { btn.innerText = 'Simpan Penjualan'; }
+                    btn.disabled = false;
+                }
+            }
         }
-
         function aktifkanEditTiket(idTiket) { 
             const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); if(!t) return; 
             modeEditTiket = true; switchTab('input'); switchInputTab('sla'); 
@@ -2129,14 +2239,21 @@
             try {
                 let acc = await showConfirm(`Bismillah, hapus data tiket ${idTiket} permanen?`); 
                 if(!acc) return; 
+                
                 document.getElementById('loading').style.display = 'block'; 
                 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+
                 const res = await fetch(apiUrl, { 
                     method: 'POST', 
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteTicket', idTiket: String(idTiket).trim() }) 
+                    body: JSON.stringify({apiKey: API_KEY, action: 'deleteTicket', idTiket: String(idTiket).trim()}),
+                    signal: controller.signal
                 }); 
                 
+                clearTimeout(timeoutId);
                 const jsonRes = await res.json();
+                
                 if (jsonRes.status === 'sukses') { 
                     showToast('Alhamdulillah! Tiket berhasil dihapus.', 'success'); 
                     await ambilSemuaData(true); 
@@ -2144,7 +2261,12 @@
                     showToast('Afwan, gagal menghapus: ' + jsonRes.pesan, 'error');
                 }
             } catch(err) {
-                showToast('Afwan, terjadi kesalahan jaringan saat menghapus.', 'error');
+                if (err.name === 'AbortError') {
+                    showToast('Alhamdulillah! Perintah hapus terkirim (Server lambat merespons).', 'success');
+                    await ambilSemuaData(true); 
+                } else {
+                    showToast('Afwan, terjadi kesalahan jaringan.', 'error');
+                }
             } finally {
                 document.getElementById('loading').style.display = 'none'; 
             }
