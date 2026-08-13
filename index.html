@@ -511,7 +511,7 @@
                     </div>
                     <button type="button" id="btn-tambah-pekerjaan" class="btn-action-primary" style="background:#eff6ff; color:var(--primary); border-color:#bfdbfe; margin-top:0; margin-bottom:15px; font-size:12px;" onclick="tambahKolomPekerjaan()">➕ Tambah Pekerjaan / Mesin Lain</button>
                     <label>Sales Penanggung Jawab</label>
-                    <select id="input-sales" onchange="togglePenjualanInput()"></select>
+                    <div class="checkbox-group" id="sales-group"></div>
                     <div id="div-nilai-penjualan" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
                         <label style="color:#166534; margin-top:0;">Nilai Penjualan / Omzet (Rp)</label>
                         <input type="number" id="input-nilai-penjualan" style="border-color:#86efac; background:#fff;">
@@ -1159,7 +1159,10 @@
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
 
         function toggleTargetSales() { const role = document.getElementById('new-role').value; document.getElementById('div-target-sales').style.display = (role === 'sales') ? 'block' : 'none'; }
-        function togglePenjualanInput() { const sales = document.getElementById('input-sales').value; document.getElementById('div-nilai-penjualan').style.display = (sales !== "") ? 'block' : 'none'; }
+        function togglePenjualanInput() { 
+            const checkedSales = document.querySelectorAll('#sales-group input[type="checkbox"]:checked');
+            document.getElementById('div-nilai-penjualan').style.display = (checkedSales.length > 0) ? 'block' : 'none'; 
+        }
         function toggleGaransiOmzet() { const salesG = document.getElementById('garansi-sales'); const wadahOmzet = document.getElementById('div-garansi-omzet'); if(salesG && wadahOmzet) { wadahOmzet.style.display = (salesG.value !== "") ? 'block' : 'none'; } }
 
         function renderDynamicInputs() {
@@ -1167,25 +1170,25 @@
                 const group = document.getElementById('teknisi-group'); group.innerHTML = ''; 
                 (globalUsers || []).filter(u => u && u.Role === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
                 
-                const salesSelect = document.getElementById('input-sales'); const currentSalesVal = salesSelect.value;
+                const salesGroup = document.getElementById('sales-group'); salesGroup.innerHTML = '';
+                
                 const salesSelectSls = document.getElementById('input-sales-sls'); const currentSalesSlsVal = salesSelectSls.value;
                 const salesSelectProspek = document.getElementById('prospek-sales'); const currentProspekVal = salesSelectProspek.value;
                 const salesSelectGaransi = document.getElementById('garansi-sales'); let currentGaransiVal = ''; if(salesSelectGaransi) currentGaransiVal = salesSelectGaransi.value;
                 
-                salesSelect.innerHTML = '<option value="" selected>-- Tanpa Sales --</option>';
                 salesSelectSls.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
                 salesSelectProspek.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
                 if(salesSelectGaransi) salesSelectGaransi.innerHTML = '<option value="" selected>-- Pilih Sales (Opsional) --</option>';
                 
                 let salesList = (globalUsers || []).filter(u => u && u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
                 salesList.forEach(s => { 
-                    salesSelect.innerHTML += `<option value="${s}">${s}</option>`; 
+                    salesGroup.innerHTML += `<label><input type="checkbox" value="${s}" onchange="togglePenjualanInput()"> ${s}</label>`;
                     salesSelectSls.innerHTML += `<option value="${s}">${s}</option>`;
                     salesSelectProspek.innerHTML += `<option value="${s}">${s}</option>`;
                     if(salesSelectGaransi) salesSelectGaransi.innerHTML += `<option value="${s}">${s}</option>`;
                 });
-                if (currentSalesVal && !salesList.includes(currentSalesVal)) { salesSelect.innerHTML += `<option value="${currentSalesVal}">${currentSalesVal} (Nonaktif)</option>`; }
-                salesSelect.value = currentSalesVal; salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
+                
+                salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
                 if(salesSelectGaransi) salesSelectGaransi.value = currentGaransiVal;
             } catch(e) { console.error("Error render inputs:", e); }
         }
@@ -1266,17 +1269,22 @@
                     if (statusTiket === 'Cancel') { } else if (statusTiket === 'Pending') { statsTeknisi[key].peng_aman++; } else if (statusTiket === 'On Progress') { if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } else { statsTeknisi[key].peng_aman++; } } else if (statusTiket === 'Menunggu') { if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } } else if (statusTiket === 'Selesai') { if(statusPengerjaan === 'TERPENUHI') { statsTeknisi[key].peng_tepat++; statsTeknisi[key].peng_total++; } else if(statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } }
                 });
 
-                let sName = String(t['Sales'] || '').trim(); 
-                let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
-                if (sName !== "" && sName !== "-" && !sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
-                if (sKey) { 
-                    statsSales[sKey].total++; 
-                    if (statusTiket === 'Selesai') { 
-                        let rawRev = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0;
-                        statsSales[sKey].revenue += parseInt(rawRev) || 0; 
-                        statsSales[sKey].selesai++;
-                    } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; }
-                }
+                // PEROMBAKAN SALES: MEMBACA MULTI SALES YANG DIPISAH KOMA
+                let sNames = String(t['Sales'] || '').split(',').map(s => s.trim());
+                sNames.forEach(sName => {
+                    if (!sName || sName === "-") return;
+                    let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
+                    if (!sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0 }; sKey = sName; }
+                    
+                    if (sKey) { 
+                        statsSales[sKey].total++; 
+                        if (statusTiket === 'Selesai') { 
+                            let rawRev = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0;
+                            statsSales[sKey].revenue += parseInt(rawRev) || 0; 
+                            statsSales[sKey].selesai++;
+                        } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; }
+                    }
+                });
             });
 
             (globalPenjualan || []).forEach(p => {
@@ -2083,21 +2091,18 @@
             try { 
                 if (type === 'sla') {
                     const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
+                    const s = Array.from(document.querySelectorAll('#sales-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
                     
-                    // Ambil semua teks pekerjaan, hilangkan yang kosong
                     let listPekerjaan = Array.from(document.querySelectorAll('.input-pekerjaan-multi')).map(ta => ta.value.trim()).filter(v => v !== "");
-                    
                     let baseId = document.getElementById('input-id').value;
-                    let idPrefix = baseId.split('-')[0]; // "TKT"
-                    let idNum = parseInt(baseId.split('-')[1]); // Angka ID
+                    let idPrefix = baseId.split('-')[0]; 
+                    let idNum = parseInt(baseId.split('-')[1]); 
                     
                     let successCount = 0;
                     document.getElementById('loading').style.display = 'block'; 
 
-                    // Looping: Kirim satu per satu agar ID berurutan di database
                     for (let i = 0; i < listPekerjaan.length; i++) {
                         let currentId = modeEditTiket ? baseId : `${idPrefix}-${String(idNum + i).padStart(3, '0')}`;
-                        
                         btn.innerText = `Menyimpan (${i+1}/${listPekerjaan.length})...`;
                         
                         let loopPayload = { 
@@ -2109,7 +2114,7 @@
                             targetRespon: document.getElementById('input-sla-respon').value,
                             klien: document.getElementById('input-klien').value,
                             pekerjaan: listPekerjaan[i],
-                            sales: document.getElementById('input-sales').value,
+                            sales: s, 
                             nilaiPenjualan: document.getElementById('input-nilai-penjualan').value,
                             teknisi: t,
                             waKlien: document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '',
@@ -2181,7 +2186,6 @@
             document.getElementById('input-sla').value = t['Target SLA (Jam)']; 
             document.getElementById('input-klien').value = t['Klien & Lokasi']; 
             
-            // Kunci agar tidak bisa nambah mesin saat mode Edit
             document.getElementById('wadah-pekerjaan').innerHTML = `<div class="pekerjaan-item"><textarea class="input-pekerjaan-multi" required rows="2" id="input-pekerjaan-edit"></textarea></div>`;
             document.getElementById('input-pekerjaan-edit').value = t['Jenis Pekerjaan'];
             document.getElementById('btn-tambah-pekerjaan').style.display = 'none';
@@ -2192,10 +2196,17 @@
                 document.getElementById('input-wa-klien').value = waKey ? (t[waKey] || '') : '';
             }
             
-            const salesSelect = document.getElementById('input-sales'); 
-            let found = Array.from(salesSelect.options).some(opt => opt.value === (t['Sales'] || '')); 
-            if (!found && t['Sales']) { salesSelect.innerHTML += `<option value="${t['Sales']}">${t['Sales']} (Nonaktif)</option>`; } 
-            salesSelect.value = t['Sales'] || ''; 
+            const sArr = String(t['Sales'] || '').split(',').map(n => n.trim()); 
+            const salesGroup = document.getElementById('sales-group');
+            sArr.forEach(salesName => {
+                if(salesName !== "" && salesName !== "-") {
+                    let exists = Array.from(salesGroup.querySelectorAll('input')).some(cb => cb.value === salesName);
+                    if(!exists) {
+                        salesGroup.innerHTML += `<label><input type="checkbox" value="${salesName}" onchange="togglePenjualanInput()" checked> ${salesName} (Nonaktif)</label>`;
+                    }
+                }
+            });
+            document.querySelectorAll('#sales-group input[type="checkbox"]').forEach(cb => cb.checked = sArr.includes(cb.value)); 
             
             let noTransVal = t['No Transaksi'] || t[keys[1]] || ''; 
             document.getElementById('input-notrans-sla').value = noTransVal; 
@@ -2216,12 +2227,14 @@
             document.getElementById('form-tiket-title').innerText = 'Form Tiket Baru'; 
             document.getElementById('form-sla').reset(); 
             
-            // Kembalikan form ke semula (1 text area + tombol)
             document.getElementById('wadah-pekerjaan').innerHTML = `<div class="pekerjaan-item" style="position:relative; margin-bottom:10px;"><textarea class="input-pekerjaan-multi" required rows="2" placeholder="Contoh: Perbaikan Printer L3110 (Mati Total)"></textarea></div>`;
             document.getElementById('btn-tambah-pekerjaan').style.display = 'block';
 
             if(document.getElementById('input-wa-klien')) document.getElementById('input-wa-klien').value = '';
             clearSignatureInput();
+            
+            document.querySelectorAll('#sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
+            
             document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; 
             document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; 
             document.getElementById('btn-batal-edit-tiket').style.display = 'none'; 
