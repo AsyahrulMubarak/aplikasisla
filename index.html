@@ -721,6 +721,43 @@
             else if (textStatus === 'On Progress') { sc = 'status-aman'; bc = 'badge-status'; }
             else if (textStatus === 'Cancel') { sc = 'status-terlambat'; bc = 'badge-cancel'; }
 
+            // =======================================================
+            // FITUR BARU: TOMBOL HUBUNGI TEKNISI MULTIPEL 
+            // =======================================================
+            let teknisiStr = String(t['Teknisi'] || '').trim();
+            let htmlTombolTeknisi = '';
+            
+            // Tombol hanya muncul jika ada teknisi & tiket BELUM selesai
+            if (teknisiStr && teknisiStr !== "Belum Ditugaskan" && teknisiStr !== "-" && textStatus !== 'Selesai') {
+                let teknisiArr = teknisiStr.split(',').map(n => n.trim());
+                let kumpulanTombol = '';
+                
+                teknisiArr.forEach(namaTek => {
+                    // Cari nomor WA teknisi di database globalUsers
+                    let uTek = (globalUsers || []).find(u => u && String(u['Nama Asli']).toLowerCase().trim() === namaTek.toLowerCase());
+                    let noWaTek = (uTek && uTek['No WA']) ? String(uTek['No WA']).trim() : '';
+                    
+                    if (noWaTek !== '') {
+                        // Pastikan nomor diawali kode negara 62
+                        if(noWaTek.startsWith('0')) noWaTek = '62' + noWaTek.substring(1);
+                        
+                        let pesanWaTek = encodeURIComponent(`Assalamu'alaikum Mas ${namaTek},\nSaya dari Klien atas nama *${t['Klien & Lokasi']}*.\n\nIngin menanyakan update dan progres pekerjaan untuk ID Tiket: *${t['ID Tiket']}*.\n\nTerima kasih.`);
+                        
+                        kumpulanTombol += `<a href="https://wa.me/${noWaTek}?text=${pesanWaTek}" target="_blank" class="btn-solid-primary" style="background:#2563eb; display:block; text-align:center; text-decoration:none; padding:10px; margin-top:8px; font-size:13px; font-weight:600; box-shadow:0 2px 4px rgba(37,99,235,0.2);">👨‍🔧 Chat Teknisi: ${namaTek}</a>`;
+                    }
+                });
+                
+                if (kumpulanTombol !== '') {
+                    htmlTombolTeknisi = `<div style="margin-top:15px; border-top:1px dashed var(--border); padding-top:15px;">
+                        <p style="margin:0 0 5px 0; font-size:12px; font-weight:600; color:var(--text-main);">Butuh info progres lebih cepat? Hubungi Teknisi Anda:</p>
+                        ${kumpulanTombol}
+                    </div>`;
+                }
+            }
+
+            // =======================================================
+            // RENDER DATA GARANSI
+            // =======================================================
             let htmlGaransi = '';
             let refsDiGaransi = globalGaransi.filter(g => g && String(g['Referensi (Tiket/Nota)']).trim() === currentTrackTicket);
             
@@ -736,6 +773,7 @@
                     let ketKlien = g['Keterangan'] || g[Object.keys(g)[11]] || '';
                     let ketKlienHtml = ketKlien ? `<p style="margin:0 0 5px 0; font-size:12px; color:var(--text-muted);"><i>Catatan: ${ketKlien}</i></p>` : '';
                     
+                    // Arahkan garansi ke nomor admin pusat
                     let waAdmin = "6285134817914"; 
                     let pesanWa = encodeURIComponent(`Assalamu'alaikum Admin Alfacom,\nSaya klien atas nama *${t['Klien & Lokasi']}*.\n\nSaya ingin bertanya/mengklaim garansi terkait pekerjaan dengan ID: *${currentTrackTicket}*.`);
                     let btnKlaim = statGrs === 'Aktif' ? `<a href="https://wa.me/${waAdmin}?text=${pesanWa}" target="_blank" class="btn-solid-primary" style="background:#10b981; display:block; text-align:center; text-decoration:none; padding:10px; margin-top:10px;">💬 Klaim via WhatsApp</a>` : '';
@@ -759,6 +797,7 @@
                     <p style="font-size:13px; margin:5px 0;"><strong>Pekerjaan:</strong> ${t['Jenis Pekerjaan']}</p>
                     <p style="font-size:13px; margin:5px 0;"><strong>Teknisi:</strong> ${t['Teknisi']}</p>
                     <p style="font-size:13px; margin:5px 0; color:var(--text-muted);"><strong>Waktu Lapor:</strong> ${formatWaktu(t['Waktu Lapor'])}</p>
+                    ${htmlTombolTeknisi}
                     ${pdfHtml}
                 </div>
                 ${htmlGaransi}
