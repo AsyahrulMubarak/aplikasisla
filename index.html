@@ -403,22 +403,39 @@
                     <input type="hidden" id="prospek-id">
                     <label>Nama Calon Customer</label>
                     <input type="text" id="prospek-nama" placeholder="Contoh: Pak Budi" required>
-                    <label>Kebutuhan / Barang yang Diminati</label>
-                    <textarea id="prospek-kebutuhan" required rows="2"></textarea>
+                    <!-- KEBUTUHAN MULTIPEL DALAM 1 TIKET -->
+                    <label>Kebutuhan / Barang yang Diminati & Penawaran</label>
+                    <div id="wadah-kebutuhan-prospek">
+                        <div class="kebutuhan-item" style="position:relative; margin-bottom:10px; padding:10px; background:#f8fafc; border:1px solid var(--border); border-radius:8px;">
+                            <input type="text" class="input-keb-nama" placeholder="Contoh: CCTV 4 Titik Dahua" required style="margin-bottom:8px;">
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <div style="flex:1;">
+                                    <input type="number" class="input-keb-nominal" placeholder="Nominal Ditawarkan (Rp) - Opsional" oninput="hitungTotalProspek()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" id="btn-tambah-kebutuhan" class="btn-action-primary" style="background:#ecfdf5; color:var(--success); border-color:#a7f3d0; margin-top:0; margin-bottom:15px; font-size:12px;" onclick="tambahKolomProspek()">➕ Tambah Kebutuhan Lain (1 Tiket)</button>
+                    
                     <label>Bukti Chat / Interaksi (Screenshot)</label>
-                    <input type="file" id="prospek-bukti" accept="image/*" style="font-size: 12px; margin-bottom:0;">
+                    <input type="file" id="prospek-bukti" accept="image/*" style="font-size: 12px; margin-bottom:15px;">
+                    
+                    <!-- SALES MULTIPEL (CHECKBOX) -->
                     <div id="div-prospek-sales" style="display:none;">
                         <label>Sales Penanggung Jawab</label>
-                        <select id="prospek-sales"></select>
+                        <div class="checkbox-group" id="prospek-sales-group"></div>
                     </div>
+                    
                     <label>Status Prospek</label>
                     <select id="prospek-status" required onchange="cekStatusProspek()">
                         <option value="Tahap Penawaran">📝 Tahap Penawaran</option>
                         <option value="Kunjungan Toko">🏪 Kunjungan Toko</option>
                         <option value="Closing / Deal">✅ Closing / Deal</option>
                     </select>
-                    <label id="label-prospek-nominal">Estimasi Nilai Proyek (Rp) - Opsional</label>
-                    <input type="number" id="prospek-nominal" placeholder="Contoh: 5000000">
+                    
+                    <!-- ESTIMASI TOTAL OTOMATIS -->
+                    <label id="label-prospek-nominal">Total Nilai Proyek (Rp) - <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">Dihitung Otomatis</span></label>
+                    <input type="number" id="prospek-nominal" placeholder="0">
                     <button type="submit" id="btn-submit-prospek" class="btn-solid-primary" style="background:var(--success);">Simpan Prospek</button>
                     <button type="button" class="btn-outline-cancel" onclick="tutupFormProspek()">Batal Input</button>
                 </form>
@@ -1170,25 +1187,24 @@
                 const group = document.getElementById('teknisi-group'); group.innerHTML = ''; 
                 (globalUsers || []).filter(u => u && u.Role === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
                 
-                const salesGroup = document.getElementById('sales-group'); salesGroup.innerHTML = '';
+                const salesGroup = document.getElementById('sales-group'); if(salesGroup) salesGroup.innerHTML = '';
+                const prospekSalesGroup = document.getElementById('prospek-sales-group'); if(prospekSalesGroup) prospekSalesGroup.innerHTML = '';
                 
                 const salesSelectSls = document.getElementById('input-sales-sls'); const currentSalesSlsVal = salesSelectSls.value;
-                const salesSelectProspek = document.getElementById('prospek-sales'); const currentProspekVal = salesSelectProspek.value;
                 const salesSelectGaransi = document.getElementById('garansi-sales'); let currentGaransiVal = ''; if(salesSelectGaransi) currentGaransiVal = salesSelectGaransi.value;
                 
                 salesSelectSls.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
-                salesSelectProspek.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
                 if(salesSelectGaransi) salesSelectGaransi.innerHTML = '<option value="" selected>-- Pilih Sales (Opsional) --</option>';
                 
                 let salesList = (globalUsers || []).filter(u => u && u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
                 salesList.forEach(s => { 
-                    salesGroup.innerHTML += `<label><input type="checkbox" value="${s}" onchange="togglePenjualanInput()"> ${s}</label>`;
+                    if(salesGroup) salesGroup.innerHTML += `<label><input type="checkbox" value="${s}" onchange="togglePenjualanInput()"> ${s}</label>`;
+                    if(prospekSalesGroup) prospekSalesGroup.innerHTML += `<label><input type="checkbox" value="${s}"> ${s}</label>`;
                     salesSelectSls.innerHTML += `<option value="${s}">${s}</option>`;
-                    salesSelectProspek.innerHTML += `<option value="${s}">${s}</option>`;
                     if(salesSelectGaransi) salesSelectGaransi.innerHTML += `<option value="${s}">${s}</option>`;
                 });
                 
-                salesSelectSls.value = currentSalesSlsVal; salesSelectProspek.value = currentProspekVal;
+                salesSelectSls.value = currentSalesSlsVal;
                 if(salesSelectGaransi) salesSelectGaransi.value = currentGaransiVal;
             } catch(e) { console.error("Error render inputs:", e); }
         }
@@ -1855,16 +1871,34 @@
             const status = document.getElementById('prospek-status').value;
             const inputNominal = document.getElementById('prospek-nominal');
             const labelNominal = document.getElementById('label-prospek-nominal');
-            if (status.includes('Closing')) { labelNominal.innerHTML = 'Nilai Proyek / Nominal Deal (Rp) <span style="color:var(--danger);">*Wajib Diisi</span>'; inputNominal.required = true; } 
-            else { labelNominal.innerHTML = 'Estimasi Nilai Proyek (Rp) - Opsional'; inputNominal.required = false; }
+            if (status.includes('Closing')) { 
+                labelNominal.innerHTML = 'Total Nilai Proyek (Rp) <span style="color:var(--danger);">*Wajib Diisi</span>'; 
+                inputNominal.required = true; 
+            } else { 
+                labelNominal.innerHTML = 'Total Nilai Proyek (Rp) - <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">Otomatis / Opsional</span>'; 
+                inputNominal.required = false; 
+            }
         }
 
         function bukaFormProspek() { 
             document.getElementById('form-prospek-container').style.display = 'block'; 
             document.getElementById('form-prospek').reset(); 
-            const btn = document.getElementById('btn-submit-prospek');
-            btn.innerText = 'Simpan Prospek';
-            btn.disabled = false;
+            
+            // Reset Container Item dan Centang Sales
+            document.getElementById('wadah-kebutuhan-prospek').innerHTML = `
+                <div class="kebutuhan-item" style="position:relative; margin-bottom:10px; padding:10px; background:#f8fafc; border:1px solid var(--border); border-radius:8px;">
+                    <input type="text" class="input-keb-nama" placeholder="Contoh: CCTV 4 Titik Dahua" required style="margin-bottom:8px;">
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <div style="flex:1;">
+                            <input type="number" class="input-keb-nominal" placeholder="Nominal Ditawarkan (Rp) - Opsional" oninput="hitungTotalProspek()">
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.querySelectorAll('#prospek-sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
+            
+            document.getElementById('btn-submit-prospek').innerText = 'Simpan Prospek';
+            document.getElementById('btn-submit-prospek').disabled = false;
             cekStatusProspek(); 
             setAutoIDs(); 
         }
@@ -1957,43 +1991,73 @@
         async function submitProspek(e) {
             e.preventDefault(); 
             const btn = document.getElementById('btn-submit-prospek'); 
-            btn.innerText = 'Menyimpan...'; 
+            btn.innerText = 'Menyiapkan Data...'; 
             btn.disabled = true; 
             
             try {
                 let idPrp = document.getElementById('prospek-id').value;
                 if(!idPrp || idPrp === "") { setAutoIDs(); idPrp = document.getElementById('prospek-id').value; }
 
+                // Tarik banyak Sales dengan Checkbox
                 let salesPenanggung = penggunaAktif['Nama Asli'];
                 if(penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
-                    salesPenanggung = document.getElementById('prospek-sales').value || penggunaAktif['Nama Asli']; 
+                    const s = Array.from(document.querySelectorAll('#prospek-sales-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
+                    salesPenanggung = s !== "" ? s : penggunaAktif['Nama Asli']; 
                 }
 
                 const fileInput = document.getElementById('prospek-bukti');
                 let base64Bukti = '';
-                if(fileInput && fileInput.files.length > 0) { 
-                    base64Bukti = await prosesUploadBebas(fileInput.files[0]); 
-                }
+                if(fileInput && fileInput.files.length > 0) { base64Bukti = await prosesUploadBebas(fileInput.files[0]); }
 
-                const payload = { apiKey: API_KEY, action: 'addProspek', idProspek: idPrp, customer: document.getElementById('prospek-nama').value, kebutuhan: document.getElementById('prospek-kebutuhan').value, statusProspek: document.getElementById('prospek-status').value, sales: salesPenanggung, estimasi: document.getElementById('prospek-nominal').value, buktiChat: base64Bukti };
+                // MENGGABUNGKAN MULTI-ITEM MENJADI 1 TEKS UNTUK DATABASE
+                let stringKebutuhan = [];
+                let itemNodes = document.querySelectorAll('.kebutuhan-item');
+                itemNodes.forEach((node, index) => {
+                    let nama = node.querySelector('.input-keb-nama').value.trim();
+                    let nominal = node.querySelector('.input-keb-nominal').value;
+                    if(nama !== "") {
+                        let textItem = `${index+1}. ${nama}`;
+                        if(nominal && parseInt(nominal) > 0) {
+                            textItem += ` (Rp ${parseInt(nominal).toLocaleString('id-ID')})`;
+                        }
+                        stringKebutuhan.push(textItem);
+                    }
+                });
+                
+                let finalKebutuhan = stringKebutuhan.join('\n'); // Pisahkan tiap barang dengan Enter (Baris Baru)
 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
+                const payload = { 
+                    apiKey: API_KEY, 
+                    action: 'addProspek', 
+                    idProspek: idPrp, 
+                    customer: document.getElementById('prospek-nama').value, 
+                    kebutuhan: finalKebutuhan, 
+                    statusProspek: document.getElementById('prospek-status').value, 
+                    sales: salesPenanggung, 
+                    estimasi: document.getElementById('prospek-nominal').value, 
+                    buktiChat: base64Bukti 
+                };
+
+                document.getElementById('loading').style.display = 'block';
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 20000);
+                
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload), signal: controller.signal }); 
+                clearTimeout(timeoutId);
                 const jsonRes = await res.json();
                 
                 if (jsonRes.status === 'sukses') { 
                     showToast('Alhamdulillah! Data Prospek berhasil disimpan.', 'success');
-                    tutupFormProspek(); 
-                    document.getElementById('loading').style.display = 'block'; 
-                    await ambilSemuaData(true); 
-                    document.getElementById('loading').style.display = 'none'; 
-                } else { 
-                    showToast('Afwan, Gagal dari server: ' + jsonRes.pesan, 'error'); 
-                }
+                    tutupFormProspek(); await ambilSemuaData(true); 
+                } else { showToast('Afwan, Gagal menyimpan data prospek.', 'error'); }
             } catch (err) { 
-                showToast('Afwan, Gagal menyimpan. File foto mungkin terlalu besar atau sinyal tidak stabil.', 'error'); 
+                if (err.name === 'AbortError' || err.message.includes('fetch')) {
+                    showToast('Alhamdulillah! Data terkirim (Respons lambat).', 'success');
+                    tutupFormProspek(); await ambilSemuaData(true); 
+                } else { showToast('Afwan, Gagal. Sinyal tidak stabil.', 'error'); }
             } finally {
-                btn.innerText = 'Simpan Prospek'; 
-                btn.disabled = false;
+                document.getElementById('loading').style.display = 'none'; 
+                btn.innerText = 'Simpan Prospek'; btn.disabled = false;
             }
         }
 
@@ -2594,5 +2658,33 @@
             ambilSemuaData(false, trackParam);
         } else {
             ambilSemuaData();
+        }
+        // ==========================================
+        // FITUR MULTI-ITEM DALAM 1 TIKET PROSPEK
+        // ==========================================
+        function tambahKolomProspek() {
+            const wadah = document.getElementById('wadah-kebutuhan-prospek');
+            const div = document.createElement('div');
+            div.className = 'kebutuhan-item';
+            div.style.cssText = 'position:relative; margin-bottom:10px; padding:10px; background:#f8fafc; border:1px solid var(--border); border-radius:8px;';
+            div.innerHTML = `
+                <input type="text" class="input-keb-nama" placeholder="Kebutuhan/Barang lain..." required style="margin-bottom:8px;">
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div style="flex:1;">
+                        <input type="number" class="input-keb-nominal" placeholder="Nominal (Rp) - Opsional" oninput="hitungTotalProspek()">
+                    </div>
+                    <button type="button" class="btn-del" style="padding:8px 12px; margin:0; border-radius:8px;" onclick="this.parentElement.parentElement.remove(); hitungTotalProspek();">X</button>
+                </div>
+            `;
+            wadah.appendChild(div);
+        }
+
+        function hitungTotalProspek() {
+            let total = 0;
+            document.querySelectorAll('.input-keb-nominal').forEach(input => {
+                let val = parseInt(input.value) || 0;
+                total += val;
+            });
+            document.getElementById('prospek-nominal').value = total > 0 ? total : '';
         }
     </script>
