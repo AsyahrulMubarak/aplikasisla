@@ -741,7 +741,7 @@
                         // Pastikan nomor diawali kode negara 62
                         if(noWaTek.startsWith('0')) noWaTek = '62' + noWaTek.substring(1);
                         
-                        let pesanWaTek = encodeURIComponent(`Assalamu'alaikum Mas ${namaTek},\nSaya dari Klien atas nama *${t['Klien & Lokasi']}*.\n\nIngin menanyakan update dan progres pekerjaan untuk ID Tiket: *${t['ID Tiket']}*.\n\nTerima kasih.`);
+                        let pesanWaTek = encodeURIComponent(`Assalamu'alaikum ${namaTek},\nSaya dari Klien atas nama *${t['Klien & Lokasi']}*.\n\nIngin menanyakan update dan progres pekerjaan untuk ID Tiket: *${t['ID Tiket']}*.\n\nTerima kasih.`);
                         
                         kumpulanTombol += `<a href="https://wa.me/${noWaTek}?text=${pesanWaTek}" target="_blank" class="btn-solid-primary" style="background:#2563eb; display:block; text-align:center; text-decoration:none; padding:10px; margin-top:8px; font-size:13px; font-weight:600; box-shadow:0 2px 4px rgba(37,99,235,0.2);">👨‍🔧 Chat Teknisi: ${namaTek}</a>`;
                     }
