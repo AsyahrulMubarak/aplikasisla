@@ -2779,6 +2779,9 @@
         // ==========================================
         // FITUR SCANNER DENDA INAP (ADMIN)
         // ==========================================
+        // ==========================================
+        // FITUR SCANNER DENDA INAP (MULAI HARI KE-3)
+        // ==========================================
         function scanDendaInap() {
             let htmlHasil = '';
             let now = new Date();
@@ -2793,11 +2796,14 @@
                     if (!isNaN(tglBuat.getTime())) {
                         let bedaHari = Math.floor((now.getTime() - tglBuat.getTime()) / (1000 * 3600 * 24));
                         
-                        // Hanya Klien yang lewat dari 5 Hari yang discan
-                        if (bedaHari >= 5) {
+                        // 1. Scanner mendeteksi barang mengendap mulai Hari ke-3
+                        if (bedaHari >= 3) {
                             countKlien++;
                             let namaBarang = g['Barang / Jasa'];
                             let ref = g['Referensi (Tiket/Nota)'];
+                            
+                            // Ambil jejak rekam digital dari Kolom ke-13 (Index 12)
+                            let riwayatFollowUp = g[12] || '<span style="color:red; font-weight:bold;">Belum Pernah Dihubungi ❌</span>';
                             
                             let t = (globalTickets || []).find(x => x['ID Tiket'] === ref);
                             let namaKlien = t ? t['Klien & Lokasi'] : 'Klien';
@@ -2808,26 +2814,41 @@
                             
                             let pesan = ''; let denda = 0; let warna = '';
                             
-                            if (bedaHari >= 5 && bedaHari < 7) {
-                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nMengingatkan bahwa barang servis Anda (${namaBarang}) sudah siap diambil di toko Alfacom.\n\nBatas pengambilan bebas biaya sisa ${7 - bedaHari} hari lagi ya Kak.\nTerima kasih.`;
-                                warna = '#fef9c3'; // Kuning Peringatan
+                            // 2. Logika Template Hari Khusus
+                            if (bedaHari === 5) {
+                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\n*PEMBERITAHUAN ALFACOM*\nMengingatkan bahwa besok adalah hari terakhir pengambilan bebas biaya. Mulai lusa (hari ke-7), barang servis Anda (${namaBarang}) akan mulai dikenakan biaya penitipan gudang Rp 1.000/hari.\n\nMohon segera diambil hari ini atau besok ya Kak.`;
+                                warna = '#fef3c7'; // Kuning Terang (Peringatan H-5)
+                            } else if (bedaHari === 28) {
+                                let telat = bedaHari - 7 + 1;
+                                denda = telat * 1000;
+                                totalDenda += denda;
+                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\n*PERINGATAN FINAL (H-2)*\nBarang servis Anda (${namaBarang}) telah mengendap selama 28 hari. Saat ini biaya penitipan berjalan Rp ${denda.toLocaleString('id-ID')}.\n\nJika tidak diambil dalam 2 hari ke depan (Hari ke-30), barang tersebut secara otomatis berada di luar tanggung jawab penyimpanan Alfacom.`;
+                                warna = '#fef2f2'; // Merah Peringatan Final (H-28)
                             } else if (bedaHari >= 7 && bedaHari < 30) {
                                 let telat = bedaHari - 7 + 1;
                                 denda = telat * 1000;
                                 totalDenda += denda;
-                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nMengingatkan bahwa barang servis Anda (${namaBarang}) belum diambil dan telah melewati batas toleransi 7 hari.\n\nSaat ini argo biaya penitipan gudang berjalan: *Rp ${denda.toLocaleString('id-ID')}* (Telat ${telat} hari).\n\nMohon segera diambil sebelum hari ke-30 ya Kak agar barang tetap aman. Terima kasih.`;
-                                warna = '#fee2e2'; // Merah Denda
-                            } else {
+                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nMengingatkan bahwa barang servis Anda (${namaBarang}) telah melewati batas 7 hari.\n\nSaat ini biaya penitipan berjalan: *Rp ${denda.toLocaleString('id-ID')}* (Telat ${telat} hari).\nMohon segera diambil ya Kak.`;
+                                warna = '#fff0f5'; // Pink (Denda Reguler)
+                            } else if (bedaHari >= 30) {
                                 pesan = `Assalamu'alaikum Kak ${namaKlien},\n\n*PEMBERITAHUAN FINAL*\nBarang servis Anda (${namaBarang}) belum diambil melampaui 30 hari. Sesuai kesepakatan tertulis, barang tersebut kini di luar tanggung jawab penyimpanan Alfacom.`;
-                                warna = '#1f2937'; // Hitam Expired
+                                warna = '#1f2937'; // Hitam (Expired)
+                            } else {
+                                // Template Reguler untuk Hari ke-3, ke-4, dan ke-6
+                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nMengingatkan kembali bahwa barang servis Anda (${namaBarang}) sudah siap diambil di toko Alfacom.\n\nMohon segera diambil ya Kak agar tidak terkena biaya penitipan gudang di hari ke-7.`;
+                                warna = '#f8fafc'; // Putih Biru (Follow Up Standar)
                             }
                             
-                            let waLink = noWa ? `<a href="https://wa.me/${noWa}?text=${encodeURIComponent(pesan)}" target="_blank" style="display:inline-block; margin-top:8px; padding:6px 12px; background:#25d366; color:white; border-radius:4px; text-decoration:none; font-size:11px; font-weight:bold;">💬 Kirim WA Tagihan</a>` : '<span style="font-size:11px; color:red; display:block; margin-top:5px;">No WA Klien Tidak Ditemukan</span>';
+                            // 3. Tombol pintar dengan fungsi pencatat jejak
+                            let waLink = noWa ? `<button onclick="kirimWAdanCatat('${ref}', '${noWa}', '${encodeURIComponent(pesan)}', this)" style="display:block; width:100%; margin-top:8px; padding:10px 12px; background:#25d366; color:white; border:none; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">💬 Kirim WA & Catat Riwayat</button>` : '<span style="font-size:11px; color:red; display:block; margin-top:5px;">No WA Klien Tidak Ditemukan</span>';
                             
                             htmlHasil += `<div style="background:${warna}; padding:12px; border-radius:6px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.1); font-size:12px; ${bedaHari>=30?'color:white;':''}">
                                 <strong style="font-size:14px;">${namaKlien}</strong> (${ref})<br>
                                 <div style="margin-top:5px;">Barang: ${namaBarang}</div>
-                                <div style="margin-top:3px;">Lama Mengendap: <b>${bedaHari} Hari</b> ${denda > 0 ? `| Denda: <b>Rp ${denda.toLocaleString('id-ID')}</b>` : ''}</div>
+                                <div style="margin-top:3px;">Mengendap: <b>${bedaHari} Hari</b> ${denda > 0 ? `| Denda: <b>Rp ${denda.toLocaleString('id-ID')}</b>` : ''}</div>
+                                <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #ccc; font-size:11px;">
+                                    Status: <i>${riwayatFollowUp}</i>
+                                </div>
                                 ${waLink}
                             </div>`;
                         }
@@ -2836,12 +2857,48 @@
             });
             
             if (countKlien === 0) {
-                htmlHasil = '<p style="font-size:13px; text-align:center; margin-top:20px;">Alhamdulillah, tidak ada barang Klien yang mengendap lebih dari 5 hari.</p>';
+                htmlHasil = '<p style="font-size:13px; text-align:center; margin-top:20px;">Alhamdulillah, tidak ada barang Klien yang mengendap lebih dari 3 hari.</p>';
             } else {
-                htmlHasil = `<div style="margin-bottom:15px; padding:10px; background:#ecfdf5; color:#065f46; border-radius:6px; font-weight:bold; font-size:13px; border:1px solid #a7f3d0;">Data Klien: ${countKlien} Orang<br>Total Denda Berjalan: Rp ${totalDenda.toLocaleString('id-ID')}</div>` + htmlHasil;
+                htmlHasil = `<div style="margin-bottom:15px; padding:10px; background:#ecfdf5; color:#065f46; border-radius:6px; font-weight:bold; font-size:13px; border:1px solid #a7f3d0;">Data Klien (>= 3 Hari): ${countKlien} Orang<br>Total Denda Berjalan: Rp ${totalDenda.toLocaleString('id-ID')}</div>` + htmlHasil;
             }
             
             tampilkanModalInap(htmlHasil);
+        }
+
+        async function kirimWAdanCatat(ref, noWa, pesanUrlEncoded, btnElement) {
+            // A. Buka tab WhatsApp Klien
+            window.open(`https://wa.me/${noWa}?text=${pesanUrlEncoded}`, '_blank');
+            
+            // B. Ubah UI tombol sementara menjadi Loading
+            let teksLama = btnElement.innerText;
+            btnElement.innerText = "Mencatat Jejak...";
+            btnElement.disabled = true;
+            btnElement.style.background = "#9ca3af";
+            
+            try {
+                // C. Tembak data ke Google Sheets secara diam-diam
+                let payload = { apiKey: API_KEY, action: 'catatFollowUp', ref: ref, admin: penggunaAktif['Nama Asli'] || 'Admin' };
+                
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
+                const jsonRes = await res.json();
+                
+                if (jsonRes.status === 'sukses') {
+                    btnElement.innerText = "✅ Tersimpan!";
+                    btnElement.style.background = "#10b981";
+                    
+                    // Reload data secara lokal & Segarkan UI Scanner setelah 2 Detik
+                    setTimeout(async () => { 
+                        await ambilSemuaData(true); 
+                        scanDendaInap(); 
+                    }, 2000); 
+                } else {
+                    btnElement.innerText = "Gagal Mencatat";
+                    btnElement.style.background = "#ef4444";
+                }
+            } catch (err) {
+                btnElement.innerText = "Koneksi Lemah";
+                btnElement.style.background = "#f59e0b";
+            }
         }
 
         function tampilkanModalInap(isiHtml) {
