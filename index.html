@@ -1294,11 +1294,19 @@
             function inPeriode(dateVal) {
                 if(selBulan === 'all') return true;
                 if(!dateVal) return false;
-                let d = dateVal instanceof Date ? dateVal : new Date(String(dateVal).replace(/-/g, "/"));
-                if(isNaN(d.getTime())) return false;
+                
+                // 1. Coba baca format standar bawaan sistem (Waktu Lapor)
+                let d = new Date(dateVal);
+                
+                // 2. Jika gagal, gunakan trik garis miring untuk teks kustom (Waktu Selesai)
+                if (isNaN(d.getTime()) && typeof dateVal === 'string') {
+                    d = new Date(dateVal.replace(/-/g, "/"));
+                }
+                
+                if (isNaN(d.getTime())) return false;
+                
                 return (d.getMonth() + 1 == selBulan) && (d.getFullYear() == selTahun);
             }
-
             (globalUsers || []).forEach(u => { 
                 if (u && u.Role === 'teknisi' && u['Nama Asli']) { 
                     let namaAsli = u['Nama Asli']; if (namaAsli.toLowerCase() === 'syawal') namaAsli = 'Muhammad Syawal'; 
