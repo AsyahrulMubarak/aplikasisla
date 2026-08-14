@@ -447,6 +447,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:#3b82f6;">Data Garansi Klien</h3>
                 <button id="btn-tambah-garansi" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:#3b82f6; display:none;" onclick="bukaFormGaransi()">+ Input Garansi</button>
+                <button onclick="scanDendaInap()" class="btn-action-primary" style="background:var(--warning); color:#fff; border:none; margin-bottom:15px; display:inline-block; width:auto; margin-left:10px;">🔍 Scan Klien Mengendap / Denda</button>
             </div>
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
@@ -794,16 +795,16 @@
                 }
             }
 
-            // =======================================================
-            // RENDER DATA GARANSI
+          // =======================================================
+            // RENDER DATA GARANSI (UPDATE POINT 3: DENDA INAP)
             // =======================================================
             let htmlGaransi = '';
             let refsDiGaransi = globalGaransi.filter(g => g && String(g['Referensi (Tiket/Nota)']).trim() === currentTrackTicket);
             
             if (refsDiGaransi.length > 0) {
-                htmlGaransi = `<h4 style="margin:25px 0 10px 0; color:#3b82f6; border-bottom:1px solid var(--border); padding-bottom:5px;">🛡️ Status Garansi Anda</h4>`;
+                htmlGaransi = `<h4 style="margin:25px 0 10px 0; color:#3b82f6; border-bottom:1px solid var(--border); padding-bottom:5px;">🛡️ Status Garansi & Barang</h4>`;
                 refsDiGaransi.forEach(g => {
-                    let statGrs = g['Status'] || 'Masa Tunggu';
+                    let statGrs = String(g['Status'] || 'Masa Tunggu').trim();
                     let scG = 'status-aman'; let bcG = 'badge-tunggu';
                     if (statGrs === 'Aktif') { scG = 'status-terpenuhi'; bcG = 'badge-aktif'; }
                     else if (statGrs.includes('Habis') || statGrs.includes('Hangus') || statGrs.includes('Diklaim')) { scG = 'status-terlambat'; bcG = 'badge-habis'; }
@@ -812,14 +813,38 @@
                     let ketKlien = g['Keterangan'] || g[Object.keys(g)[11]] || '';
                     let ketKlienHtml = ketKlien ? `<p style="margin:0 0 5px 0; font-size:12px; color:var(--text-muted);"><i>Catatan: ${ketKlien}</i></p>` : '';
                     
-                    // Arahkan garansi ke nomor admin pusat
+                    // -- LOGIKA PENGHITUNG WAKTU INAP & DENDA --
+                    let htmlPeringatanInap = '';
+                    if (statGrs.includes('Masa Tunggu') || statGrs.includes('Belum Diambil')) {
+                        let tglBuatStr = g[Object.keys(g)[0]]; // Tanggal garansi (tiket selesai) dibuat
+                        let tglBuat = tglBuatStr instanceof Date ? tglBuatStr : new Date(String(tglBuatStr).replace(/-/g, "/"));
+                        if (!isNaN(tglBuat.getTime())) {
+                            let now = new Date();
+                            // Hitung selisih hari (kalender murni 24 Jam)
+                            let bedaHari = Math.floor((now.getTime() - tglBuat.getTime()) / (1000 * 3600 * 24));
+                            
+                            if (bedaHari < 7) {
+                                let sisa = 7 - bedaHari;
+                                htmlPeringatanInap = `<div style="background:#fef9c3; color:#a16207; padding:10px; border-radius:6px; font-size:12px; border:1px solid #fde047; margin-bottom:10px; line-height:1.4;">⚠️ <b>Perhatian:</b> Barang Anda sudah siap. Batas pengambilan bebas biaya penitipan tersisa <b>${sisa} Hari</b> lagi.</div>`;
+                            } else if (bedaHari >= 7 && bedaHari < 30) {
+                                let telat = bedaHari - 7 + 1; // Hari ke-8 = telat 1 hari
+                                let denda = telat * 1000;
+                                htmlPeringatanInap = `<div style="background:#fee2e2; color:#b91c1c; padding:10px; border-radius:6px; font-size:12px; border:1px solid #fca5a5; margin-bottom:10px; line-height:1.4;">🚨 <b>Kena Biaya Penitipan:</b> Barang telat diambil ${telat} hari.<br>Denda Inap Berjalan: <b>Rp ${denda.toLocaleString('id-ID')}</b><br>Mohon segera diambil sebelum hari ke-30.</div>`;
+                            } else if (bedaHari >= 30) {
+                                htmlPeringatanInap = `<div style="background:#1f2937; color:#f9fafb; padding:10px; border-radius:6px; font-size:12px; border:1px solid #374151; margin-bottom:10px; line-height:1.4;">⚫ <b>EXPIRED (Lewat 30 Hari):</b> Sesuai SOP Alfacom, barang yang tidak diambil lebih dari 30 hari berada di luar tanggung jawab kami.</div>`;
+                                scG = 'status-terlambat'; // Card jadi abu-abu gelap
+                            }
+                        }
+                    }
+                    
                     let waAdmin = "6285134817914"; 
                     let pesanWa = encodeURIComponent(`Assalamu'alaikum Admin Alfacom,\nSaya klien atas nama *${t['Klien & Lokasi']}*.\n\nSaya ingin bertanya/mengklaim garansi terkait pekerjaan dengan ID: *${currentTrackTicket}*.`);
                     let btnKlaim = statGrs === 'Aktif' ? `<a href="https://wa.me/${waAdmin}?text=${pesanWa}" target="_blank" class="btn-solid-primary" style="background:#10b981; display:block; text-align:center; text-decoration:none; padding:10px; margin-top:10px;">💬 Klaim via WhatsApp</a>` : '';
 
                     htmlGaransi += `<div class="card ${scG}" style="padding:15px; margin-bottom:10px; background:#f8fafc; border-radius:8px;">
+                        ${htmlPeringatanInap}
                         <h3 style="font-size:14px; margin:0 0 10px 0;">${g['Barang / Jasa']} <span class="badge ${bcG}" style="float:right;">${statGrs}</span></h3>
-                        <p style="margin:0 0 5px 0; font-size:12px;"><strong>Durasi:</strong> ${g['Durasi (Hari)']} Hari</p>
+                        <p style="margin:0 0 5px 0; font-size:12px;"><strong>Durasi Garansi:</strong> ${g['Durasi (Hari)']} Hari</p>
                         <p style="margin:0 0 5px 0; font-size:12px;"><strong>Habis Pada:</strong> ${tglHabis}</p>
                         ${ketKlienHtml}
                         ${btnKlaim}
@@ -2750,5 +2775,88 @@
                 total += val;
             });
             document.getElementById('prospek-nominal').value = total > 0 ? total : '';
+        }
+        // ==========================================
+        // FITUR SCANNER DENDA INAP (ADMIN)
+        // ==========================================
+        function scanDendaInap() {
+            let htmlHasil = '';
+            let now = new Date();
+            let totalDenda = 0; let countKlien = 0;
+            
+            (globalGaransi || []).forEach(g => {
+                let statGrs = String(g['Status'] || '').trim();
+                if (statGrs.includes('Masa Tunggu') || statGrs.includes('Belum Diambil')) {
+                    let tglBuatStr = g[Object.keys(g)[0]]; 
+                    let tglBuat = tglBuatStr instanceof Date ? tglBuatStr : new Date(String(tglBuatStr).replace(/-/g, "/"));
+                    
+                    if (!isNaN(tglBuat.getTime())) {
+                        let bedaHari = Math.floor((now.getTime() - tglBuat.getTime()) / (1000 * 3600 * 24));
+                        
+                        // Hanya Klien yang lewat dari 5 Hari yang discan
+                        if (bedaHari >= 5) {
+                            countKlien++;
+                            let namaBarang = g['Barang / Jasa'];
+                            let ref = g['Referensi (Tiket/Nota)'];
+                            
+                            let t = (globalTickets || []).find(x => x['ID Tiket'] === ref);
+                            let namaKlien = t ? t['Klien & Lokasi'] : 'Klien';
+                            let keys = t ? Object.keys(t) : [];
+                            let waKey = keys.find(k => k.toLowerCase().includes('wa klien'));
+                            let noWa = (t && waKey) ? String(t[waKey]).trim() : '';
+                            if(noWa.startsWith('0')) noWa = '62' + noWa.substring(1);
+                            
+                            let pesan = ''; let denda = 0; let warna = '';
+                            
+                            if (bedaHari >= 5 && bedaHari < 7) {
+                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nMengingatkan bahwa barang servis Anda (${namaBarang}) sudah siap diambil di toko Alfacom.\n\nBatas pengambilan bebas biaya sisa ${7 - bedaHari} hari lagi ya Kak.\nTerima kasih.`;
+                                warna = '#fef9c3'; // Kuning Peringatan
+                            } else if (bedaHari >= 7 && bedaHari < 30) {
+                                let telat = bedaHari - 7 + 1;
+                                denda = telat * 1000;
+                                totalDenda += denda;
+                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nMengingatkan bahwa barang servis Anda (${namaBarang}) belum diambil dan telah melewati batas toleransi 7 hari.\n\nSaat ini argo biaya penitipan gudang berjalan: *Rp ${denda.toLocaleString('id-ID')}* (Telat ${telat} hari).\n\nMohon segera diambil sebelum hari ke-30 ya Kak agar barang tetap aman. Terima kasih.`;
+                                warna = '#fee2e2'; // Merah Denda
+                            } else {
+                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\n*PEMBERITAHUAN FINAL*\nBarang servis Anda (${namaBarang}) belum diambil melampaui 30 hari. Sesuai kesepakatan tertulis, barang tersebut kini di luar tanggung jawab penyimpanan Alfacom.`;
+                                warna = '#1f2937'; // Hitam Expired
+                            }
+                            
+                            let waLink = noWa ? `<a href="https://wa.me/${noWa}?text=${encodeURIComponent(pesan)}" target="_blank" style="display:inline-block; margin-top:8px; padding:6px 12px; background:#25d366; color:white; border-radius:4px; text-decoration:none; font-size:11px; font-weight:bold;">💬 Kirim WA Tagihan</a>` : '<span style="font-size:11px; color:red; display:block; margin-top:5px;">No WA Klien Tidak Ditemukan</span>';
+                            
+                            htmlHasil += `<div style="background:${warna}; padding:12px; border-radius:6px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.1); font-size:12px; ${bedaHari>=30?'color:white;':''}">
+                                <strong style="font-size:14px;">${namaKlien}</strong> (${ref})<br>
+                                <div style="margin-top:5px;">Barang: ${namaBarang}</div>
+                                <div style="margin-top:3px;">Lama Mengendap: <b>${bedaHari} Hari</b> ${denda > 0 ? `| Denda: <b>Rp ${denda.toLocaleString('id-ID')}</b>` : ''}</div>
+                                ${waLink}
+                            </div>`;
+                        }
+                    }
+                }
+            });
+            
+            if (countKlien === 0) {
+                htmlHasil = '<p style="font-size:13px; text-align:center; margin-top:20px;">Alhamdulillah, tidak ada barang Klien yang mengendap lebih dari 5 hari.</p>';
+            } else {
+                htmlHasil = `<div style="margin-bottom:15px; padding:10px; background:#ecfdf5; color:#065f46; border-radius:6px; font-weight:bold; font-size:13px; border:1px solid #a7f3d0;">Data Klien: ${countKlien} Orang<br>Total Denda Berjalan: Rp ${totalDenda.toLocaleString('id-ID')}</div>` + htmlHasil;
+            }
+            
+            tampilkanModalInap(htmlHasil);
+        }
+
+        function tampilkanModalInap(isiHtml) {
+            let overlay = document.createElement('div');
+            overlay.id = 'modal-inap-overlay';
+            overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; display:flex; justify-content:center; align-items:center; padding:20px;';
+            
+            let box = document.createElement('div');
+            box.style.cssText = 'background:white; padding:20px; border-radius:12px; width:100%; max-width:450px; max-height:85vh; overflow-y:auto; box-shadow:0 10px 15px rgba(0,0,0,0.2);';
+            
+            box.innerHTML = `<h3 style="margin:0 0 15px 0; color:#1e3a8a; border-bottom:1px solid #e5e7eb; padding-bottom:10px; font-size:18px;">📋 Scanner Barang Mengendap</h3>
+            <div style="margin-bottom:20px;">${isiHtml}</div>
+            <button onclick="document.getElementById('modal-inap-overlay').remove()" class="btn-action-primary" style="width:100%; background:#ef4444; border:none; color:white; padding:12px; font-size:14px;">Tutup Scanner</button>`;
+            
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
         }
     </script>
