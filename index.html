@@ -355,6 +355,20 @@
             <div id="admin-export-section" style="display:none; text-align:right; margin-bottom:15px;">
                 <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan</button>
             </div>
+            <!-- MESIN WAKTU / FILTER DASBOR -->
+            <div id="dashboard-filter-section" style="background:#fff; padding:15px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px; display:flex; gap:10px; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                <label style="margin:0; font-size:12px; color:var(--text-muted);">Periode:</label>
+                <select id="filter-bulan-dash" onchange="renderDashboard()" style="padding:8px; font-size:13px; flex:1; margin:0; cursor:pointer;">
+                    <option value="all">Semua Bulan</option>
+                    <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+                    <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+                    <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+                    <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+                </select>
+                <select id="filter-tahun-dash" onchange="renderDashboard()" style="padding:8px; font-size:13px; width:80px; margin:0; cursor:pointer;">
+                    <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
+                </select>
+            </div>
             <div id="dash-segment" class="segment-control" style="display:none;">
                 <button class="segment-btn active" id="btn-dash-sales" onclick="switchDashTab('sales')">Pencapaian Sales</button>
                 <button class="segment-btn" id="btn-dash-tek" onclick="switchDashTab('tek')">Performa Tim</button>
@@ -520,6 +534,16 @@
                     <!-- FITUR BARU WA KLIEN -->
                     <label style="color:#1e3a8a;">No WhatsApp Klien (Opsional - Untuk Notif Tracking)</label>
                     <input type="number" id="input-wa-klien" placeholder="Contoh: 6285123456789">
+                    <!-- ===================== -->
+                    <!-- FITUR POIN & VETO ADMIN -->
+                    <label style="color:#b45309;">Bobot Poin Pekerjaan (Angka)</label>
+                    <input type="number" id="input-bobot-poin" placeholder="Contoh: 10, 50, atau 100">
+                    <div id="div-pulihkan-poin" style="display:none; background:#fffbeb; padding:12px; border-radius:8px; border:1px dashed #fde68a; margin-top:10px; margin-bottom:10px;">
+                        <label style="display:flex; align-items:center; margin:0; font-size:13px; color:#b45309; cursor:pointer; font-weight:bold;">
+                            <input type="checkbox" id="input-pulihkan-poin" style="width:18px; height:18px; margin-right:8px; accent-color:#f59e0b;">
+                            🛡️ Pulihkan Poin SLA (Alasan Telat Diterima)
+                        </label>
+                    </div>
                     <!-- ===================== -->
                     <label>Jenis Pekerjaan</label>
                     <div id="wadah-pekerjaan">
