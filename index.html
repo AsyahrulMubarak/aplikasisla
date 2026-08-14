@@ -381,7 +381,7 @@
             <h3 class="section-title">Daftar Tiket SLA (Pekerjaan)</h3>
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." oninput="toggleClearBtn(this); renderTickets()">
+                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." oninput="toggleClearBtn(this); ">
                 <span class="clear-icon" onclick="clearSearch('search-tiket')">✖</span>
             </div>
             <div class="segment-control">
@@ -956,7 +956,7 @@
         }
 
         function toggleClearBtn(el) { const btn = el.nextElementSibling; if(btn && btn.classList.contains('clear-icon')) { btn.style.display = el.value.length > 0 ? 'block' : 'none'; } }
-        function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') renderTickets(); else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); } }
+        function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') ; else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); } }
 
         function hapusCacheTotal() {
             if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(registrations) { for(let registration of registrations) { registration.unregister(); } }); caches.keys().then(function(names) { for (let name of names) caches.delete(name); }); }
@@ -1029,7 +1029,7 @@
             } 
         }
         
-        function setTicketFilter(filterType) { currentTicketFilter = filterType; document.getElementById('btn-filter-aktif').classList.remove('active'); document.getElementById('btn-filter-riwayat').classList.remove('active'); if(filterType === 'aktif') document.getElementById('btn-filter-aktif').classList.add('active'); else document.getElementById('btn-filter-riwayat').classList.add('active'); renderTickets(); }
+        function setTicketFilter(filterType) { currentTicketFilter = filterType; document.getElementById('btn-filter-aktif').classList.remove('active'); document.getElementById('btn-filter-riwayat').classList.remove('active'); if(filterType === 'aktif') document.getElementById('btn-filter-aktif').classList.add('active'); else document.getElementById('btn-filter-riwayat').classList.add('active'); ; }
 
         async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
 
@@ -1701,10 +1701,44 @@
                     infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`; 
                 }
 
+                // ==========================================
+                // FITUR TRANSPARANSI POIN TEKNISI
+                // ==========================================
+                let htmlPoinTeknisi = '';
+                if (['admin', 'manager', 'direktur', 'teknisi'].includes(penggunaAktif.Role)) {
+                    let nilaiPoin = parseFloat(ticket['Bobot Poin']) || 0;
+                    let isVeto = String(ticket['Veto Admin'] || '').trim().toLowerCase() === 'ya';
+                    let statusSlaKerja = ticket['Status SLA'];
+                    
+                    if (nilaiPoin === 0) {
+                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; display:inline-block; font-size:12px; color:#991b1b; font-weight:bold;">⚠️ Bobot Poin Belum Diisi (0)</div>`;
+                    } else {
+                        let warnaPoin = '#166534'; let bgPoin = '#dcfce7'; let borderPoin = '#bbf7d0'; let teksPoinTambahan = '';
+                        
+                        // Logika Tampilan Poin Jika Tiket Selesai
+                        if (textStatus === 'Selesai') {
+                            if (statusSlaKerja === 'TERLAMBAT' && !isVeto) {
+                                warnaPoin = '#991b1b'; bgPoin = '#fef2f2'; borderPoin = '#fecaca';
+                                teksPoinTambahan = ' <span style="text-decoration:line-through; color:#ef4444;">(Hangus)</span>';
+                            } else if (isVeto) {
+                                teksPoinTambahan = ' <span title="Diselamatkan oleh Veto Admin">🛡️ <i style="font-size:10px;">(Veto Admin)</i></span>';
+                            }
+                        }
+                        
+                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:${bgPoin}; border:1px solid ${borderPoin}; border-radius:6px; display:inline-block; font-size:12px; color:${warnaPoin}; font-weight:bold;">⭐ Bobot Pekerjaan: ${nilaiPoin} Poin${teksPoinTambahan}</div>`;
+                    }
+                }
+
                 container.innerHTML += `<div class="card ${sc}">
                     <h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>
                     ${noTrans}
                     <p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p>
+                    ${noWAKlienTeks}
+                    <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
+                    <p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>
+                    ${infoPenjualanHtml}
+                    <p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
+                    ${htmlPoinTeknisi}
                     ${noWAKlienTeks}
                     <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
                     <p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>
