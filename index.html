@@ -974,8 +974,7 @@
         }
 
         function toggleClearBtn(el) { const btn = el.nextElementSibling; if(btn && btn.classList.contains('clear-icon')) { btn.style.display = el.value.length > 0 ? 'block' : 'none'; } }
-        function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') renderTickets(); else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); } } else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); } }
-
+        function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') renderTickets(); else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); } }
         function hapusCacheTotal() {
             if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(registrations) { for(let registration of registrations) { registration.unregister(); } }); caches.keys().then(function(names) { for (let name of names) caches.delete(name); }); }
             localStorage.clear(); sessionStorage.clear(); window.location.href = window.location.pathname + "?v=" + new Date().getTime();
@@ -2391,10 +2390,6 @@
                             waKlien: document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '',
                             ttdKlienAwal: isCanvasInputDrawn ? canvasInput.toDataURL('image/png') : ""
                         };
-                            // --- TAMBAHAN POIN & VETO ---
-                            bobotPoin: document.getElementById('input-bobot-poin').value,
-                            vetoPoin: document.getElementById('input-pulihkan-poin').checked ? 'Ya' : 'Tidak'
-                        };
                         const controller = new AbortController();
                         const timeoutId = setTimeout(() => controller.abort(), 20000);
                         const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(loopPayload), signal: controller.signal }); 
@@ -2490,9 +2485,7 @@
             
             const tArr = String(t['Teknisi'] || '').split(',').map(n => n.trim()); 
             document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); 
-            document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket'; 
-            document.getElementById('btn-submit-pekerjaan').style.background = 'var(--warning)'; 
-            document.getElementById('btn-batal-edit-tiket').style.display = 'block'; 
+            document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket';
         }
 
         function batalEditTiket() { 
@@ -2513,6 +2506,7 @@
             document.getElementById('btn-batal-edit-tiket').style.display = 'none'; 
             document.getElementById('input-notrans-sla').value = ''; 
             togglePenjualanInput(); setAutoIDs(); 
+        
         }
 
         function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
