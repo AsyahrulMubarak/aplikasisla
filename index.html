@@ -302,6 +302,24 @@
     </div>
 
     <div id="modal-update" class="modal">
+        <div id="modal-poin" class="modal">
+        <div class="modal-content" style="border-top-color: #eab308;">
+            <h3 class="modal-title" style="color: #eab308;">⭐ Input Poin Kinerja Teknisi</h3>
+            <form onsubmit="simpanPoinSelesai(event)">
+                <input type="hidden" id="poin-id-tiket">
+                <label>Bobot Poin Pekerjaan</label>
+                <input type="number" id="poin-nilai-input" placeholder="Contoh: 10, 50, 100" required>
+                <div style="background:#fffbeb; padding:12px; border-radius:8px; border:1px dashed #fde68a; margin-top:10px; margin-bottom:15px;">
+                    <label style="display:flex; align-items:center; margin:0; font-size:13px; color:#b45309; cursor:pointer; font-weight:bold;">
+                        <input type="checkbox" id="poin-veto-input" style="width:18px; height:18px; margin-right:8px; accent-color:#f59e0b;">
+                        🛡️ Pulihkan Poin SLA (Veto Admin)
+                    </label>
+                </div>
+                <button type="submit" id="btn-submit-poin" class="btn-solid-primary" style="background:#eab308;">Simpan Poin</button>
+                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-poin').style.display='none'">Batal</button>
+            </form>
+        </div>
+    </div>
         <div class="modal-content">
             <h3 id="update-title" class="modal-title">Update Status Tiket</h3>
             <form id="form-update" onsubmit="submitUpdate(event)">
@@ -494,6 +512,15 @@
                         <label style="color:#166534; margin-top:0;">Nilai Penjualan / Omzet (Rp)</label>
                         <input type="number" id="garansi-omzet" style="border-color:#86efac; background:#fff;">
                     </div>
+                    <div id="garansi-poin-section" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px dashed #cbd5e1; margin-bottom:15px; display:none;">
+                        <h4 style="margin:0 0 10px 0; color:#eab308; font-size:13px;">⭐ Penilaian Kinerja Teknisi</h4>
+                        <label style="margin-top:0;">Bobot Poin Pekerjaan</label>
+                        <input type="number" id="garansi-poin-nilai" placeholder="Contoh: 10, 50, 100">
+                        <label style="display:flex; align-items:center; margin-top:10px; font-size:12px; color:#b45309; cursor:pointer; font-weight:bold;">
+                            <input type="checkbox" id="garansi-poin-veto" style="width:16px; height:16px; margin-right:8px; accent-color:#f59e0b;">
+                            🛡️ Pulihkan Poin SLA (Veto Admin)
+                        </label>
+                    </div>
                     <label>Durasi Garansi</label>
                     <select id="garansi-durasi" required>
                         <option value="" disabled selected>-- Pilih Durasi --</option>
@@ -535,16 +562,7 @@
                     <label style="color:#1e3a8a;">No WhatsApp Klien (Opsional - Untuk Notif Tracking)</label>
                     <input type="number" id="input-wa-klien" placeholder="Contoh: 6285123456789">
                     <!-- ===================== -->
-                    <!-- FITUR POIN & VETO ADMIN -->
-                    <label style="color:#b45309;">Bobot Poin Pekerjaan (Angka)</label>
-                    <input type="number" id="input-bobot-poin" placeholder="Contoh: 10, 50, atau 100">
-                    <div id="div-pulihkan-poin" style="display:none; background:#fffbeb; padding:12px; border-radius:8px; border:1px dashed #fde68a; margin-top:10px; margin-bottom:10px;">
-                        <label style="display:flex; align-items:center; margin:0; font-size:13px; color:#b45309; cursor:pointer; font-weight:bold;">
-                            <input type="checkbox" id="input-pulihkan-poin" style="width:18px; height:18px; margin-right:8px; accent-color:#f59e0b;">
-                            🛡️ Pulihkan Poin SLA (Alasan Telat Diterima)
-                        </label>
-                    </div>
-                    <!-- ===================== -->
+                    
                     <label>Jenis Pekerjaan</label>
                     <div id="wadah-pekerjaan">
                         <div class="pekerjaan-item" style="position:relative; margin-bottom:10px;">
@@ -1677,7 +1695,8 @@
                         btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid">${delBtn}</div>`; 
                     } else { 
                         let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status'; 
-                        btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button><div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button>${delBtn}</div>`; 
+                        let btnPoin = textStatus === 'Selesai' ? `<button class="btn-action-primary" style="background:#fefce8; color:#a16207; border-color:#fde047; margin-top:10px;" onclick="bukaModalPoin('${ticket['ID Tiket']}')">⭐ Input / Edit Poin Pekerjaan</button>` : '';
+                        btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>${btnPoin}<div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button>${delBtn}</div>`; 
                     }
                 } else if (penggunaAktif.Role === 'teknisi') {
                     let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status'; btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>`;
@@ -1702,10 +1721,11 @@
                 }
 
                 // ==========================================
-                // FITUR TRANSPARANSI POIN TEKNISI
+                // FITUR TRANSPARANSI POIN TEKNISI (HANYA JIKA SELESAI)
                 // ==========================================
                 let htmlPoinTeknisi = '';
-                if (['admin', 'manager', 'direktur', 'teknisi'].includes(penggunaAktif.Role)) {
+                // 1. Poin HANYA muncul jika statusnya Selesai
+                if (['admin', 'manager', 'direktur', 'teknisi'].includes(penggunaAktif.Role) && textStatus === 'Selesai') {
                     let nilaiPoin = parseFloat(ticket['Bobot Poin']) || 0;
                     let isVeto = String(ticket['Veto Admin'] || '').trim().toLowerCase() === 'ya';
                     let statusSlaKerja = ticket['Status SLA'];
@@ -1715,14 +1735,11 @@
                     } else {
                         let warnaPoin = '#166534'; let bgPoin = '#dcfce7'; let borderPoin = '#bbf7d0'; let teksPoinTambahan = '';
                         
-                        // Logika Tampilan Poin Jika Tiket Selesai
-                        if (textStatus === 'Selesai') {
-                            if (statusSlaKerja === 'TERLAMBAT' && !isVeto) {
-                                warnaPoin = '#991b1b'; bgPoin = '#fef2f2'; borderPoin = '#fecaca';
-                                teksPoinTambahan = ' <span style="text-decoration:line-through; color:#ef4444;">(Hangus)</span>';
-                            } else if (isVeto) {
-                                teksPoinTambahan = ' <span title="Diselamatkan oleh Veto Admin">🛡️ <i style="font-size:10px;">(Veto Admin)</i></span>';
-                            }
+                        if (statusSlaKerja === 'TERLAMBAT' && !isVeto) {
+                            warnaPoin = '#991b1b'; bgPoin = '#fef2f2'; borderPoin = '#fecaca';
+                            teksPoinTambahan = ' <span style="text-decoration:line-through; color:#ef4444;">(Hangus)</span>';
+                        } else if (isVeto) {
+                            teksPoinTambahan = ' <span title="Diselamatkan oleh Veto Admin">🛡️ <i style="font-size:10px;">(Veto Admin)</i></span>';
                         }
                         
                         htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:${bgPoin}; border:1px solid ${borderPoin}; border-radius:6px; display:inline-block; font-size:12px; color:${warnaPoin}; font-weight:bold;">⭐ Bobot Pekerjaan: ${nilaiPoin} Poin${teksPoinTambahan}</div>`;
@@ -3044,4 +3061,31 @@
             if(elBulan) elBulan.value = now.getMonth() + 1;
             if(elTahun) elTahun.value = now.getFullYear();
         });
+        function bukaModalPoin(idTiket) {
+            const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); if(!t) return;
+            document.getElementById('poin-id-tiket').value = idTiket;
+            document.getElementById('poin-nilai-input').value = t['Bobot Poin'] || '';
+            document.getElementById('poin-veto-input').checked = (String(t['Veto Admin'] || '').toLowerCase() === 'ya');
+            document.getElementById('modal-poin').style.display = 'flex';
+        }
+
+        async function simpanPoinSelesai(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-poin'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
+            try {
+                const payload = {
+                    apiKey: API_KEY, action: 'updatePoinTiket',
+                    idTiket: document.getElementById('poin-id-tiket').value,
+                    bobotPoin: document.getElementById('poin-nilai-input').value,
+                    vetoPoin: document.getElementById('poin-veto-input').checked ? 'Ya' : 'Tidak'
+                };
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
+                if ((await res.json()).status === 'sukses') {
+                    showToast('Alhamdulillah! Poin tersimpan.', 'success');
+                    document.getElementById('modal-poin').style.display = 'none';
+                    await ambilSemuaData(true);
+                } else { showToast('Afwan, Gagal update poin.', 'error'); }
+            } catch(err) { showToast('Afwan, Koneksi error.', 'error'); }
+            btn.innerText = 'Simpan Poin'; btn.disabled = false;
+        }
     </script>
