@@ -508,9 +508,7 @@
                     <textarea id="garansi-keterangan" rows="2" placeholder="Contoh: Kode lisensi, adaptor tidak masuk garansi..."></textarea>
                     
                     <label>Sales Penanggung Jawab (Opsional)</label>
-                    <select id="garansi-sales" onchange="toggleGaransiOmzet()">
-                        <option value="" selected>-- Pilih Sales (Opsional) --</option>
-                    </select>
+                    <div class="checkbox-group" id="garansi-sales-group"></div>
                     <div id="div-garansi-omzet" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px; margin-bottom:15px;">
                         <label style="color:#166534; margin-top:0;">Nilai Penjualan / Omzet (Rp)</label>
                         <input type="number" id="garansi-omzet" style="border-color:#86efac; background:#fff;">
@@ -1249,7 +1247,7 @@
             const checkedSales = document.querySelectorAll('#sales-group input[type="checkbox"]:checked');
             document.getElementById('div-nilai-penjualan').style.display = (checkedSales.length > 0) ? 'block' : 'none'; 
         }
-        function toggleGaransiOmzet() { const salesG = document.getElementById('garansi-sales'); const wadahOmzet = document.getElementById('div-garansi-omzet'); if(salesG && wadahOmzet) { wadahOmzet.style.display = (salesG.value !== "") ? 'block' : 'none'; } }
+        function toggleGaransiOmzet() { const checkedSales = document.querySelectorAll('#garansi-sales-group input[type="checkbox"]:checked'); const wadahOmzet = document.getElementById('div-garansi-omzet'); if(wadahOmzet) { wadahOmzet.style.display = (checkedSales.length > 0) ? 'block' : 'none'; } }
 
         function renderDynamicInputs() {
             try {
@@ -1260,21 +1258,20 @@
                 const prospekSalesGroup = document.getElementById('prospek-sales-group'); if(prospekSalesGroup) prospekSalesGroup.innerHTML = '';
                 
                 const salesSelectSls = document.getElementById('input-sales-sls'); const currentSalesSlsVal = salesSelectSls.value;
-                const salesSelectGaransi = document.getElementById('garansi-sales'); let currentGaransiVal = ''; if(salesSelectGaransi) currentGaransiVal = salesSelectGaransi.value;
+                const garansiSalesGroup = document.getElementById('garansi-sales-group'); 
+                if(garansiSalesGroup) garansiSalesGroup.innerHTML = '';
                 
                 salesSelectSls.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
-                if(salesSelectGaransi) salesSelectGaransi.innerHTML = '<option value="" selected>-- Pilih Sales (Opsional) --</option>';
                 
                 let salesList = (globalUsers || []).filter(u => u && u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
                 salesList.forEach(s => { 
                     if(salesGroup) salesGroup.innerHTML += `<label><input type="checkbox" value="${s}" onchange="togglePenjualanInput()"> ${s}</label>`;
                     if(prospekSalesGroup) prospekSalesGroup.innerHTML += `<label><input type="checkbox" value="${s}"> ${s}</label>`;
                     salesSelectSls.innerHTML += `<option value="${s}">${s}</option>`;
-                    if(salesSelectGaransi) salesSelectGaransi.innerHTML += `<option value="${s}">${s}</option>`;
+                    if(garansiSalesGroup) garansiSalesGroup.innerHTML += `<label><input type="checkbox" value="${s}" onchange="toggleGaransiOmzet()"> ${s}</label>`;
                 });
                 
                 salesSelectSls.value = currentSalesSlsVal;
-                if(salesSelectGaransi) salesSelectGaransi.value = currentGaransiVal;
             } catch(e) { console.error("Error render inputs:", e); }
         }
 
@@ -1805,6 +1802,10 @@
             try {
                 document.getElementById('form-garansi-container').style.display = 'block'; 
                 document.getElementById('form-garansi').reset(); 
+                // Bersihkan centang sales jika form dibuka ulang
+                if (document.getElementById('garansi-sales-group')) {
+                    document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
+                }
                 document.getElementById('div-garansi-omzet').style.display = 'none';
                 
                 // Pastikan poin sembunyi dulu sebelum referensi dipilih
@@ -1881,13 +1882,14 @@
                             document.getElementById('garansi-poin-veto').checked = (String(t['Veto Admin'] || '').toLowerCase() === 'ya');
                         }
 
-                        if(t['Sales'] && t['Sales'] !== '-') {
-                            document.getElementById('garansi-sales').value = t['Sales'];
+                        if (t['Sales'] && t['Sales'] !== '-') {
+                            let sArr = String(t['Sales']).split(',').map(n => n.trim());
+                            document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = sArr.includes(cb.value));
                             toggleGaransiOmzet();
                             let omzetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || '';
                             document.getElementById('garansi-omzet').value = omzetVal;
                         } else {
-                            document.getElementById('garansi-sales').value = '';
+                            document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
                             document.getElementById('garansi-omzet').value = '';
                             toggleGaransiOmzet();
                         }
@@ -1903,13 +1905,14 @@
                         // SEMBUNYIKAN KOTAK POIN KARENA INI PENJUALAN LANGSUNG
                         if (poinSection) poinSection.style.display = 'none';
                         
-                        if(p['Sales'] && p['Sales'] !== '-') {
-                            document.getElementById('garansi-sales').value = p['Sales'];
+                        if (t['Sales'] && t['Sales'] !== '-') {
+                            let sArr = String(t['Sales']).split(',').map(n => n.trim());
+                            document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = sArr.includes(cb.value));
                             toggleGaransiOmzet();
-                            let omzetVal = p['Nominal (Rp)'] || p['Nominal'] || '';
+                            let omzetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || '';
                             document.getElementById('garansi-omzet').value = omzetVal;
                         } else {
-                            document.getElementById('garansi-sales').value = '';
+                            document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
                             document.getElementById('garansi-omzet').value = '';
                             toggleGaransiOmzet();
                         }
@@ -2031,7 +2034,7 @@
                     barang: document.getElementById('garansi-barang').value, 
                     durasi: document.getElementById('garansi-durasi').value, 
                     status: document.getElementById('garansi-status').value,
-                    sales: document.getElementById('garansi-sales').value,
+                    sales: Array.from(document.querySelectorAll('#garansi-sales-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '),
                     omzet: document.getElementById('garansi-omzet').value,
                     keteranganGaransi: document.getElementById('garansi-keterangan').value,
                     // Paket Poin Tambahan
