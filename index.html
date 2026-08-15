@@ -1798,11 +1798,16 @@
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan sesuai pencarian.</p>';
         }
 
-        function bukaFormGaransi() { 
+        function bukaFormGaransi() {  
             try {
                 document.getElementById('form-garansi-container').style.display = 'block'; 
                 document.getElementById('form-garansi').reset(); 
                 document.getElementById('div-garansi-omzet').style.display = 'none';
+                
+                // Pastikan poin sembunyi dulu sebelum referensi dipilih
+                if(document.getElementById('garansi-poin-section')) {
+                    document.getElementById('garansi-poin-section').style.display = 'none'; 
+                }
                 
                 document.getElementById('btn-submit-garansi').innerText = 'Simpan Garansi';
                 document.getElementById('btn-submit-garansi').disabled = false;
@@ -1845,6 +1850,8 @@
         function autoFillGaransi() {
             try {
                 let val = document.getElementById('garansi-referensi').value;
+                let poinSection = document.getElementById('garansi-poin-section');
+                
                 if(!val) {
                     document.getElementById('garansi-pelanggan').value = '';
                     document.getElementById('garansi-barang').value = '';
@@ -1852,6 +1859,7 @@
                     document.getElementById('garansi-sales').value = '';
                     document.getElementById('garansi-omzet').value = '';
                     document.getElementById('garansi-keterangan').value = '';
+                    if (poinSection) poinSection.style.display = 'none'; // Sembunyikan jika kosong
                     toggleGaransiOmzet();
                     return;
                 }
@@ -1863,6 +1871,13 @@
                         document.getElementById('garansi-notrans').value = t['No Transaksi'] || t[Object.keys(t)[1]] || '';
                         document.getElementById('garansi-keterangan').value = '';
                         
+                        // MUNCULKAN KOTAK POIN & ISI OTOMATIS JIKA SUDAH ADA POIN SEBELUMNYA
+                        if (poinSection) {
+                            poinSection.style.display = 'block';
+                            document.getElementById('garansi-poin-nilai').value = t['Bobot Poin'] || '';
+                            document.getElementById('garansi-poin-veto').checked = (String(t['Veto Admin'] || '').toLowerCase() === 'ya');
+                        }
+
                         if(t['Sales'] && t['Sales'] !== '-') {
                             document.getElementById('garansi-sales').value = t['Sales'];
                             toggleGaransiOmzet();
@@ -1881,6 +1896,9 @@
                         document.getElementById('garansi-barang').value = p['Barang / Jasa'] || '';
                         document.getElementById('garansi-notrans').value = p['No Transaksi'] || p[Object.keys(p)[1]] || '';
                         document.getElementById('garansi-keterangan').value = '';
+                        
+                        // SEMBUNYIKAN KOTAK POIN KARENA INI PENJUALAN LANGSUNG
+                        if (poinSection) poinSection.style.display = 'none';
                         
                         if(p['Sales'] && p['Sales'] !== '-') {
                             document.getElementById('garansi-sales').value = p['Sales'];
