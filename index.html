@@ -1641,6 +1641,23 @@
                     }
                     infoSlaTeks += `<div style="margin-top:10px; border-top:1px dashed var(--border); padding-top:10px;"><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas Selesai: ${formatWaktu(ticket['Tenggat Waktu'])}</p><p style="margin:0 0 5px 0; color:var(--warning); font-size:11px;">*SLA Respon di-pause hingga Teknisi ditugaskan.</p></div>`;
                 } 
+                else if (textStatus === 'Outsource') {
+                    let tglOutsourceStr = ticket[Object.keys(ticket)[31]]; 
+                    let dtOutsource = new Date(tglOutsourceStr);
+                    if (!isNaN(dtOutsource.getTime())) {
+                        let bedaHari = Math.floor((new Date().getTime() - dtOutsource.getTime()) / (1000 * 3600 * 24));
+                        if (bedaHari >= 3) {
+                            sc = 'status-terlambat'; 
+                            infoSlaTeks = `<div style="background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">⚠️ WAKTUNYA FOLLOW-UP REKANAN!</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Sudah ${bedaHari} hari tanpa kabar sejak diopor/update terakhir.</p></div>`;
+                        } else {
+                            let sisa = 3 - bedaHari;
+                            infoSlaTeks = `<div style="background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">🔧 Proses di Bengkel Rekanan</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Follow-up berikutnya dalam ${sisa} Hari</p></div>`;
+                        }
+                    } else {
+                        infoSlaTeks = `<div style="background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">🔧 Proses di Bengkel Rekanan</p></div>`;
+                    }
+                    infoSlaTeks += `<div style="margin-top:10px; border-top:1px dashed var(--border); padding-top:10px;"><p style="margin:0 0 5px 0; color:var(--warning); font-size:11px;">*SLA Pengerjaan di-pause. Update catatan Klien untuk reset alarm.</p></div>`;
+                }
                 else {
                     infoSlaTeks = `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Respon'])}</p><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Waktu'])}</p>`;
                     
