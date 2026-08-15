@@ -399,7 +399,7 @@
             <h3 class="section-title">Daftar Tiket SLA (Pekerjaan)</h3>
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." oninput="toggleClearBtn(this); ">
+                <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." oninput="toggleClearBtn(this); renderTickets()">
                 <span class="clear-icon" onclick="clearSearch('search-tiket')">✖</span>
             </div>
             <div class="segment-control">
@@ -974,7 +974,7 @@
         }
 
         function toggleClearBtn(el) { const btn = el.nextElementSibling; if(btn && btn.classList.contains('clear-icon')) { btn.style.display = el.value.length > 0 ? 'block' : 'none'; } }
-        function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') ; else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); } }
+        function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') renderTickets(); else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); } } else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); } }
 
         function hapusCacheTotal() {
             if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(registrations) { for(let registration of registrations) { registration.unregister(); } }); caches.keys().then(function(names) { for (let name of names) caches.delete(name); }); }
@@ -1047,7 +1047,7 @@
             } 
         }
         
-        function setTicketFilter(filterType) { currentTicketFilter = filterType; document.getElementById('btn-filter-aktif').classList.remove('active'); document.getElementById('btn-filter-riwayat').classList.remove('active'); if(filterType === 'aktif') document.getElementById('btn-filter-aktif').classList.add('active'); else document.getElementById('btn-filter-riwayat').classList.add('active'); ; }
+        function setTicketFilter(filterType) { currentTicketFilter = filterType; document.getElementById('btn-filter-aktif').classList.remove('active'); document.getElementById('btn-filter-riwayat').classList.remove('active'); if(filterType === 'aktif') document.getElementById('btn-filter-aktif').classList.add('active'); else document.getElementById('btn-filter-riwayat').classList.add('active'); renderTickets(); }
 
         async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
 
@@ -1756,11 +1756,6 @@
                     ${infoPenjualanHtml}
                     <p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
                     ${htmlPoinTeknisi}
-                    ${noWAKlienTeks}
-                    <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
-                    <p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>
-                    ${infoPenjualanHtml}
-                    <p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
                     <div class="waktu-box">
                         ${infoSlaTeks}
                     </div>
