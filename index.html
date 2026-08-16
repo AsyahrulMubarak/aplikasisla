@@ -1478,7 +1478,7 @@
             (globalGaransi || []).forEach(g => {
                 if(!g) return;
                 let ref = String(g['Referensi (Tiket/Nota)'] || ''); let tglBuatStr = null;
-                if (ref && ref.startsWith('TKT-')) {
+                if (ref.startsWith('TKT-')) {
                     let tk = (globalTickets || []).find(x => x['ID Tiket'] === ref);
                     if (tk) { tglBuatStr = tk['Waktu Selesai'] || tk[Object.keys(tk)[9]]; if (!tglBuatStr || String(tglBuatStr).trim() === "") tglBuatStr = tk['Waktu Lapor'] || tk[Object.keys(tk)[2]]; }
                 } else if (ref && ref.startsWith('SLS-')) {
@@ -2044,7 +2044,7 @@
                 }
                 htmlAda = true;
                 
-                let textStatus = g['Status'] || 'Masa Tunggu';
+                let textStatus = String(g['Status'] || 'Masa Tunggu');
                 let sc = 'status-aman'; let bc = 'badge-tunggu';
                 let isExpired = false;
 
@@ -2240,7 +2240,7 @@
                 }
                 htmlAda = true;
                 
-                let textStatus = p['Status Prospek'] || 'Tahap Penawaran';
+                let textStatus = String(p['Status Prospek'] || 'Tahap Penawaran');
                 let sc = 'status-aman'; let bc = 'badge-aman';
                 if (textStatus.includes('Closing')) { sc = 'status-terpenuhi'; bc = 'badge-selesai'; }
                 else if (textStatus.includes('Kunjungan')) { sc = 'status-terlambat'; bc = 'badge-status'; }
