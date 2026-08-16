@@ -1360,16 +1360,20 @@
                 
                 // Membaca jejak rekam "Dosa Admin" dari Backend
                 let isSlaAdminFail = Object.values(t).some(v => String(v).includes('ADMIN_SLA_FAILED'));
-                let isNotaAdminFail = Object.values(t).some(v => String(v).includes('ADMIN_NOTA_FAILED'));
-
                 statsAdmin.total++;
                 if (isSlaAdminFail) {
-                    statsAdmin.telat++;
+                    statsAdmin.telat++; // Vonis telat permanen
                 } else if (isUnassigned) {
-                    statsAdmin.proses++;
+                    let dtLaporStr = tLapor instanceof Date ? tLapor : new Date(String(tLapor).replace(/-/g, "/"));
+                    if (!isNaN(dtLaporStr.getTime())) {
+                        let jamKerjaUnassigned = hitungDurasiJamKerjaMs(dtLaporStr, now) / (1000 * 60 * 60);
+                        if (jamKerjaUnassigned >= 27) { statsAdmin.telat++; } else { statsAdmin.proses++; }
+                    } else { statsAdmin.proses++; }
                 } else {
                     statsAdmin.tepat++;
                 }
+                
+                
 
                 // LOGIKA BOBOT POIN TEKNISI (HUKUMAN 0 & HAK VETO)
                 let poinPerOrang = 0;
@@ -1427,10 +1431,18 @@
 
             (globalGaransi || []).forEach(g => {
                 if(!g) return;
-                let tglBuatStr = g[Object.keys(g)[0]]; 
-                if(!inPeriode(tglBuatStr)) return; // <-- Filter Bulan
+                let ref = g['Referensi (Tiket/Nota)']; let tglBuatStr = null;
+                if (ref && ref.startsWith('TKT-')) {
+                    let tk = (globalTickets || []).find(x => x['ID Tiket'] === ref);
+                    if (tk) { tglBuatStr = tk['Waktu Selesai'] || tk[Object.keys(tk)[9]]; if (!tglBuatStr || String(tglBuatStr).trim() === "") tglBuatStr = tk['Waktu Lapor'] || tk[Object.keys(tk)[2]]; }
+                } else if (ref && ref.startsWith('SLS-')) {
+                    let sl = (globalPenjualan || []).find(x => x['ID Penjualan'] === ref);
+                    if (sl) tglBuatStr = sl['Waktu Lapor'] || sl[Object.keys(sl)[2]];
+                }
                 
-                let statGrs = String(g['Status'] || '').trim();
+                if(!tglBuatStr || !inPeriode(tglBuatStr)) return; 
+                
+                let statGrs = String(g['Status'] || '').trim().toLowerCase();
                 let tglBuat = tglBuatStr instanceof Date ? tglBuatStr : new Date(String(tglBuatStr).replace(/-/g, "/"));
                 
                 if (statGrs.includes('Masa Tunggu') || statGrs.includes('Belum Diambil')) {
@@ -1448,11 +1460,8 @@
                 if(!prp) return;
                 if(!inPeriode(prp['Tanggal Input'])) return; // <-- Filter Bulan Prospek
 
-                let statusPrp = String(prp['Status Prospek'] || '').trim();
-                // Membaca nama kolom secara presisi
+                let statusPrp = String(prp['Status Prospek'] || '').trim().toLowerCase();
                 let nominalPrp = parseInt(prp['Estimasi (Rp)'] || prp['Estimasi Nilai Proyek (Rp)'] || prp['Estimasi'] || 0) || 0;
-                
-                // LOGIKA PECAH POTENSI OMZET MULTI-SALES
                 let arrPrpSales = String(prp['Sales Penanggung Jawab'] || prp['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
                 let potPerSales = arrPrpSales.length > 0 ? (nominalPrp / arrPrpSales.length) : 0;
 
@@ -1460,11 +1469,11 @@
                     let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                     if (!sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; sKey = sName; }
                     
-                    if (statusPrp.includes('Tahap Penawaran') || statusPrp.includes('Kunjungan Toko')) {
-                        statsSales[sKey].potensi_omzet += potPerSales; // SUNTIK OMZET PECAHAN
-                    } else if (statusPrp.includes('Closing') || statusPrp.includes('Deal')) {
+                    if (statusPrp.includes('penawaran') || statusPrp.includes('kunjungan')) {
+                        statsSales[sKey].potensi_omzet += potPerSales; 
+                    } else if (statusPrp.includes('closing') || statusPrp.includes('deal')) {
                         statsSales[sKey].prospek_deal++;
-                    } else if (statusPrp.includes('Batal') || statusPrp.includes('Tanpa Keterangan')) {
+                    } else if (statusPrp.includes('batal') || statusPrp.includes('tanpa keterangan')) {
                         statsSales[sKey].prospek_batal++;
                     }
                 });
@@ -2963,7 +2972,10 @@
                     // Ambil tanggal dari waktu tiket selesai, bukan dari garansi
                     if (ref && ref.startsWith('TKT-')) {
                         let tk = (globalTickets || []).find(x => x['ID Tiket'] === ref);
-                        if (tk) tglBuatStr = tk['Waktu Selesai'] || tk[Object.keys(tk)[9]];
+                        if (tk) {
+                            tglBuatStr = tk['Waktu Selesai'] || tk[Object.keys(tk)[9]];
+                            if (!tglBuatStr || String(tglBuatStr).trim() === "") tglBuatStr = tk['Waktu Lapor'] || tk[Object.keys(tk)[2]];
+                        }
                     } else if (ref && ref.startsWith('SLS-')) {
                         let sl = (globalPenjualan || []).find(x => x['ID Penjualan'] === ref);
                         if (sl) tglBuatStr = sl['Waktu Lapor'] || sl[Object.keys(sl)[2]];
