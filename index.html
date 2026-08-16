@@ -439,6 +439,8 @@
                     <input type="hidden" id="prospek-id">
                     <label>Nama Calon Customer</label>
                     <input type="text" id="prospek-nama" placeholder="Contoh: Pak Budi" required>
+                    <label style="color:#1e3a8a;">No WhatsApp Customer (Opsional)</label>
+                    <input type="tel" id="prospek-wa" placeholder="Contoh: 6285123456789" oninput="formatWA(this)">
                     <!-- KEBUTUHAN MULTIPEL DALAM 1 TIKET -->
                     <label>Kebutuhan / Barang yang Diminati & Penawaran</label>
                     <div id="wadah-kebutuhan-prospek">
@@ -2283,9 +2285,9 @@
                     </div>`; 
                 }
 
-                let tgl = p['Tanggal Input'] ? new Date(p['Tanggal Input']).toLocaleDateString('id-ID') : '-';
-                let labelEstimasi = textStatus.includes('Closing') ? 'Nilai Deal:' : 'Potensi Nilai:';
-                let estimasiHtml = p['Estimasi (Rp)'] ? `<p style="color:var(--success);"><strong>${labelEstimasi}</strong> ${formatRp(p['Estimasi (Rp)'])}</p>` : '';
+                let waKey = Object.keys(p).find(k => k && k.toLowerCase().includes('no wa'));
+                let noWaPrp = waKey && p[waKey] ? p[waKey] : '';
+                let waHtml = noWaPrp ? `<p><strong>No WA:</strong> <a href="https://wa.me/${noWaPrp}" target="_blank" style="color:var(--primary); text-decoration:none; font-weight:600;">📱 ${noWaPrp}</a></p>` : '';
                 
                 let buktiChatHtml = p['Bukti Chat'] && p['Bukti Chat'].length > 10 ? `<div style="margin-top:10px;"><a href="${p['Bukti Chat']}" download="Bukti_Chat_${p['ID Prospek']}.jpg" class="dl-btn" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">⬇️ Unduh Bukti Chat</a></div>` : '';
                 
@@ -2295,7 +2297,7 @@
                     penawaranHtml = `<div style="margin-top:10px; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;"><p style="margin:0 0 5px 0; font-size:12px; color:#065f46; font-weight:bold;">📄 Surat Penawaran Tersedia</p><a href="${linkP}" target="_blank" class="dl-btn" style="background:#10b981; color:white; border:none; display:block; text-align:center;">⬇️ Buka / Download Penawaran</a></div>`;
                 }
 
-                container.innerHTML += `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p><p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${buktiChatHtml}${penawaranHtml}${btnHtml}</div>`;
+                container.innerHTML += `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p>${waHtml}<p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${buktiChatHtml}${penawaranHtml}${btnHtml}</div>`;
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada daftar calon customer (Leads).</p>';
         }
@@ -2343,6 +2345,7 @@
                     action: 'addProspek', 
                     idProspek: idPrp, 
                     customer: document.getElementById('prospek-nama').value, 
+                    waCustomer: document.getElementById('prospek-wa') ? document.getElementById('prospek-wa').value : '',
                     kebutuhan: finalKebutuhan, 
                     statusProspek: document.getElementById('prospek-status').value, 
                     sales: salesPenanggung, 
