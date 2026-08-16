@@ -1477,7 +1477,7 @@
 
             (globalGaransi || []).forEach(g => {
                 if(!g) return;
-                let ref = g['Referensi (Tiket/Nota)']; let tglBuatStr = null;
+                let ref = String(g['Referensi (Tiket/Nota)'] || ''); let tglBuatStr = null;
                 if (ref && ref.startsWith('TKT-')) {
                     let tk = (globalTickets || []).find(x => x['ID Tiket'] === ref);
                     if (tk) { tglBuatStr = tk['Waktu Selesai'] || tk[Object.keys(tk)[9]]; if (!tglBuatStr || String(tglBuatStr).trim() === "") tglBuatStr = tk['Waktu Lapor'] || tk[Object.keys(tk)[2]]; }
@@ -3013,7 +3013,7 @@
             (globalGaransi || []).forEach(g => {
                 let statGrs = String(g['Status'] || '').trim().toLowerCase();
                 if (statGrs.includes('masa tunggu') || statGrs.includes('belum diambil')) {
-                    let ref = g['Referensi (Tiket/Nota)'];
+                    let ref = String(g['Referensi (Tiket/Nota)'] || '');
                     let tglBuatStr = null;
                     
                     // Ambil tanggal dari waktu tiket selesai, bukan dari garansi
