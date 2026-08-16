@@ -1138,7 +1138,7 @@
                         if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } 
                     } 
                 }
-            } catch(e) { showToast("Afwan, Error merender aplikasi", "error"); }
+            } catch(e) { console.error("Error App:", e); showToast("Afwan, Error merender aplikasi: " + e.message, "error"); }
         }
 
         async function prosesLogin(e) {
@@ -1357,9 +1357,10 @@
                     let statGrs = String(refsDiGaransi[0]['Status']).toLowerCase();
                     if (statGrs.includes('klaim') || statGrs.includes('hangus') || statGrs.includes('diklaim')) isBocor = true;
                 }
-                
                 // Membaca jejak rekam "Dosa Admin" dari Backend
                 let isSlaAdminFail = Object.values(t).some(v => String(v).includes('ADMIN_SLA_FAILED'));
+                let isNotaAdminFail = Object.values(t).some(v => String(v).includes('ADMIN_NOTA_FAILED'));
+
                 statsAdmin.total++;
                 if (isSlaAdminFail) {
                     statsAdmin.telat++; // Vonis telat permanen
@@ -1445,12 +1446,12 @@
                 let statGrs = String(g['Status'] || '').trim().toLowerCase();
                 let tglBuat = tglBuatStr instanceof Date ? tglBuatStr : new Date(String(tglBuatStr).replace(/-/g, "/"));
                 
-                if (statGrs.includes('Masa Tunggu') || statGrs.includes('Belum Diambil')) {
+                if (statGrs.includes('masa tunggu') || statGrs.includes('belum diambil')) {
                     if (!isNaN(tglBuat.getTime())) {
-                        let bedaHari = (now.getTime() - tglBuat.getTime()) / (1000 * 3600 * 24);
+                        let bedaHari = Math.floor((now.getTime() - tglBuat.getTime()) / (1000 * 3600 * 24));
                         if (bedaHari > 3) statsAdminFollowUp.telat++; else statsAdminFollowUp.proses++;
                     }
-                } else if (statGrs === 'Aktif' || statGrs.includes('Diambil')) {
+                } else if (statGrs === 'aktif' || statGrs.includes('diambil')) {
                     statsAdminFollowUp.cepat++; 
                 }
             });
