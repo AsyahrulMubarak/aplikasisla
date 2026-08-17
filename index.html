@@ -284,6 +284,25 @@
             </form>
         </div>
     </div>
+    <!-- HUB PEMILIHAN APLIKASI (PORTAL GATEWAY) -->
+    <div id="app-selector-wrapper" style="display:none; justify-content:center; align-items:center; min-height:80vh; padding:20px;">
+        <div class="login-card" style="max-width:400px; border-top-color:var(--primary);">
+            <img src="depan_001.png" alt="Logo Alfacom" style="max-width:150px; margin-bottom:15px;">
+            <h3 style="color:var(--text-main); margin-bottom:5px; font-size:18px;">Portal Gateway Alfacom</h3>
+            <p style="font-size:13px; color:var(--text-muted); margin-bottom:25px;">Bismillah, silakan pilih modul aplikasi yang ingin diakses:</p>
+            
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#1e3a8a;" onclick="pilihAplikasi('sla')">
+                    <span style="font-size:20px;">📋</span> Manajemen SLA
+                </button>
+                
+                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#10b981;" onclick="pilihAplikasi('absen')">
+                    <span style="font-size:20px;">📅</span> Sistem Absensi (Beta)
+                </button>
+            </div>
+            <p style="font-size:11px; color:var(--warning); margin-top:20px; font-style:italic;">*Mode Beta: Halaman ini sementara hanya tampil untuk Admin.</p>
+        </div>
+    </div>
 
     <div id="modal-banding" class="modal">
         <div class="modal-content" style="border-top-color: #8e44ad;">
@@ -359,25 +378,7 @@
             </form>
         </div>
     </div>
-<!-- HUB PEMILIHAN APLIKASI (PORTAL GATEWAY) -->
-    <div id="app-selector-wrapper" style="display:none; justify-content:center; align-items:center; min-height:80vh; padding:20px;">
-        <div class="login-card" style="max-width:400px; border-top-color:var(--primary);">
-            <img src="depan_001.png" alt="Logo Alfacom" style="max-width:150px; margin-bottom:15px;">
-            <h3 style="color:var(--text-main); margin-bottom:5px; font-size:18px;">Portal Gateway Alfacom</h3>
-            <p style="font-size:13px; color:var(--text-muted); margin-bottom:25px;">Bismillah, silakan pilih modul aplikasi yang ingin diakses:</p>
-            
-            <div style="display:flex; flex-direction:column; gap:12px;">
-                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#1e3a8a;" onclick="pilihAplikasi('sla')">
-                    <span style="font-size:20px;">📋</span> Manajemen SLA
-                </button>
-                
-                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#10b981;" onclick="pilihAplikasi('absen')">
-                    <span style="font-size:20px;">📅</span> Sistem Absensi (Beta)
-                </button>
-            </div>
-            <p style="font-size:11px; color:var(--warning); margin-top:20px; font-style:italic;">*Mode Beta: Halaman ini sementara hanya tampil untuk Admin.</p>
-        </div>
-    </div>
+
     <!-- APLIKASI UTAMA -->
     <div class="container" id="app-wrapper">
         <div class="header-branding"><img src="depan_001.png" alt="Logo Alfacom" class="logo"></div>
@@ -1264,14 +1265,9 @@
                 // CATATAN: Nanti kita masukkan kode untuk melempar/redirect ke URL Web App Absensi di sini
             }
         }
-
         // Ini adalah fungsi asli antum, HANYA diubah namanya saja menjadi bukaAplikasiSLA()
         function bukaAplikasiSLA() {
             try {
-                document.getElementById('app-wrapper').style.display = 'block';
-                
-                let namaTampil = penggunaAktif['Nama Asli'] || 'User';
-                // ... (LANJUTAN KODE ASLI ANTUM TETAP SAMA SAMPAI KE BAWAH) ... 
                 document.getElementById('app-wrapper').style.display = 'block';
                 
                 let namaTampil = penggunaAktif['Nama Asli'] || 'User';
