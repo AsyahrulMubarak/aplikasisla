@@ -1396,9 +1396,12 @@
                 
                 // MESIN WAKTU GANDA:
                 let isInPeriodeSLA = inPeriode(acuanWaktuSLA);
-                // Poin hanya akan masuk ke Dasbor jika Waktu Pelunasannya cocok dengan Filter Bulan di Dasbor
-                let acuanPoin = (nilaiJualDash > 0 && statBayar === 'Lunas') ? tLunas : acuanWaktuSLA;
-                let isInPeriodePoin = inPeriode(acuanPoin);
+                
+                // POIN HANYA MUNCUL DI DASBOR JIKA STATUSNYA SUDAH LUNAS / VERIFIKASI
+                let isInPeriodePoin = false;
+                if (statBayar === 'Lunas' && tLunas) {
+                    isInPeriodePoin = inPeriode(tLunas);
+                }
 
                 // Abaikan sepenuhnya jika tiket ini tidak masuk di bulan Dasbor untuk SLA maupun Poin
                 if (!isInPeriodeSLA && !isInPeriodePoin) return;
@@ -1413,7 +1416,7 @@
                     let key = Object.keys(statsTeknisi).find(k => k.toLowerCase() === n.toLowerCase());
                     if(!key) { statsTeknisi[n] = { nama: n, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0, tiket_selesai: 0, pending_count: 0, garansi_bocor: 0, poin_terkumpul: 0 }; }
                 });
-
+                // [KODE BLOK 1 TETAP SAMA SEPERTI ASLINYA, TIDAK ADA YANG DIUBAH DI SINI] ...
                 // ==========================================
                 // BLOK 1: STATISTIK SLA & SALES (Dihitung di Bulan Tiket Selesai)
                 // ==========================================
@@ -1473,22 +1476,15 @@
                         }
                     });
                 }
-
                 // ==========================================
                 // BLOK 2: PENCAIRAN POIN (Dihitung di Bulan Lunas)
                 // ==========================================
                 if (isInPeriodePoin && statusTiket === 'Selesai') {
                     let bobot = parseFloat(t['Bobot Poin'] || 0) || 0;
                     let isVeto = String(t['Veto Admin'] || '').trim().toLowerCase() === 'ya';
-                    let poinBerlaku = 0;
-
-                    if (nilaiJualDash > 0) {
-                        // Khusus tiket berbayar: Cair HANYA JIKA Lunas
-                        if (statBayar === 'Lunas') { poinBerlaku = (statusPengerjaan === 'TERPENUHI' || isVeto) ? bobot : 0; }
-                    } else {
-                        // Tiket gratis: Langsung cair
-                        poinBerlaku = (statusPengerjaan === 'TERPENUHI' || isVeto) ? bobot : 0;
-                    }
+                    
+                    // Karena sudah difilter isInPeriodePoin (Pasti Lunas), langsung cairkan
+                    let poinBerlaku = (statusPengerjaan === 'TERPENUHI' || isVeto) ? bobot : 0;
 
                     let poinPerOrang = tekArr.length > 0 ? (poinBerlaku / tekArr.length) : 0;
                     if (poinPerOrang > 0) {
@@ -1830,26 +1826,24 @@
                 // FITUR TRANSPARANSI POIN TEKNISI (HANYA JIKA SELESAI)
                 // ==========================================
                 let htmlPoinTeknisi = '';
-                // 1. Poin HANYA muncul jika statusnya Selesai
                 if (['admin', 'manager', 'direktur', 'teknisi'].includes(penggunaAktif.Role) && textStatus === 'Selesai') {
                     let nilaiPoin = parseFloat(ticket['Bobot Poin']) || 0;
                     let isVeto = String(ticket['Veto Admin'] || '').trim().toLowerCase() === 'ya';
                     let statusSlaKerja = ticket['Status SLA'];
-                    let nilaiPenjualanCekPoin = parseInt(ticket['Nilai Penjualan (Rp)'] || ticket['Nilai Penjualan'] || 0);
                     let statusBayar = ticket['Status Pembayaran'] || '';
                     
                     if (nilaiPoin === 0) {
-                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; display:inline-block; font-size:12px; color:#991b1b; font-weight:bold;">⚠️ Bobot Poin Belum Diisi (0)</div>`;
-                    } else if (nilaiPenjualanCekPoin > 0 && statusBayar !== 'Lunas') {
-                        // POIN DIBEKUKAN (Karena berbayar & belum lunas)
-                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fefce8; border:1px solid #fde047; border-radius:6px; display:inline-block; font-size:12px; color:#a16207; font-weight:bold;">⏳ Poin Beku: Menunggu Nota Lunas (Bobot: ${nilaiPoin})</div>`;
+                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; display:inline-block; font-size:12px; color:#991b1b; font-weight:bold;">❌ Poin 0 (Garansi / Non-Revenue)</div>`;
+                    } else if (statusBayar !== 'Lunas') {
+                        // SEMUA TIKET DIBEKUKAN SAMPAI ADMIN TEKAN VERIFIKASI / LUNAS
+                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fefce8; border:1px solid #fde047; border-radius:6px; display:inline-block; font-size:12px; color:#a16207; font-weight:bold;">⏳ Poin Beku: Menunggu Verifikasi/Lunas (Bobot: ${nilaiPoin})</div>`;
                         
-                        // MUNCULKAN TOMBOL LUNAS KHUSUS UNTUK ADMIN/DIREKSI
+                        // MUNCULKAN TOMBOL VERIFIKASI KHUSUS UNTUK ADMIN/DIREKSI/MANAGER
                         if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role)) {
-                            btnHtml += `<button class="btn-action-primary" style="background:#ecfdf5; color:#065f46; border-color:#a7f3d0; margin-top:10px;" onclick="tandaiLunas('${ticket['ID Tiket']}')">✅ Tandai Nota Lunas 100% (Cairkan Poin)</button>`;
+                            btnHtml += `<button class="btn-action-primary" style="background:#ecfdf5; color:#065f46; border-color:#a7f3d0; margin-top:10px;" onclick="tandaiLunas('${ticket['ID Tiket']}')">✅ Verifikasi Pekerjaan & Cairkan Poin</button>`;
                         }
                     } else {
-                        // POIN CAIR (Gratis ATAU Sudah Lunas)
+                        // POIN CAIR (Sudah diverifikasi/Lunas)
                         let warnaPoin = '#166534'; let bgPoin = '#dcfce7'; let borderPoin = '#bbf7d0'; let teksPoinTambahan = '';
                         
                         if (statusSlaKerja === 'TERLAMBAT' && !isVeto) {
@@ -3233,8 +3227,9 @@
             btn.innerText = 'Simpan Poin'; btn.disabled = false;
         }
         async function tandaiLunas(idTiket) {
-            let acc = await showConfirm(`Bismillah, apakah nota tagihan untuk tiket ${idTiket} sudah lunas 100%? Poin Teknisi akan langsung dicairkan dan masuk ke saldo bulan ini.`);
+            let acc = await showConfirm(`Bismillah, apakah pekerjaan tiket ${idTiket} sudah diverifikasi dan Lunas? Poin Teknisi akan langsung dicairkan dan masuk ke saldo bulan ini.`);
             if(!acc) return;
+            // ... [lanjutan kodenya tetap sama]
             document.getElementById('loading').style.display = 'block';
             try {
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'tandaiLunas', idTiket: idTiket }) });
