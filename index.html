@@ -3082,7 +3082,8 @@
                             }
                             
                             // 3. Tombol pintar dengan fungsi pencatat jejak
-                            let waLink = noWa ? `<button onclick="kirimWAdanCatat('${ref}', '${noWa}', '${encodeURIComponent(pesan)}', this)" style="display:block; width:100%; margin-top:8px; padding:10px 12px; background:#25d366; color:white; border:none; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">💬 Kirim WA & Catat Riwayat</button>` : '<span style="font-size:11px; color:red; display:block; margin-top:5px;">No WA Klien Tidak Ditemukan</span>';
+                            let amanPesan = encodeURIComponent(pesan).replace(/'/g, "%27");
+                            let waLink = noWa ? `<button onclick="kirimWAdanCatat('${ref}', '${noWa}', '${amanPesan}', this)" style="display:block; width:100%; margin-top:8px; padding:10px 12px; background:#25d366; color:white; border:none; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">💬 Kirim WA & Catat Riwayat</button>` : '<span style="font-size:11px; color:red; display:block; margin-top:5px;">No WA Klien Tidak Ditemukan</span>';
                             
                             htmlHasil += `<div style="background:${warna}; padding:12px; border-radius:6px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.1); font-size:12px; ${bedaHari>=30?'color:white;':''}">
                                 <strong style="font-size:14px;">${namaKlien}</strong> (${ref})<br>
