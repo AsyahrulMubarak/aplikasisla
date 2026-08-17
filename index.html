@@ -1261,8 +1261,8 @@
                 document.getElementById('app-selector-wrapper').style.display = 'none';
                 bukaAplikasiSLA();
             } else if (jenis === 'absen') {
-                showToast("Bismillah, sistem absen sedang dalam tahap perakitan...", "warning");
-                // CATATAN: Nanti kita masukkan kode untuk melempar/redirect ke URL Web App Absensi di sini
+                // KODE YANG LAMA (showToast) DIHAPUS, GANTI DENGAN KODE REDIRECT INI:
+                window.location.href = "absen.html";
             }
         }
         // Ini adalah fungsi asli antum, HANYA diubah namanya saja menjadi bukaAplikasiSLA()
