@@ -1385,96 +1385,121 @@
                 if(!t) return;
                 let idTkt = String(t['ID Tiket'] || ''); if(!idTkt || idTkt.startsWith('SLS-')) return;
                 
-                // Gunakan Waktu Selesai (jika ada) atau Waktu Lapor sebagai acuan Filter Bulan
+                // Ambil 3 jenis waktu
                 let tSelesai = t[Object.keys(t)[9]];
                 let tLapor = t[Object.keys(t)[2]];
-                let acuanWaktu = tSelesai ? tSelesai : tLapor;
-                if(!inPeriode(acuanWaktu)) return; // <-- Saring tiket di luar bulan ini
+                let acuanWaktuSLA = tSelesai ? tSelesai : tLapor; // Acuan untuk performa SLA & Omzet
+                
+                let nilaiJualDash = parseInt(t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0);
+                let statBayar = t['Status Pembayaran'] || '';
+                let tLunas = t['Tanggal Lunas'] || tSelesai; 
+                
+                // MESIN WAKTU GANDA:
+                let isInPeriodeSLA = inPeriode(acuanWaktuSLA);
+                // Poin hanya akan masuk ke Dasbor jika Waktu Pelunasannya cocok dengan Filter Bulan di Dasbor
+                let acuanPoin = (nilaiJualDash > 0 && statBayar === 'Lunas') ? tLunas : acuanWaktuSLA;
+                let isInPeriodePoin = inPeriode(acuanPoin);
+
+                // Abaikan sepenuhnya jika tiket ini tidak masuk di bulan Dasbor untuk SLA maupun Poin
+                if (!isInPeriodeSLA && !isInPeriodePoin) return;
 
                 const statusRespon = t['Status SLA Respon']; const statusPengerjaan = t['Status SLA']; const statusTiket = t['Status'] || 'Menunggu';
                 let teknisiVal = String(t['Teknisi'] || '').trim();
                 let isUnassigned = (teknisiVal === 'Belum Ditugaskan' || teknisiVal === '-' || teknisiVal === '');
-                
-                let isPendingEver = Object.values(t).some(v => String(v).toLowerCase().includes('pending'));
-                let isBocor = false;
-                let refsDiGaransi = (globalGaransi || []).filter(g => g && String(g['Referensi (Tiket/Nota)']).trim() === idTkt);
-                if (refsDiGaransi.length > 0) {
-                    let statGrs = String(refsDiGaransi[0]['Status']).toLowerCase();
-                    if (statGrs.includes('klaim') || statGrs.includes('hangus') || statGrs.includes('diklaim')) isBocor = true;
-                }
-                // Membaca jejak rekam "Dosa Admin" dari Backend
-                let isSlaAdminFail = Object.values(t).some(v => String(v).includes('ADMIN_SLA_FAILED'));
-                let isNotaAdminFail = Object.values(t).some(v => String(v).includes('ADMIN_NOTA_FAILED'));
-
-                statsAdmin.total++;
-                if (isSlaAdminFail) {
-                    statsAdmin.telat++; // Vonis telat permanen
-                } else if (isUnassigned) {
-                    let dtLaporStr = parseSafeDate(tLapor);
-                    if (!isNaN(dtLaporStr.getTime())) {
-                        let jamKerjaUnassigned = hitungDurasiJamKerjaMs(dtLaporStr, now) / (1000 * 60 * 60);
-                        if (jamKerjaUnassigned >= 27) { statsAdmin.telat++; } else { statsAdmin.proses++; }
-                    } else { statsAdmin.proses++; }
-                } else {
-                    statsAdmin.tepat++;
-                }
-                
-                
-
-                // LOGIKA BOBOT POIN TEKNISI (HUKUMAN 0 & HAK VETO)
-                let poinPerOrang = 0;
                 let tekArr = teknisiVal.split(',').map(n => n.trim()).filter(n => n !== "Belum Ditugaskan" && n !== "-" && n !== "");
                 
-                if (statusTiket === 'Selesai') {
-                    if (isNotaAdminFail) {
-                        statsAdminNota.telat++; // Vonis telat permanen jika sudah pernah telat
-                    } else if (refsDiGaransi.length === 0) {
-                        let dtSelesai = new Date(tSelesai);
-                        if (!isNaN(dtSelesai.getTime())) {
-                            let jamKerja = hitungDurasiJamKerjaMs(dtSelesai, now) / 3600000;
-                            if (jamKerja >= 24) { statsAdminNota.telat++; } else { statsAdminNota.aman++; }
-                        }
-                    } else {
-                        statsAdminNota.aman++; // Sukses dan garansi sudah ada
-                    }
-
-                    let bobot = parseFloat(t['Bobot Poin'] || 0) || 0;
-                    let isVeto = String(t['Veto Admin'] || '').trim().toLowerCase() === 'ya';
-                    let poinBerlaku = (statusPengerjaan === 'TERPENUHI' || isVeto) ? bobot : 0;
-                    poinPerOrang = tekArr.length > 0 ? (poinBerlaku / tekArr.length) : 0;
-                }
-
                 tekArr.forEach(nama => {
                     let n = nama; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
                     let key = Object.keys(statsTeknisi).find(k => k.toLowerCase() === n.toLowerCase());
-                    if(!key) { statsTeknisi[n] = { nama: n, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0, tiket_selesai: 0, pending_count: 0, garansi_bocor: 0, poin_terkumpul: 0 }; key = n; }
-                    
-                    if(statusRespon === 'TERPENUHI') { statsTeknisi[key].resp_tepat++; statsTeknisi[key].resp_total++; } else if(statusRespon === 'GAGAL') { statsTeknisi[key].resp_telat++; statsTeknisi[key].resp_total++; } else if(statusRespon === 'AMAN') { statsTeknisi[key].resp_aman++; } 
-                    
-                    if (statusTiket === 'Cancel') { } else if (statusTiket === 'Pending' || statusTiket === 'Outsource') { statsTeknisi[key].peng_aman++; } else if (statusTiket === 'On Progress') { if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } else { statsTeknisi[key].peng_aman++; } } else if (statusTiket === 'Menunggu') { if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } } else if (statusTiket === 'Selesai') { 
-                        if(statusPengerjaan === 'TERPENUHI') { statsTeknisi[key].peng_tepat++; statsTeknisi[key].peng_total++; } else if(statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } 
-                        statsTeknisi[key].tiket_selesai++;
-                        statsTeknisi[key].poin_terkumpul += poinPerOrang; // SUNTIKAN POIN DIBAGI RATA
-                        if(isPendingEver) statsTeknisi[key].pending_count++;
-                        if(isBocor) statsTeknisi[key].garansi_bocor++;
-                    }
+                    if(!key) { statsTeknisi[n] = { nama: n, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0, tiket_selesai: 0, pending_count: 0, garansi_bocor: 0, poin_terkumpul: 0 }; }
                 });
 
-                // LOGIKA PECAH OMZET MULTI-SALES UNTUK TIKET SLA
-                let sNames = String(t['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
-                let rawRev = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0; 
-                let revPerSales = sNames.length > 0 ? (parseInt(rawRev) / sNames.length) : 0;
-
-                sNames.forEach(sName => {
-                    let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
-                    if (!sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; sKey = sName; }
-                    if (sKey) { 
-                        statsSales[sKey].total++; 
-                        if (statusTiket === 'Selesai') { statsSales[sKey].revenue += revPerSales; statsSales[sKey].selesai++; } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; }
+                // ==========================================
+                // BLOK 1: STATISTIK SLA & SALES (Dihitung di Bulan Tiket Selesai)
+                // ==========================================
+                if (isInPeriodeSLA) {
+                    let isPendingEver = Object.values(t).some(v => String(v).toLowerCase().includes('pending'));
+                    let isBocor = false;
+                    let refsDiGaransi = (globalGaransi || []).filter(g => g && String(g['Referensi (Tiket/Nota)']).trim() === idTkt);
+                    if (refsDiGaransi.length > 0) {
+                        let statGrs = String(refsDiGaransi[0]['Status']).toLowerCase();
+                        if (statGrs.includes('klaim') || statGrs.includes('hangus') || statGrs.includes('diklaim')) isBocor = true;
                     }
-                });
+                    let isSlaAdminFail = Object.values(t).some(v => String(v).includes('ADMIN_SLA_FAILED'));
+                    let isNotaAdminFail = Object.values(t).some(v => String(v).includes('ADMIN_NOTA_FAILED'));
+
+                    statsAdmin.total++;
+                    if (isSlaAdminFail) { statsAdmin.telat++; } else if (isUnassigned) {
+                        let dtLaporStr = parseSafeDate(tLapor);
+                        if (!isNaN(dtLaporStr.getTime())) {
+                            let jamKerjaUnassigned = hitungDurasiJamKerjaMs(dtLaporStr, now) / (1000 * 60 * 60);
+                            if (jamKerjaUnassigned >= 27) { statsAdmin.telat++; } else { statsAdmin.proses++; }
+                        } else { statsAdmin.proses++; }
+                    } else { statsAdmin.tepat++; }
+
+                    if (statusTiket === 'Selesai') {
+                        if (isNotaAdminFail) { statsAdminNota.telat++; } else if (refsDiGaransi.length === 0) {
+                            let dtSelesai = new Date(tSelesai);
+                            if (!isNaN(dtSelesai.getTime())) {
+                                let jamKerja = hitungDurasiJamKerjaMs(dtSelesai, now) / 3600000;
+                                if (jamKerja >= 24) { statsAdminNota.telat++; } else { statsAdminNota.aman++; }
+                            }
+                        } else { statsAdminNota.aman++; }
+                    }
+
+                    tekArr.forEach(nama => {
+                        let n = nama; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
+                        let key = Object.keys(statsTeknisi).find(k => k.toLowerCase() === n.toLowerCase());
+                        if (key) {
+                            if(statusRespon === 'TERPENUHI') { statsTeknisi[key].resp_tepat++; statsTeknisi[key].resp_total++; } else if(statusRespon === 'GAGAL') { statsTeknisi[key].resp_telat++; statsTeknisi[key].resp_total++; } else if(statusRespon === 'AMAN') { statsTeknisi[key].resp_aman++; } 
+                            if (statusTiket === 'Cancel') { } else if (statusTiket === 'Pending' || statusTiket === 'Outsource') { statsTeknisi[key].peng_aman++; } else if (statusTiket === 'On Progress') { if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } else { statsTeknisi[key].peng_aman++; } } else if (statusTiket === 'Menunggu') { if (statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } } else if (statusTiket === 'Selesai') { 
+                                if(statusPengerjaan === 'TERPENUHI') { statsTeknisi[key].peng_tepat++; statsTeknisi[key].peng_total++; } else if(statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; } 
+                                statsTeknisi[key].tiket_selesai++;
+                                if(isPendingEver) statsTeknisi[key].pending_count++;
+                                if(isBocor) statsTeknisi[key].garansi_bocor++;
+                            }
+                        }
+                    });
+
+                    // Sales Logic (Omzet masuk di bulan tiket selesai)
+                    let sNames = String(t['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
+                    let revPerSales = sNames.length > 0 ? (nilaiJualDash / sNames.length) : 0;
+                    sNames.forEach(sName => {
+                        let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
+                        if (!sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; sKey = sName; }
+                        if (sKey) { 
+                            statsSales[sKey].total++; 
+                            if (statusTiket === 'Selesai') { statsSales[sKey].revenue += revPerSales; statsSales[sKey].selesai++; } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; }
+                        }
+                    });
+                }
+
+                // ==========================================
+                // BLOK 2: PENCAIRAN POIN (Dihitung di Bulan Lunas)
+                // ==========================================
+                if (isInPeriodePoin && statusTiket === 'Selesai') {
+                    let bobot = parseFloat(t['Bobot Poin'] || 0) || 0;
+                    let isVeto = String(t['Veto Admin'] || '').trim().toLowerCase() === 'ya';
+                    let poinBerlaku = 0;
+
+                    if (nilaiJualDash > 0) {
+                        // Khusus tiket berbayar: Cair HANYA JIKA Lunas
+                        if (statBayar === 'Lunas') { poinBerlaku = (statusPengerjaan === 'TERPENUHI' || isVeto) ? bobot : 0; }
+                    } else {
+                        // Tiket gratis: Langsung cair
+                        poinBerlaku = (statusPengerjaan === 'TERPENUHI' || isVeto) ? bobot : 0;
+                    }
+
+                    let poinPerOrang = tekArr.length > 0 ? (poinBerlaku / tekArr.length) : 0;
+                    if (poinPerOrang > 0) {
+                        tekArr.forEach(nama => {
+                            let n = nama; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
+                            let key = Object.keys(statsTeknisi).find(k => k.toLowerCase() === n.toLowerCase());
+                            if(key) statsTeknisi[key].poin_terkumpul += poinPerOrang;
+                        });
+                    }
+                }
             });
-
             (globalGaransi || []).forEach(g => {
                 if(!g) return;
                 let ref = String(g['Referensi (Tiket/Nota)'] || ''); let tglBuatStr = null;
@@ -1810,10 +1835,21 @@
                     let nilaiPoin = parseFloat(ticket['Bobot Poin']) || 0;
                     let isVeto = String(ticket['Veto Admin'] || '').trim().toLowerCase() === 'ya';
                     let statusSlaKerja = ticket['Status SLA'];
+                    let nilaiPenjualanCekPoin = parseInt(ticket['Nilai Penjualan (Rp)'] || ticket['Nilai Penjualan'] || 0);
+                    let statusBayar = ticket['Status Pembayaran'] || '';
                     
                     if (nilaiPoin === 0) {
                         htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; display:inline-block; font-size:12px; color:#991b1b; font-weight:bold;">⚠️ Bobot Poin Belum Diisi (0)</div>`;
+                    } else if (nilaiPenjualanCekPoin > 0 && statusBayar !== 'Lunas') {
+                        // POIN DIBEKUKAN (Karena berbayar & belum lunas)
+                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fefce8; border:1px solid #fde047; border-radius:6px; display:inline-block; font-size:12px; color:#a16207; font-weight:bold;">⏳ Poin Beku: Menunggu Nota Lunas (Bobot: ${nilaiPoin})</div>`;
+                        
+                        // MUNCULKAN TOMBOL LUNAS KHUSUS UNTUK ADMIN/DIREKSI
+                        if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role)) {
+                            btnHtml += `<button class="btn-action-primary" style="background:#ecfdf5; color:#065f46; border-color:#a7f3d0; margin-top:10px;" onclick="tandaiLunas('${ticket['ID Tiket']}')">✅ Tandai Nota Lunas 100% (Cairkan Poin)</button>`;
+                        }
                     } else {
+                        // POIN CAIR (Gratis ATAU Sudah Lunas)
                         let warnaPoin = '#166534'; let bgPoin = '#dcfce7'; let borderPoin = '#bbf7d0'; let teksPoinTambahan = '';
                         
                         if (statusSlaKerja === 'TERLAMBAT' && !isVeto) {
@@ -1823,7 +1859,7 @@
                             teksPoinTambahan = ' <span title="Diselamatkan oleh Veto Admin">🛡️ <i style="font-size:10px;">(Veto Admin)</i></span>';
                         }
                         
-                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:${bgPoin}; border:1px solid ${borderPoin}; border-radius:6px; display:inline-block; font-size:12px; color:${warnaPoin}; font-weight:bold;">⭐ Bobot Pekerjaan: ${nilaiPoin} Poin${teksPoinTambahan}</div>`;
+                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:${bgPoin}; border:1px solid ${borderPoin}; border-radius:6px; display:inline-block; font-size:12px; color:${warnaPoin}; font-weight:bold;">⭐ Poin Cair: ${nilaiPoin} Poin${teksPoinTambahan}</div>`;
                     }
                 }
 
@@ -3195,5 +3231,18 @@
                 } else { showToast('Afwan, Gagal update poin.', 'error'); }
             } catch(err) { showToast('Afwan, Koneksi error.', 'error'); }
             btn.innerText = 'Simpan Poin'; btn.disabled = false;
+        }
+        async function tandaiLunas(idTiket) {
+            let acc = await showConfirm(`Bismillah, apakah nota tagihan untuk tiket ${idTiket} sudah lunas 100%? Poin Teknisi akan langsung dicairkan dan masuk ke saldo bulan ini.`);
+            if(!acc) return;
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'tandaiLunas', idTiket: idTiket }) });
+                if ((await res.json()).status === 'sukses') {
+                    showToast('Alhamdulillah! Nota Lunas, Poin dicairkan.', 'success');
+                    await ambilSemuaData(true);
+                } else { showToast('Afwan, Gagal update status pelunasan.', 'error'); }
+            } catch(err) { showToast('Afwan, Koneksi error.', 'error'); }
+            document.getElementById('loading').style.display = 'none';
         }
     </script>
