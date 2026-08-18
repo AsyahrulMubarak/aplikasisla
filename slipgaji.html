@@ -17,13 +17,20 @@
         .segment-btn { flex: 1; padding: 10px 0; border: none; background: transparent; border-radius: 6px; font-size: 14px; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
         .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 
-        .control-panel { display: flex; gap: 15px; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end;}
+        .control-panel { display: flex; flex-direction: column; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 20px;}
+        .form-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; width: 100%;}
         .form-group { flex: 1; min-width: 150px; }
         label { display: block; font-weight: 600; margin-bottom: 5px; color: var(--primary); font-size: 12px;}
         select, input { width: 100%; padding: 10px; border: 1px solid #93c5fd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; }
         .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; height: 38px;}
         .btn-primary:hover { background: #1e40af; }
         
+        /* CSS UNTUK TUNJANGAN DINAMIS */
+        #dynamic-bonus-section { border-top: 1px dashed #93c5fd; margin-top: 15px; padding-top: 15px; display: none; }
+        .bonus-item { display: flex; gap: 10px; margin-bottom: 10px; }
+        .btn-del { padding: 10px; border-radius: 6px; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; cursor: pointer; font-weight: bold; }
+        .btn-del:hover { background: #ef4444; color: white; }
+
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
         th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: center; }
         th { background: var(--primary); color: white; font-weight: 600; }
@@ -44,7 +51,6 @@
 
         #loading { display: none; text-align: center; padding: 40px; font-weight: 600; color: var(--primary); }
         .btn-print { background: #475569; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; float: right;}
-        
         .dashboard-table th { background: #0f766e; }
         
         @media print {
@@ -74,19 +80,36 @@
 
             <!-- PANEL KONTROL BERSAMA -->
             <div class="control-panel">
-                <div class="form-group" id="div-pilih-pegawai">
-                    <label>Pilih Pegawai</label>
-                    <select id="pilih-pegawai"></select>
+                <div class="form-row">
+                    <div class="form-group" id="div-pilih-pegawai">
+                        <label>Pilih Pegawai</label>
+                        <select id="pilih-pegawai" onchange="loadTunjanganPegawai()"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Bulan & Tahun</label>
+                        <input type="month" id="pilih-bulan" value="">
+                    </div>
+                    <div class="form-group" id="div-hari-kerja" style="display:none;">
+                        <label>Hari Kerja Efektif (Bisa Diedit)</label>
+                        <input type="number" id="input-hari-kerja" placeholder="Otomatis potong Minggu">
+                    </div>
+                    <button class="btn-primary" onclick="prosesData()">Proses Data</button>
                 </div>
-                <div class="form-group">
-                    <label>Bulan & Tahun</label>
-                    <input type="month" id="pilih-bulan" value="">
+
+                <!-- WADAH MANAJEMEN TUNJANGAN PERMANEN -->
+                <div id="dynamic-bonus-section">
+                    <label style="color:#065f46; font-size:14px;">⚙️ Manajemen Tunjangan Tetap / Honor Pegawai (Permanen)</label>
+                    <p style="font-size:11px; color:var(--text-muted); margin:0 0 10px 0;">Data tunjangan di bawah ini melekat pada profil pegawai yang dipilih dan otomatis dihitung di Dashboard.</p>
+                    
+                    <div id="wadah-bonus">
+                        <!-- Otomatis dari JS -->
+                    </div>
+                    
+                    <div style="display:flex; gap:10px; margin-top:5px;">
+                        <button type="button" onclick="tambahKolomBonus()" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600; font-size:12px;">+ Tambah Item Tunjangan</button>
+                        <button type="button" onclick="simpanTunjanganDatabase()" id="btn-simpan-tunjangan" style="background:#1e40af; color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600; font-size:12px;">💾 Simpan Permanen ke Database</button>
+                    </div>
                 </div>
-                <div class="form-group" id="div-hari-kerja" style="display:none;">
-                    <label>Hari Kerja Efektif (Bisa Diedit)</label>
-                    <input type="number" id="input-hari-kerja" placeholder="Otomatis potong Minggu">
-                </div>
-                <button class="btn-primary" onclick="prosesData()">Proses Data</button>
             </div>
 
             <div id="loading">Menghubungkan ke Database, mohon tunggu...</div>
@@ -121,6 +144,12 @@
                     </tbody>
                 </table>
 
+                <!-- KOTAK RINCIAN TUNJANGAN -->
+                <div id="rincian-bonus-manual" style="margin-top:20px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border); display:none;">
+                    <h4 style="margin:0 0 10px 0; color:#065f46; font-size:13px; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">Rincian Tunjangan & Honor Permanen</h4>
+                    <div id="isi-rincian-bonus"></div>
+                </div>
+
                 <div class="summary-box">
                     <div class="sum-card">
                         <div class="sum-title">Upah Kehadiran (Prasarat)</div>
@@ -136,7 +165,7 @@
                         <div class="sum-val plus" id="sum-lembur">Rp 0</div>
                     </div>
                     <div class="sum-card">
-                        <div class="sum-title">Bonus / Honor Tambahan</div>
+                        <div class="sum-title">Tunjangan Permanen</div>
                         <div class="sum-val plus" id="sum-honor">Rp 0</div>
                     </div>
                     <div class="sum-card">
@@ -165,7 +194,7 @@
                                 <th>Gaji Pokok</th>
                                 <th>Potongan</th>
                                 <th>Lembur</th>
-                                <th>Bonus & Poin</th>
+                                <th>Tunjangan + Poin</th>
                                 <th>TOTAL DIBAYARKAN</th>
                             </tr>
                         </thead>
@@ -174,7 +203,7 @@
                         </tbody>
                         <tfoot>
                             <tr style="background:#f1f5f9; font-weight:bold;">
-                                <td colspan="7" style="text-align:right;">GRAND TOTAL PAYROLL:</td>
+                                <td colspan="7" style="text-align:right;">GRAND TOTAL PAYROLL ALFACOM:</td>
                                 <td id="dash-grand-total" style="color:var(--success); font-size:16px;">Rp 0</td>
                             </tr>
                         </tfoot>
@@ -233,10 +262,97 @@
             document.getElementById('input-hari-kerja').value = totalHari - hariMinggu;
         }
 
+        // ==========================================
+        // FUNGSI MANAJEMEN TUNJANGAN TETAP PERMANEN
+        // ==========================================
+        function loadTunjanganPegawai() {
+            if(currentTab !== 'slip') return;
+            let namaTarget = document.getElementById('pilih-pegawai').value;
+            if(!namaTarget) return;
+            
+            let profil = globalUsers.find(u => u['Nama Asli'] === namaTarget) || {};
+            let bonusStr = profil['Bonus Tambahan'] || profil['Bonus'] || profil['Honor Tambahan'] || '';
+            
+            let wadah = document.getElementById('wadah-bonus');
+            wadah.innerHTML = '';
+            
+            if(bonusStr) {
+                let items = String(bonusStr).split('|');
+                items.forEach(item => {
+                    let parts = item.split('=');
+                    if(parts.length === 2) {
+                        tambahKolomBonus(parts[0], parts[1]);
+                    }
+                });
+            }
+            
+            // Beri 1 slot kosong jika memang belum ada tunjangan
+            if(wadah.children.length === 0) {
+                tambahKolomBonus('', '');
+            }
+        }
+
+        function tambahKolomBonus(nama = '', nominal = '') {
+            const wadah = document.getElementById('wadah-bonus');
+            const div = document.createElement('div');
+            div.className = 'bonus-item';
+            div.innerHTML = `
+                <input type="text" class="input-bonus-nama" placeholder="Nama Tunjangan (Misal: Honor SLA)" value="${nama}" style="flex:2; border-color:#a7f3d0;">
+                <input type="number" class="input-bonus-nominal" placeholder="Nominal (Rp)" value="${nominal}" style="flex:1; border-color:#a7f3d0;">
+                <button type="button" class="btn-del" onclick="this.parentElement.remove()">X</button>
+            `;
+            wadah.appendChild(div);
+        }
+
+        async function simpanTunjanganDatabase() {
+            let namaTarget = document.getElementById('pilih-pegawai').value;
+            if(!namaTarget) { alert("Pilih pegawai dulu!"); return; }
+            
+            let items = [];
+            document.querySelectorAll('.bonus-item').forEach(el => {
+                let n = el.querySelector('.input-bonus-nama').value.trim();
+                let v = el.querySelector('.input-bonus-nominal').value.trim();
+                if(n !== '' && v !== '') {
+                    // Hindari simbol pemisah dipakai di nama tunjangan
+                    n = n.replace(/\|/g, '').replace(/=/g, '');
+                    items.push(`${n}=${v}`);
+                }
+            });
+            
+            let finalStr = items.join('|');
+            let btn = document.getElementById('btn-simpan-tunjangan');
+            btn.innerText = 'Menyimpan ke Database...'; btn.disabled = true;
+            
+            try {
+                const res = await fetch(API_SLA, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        apiKey: API_KEY,
+                        action: 'updateTunjangan',
+                        namaAsli: namaTarget,
+                        tunjanganData: finalStr
+                    })
+                });
+                const json = await res.json();
+                if(json.status === 'sukses') {
+                    // Memperbarui array lokal agar tidak perlu ditarik ulang dari server
+                    let profil = globalUsers.find(u => u['Nama Asli'] === namaTarget);
+                    if(profil) {
+                        if(profil.hasOwnProperty('Bonus Tambahan')) profil['Bonus Tambahan'] = finalStr;
+                        else if(profil.hasOwnProperty('Bonus')) profil['Bonus'] = finalStr;
+                    }
+                    alert("Alhamdulillah! Tunjangan permanen milik " + namaTarget + " berhasil disimpan ke Database.");
+                } else {
+                    alert("Afwan, gagal: " + json.pesan);
+                }
+            } catch(e) { alert("Afwan, Terjadi kesalahan jaringan."); }
+            
+            btn.innerText = '💾 Simpan Permanen ke Database'; btn.disabled = false;
+        }
+
         function switchTab(tabId) {
             currentTab = tabId;
-            document.getElementById('btn-tab-slip').classList.remove('active');
-            document.getElementById('btn-tab-dash').classList.remove('active');
+            document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-tab-' + tabId).classList.add('active');
             
             document.getElementById('area-slip').style.display = 'none';
@@ -244,14 +360,18 @@
             
             if (tabId === 'slip') {
                 document.getElementById('div-pilih-pegawai').style.display = 'block';
+                if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role.toLowerCase())) {
+                    document.getElementById('dynamic-bonus-section').style.display = 'block';
+                }
+                loadTunjanganPegawai();
             } else {
                 document.getElementById('div-pilih-pegawai').style.display = 'none';
+                document.getElementById('dynamic-bonus-section').style.display = 'none';
             }
         }
 
         async function tarikSemuaData() {
             document.getElementById('loading').style.display = 'block';
-            
             try {
                 let resSLA = await fetch(API_SLA + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: 'follow' });
                 let dataSLA = await resSLA.json();
@@ -267,15 +387,11 @@
                 if (dataAbsen.status === 'sukses' && dataAbsen.data.length > 1) {
                     let headers = dataAbsen.data[0];
                     globalAbsen = dataAbsen.data.slice(1).map(row => {
-                        let obj = {};
-                        headers.forEach((h, i) => obj[h] = row[i]);
-                        return obj;
+                        let obj = {}; headers.forEach((h, i) => obj[h] = row[i]); return obj;
                     });
                 }
                 isiDropdownPegawai();
-            } catch(e) {
-                alert("Gagal menarik data. Detail: " + e.message);
-            }
+            } catch(e) { alert("Gagal menarik data. Detail: " + e.message); }
             document.getElementById('loading').style.display = 'none';
         }
 
@@ -287,13 +403,14 @@
             if (isAdmin) {
                 select.innerHTML = '<option value="" disabled selected>-- Pilih Pegawai --</option>';
                 let sortedUsers = globalUsers.filter(u => u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
-                sortedUsers.forEach(u => {
-                    select.innerHTML += `<option value="${u['Nama Asli']}">${u['Nama Asli']} (${u.Role})</option>`;
-                });
+                sortedUsers.forEach(u => { select.innerHTML += `<option value="${u['Nama Asli']}">${u['Nama Asli']} (${u.Role})</option>`; });
             } else {
                 select.innerHTML = `<option value="${penggunaAktif['Nama Asli']}" selected>${penggunaAktif['Nama Asli']}</option>`;
                 select.disabled = true;
             }
+            
+            // Panggil loading form jika user langsung terpilih
+            if (select.value) loadTunjanganPegawai();
         }
 
         function formatRp(angka) { return "Rp " + Math.round(angka).toLocaleString('id-ID'); }
@@ -305,11 +422,8 @@
         }
 
         function prosesData() {
-            if (currentTab === 'slip') {
-                generateSlipIndividu();
-            } else {
-                generateDashboardRekap();
-            }
+            if (currentTab === 'slip') { generateSlipIndividu(); } 
+            else { generateDashboardRekap(); }
         }
 
         // ==========================================
@@ -320,9 +434,22 @@
             let gapokRaw = profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)'] || 1500000; 
             let gajiPokok = parseFloat(gapokRaw) || 1500000;
             
-            // Ambil Bonus Tambahan (Permanen) dari Database User
-            let bonusRaw = profil['Bonus Tambahan'] || profil['Bonus'] || profil['Honor Tambahan'] || 0;
-            let bonusTambahan = parseFloat(bonusRaw) || 0;
+            // Ambil Format String Tunjangan dari Database User
+            let bonusStr = profil['Bonus Tambahan'] || profil['Bonus'] || profil['Honor Tambahan'] || '';
+            let totalTunjanganTetap = 0;
+            let arrayTunjangan = [];
+            
+            if(bonusStr) {
+                let items = String(bonusStr).split('|');
+                items.forEach(item => {
+                    let parts = item.split('=');
+                    if(parts.length === 2) {
+                        let nom = parseFloat(parts[1]) || 0;
+                        totalTunjanganTetap += nom;
+                        arrayTunjangan.push({ nama: parts[0], nominal: nom });
+                    }
+                });
+            }
 
             let upahPerHari = gajiPokok / hariKerjaEfektif;
             let upahPerMenit = upahPerHari / (9 * 60);
@@ -432,9 +559,10 @@
             let totalUpahHadir = (countKehadiran / hariKerjaEfektif) * gajiPokok;
             if (totalUpahHadir > gajiPokok) totalUpahHadir = gajiPokok;
             
-            let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin + bonusTambahan;
+            // TOTAL DENGAN MEMASUKKAN TUNJANGAN PERMANEN
+            let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin + totalTunjanganTetap;
 
-            return { profil, gajiPokok, upahPerHari, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, bonusTambahan, totalBersih, barisHTML };
+            return { profil, gajiPokok, upahPerHari, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalTunjanganTetap, arrayTunjangan, totalBersih, barisHTML };
         }
 
         function generateSlipIndividu() {
@@ -460,7 +588,23 @@
 
             document.getElementById('sum-potongan').innerText = "- " + formatRp(data.totalPotongan);
             document.getElementById('sum-lembur').innerText = "+ " + formatRp(data.totalLembur);
-            document.getElementById('sum-honor').innerText = "+ " + formatRp(data.bonusTambahan);
+            
+            // TAMPILKAN RINCIAN TUNJANGAN PERMANEN
+            let manualBonusHtml = '';
+            if (data.arrayTunjangan.length > 0) {
+                data.arrayTunjangan.forEach(t => {
+                    manualBonusHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; border-bottom:1px dotted #cbd5e1; padding-bottom:5px;"><span style="color:#475569;">${t.nama}</span><strong style="color:var(--success);">+ ${formatRp(t.nominal)}</strong></div>`;
+                });
+            }
+
+            if (manualBonusHtml !== '') {
+                document.getElementById('rincian-bonus-manual').style.display = 'block';
+                document.getElementById('isi-rincian-bonus').innerHTML = manualBonusHtml;
+            } else {
+                document.getElementById('rincian-bonus-manual').style.display = 'none';
+            }
+
+            document.getElementById('sum-honor').innerText = "+ " + formatRp(data.totalTunjanganTetap);
             document.getElementById('sum-poin').innerText = "+ " + formatRp(data.totalBonusPoin);
             document.getElementById('sum-total').innerText = formatRp(data.totalBersih);
 
@@ -484,9 +628,9 @@
 
             sortedUsers.forEach(u => {
                 let data = kalkulasiGajiPegawai(u['Nama Asli'], bulanTahun, hk);
-                if(data.countKehadiran > 0 || data.gajiPokok > 0) { // Hanya tampilkan yang aktif
+                if(data.countKehadiran > 0 || data.gajiPokok > 0) { 
                     grandTotal += data.totalBersih;
-                    let totalBonusGabungan = data.totalBonusPoin + data.bonusTambahan;
+                    let totalBonusGabungan = data.totalBonusPoin + data.totalTunjanganTetap;
                     
                     tbody.innerHTML += `
                         <tr>
