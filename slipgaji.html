@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slip Gaji Digital - Alfacom</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #1e3a8a; --surface: #ffffff; --bg: #f8fafc; --text-main: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --warning: #eab308; --danger: #ef4444; --success: #10b981; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 20px; font-size: 13px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: var(--surface); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 15px; margin-bottom: 20px; }
+        .logo-text { font-size: 20px; font-weight: 800; color: var(--primary); margin: 0; }
+        
+        .control-panel { display: flex; gap: 15px; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end;}
+        .form-group { flex: 1; min-width: 150px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; color: var(--primary); font-size: 12px;}
+        select, input { width: 100%; padding: 10px; border: 1px solid #93c5fd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; }
+        .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; height: 38px;}
+        .btn-primary:hover { background: #1e40af; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+        th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: center; }
+        th { background: var(--primary); color: white; font-weight: 600; }
+        tr:nth-child(even) { background: #f1f5f9; }
+        .kuning { background-color: #fef08a !important; color: #854d0e; font-weight: bold; }
+        .merah { background-color: #fecaca !important; color: #991b1b; font-weight: bold; }
+        
+        .summary-box { display: flex; justify-content: space-between; margin-top: 25px; gap: 20px; flex-wrap: wrap;}
+        .sum-card { flex: 1; min-width: 200px; padding: 15px; border-radius: 8px; border: 1px solid var(--border); background: #f8fafc; }
+        .sum-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
+        .sum-val { font-size: 18px; font-weight: 800; color: var(--text-main); }
+        .sum-val.plus { color: var(--success); }
+        .sum-val.minus { color: var(--danger); }
+        
+        .total-bersih { background: #ecfdf5; border: 2px solid var(--success); text-align: center; padding: 20px; border-radius: 12px; margin-top: 20px; }
+        .total-bersih .sum-title { color: #065f46; font-size: 14px; }
+        .total-bersih .sum-val { color: #065f46; font-size: 32px; }
+
+        #loading { display: none; text-align: center; padding: 40px; font-weight: 600; color: var(--primary); }
+        .btn-print { background: #475569; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; float: right;}
+        
+        @media print {
+            .control-panel, .btn-print { display: none !important; }
+            body { background: white; padding: 0; }
+            .card { box-shadow: none; border: none; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div>
+                    <h1 class="logo-text">ALFACOM MULTI SOLUTION</h1>
+                    <p style="margin: 5px 0 0 0; color: var(--text-muted);">Slip Gaji Digital & Rekap Absensi</p>
+                </div>
+                <button class="btn-print" onclick="window.print()">🖨️ Cetak PDF</button>
+            </div>
+
+            <div class="control-panel">
+                <div class="form-group">
+                    <label>Pilih Pegawai</label>
+                    <select id="pilih-pegawai"></select>
+                </div>
+                <div class="form-group">
+                    <label>Bulan & Tahun</label>
+                    <input type="month" id="pilih-bulan" value="">
+                </div>
+                <div class="form-group" id="div-hari-kerja" style="display:none;">
+                    <label>Hari Kerja Efektif (Bisa Diedit)</label>
+                    <input type="number" id="input-hari-kerja" placeholder="Otomatis potong Minggu">
+                </div>
+                <button class="btn-primary" onclick="generateSlip()">Proses Slip Gaji</button>
+            </div>
+
+            <div id="loading">Memproses Algoritma Penggajian, mohon tunggu...</div>
+
+            <div id="slip-result" style="display: none;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 15px; margin-bottom: 15px;">
+                    <div>
+                        <strong style="font-size:16px;" id="res-nama">Nama Pegawai</strong><br>
+                        <span style="color:var(--text-muted);" id="res-role">Role</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>Gaji Pokok Dasar:</strong> <span id="res-gapok" style="color:var(--primary); font-weight:bold;">Rp 0</span><br>
+                        <strong>Upah per Jam:</strong> <span id="res-upah-jam">Rp 0</span>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Masuk Pagi</th>
+                            <th>Masuk (Setelah Istirahat)</th>
+                            <th>Keluar (Sore)</th>
+                            <th>Status/Info</th>
+                            <th>Lembur</th>
+                            <th>Potongan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabel-absen">
+                        <!-- Otomatis dari JS -->
+                    </tbody>
+                </table>
+
+                <div class="summary-box">
+                    <div class="sum-card">
+                        <div class="sum-title">Upah Kehadiran (Prasarat)</div>
+                        <div class="sum-val" id="sum-hadir">Rp 0</div>
+                        <div style="font-size:10px; color:#64748b; margin-top:5px;">Hadir: <span id="count-hadir">0</span> / <span id="count-wajib">0</span> Hari</div>
+                    </div>
+                    <div class="sum-card">
+                        <div class="sum-title">Total Potongan (Telat Siang)</div>
+                        <div class="sum-val minus" id="sum-potongan">Rp 0</div>
+                    </div>
+                    <div class="sum-card">
+                        <div class="sum-title">Total Bonus Lembur (>17:00)</div>
+                        <div class="sum-val plus" id="sum-lembur">Rp 0</div>
+                    </div>
+                    <div class="sum-card">
+                        <div class="sum-title">Bonus Poin SLA (Produktivitas)</div>
+                        <div class="sum-val plus" id="sum-poin">Rp 0</div>
+                    </div>
+                </div>
+
+                <div class="total-bersih">
+                    <div class="sum-title">TOTAL UPAH BERSIH DITERIMA</div>
+                    <div class="sum-val" id="sum-total">Rp 0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // KONFIGURASI API (WAJIB DIISI)
+        // ==========================================
+        const API_SLA = "[https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec]";
+        const API_ABSEN = "[https://script.google.com/macros/s/AKfycbzWjDbDmP8HTkFhnr4i_-HDN4Gozsfa8tuSKnwIszLIphJdtfuUk9R0YdgZyotncqgyfg/exec]";
+        const API_KEY = "ALFACOM_SECURE_KEY_2026";
+
+        let penggunaAktif = null;
+        let globalUsers = []; let globalTickets = []; let globalAbsen = [];
+
+        window.onload = async function() {
+            let now = new Date();
+            let m = String(now.getMonth() + 1).padStart(2, '0');
+            document.getElementById('pilih-bulan').value = `${now.getFullYear()}-${m}`;
+
+            let savedSession = localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA');
+            if (savedSession) {
+                try {
+                    penggunaAktif = JSON.parse(savedSession).user;
+                    if(!penggunaAktif) throw new Error();
+                } catch(e) { window.location.href = "index.html"; return; }
+            } else { window.location.href = "index.html"; return; }
+
+            if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role.toLowerCase())) {
+                document.getElementById('div-hari-kerja').style.display = 'block';
+            }
+
+            // Atur otomatis input hari kerja (kurangi hari minggu)
+            hitungOtomatisHariKerja();
+            document.getElementById('pilih-bulan').addEventListener('change', hitungOtomatisHariKerja);
+
+            await tarikSemuaData();
+        };
+
+        function hitungOtomatisHariKerja() {
+            let val = document.getElementById('pilih-bulan').value;
+            if(!val) return;
+            let [thn, bln] = val.split('-');
+            let totalHari = new Date(thn, bln, 0).getDate();
+            let hariMinggu = 0;
+            for(let i = 1; i <= totalHari; i++) {
+                if(new Date(thn, bln - 1, i).getDay() === 0) hariMinggu++;
+            }
+            document.getElementById('input-hari-kerja').value = totalHari - hariMinggu;
+        }
+
+        async function tarikSemuaData() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('slip-result').style.display = 'none';
+
+            try {
+                // 1. Tarik Data dari SLA (Users & Poin Tiket)
+                let resSLA = await fetch(API_SLA + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY);
+                let dataSLA = await resSLA.json();
+                globalUsers = dataSLA.users || [];
+                globalTickets = dataSLA.tickets || [];
+
+                // 2. Tarik Data Absen Mentah (Dari API Absen Baru)
+                let resAbsen = await fetch(API_ABSEN, {
+                    method: 'POST', redirect: 'follow',
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'getAbsen' })
+                });
+                let dataAbsen = await resAbsen.json();
+                
+                // Konversi Array dari Sheets ke Array of Objects
+                if (dataAbsen.status === 'sukses' && dataAbsen.data.length > 1) {
+                    let headers = dataAbsen.data[0];
+                    globalAbsen = dataAbsen.data.slice(1).map(row => {
+                        let obj = {};
+                        headers.forEach((h, i) => obj[h] = row[i]);
+                        return obj;
+                    });
+                }
+
+                isiDropdownPegawai();
+            } catch(e) {
+                alert("Gagal menarik data dari server.");
+            }
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function isiDropdownPegawai() {
+            let select = document.getElementById('pilih-pegawai');
+            select.innerHTML = '';
+            
+            let isAdmin = ['admin', 'manager', 'direktur'].includes(penggunaAktif.Role.toLowerCase());
+
+            if (isAdmin) {
+                select.innerHTML = '<option value="" disabled selected>-- Pilih Pegawai --</option>';
+                let sortedUsers = globalUsers.filter(u => u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
+                sortedUsers.forEach(u => {
+                    select.innerHTML += `<option value="${u['Nama Asli']}">${u['Nama Asli']} (${u.Role})</option>`;
+                });
+            } else {
+                // Teknisi & Sales hanya bisa lihat namanya sendiri
+                select.innerHTML = `<option value="${penggunaAktif['Nama Asli']}" selected>${penggunaAktif['Nama Asli']}</option>`;
+                select.disabled = true;
+            }
+        }
+
+        function formatRp(angka) { return "Rp " + Math.round(angka).toLocaleString('id-ID'); }
+
+        function formatJam(dateStr) {
+            if(!dateStr) return "-";
+            let d = new Date(dateStr);
+            if(isNaN(d.getTime())) return "-";
+            return String(d.getHours()).padStart(2,'0') + ":" + String(d.getMinutes()).padStart(2,'0');
+        }
+
+        function generateSlip() {
+            let namaTarget = document.getElementById('pilih-pegawai').value;
+            let bulanTahun = document.getElementById('pilih-bulan').value;
+            let hariKerjaEfektif = parseInt(document.getElementById('input-hari-kerja').value);
+
+            if(!namaTarget || !bulanTahun || isNaN(hariKerjaEfektif)) {
+                alert("Harap lengkapi pilihan Pegawai, Bulan, dan Hari Kerja Efektif!"); return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('slip-result').style.display = 'none';
+
+            // Ambil Profil Target
+            let profil = globalUsers.find(u => u['Nama Asli'] === namaTarget) || {};
+            // Cari Gaji Pokok (Antisipasi nama kolom berbeda)
+            let gapokRaw = profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)'] || 1500000; 
+            let gajiPokok = parseFloat(gapokRaw) || 1500000;
+
+            let upahPerHari = gajiPokok / hariKerjaEfektif;
+            let upahPerMenit = upahPerHari / (9 * 60); // Asumsi 9 jam kerja = 540 menit
+
+            // Ekstrak Bulan & Tahun Pilihan
+            let [thnPilih, blnPilih] = bulanTahun.split('-');
+            
+            // 1. OLAH DATA ABSEN (HORIZONTAL MAPPING)
+            let rekapan = {};
+            globalAbsen.forEach(a => {
+                if (a['Nama Pegawai'] !== namaTarget) return;
+                
+                let d = new Date(a['Waktu Absen']);
+                if (isNaN(d.getTime())) return;
+                
+                if (d.getFullYear() == thnPilih && String(d.getMonth()+1).padStart(2,'0') == blnPilih) {
+                    let dateKey = d.toLocaleDateString('id-ID'); // Format lokal DD/MM/YYYY
+                    if(!rekapan[dateKey]) rekapan[dateKey] = { masuk: null, istirahat: null, keluar: null, statusKhusus: [], objMasuk: null, objIst: null, objKel: null };
+                    
+                    let tipe = String(a['Tipe Absen']).trim();
+                    if(tipe === 'Masuk' || tipe === 'Koreksi Absen') { 
+                        rekapan[dateKey].masuk = d; rekapan[dateKey].objMasuk = a; 
+                    }
+                    else if(tipe === 'Masuk Setelah Istirahat') { 
+                        rekapan[dateKey].istirahat = d; rekapan[dateKey].objIst = a; 
+                    }
+                    else if(tipe === 'Keluar') { 
+                        rekapan[dateKey].keluar = d; rekapan[dateKey].objKel = a; 
+                    }
+                    else if(tipe === 'Sakit' || tipe === 'Izin') { 
+                        rekapan[dateKey].statusKhusus.push(tipe); 
+                    }
+                }
+            });
+
+            // 2. KALKULASI RUPIAH
+            let tbody = document.getElementById('tabel-absen');
+            tbody.innerHTML = '';
+            
+            let totalPotongan = 0;
+            let totalLembur = 0;
+            let countKehadiran = 0;
+
+            let arrTanggal = Object.keys(rekapan).sort((a,b) => {
+                let [d1,m1,y1] = a.split('/'); let [d2,m2,y2] = b.split('/');
+                return new Date(y1, m1-1, d1) - new Date(y2, m2-1, d2);
+            });
+
+            arrTanggal.forEach(tgl => {
+                let r = rekapan[tgl];
+                let htmlRow = `<tr><td><strong>${tgl}</strong></td>`;
+                
+                // Analisa Pagi
+                let strMasuk = formatJam(r.masuk);
+                let classMasuk = "";
+                if (r.masuk) {
+                    countKehadiran++; // Hitung kehadiran
+                    let h = r.masuk.getHours(); let m = r.masuk.getMinutes();
+                    let waktuAngka = h + (m/60);
+                    if (waktuAngka > 8.0 && waktuAngka <= 8.75) classMasuk = "kuning"; // 08:01 - 08:45
+                    else if (waktuAngka > 8.75) classMasuk = "merah"; // > 08:45
+                }
+                htmlRow += `<td class="${classMasuk}">${strMasuk}</td>`;
+
+                // Analisa Siang (Istirahat) & Potongan
+                let strIstirahat = formatJam(r.istirahat);
+                let potonganHariIni = 0;
+                if (r.istirahat) {
+                    let h = r.istirahat.getHours(); let m = r.istirahat.getMinutes();
+                    let waktuAngka = h + (m/60);
+                    if (waktuAngka > 13.5) { // Lewat 13:30
+                        let telatMenit = Math.floor((r.istirahat.getTime() - new Date(r.istirahat.getFullYear(), r.istirahat.getMonth(), r.istirahat.getDate(), 13, 30, 0).getTime()) / 60000);
+                        if (telatMenit > 90) telatMenit = 90; // Maksimal potongan 1.5 jam
+                        potonganHariIni = telatMenit * upahPerMenit;
+                    }
+                }
+                totalPotongan += potonganHariIni;
+                htmlRow += `<td>${strIstirahat}</td>`;
+
+                // Analisa Sore (Lembur)
+                let strKeluar = formatJam(r.keluar);
+                let lemburHariIni = 0;
+                if (r.keluar) {
+                    let h = r.keluar.getHours(); let m = r.keluar.getMinutes();
+                    let waktuAngka = h + (m/60);
+                    if (waktuAngka > 17.0) { // Lewat 17:00
+                        let lemburMenit = Math.floor((r.keluar.getTime() - new Date(r.keluar.getFullYear(), r.keluar.getMonth(), r.keluar.getDate(), 17, 0, 0).getTime()) / 60000);
+                        lemburHariIni = (lemburMenit / 60) * 5000; // Rp 5.000 / Jam
+                    }
+                }
+                totalLembur += lemburHariIni;
+                htmlRow += `<td>${strKeluar}</td>`;
+
+                // Status Khusus
+                let infoStatus = r.statusKhusus.join(', ');
+                if(!infoStatus) {
+                    if (r.objKel && String(r.objKel['Status Disiplin']).includes('Lupa Absen')) {
+                        infoStatus = "<span style='color:red;'>Lupa Absen Pagi (-90m)</span>";
+                        potonganHariIni += (90 * upahPerMenit);
+                        totalPotongan += (90 * upahPerMenit);
+                    } else if (r.objMasuk && r.objMasuk['Tipe Absen'] === 'Koreksi Absen') {
+                        infoStatus = "<span style='color:green;'>Telah Dikoreksi</span>";
+                    }
+                }
+                htmlRow += `<td>${infoStatus || '-'}</td>`;
+                htmlRow += `<td style="color:var(--success);">+ ${formatRp(lemburHariIni)}</td>`;
+                htmlRow += `<td style="color:var(--danger);">- ${formatRp(potonganHariIni)}</td>`;
+                htmlRow += `</tr>`;
+                
+                tbody.innerHTML += htmlRow;
+            });
+
+            // 3. KALKULASI BONUS POIN SLA
+            let totalBonusPoin = 0;
+            globalTickets.forEach(t => {
+                // Pastikan tiket lunas, selesai di bulan yang sama
+                if (t['Status'] === 'Selesai' && t['Status Pembayaran'] === 'Lunas') {
+                    let tglTutup = new Date(t['Tanggal Lunas'] || t['Waktu Selesai'] || t[Object.keys(t)[9]]);
+                    if (!isNaN(tglTutup.getTime())) {
+                        if (tglTutup.getFullYear() == thnPilih && String(tglTutup.getMonth()+1).padStart(2,'0') == blnPilih) {
+                            // Cek apakah teknisi ini ada di tiket tersebut
+                            let tekArr = String(t['Teknisi'] || '').split(',').map(n => n.trim());
+                            if (tekArr.includes(namaTarget)) {
+                                let poinTiket = parseFloat(t['Bobot Poin']) || 0;
+                                let isVeto = String(t['Veto Admin'] || '').trim().toLowerCase() === 'ya';
+                                let statusKerja = t['Status SLA'];
+                                
+                                if (poinTiket > 0 && (statusKerja === 'TERPENUHI' || isVeto)) {
+                                    let poinDibagi = poinTiket / tekArr.length;
+                                    totalBonusPoin += (poinDibagi * 10000); // 1 Poin = Rp 10.000
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 4. FINALISASI UI
+            document.getElementById('res-nama').innerText = profil['Nama Asli'] || namaTarget;
+            document.getElementById('res-role').innerText = String(profil.Role || 'Staff').toUpperCase();
+            document.getElementById('res-gapok').innerText = formatRp(gajiPokok);
+            document.getElementById('res-upah-jam').innerText = formatRp(upahPerHari / 9) + " / Jam";
+            
+            // Hitung Upah Kehadiran Prorata (Jika Alpa, gaji pokok tidak full)
+            let totalUpahHadir = (countKehadiran / hariKerjaEfektif) * gajiPokok;
+            if (totalUpahHadir > gajiPokok) totalUpahHadir = gajiPokok;
+
+            document.getElementById('sum-hadir').innerText = formatRp(totalUpahHadir);
+            document.getElementById('count-hadir').innerText = countKehadiran;
+            document.getElementById('count-wajib').innerText = hariKerjaEfektif;
+
+            document.getElementById('sum-potongan').innerText = "- " + formatRp(totalPotongan);
+            document.getElementById('sum-lembur').innerText = "+ " + formatRp(totalLembur);
+            document.getElementById('sum-poin').innerText = "+ " + formatRp(totalBonusPoin);
+
+            let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin;
+            document.getElementById('sum-total').innerText = formatRp(totalBersih);
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('slip-result').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
