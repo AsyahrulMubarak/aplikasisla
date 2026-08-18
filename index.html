@@ -2992,10 +2992,10 @@
                 password: finalPw, 
                 role: document.getElementById('new-role').value, 
                 targetSales: document.getElementById('new-target-sales').value,
-                noWA: document.getElementById('new-wa').value 
+                noWA: document.getElementById('new-wa').value, // <--- TAMBAHKAN KOMA DI SINI
                 gajiPokok: document.getElementById('new-gapok').value,
-                bonusTambahan: document.getElementById('new-bonus').value,
-            }; 
+                bonusTambahan: document.getElementById('new-bonus').value
+            };
 
             if (!modeEditUser && (globalUsers || []).find(u => u && String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { 
                 showToast("Afwan, Username tersebut sudah digunakan.", "error"); 
