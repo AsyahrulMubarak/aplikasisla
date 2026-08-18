@@ -3,16 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slip Gaji Digital - Alfacom</title>
+    <title>Sistem Payroll & Slip Gaji - Alfacom</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #1e3a8a; --surface: #ffffff; --bg: #f8fafc; --text-main: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --warning: #eab308; --danger: #ef4444; --success: #10b981; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 20px; font-size: 13px; }
-        .container { max-width: 1000px; margin: 0 auto; }
+        .container { max-width: 1100px; margin: 0 auto; }
         .card { background: var(--surface); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 15px; margin-bottom: 20px; }
         .logo-text { font-size: 20px; font-weight: 800; color: var(--primary); margin: 0; }
         
+        /* Segment Control untuk Tab Menu */
+        .segment-control { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 20px; }
+        .segment-btn { flex: 1; padding: 10px 0; border: none; background: transparent; border-radius: 6px; font-size: 14px; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
+        .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
         .control-panel { display: flex; gap: 15px; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end;}
         .form-group { flex: 1; min-width: 150px; }
         label { display: block; font-weight: 600; margin-bottom: 5px; color: var(--primary); font-size: 12px;}
@@ -27,8 +32,8 @@
         .kuning { background-color: #fef08a !important; color: #854d0e; font-weight: bold; }
         .merah { background-color: #fecaca !important; color: #991b1b; font-weight: bold; }
         
-        .summary-box { display: flex; justify-content: space-between; margin-top: 25px; gap: 20px; flex-wrap: wrap;}
-        .sum-card { flex: 1; min-width: 200px; padding: 15px; border-radius: 8px; border: 1px solid var(--border); background: #f8fafc; }
+        .summary-box { display: flex; justify-content: space-between; margin-top: 25px; gap: 15px; flex-wrap: wrap;}
+        .sum-card { flex: 1; min-width: 150px; padding: 15px; border-radius: 8px; border: 1px solid var(--border); background: #f8fafc; }
         .sum-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
         .sum-val { font-size: 18px; font-weight: 800; color: var(--text-main); }
         .sum-val.plus { color: var(--success); }
@@ -41,8 +46,10 @@
         #loading { display: none; text-align: center; padding: 40px; font-weight: 600; color: var(--primary); }
         .btn-print { background: #475569; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; float: right;}
         
+        .dashboard-table th { background: #0f766e; }
+        
         @media print {
-            .control-panel, .btn-print { display: none !important; }
+            .control-panel, .btn-print, .segment-control { display: none !important; }
             body { background: white; padding: 0; }
             .card { box-shadow: none; border: none; padding: 0; }
         }
@@ -55,13 +62,20 @@
             <div class="header">
                 <div>
                     <h1 class="logo-text">ALFACOM MULTI SOLUTION</h1>
-                    <p style="margin: 5px 0 0 0; color: var(--text-muted);">Slip Gaji Digital & Rekap Absensi</p>
+                    <p style="margin: 5px 0 0 0; color: var(--text-muted);">Sistem Payroll & Slip Gaji Digital</p>
                 </div>
                 <button class="btn-print" onclick="window.print()">🖨️ Cetak PDF</button>
             </div>
 
+            <!-- TAB MENU (Hanya muncul jika Admin/Manager/Direktur) -->
+            <div class="segment-control" id="menu-tab" style="display:none;">
+                <button class="segment-btn active" id="btn-tab-slip" onclick="switchTab('slip')">Slip Gaji Individu</button>
+                <button class="segment-btn" id="btn-tab-dash" onclick="switchTab('dash')">Dashboard Rekapitulasi</button>
+            </div>
+
+            <!-- PANEL KONTROL BERSAMA -->
             <div class="control-panel">
-                <div class="form-group">
+                <div class="form-group" id="div-pilih-pegawai">
                     <label>Pilih Pegawai</label>
                     <select id="pilih-pegawai"></select>
                 </div>
@@ -73,12 +87,13 @@
                     <label>Hari Kerja Efektif (Bisa Diedit)</label>
                     <input type="number" id="input-hari-kerja" placeholder="Otomatis potong Minggu">
                 </div>
-                <button class="btn-primary" onclick="generateSlip()">Proses Slip Gaji</button>
+                <button class="btn-primary" onclick="prosesData()">Proses Data</button>
             </div>
 
-            <div id="loading">Memproses Algoritma Penggajian, mohon tunggu...</div>
+            <div id="loading">Menghubungkan ke Database, mohon tunggu...</div>
 
-            <div id="slip-result" style="display: none;">
+            <!-- AREA 1: SLIP GAJI INDIVIDU -->
+            <div id="area-slip" style="display: none;">
                 <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 15px; margin-bottom: 15px;">
                     <div>
                         <strong style="font-size:16px;" id="res-nama">Nama Pegawai</strong><br>
@@ -114,15 +129,19 @@
                         <div style="font-size:10px; color:#64748b; margin-top:5px;">Hadir: <span id="count-hadir">0</span> / <span id="count-wajib">0</span> Hari</div>
                     </div>
                     <div class="sum-card">
-                        <div class="sum-title">Total Potongan (Telat Siang)</div>
+                        <div class="sum-title">Total Potongan (Telat)</div>
                         <div class="sum-val minus" id="sum-potongan">Rp 0</div>
                     </div>
                     <div class="sum-card">
-                        <div class="sum-title">Total Bonus Lembur (>17:00)</div>
+                        <div class="sum-title">Bonus Lembur (>17:00)</div>
                         <div class="sum-val plus" id="sum-lembur">Rp 0</div>
                     </div>
                     <div class="sum-card">
-                        <div class="sum-title">Bonus Poin SLA (Produktivitas)</div>
+                        <div class="sum-title">Bonus / Honor Tambahan</div>
+                        <div class="sum-val plus" id="sum-honor">Rp 0</div>
+                    </div>
+                    <div class="sum-card">
+                        <div class="sum-title">Bonus Poin SLA</div>
                         <div class="sum-val plus" id="sum-poin">Rp 0</div>
                     </div>
                 </div>
@@ -130,6 +149,37 @@
                 <div class="total-bersih">
                     <div class="sum-title">TOTAL UPAH BERSIH DITERIMA</div>
                     <div class="sum-val" id="sum-total">Rp 0</div>
+                </div>
+            </div>
+
+            <!-- AREA 2: DASHBOARD REKAPITULASI MASTER -->
+            <div id="area-dashboard" style="display: none;">
+                <h3 style="color:#0f766e; border-bottom: 2px solid #0f766e; padding-bottom:10px;">Master Rekapitulasi Gaji Karyawan</h3>
+                
+                <div style="overflow-x: auto;">
+                    <table class="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>Nama Pegawai</th>
+                                <th>Role</th>
+                                <th>Hadir</th>
+                                <th>Gaji Pokok</th>
+                                <th>Potongan</th>
+                                <th>Lembur</th>
+                                <th>Bonus & Poin</th>
+                                <th>TOTAL DIBAYARKAN</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabel-dashboard">
+                            <!-- Otomatis dari JS -->
+                        </tbody>
+                        <tfoot>
+                            <tr style="background:#f1f5f9; font-weight:bold;">
+                                <td colspan="7" style="text-align:right;">GRAND TOTAL PAYROLL:</td>
+                                <td id="dash-grand-total" style="color:var(--success); font-size:16px;">Rp 0</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
         </div>
@@ -145,6 +195,7 @@
 
         let penggunaAktif = null;
         let globalUsers = []; let globalTickets = []; let globalAbsen = [];
+        let currentTab = 'slip';
 
         window.onload = async function() {
             let now = new Date();
@@ -159,11 +210,12 @@
                 } catch(e) { window.location.href = "index.html"; return; }
             } else { window.location.href = "index.html"; return; }
 
+            // Logika Hak Akses Master
             if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role.toLowerCase())) {
                 document.getElementById('div-hari-kerja').style.display = 'block';
+                document.getElementById('menu-tab').style.display = 'flex';
             }
 
-            // Atur otomatis input hari kerja (kurangi hari minggu)
             hitungOtomatisHariKerja();
             document.getElementById('pilih-bulan').addEventListener('change', hitungOtomatisHariKerja);
 
@@ -182,25 +234,37 @@
             document.getElementById('input-hari-kerja').value = totalHari - hariMinggu;
         }
 
+        function switchTab(tabId) {
+            currentTab = tabId;
+            document.getElementById('btn-tab-slip').classList.remove('active');
+            document.getElementById('btn-tab-dash').classList.remove('active');
+            document.getElementById('btn-tab-' + tabId).classList.add('active');
+            
+            document.getElementById('area-slip').style.display = 'none';
+            document.getElementById('area-dashboard').style.display = 'none';
+            
+            if (tabId === 'slip') {
+                document.getElementById('div-pilih-pegawai').style.display = 'block';
+            } else {
+                document.getElementById('div-pilih-pegawai').style.display = 'none';
+            }
+        }
+
         async function tarikSemuaData() {
             document.getElementById('loading').style.display = 'block';
-            document.getElementById('slip-result').style.display = 'none';
-
+            
             try {
-                // 1. Tarik Data dari SLA (Users & Poin Tiket)
-                let resSLA = await fetch(API_SLA + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY);
+                let resSLA = await fetch(API_SLA + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: 'follow' });
                 let dataSLA = await resSLA.json();
                 globalUsers = dataSLA.users || [];
                 globalTickets = dataSLA.tickets || [];
 
-                // 2. Tarik Data Absen Mentah (Dari API Absen Baru)
                 let resAbsen = await fetch(API_ABSEN, {
                     method: 'POST', redirect: 'follow',
                     body: JSON.stringify({ apiKey: API_KEY, action: 'getAbsen' })
                 });
                 let dataAbsen = await resAbsen.json();
                 
-                // Konversi Array dari Sheets ke Array of Objects
                 if (dataAbsen.status === 'sukses' && dataAbsen.data.length > 1) {
                     let headers = dataAbsen.data[0];
                     globalAbsen = dataAbsen.data.slice(1).map(row => {
@@ -209,10 +273,9 @@
                         return obj;
                     });
                 }
-
                 isiDropdownPegawai();
             } catch(e) {
-                alert("Gagal menarik data dari server.");
+                alert("Gagal menarik data. Detail: " + e.message);
             }
             document.getElementById('loading').style.display = 'none';
         }
@@ -220,7 +283,6 @@
         function isiDropdownPegawai() {
             let select = document.getElementById('pilih-pegawai');
             select.innerHTML = '';
-            
             let isAdmin = ['admin', 'manager', 'direktur'].includes(penggunaAktif.Role.toLowerCase());
 
             if (isAdmin) {
@@ -230,14 +292,12 @@
                     select.innerHTML += `<option value="${u['Nama Asli']}">${u['Nama Asli']} (${u.Role})</option>`;
                 });
             } else {
-                // Teknisi & Sales hanya bisa lihat namanya sendiri
                 select.innerHTML = `<option value="${penggunaAktif['Nama Asli']}" selected>${penggunaAktif['Nama Asli']}</option>`;
                 select.disabled = true;
             }
         }
 
         function formatRp(angka) { return "Rp " + Math.round(angka).toLocaleString('id-ID'); }
-
         function formatJam(dateStr) {
             if(!dateStr) return "-";
             let d = new Date(dateStr);
@@ -245,65 +305,50 @@
             return String(d.getHours()).padStart(2,'0') + ":" + String(d.getMinutes()).padStart(2,'0');
         }
 
-        function generateSlip() {
-            let namaTarget = document.getElementById('pilih-pegawai').value;
-            let bulanTahun = document.getElementById('pilih-bulan').value;
-            let hariKerjaEfektif = parseInt(document.getElementById('input-hari-kerja').value);
-
-            if(!namaTarget || !bulanTahun || isNaN(hariKerjaEfektif)) {
-                alert("Harap lengkapi pilihan Pegawai, Bulan, dan Hari Kerja Efektif!"); return;
+        function prosesData() {
+            if (currentTab === 'slip') {
+                generateSlipIndividu();
+            } else {
+                generateDashboardRekap();
             }
+        }
 
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('slip-result').style.display = 'none';
-
-            // Ambil Profil Target
+        // ==========================================
+        // MESIN KALKULASI GAJI INTI (DIPAKAI BERSAMA)
+        // ==========================================
+        function kalkulasiGajiPegawai(namaTarget, bulanTahun, hariKerjaEfektif) {
             let profil = globalUsers.find(u => u['Nama Asli'] === namaTarget) || {};
-            // Cari Gaji Pokok (Antisipasi nama kolom berbeda)
             let gapokRaw = profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)'] || 1500000; 
             let gajiPokok = parseFloat(gapokRaw) || 1500000;
+            
+            // Ambil Bonus Tambahan dari Profil
+            let bonusRaw = profil['Bonus Tambahan'] || profil['Bonus'] || profil['Honor Tambahan'] || 0;
+            let bonusTambahan = parseFloat(bonusRaw) || 0;
 
             let upahPerHari = gajiPokok / hariKerjaEfektif;
-            let upahPerMenit = upahPerHari / (9 * 60); // Asumsi 9 jam kerja = 540 menit
-
-            // Ekstrak Bulan & Tahun Pilihan
+            let upahPerMenit = upahPerHari / (9 * 60);
             let [thnPilih, blnPilih] = bulanTahun.split('-');
             
-            // 1. OLAH DATA ABSEN (HORIZONTAL MAPPING)
             let rekapan = {};
             globalAbsen.forEach(a => {
                 if (a['Nama Pegawai'] !== namaTarget) return;
-                
                 let d = new Date(a['Waktu Absen']);
                 if (isNaN(d.getTime())) return;
                 
                 if (d.getFullYear() == thnPilih && String(d.getMonth()+1).padStart(2,'0') == blnPilih) {
-                    let dateKey = d.toLocaleDateString('id-ID'); // Format lokal DD/MM/YYYY
+                    let dateKey = d.toLocaleDateString('id-ID');
                     if(!rekapan[dateKey]) rekapan[dateKey] = { masuk: null, istirahat: null, keluar: null, statusKhusus: [], objMasuk: null, objIst: null, objKel: null };
                     
                     let tipe = String(a['Tipe Absen']).trim();
-                    if(tipe === 'Masuk' || tipe === 'Koreksi Absen') { 
-                        rekapan[dateKey].masuk = d; rekapan[dateKey].objMasuk = a; 
-                    }
-                    else if(tipe === 'Masuk Setelah Istirahat') { 
-                        rekapan[dateKey].istirahat = d; rekapan[dateKey].objIst = a; 
-                    }
-                    else if(tipe === 'Keluar') { 
-                        rekapan[dateKey].keluar = d; rekapan[dateKey].objKel = a; 
-                    }
-                    else if(tipe === 'Sakit' || tipe === 'Izin') { 
-                        rekapan[dateKey].statusKhusus.push(tipe); 
-                    }
+                    if(tipe === 'Masuk' || tipe === 'Koreksi Absen') { rekapan[dateKey].masuk = d; rekapan[dateKey].objMasuk = a; }
+                    else if(tipe === 'Masuk Setelah Istirahat') { rekapan[dateKey].istirahat = d; rekapan[dateKey].objIst = a; }
+                    else if(tipe === 'Keluar') { rekapan[dateKey].keluar = d; rekapan[dateKey].objKel = a; }
+                    else if(tipe === 'Sakit' || tipe === 'Izin') { rekapan[dateKey].statusKhusus.push(tipe); }
                 }
             });
 
-            // 2. KALKULASI RUPIAH
-            let tbody = document.getElementById('tabel-absen');
-            tbody.innerHTML = '';
-            
-            let totalPotongan = 0;
-            let totalLembur = 0;
-            let countKehadiran = 0;
+            let totalPotongan = 0; let totalLembur = 0; let countKehadiran = 0;
+            let barisHTML = "";
 
             let arrTanggal = Object.keys(rekapan).sort((a,b) => {
                 let [d1,m1,y1] = a.split('/'); let [d2,m2,y2] = b.split('/');
@@ -314,114 +359,154 @@
                 let r = rekapan[tgl];
                 let htmlRow = `<tr><td><strong>${tgl}</strong></td>`;
                 
-                // Analisa Pagi
                 let strMasuk = formatJam(r.masuk);
                 let classMasuk = "";
                 if (r.masuk) {
-                    countKehadiran++; // Hitung kehadiran
+                    countKehadiran++;
                     let h = r.masuk.getHours(); let m = r.masuk.getMinutes();
                     let waktuAngka = h + (m/60);
-                    if (waktuAngka > 8.0 && waktuAngka <= 8.75) classMasuk = "kuning"; // 08:01 - 08:45
-                    else if (waktuAngka > 8.75) classMasuk = "merah"; // > 08:45
+                    if (waktuAngka > 8.0 && waktuAngka <= 8.75) classMasuk = "kuning";
+                    else if (waktuAngka > 8.75) classMasuk = "merah";
                 }
                 htmlRow += `<td class="${classMasuk}">${strMasuk}</td>`;
 
-                // Analisa Siang (Istirahat) & Potongan
                 let strIstirahat = formatJam(r.istirahat);
                 let potonganHariIni = 0;
                 if (r.istirahat) {
                     let h = r.istirahat.getHours(); let m = r.istirahat.getMinutes();
                     let waktuAngka = h + (m/60);
-                    if (waktuAngka > 13.5) { // Lewat 13:30
+                    if (waktuAngka > 13.5) {
                         let telatMenit = Math.floor((r.istirahat.getTime() - new Date(r.istirahat.getFullYear(), r.istirahat.getMonth(), r.istirahat.getDate(), 13, 30, 0).getTime()) / 60000);
-                        if (telatMenit > 90) telatMenit = 90; // Maksimal potongan 1.5 jam
+                        if (telatMenit > 90) telatMenit = 90;
                         potonganHariIni = telatMenit * upahPerMenit;
                     }
                 }
                 totalPotongan += potonganHariIni;
                 htmlRow += `<td>${strIstirahat}</td>`;
 
-                // Analisa Sore (Lembur)
                 let strKeluar = formatJam(r.keluar);
                 let lemburHariIni = 0;
                 if (r.keluar) {
                     let h = r.keluar.getHours(); let m = r.keluar.getMinutes();
                     let waktuAngka = h + (m/60);
-                    if (waktuAngka > 17.0) { // Lewat 17:00
+                    if (waktuAngka > 17.0) {
                         let lemburMenit = Math.floor((r.keluar.getTime() - new Date(r.keluar.getFullYear(), r.keluar.getMonth(), r.keluar.getDate(), 17, 0, 0).getTime()) / 60000);
-                        lemburHariIni = (lemburMenit / 60) * 5000; // Rp 5.000 / Jam
+                        lemburHariIni = (lemburMenit / 60) * 5000;
                     }
                 }
                 totalLembur += lemburHariIni;
                 htmlRow += `<td>${strKeluar}</td>`;
 
-                // Status Khusus
                 let infoStatus = r.statusKhusus.join(', ');
                 if(!infoStatus) {
                     if (r.objKel && String(r.objKel['Status Disiplin']).includes('Lupa Absen')) {
-                        infoStatus = "<span style='color:red;'>Lupa Absen Pagi (-90m)</span>";
-                        potonganHariIni += (90 * upahPerMenit);
-                        totalPotongan += (90 * upahPerMenit);
+                        infoStatus = "<span style='color:red;'>Lupa Absen (-90m)</span>";
+                        potonganHariIni += (90 * upahPerMenit); totalPotongan += (90 * upahPerMenit);
                     } else if (r.objMasuk && r.objMasuk['Tipe Absen'] === 'Koreksi Absen') {
-                        infoStatus = "<span style='color:green;'>Telah Dikoreksi</span>";
+                        infoStatus = "<span style='color:green;'>Dikoreksi</span>";
                     }
                 }
                 htmlRow += `<td>${infoStatus || '-'}</td>`;
                 htmlRow += `<td style="color:var(--success);">+ ${formatRp(lemburHariIni)}</td>`;
-                htmlRow += `<td style="color:var(--danger);">- ${formatRp(potonganHariIni)}</td>`;
-                htmlRow += `</tr>`;
+                htmlRow += `<td style="color:var(--danger);">- ${formatRp(potonganHariIni)}</td></tr>`;
                 
-                tbody.innerHTML += htmlRow;
+                barisHTML += htmlRow;
             });
 
-            // 3. KALKULASI BONUS POIN SLA
             let totalBonusPoin = 0;
             globalTickets.forEach(t => {
-                // Pastikan tiket lunas, selesai di bulan yang sama
                 if (t['Status'] === 'Selesai' && t['Status Pembayaran'] === 'Lunas') {
                     let tglTutup = new Date(t['Tanggal Lunas'] || t['Waktu Selesai'] || t[Object.keys(t)[9]]);
-                    if (!isNaN(tglTutup.getTime())) {
-                        if (tglTutup.getFullYear() == thnPilih && String(tglTutup.getMonth()+1).padStart(2,'0') == blnPilih) {
-                            // Cek apakah teknisi ini ada di tiket tersebut
-                            let tekArr = String(t['Teknisi'] || '').split(',').map(n => n.trim());
-                            if (tekArr.includes(namaTarget)) {
-                                let poinTiket = parseFloat(t['Bobot Poin']) || 0;
-                                let isVeto = String(t['Veto Admin'] || '').trim().toLowerCase() === 'ya';
-                                let statusKerja = t['Status SLA'];
-                                
-                                if (poinTiket > 0 && (statusKerja === 'TERPENUHI' || isVeto)) {
-                                    let poinDibagi = poinTiket / tekArr.length;
-                                    totalBonusPoin += (poinDibagi * 10000); // 1 Poin = Rp 10.000
-                                }
+                    if (!isNaN(tglTutup.getTime()) && tglTutup.getFullYear() == thnPilih && String(tglTutup.getMonth()+1).padStart(2,'0') == blnPilih) {
+                        let tekArr = String(t['Teknisi'] || '').split(',').map(n => n.trim());
+                        if (tekArr.includes(namaTarget)) {
+                            let poinTiket = parseFloat(t['Bobot Poin']) || 0;
+                            let isVeto = String(t['Veto Admin'] || '').trim().toLowerCase() === 'ya';
+                            if (poinTiket > 0 && (t['Status SLA'] === 'TERPENUHI' || isVeto)) {
+                                totalBonusPoin += ((poinTiket / tekArr.length) * 10000);
                             }
                         }
                     }
                 }
             });
 
-            // 4. FINALISASI UI
-            document.getElementById('res-nama').innerText = profil['Nama Asli'] || namaTarget;
-            document.getElementById('res-role').innerText = String(profil.Role || 'Staff').toUpperCase();
-            document.getElementById('res-gapok').innerText = formatRp(gajiPokok);
-            document.getElementById('res-upah-jam').innerText = formatRp(upahPerHari / 9) + " / Jam";
-            
-            // Hitung Upah Kehadiran Prorata (Jika Alpa, gaji pokok tidak full)
             let totalUpahHadir = (countKehadiran / hariKerjaEfektif) * gajiPokok;
             if (totalUpahHadir > gajiPokok) totalUpahHadir = gajiPokok;
+            
+            let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin + bonusTambahan;
 
-            document.getElementById('sum-hadir').innerText = formatRp(totalUpahHadir);
-            document.getElementById('count-hadir').innerText = countKehadiran;
-            document.getElementById('count-wajib').innerText = hariKerjaEfektif;
+            return { profil, gajiPokok, upahPerHari, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, bonusTambahan, totalBersih, barisHTML };
+        }
 
-            document.getElementById('sum-potongan').innerText = "- " + formatRp(totalPotongan);
-            document.getElementById('sum-lembur').innerText = "+ " + formatRp(totalLembur);
-            document.getElementById('sum-poin').innerText = "+ " + formatRp(totalBonusPoin);
+        function generateSlipIndividu() {
+            let namaTarget = document.getElementById('pilih-pegawai').value;
+            let bulanTahun = document.getElementById('pilih-bulan').value;
+            let hk = parseInt(document.getElementById('input-hari-kerja').value);
+            if(!namaTarget || !bulanTahun || isNaN(hk)) { alert("Lengkapi data!"); return; }
 
-            let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin;
-            document.getElementById('sum-total').innerText = formatRp(totalBersih);
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('area-slip').style.display = 'none';
+
+            let data = kalkulasiGajiPegawai(namaTarget, bulanTahun, hk);
+
+            document.getElementById('res-nama').innerText = data.profil['Nama Asli'] || namaTarget;
+            document.getElementById('res-role').innerText = String(data.profil.Role || 'Staff').toUpperCase();
+            document.getElementById('res-gapok').innerText = formatRp(data.gajiPokok);
+            document.getElementById('res-upah-jam').innerText = formatRp(data.upahPerHari / 9) + " / Jam";
+            
+            document.getElementById('tabel-absen').innerHTML = data.barisHTML;
+            document.getElementById('sum-hadir').innerText = formatRp(data.totalUpahHadir);
+            document.getElementById('count-hadir').innerText = data.countKehadiran;
+            document.getElementById('count-wajib').innerText = hk;
+
+            document.getElementById('sum-potongan').innerText = "- " + formatRp(data.totalPotongan);
+            document.getElementById('sum-lembur').innerText = "+ " + formatRp(data.totalLembur);
+            document.getElementById('sum-honor').innerText = "+ " + formatRp(data.bonusTambahan);
+            document.getElementById('sum-poin').innerText = "+ " + formatRp(data.totalBonusPoin);
+            document.getElementById('sum-total').innerText = formatRp(data.totalBersih);
 
             document.getElementById('loading').style.display = 'none';
-            document.getElementById('slip-result').style.display = 'block';
+            document.getElementById('area-slip').style.display = 'block';
+        }
+
+        function generateDashboardRekap() {
+            let bulanTahun = document.getElementById('pilih-bulan').value;
+            let hk = parseInt(document.getElementById('input-hari-kerja').value);
+            if(!bulanTahun || isNaN(hk)) { alert("Lengkapi Bulan dan Hari Kerja!"); return; }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('area-dashboard').style.display = 'none';
+            
+            let tbody = document.getElementById('tabel-dashboard');
+            tbody.innerHTML = '';
+            
+            let grandTotal = 0;
+            let sortedUsers = globalUsers.filter(u => u['Nama Asli'] && u.Role !== 'direktur').sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
+
+            sortedUsers.forEach(u => {
+                let data = kalkulasiGajiPegawai(u['Nama Asli'], bulanTahun, hk);
+                if(data.countKehadiran > 0 || data.gajiPokok > 0) { // Hanya tampilkan yang aktif
+                    grandTotal += data.totalBersih;
+                    let totalBonusGabungan = data.totalBonusPoin + data.bonusTambahan;
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="text-align:left;"><strong>${data.profil['Nama Asli']}</strong></td>
+                            <td>${String(data.profil.Role).toUpperCase()}</td>
+                            <td>${data.countKehadiran} Hari</td>
+                            <td>${formatRp(data.gajiPokok)}</td>
+                            <td style="color:var(--danger);">${formatRp(data.totalPotongan)}</td>
+                            <td style="color:var(--success);">${formatRp(data.totalLembur)}</td>
+                            <td style="color:var(--primary);">${formatRp(totalBonusGabungan)}</td>
+                            <td style="font-weight:bold; color:var(--success); font-size:14px;">${formatRp(data.totalBersih)}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            document.getElementById('dash-grand-total').innerText = formatRp(grandTotal);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('area-dashboard').style.display = 'block';
         }
     </script>
 </body>
