@@ -666,9 +666,6 @@
                         <div id="div-keuangan-user" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
                         <label style="color:#166534; margin-top:0;">Gaji Pokok (Rp)</label>
                         <input type="number" id="new-gapok" placeholder="Contoh: 1500000" style="margin-bottom:10px;">
-                        
-                        <label style="color:#166534;">Bonus / Honor Tambahan (Rp)</label>
-                        <input type="number" id="new-bonus" placeholder="Opsional, misal: 500000">
                     </div>
                         <div id="div-target-sales" style="display:none; background:#faf5ff; padding:15px; border-radius:8px; border:1px solid #e9d5ff; margin-top:15px;">
                             <label style="color:#6b21a8; margin-top:0;">Target Penjualan Bulanan (Rp)</label>
@@ -2992,9 +2989,8 @@
                 password: finalPw, 
                 role: document.getElementById('new-role').value, 
                 targetSales: document.getElementById('new-target-sales').value,
-                noWA: document.getElementById('new-wa').value, // <--- TAMBAHKAN KOMA DI SINI
-                gajiPokok: document.getElementById('new-gapok').value,
-                bonusTambahan: document.getElementById('new-bonus').value
+                noWA: document.getElementById('new-wa').value,
+                gajiPokok: document.getElementById('new-gapok').value
             };
 
             if (!modeEditUser && (globalUsers || []).find(u => u && String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { 
