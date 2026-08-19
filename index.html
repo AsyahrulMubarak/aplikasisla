@@ -325,6 +325,22 @@
         </div>
     </div>
 
+    <div id="modal-followup" class="modal">
+        <div class="modal-content" style="border-top:4px solid #0f766e;">
+            <h3 class="modal-title" style="color:#0f766e;">💬 Catat Follow Up CRM</h3>
+            <form onsubmit="submitFollowUp(event)">
+                <input type="hidden" id="followup-id-prospek">
+                <label>Keterangan Follow Up</label>
+                <textarea id="followup-keterangan" rows="4" placeholder="Tuliskan hasil komunikasi, kebutuhan terbaru, atau rencana tindak lanjut..." required></textarea>
+                <label>Bukti Chat</label>
+                <input type="file" id="followup-bukti" accept="image/*" required style="font-size:12px;">
+                <p id="followup-status" style="font-size:11px; color:#0f766e; font-weight:600; display:none; margin-top:10px;">Mengompres dan mengirim bukti chat, mohon tunggu...</p>
+                <button type="submit" id="btn-submit-followup" class="btn-solid-primary" style="background:#0f766e;">Simpan Follow Up</button>
+                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-followup').style.display='none'">Batal</button>
+            </form>
+        </div>
+    </div>
+
     <!-- 1. KOTAK POP-UP POIN (KINI TERPISAH) -->
     <div id="modal-poin" class="modal">
         <div class="modal-content" style="border-top-color: #eab308;">
@@ -1322,6 +1338,7 @@
                 }
                 else if (penggunaAktif.Role === 'sales') { 
                     document.getElementById('admin-export-section').style.display = 'none';
+                    document.getElementById('nav-garansi').style.display = 'none';
                     document.getElementById('nav-tiket').style.display = 'flex';
                     document.getElementById('nav-penjualan').style.display = 'flex';
                     document.getElementById('nav-prospek').style.display = 'flex';
@@ -1333,6 +1350,7 @@
                 } 
                 else { 
                     document.getElementById('admin-export-section').style.display = 'none';
+                    document.getElementById('nav-garansi').style.display = 'none';
                     document.getElementById('nav-tiket').style.display = 'flex';
                     document.getElementById('nav-penjualan').style.display = 'none'; 
                     document.getElementById('nav-prospek').style.display = 'none';
@@ -1343,7 +1361,7 @@
                 }
 
                 renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); switchTab('dashboard'); 
-                if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex' || document.getElementById('pwa-install-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
+                if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('modal-followup').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex' || document.getElementById('pwa-install-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
             } catch(e) { showToast("Afwan, Error merender aplikasi", "error"); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
@@ -2366,6 +2384,13 @@
                         </div>
                     </div>`;
                 }
+
+                let statusAkhirProspek = ['Closing / Deal', 'Batal', 'Tanpa Keterangan'].includes(textStatus.trim());
+                let salesProspek = String(p['Sales Penanggung Jawab'] || '').split(',').map(nama => nama.trim().toLowerCase());
+                let canCatatFollowUp = ['admin', 'manager'].includes(penggunaAktif.Role) || (penggunaAktif.Role === 'sales' && salesProspek.includes(String(penggunaAktif['Nama Asli'] || '').toLowerCase()));
+                if (canCatatFollowUp && !statusAkhirProspek) {
+                    btnHtml += `<button class="btn-action-primary" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4;" onclick="bukaModalFollowUp('${p['ID Prospek']}')">💬 Catat Follow Up</button>`;
+                }
                 
                 if (['admin', 'manager'].includes(penggunaAktif.Role)) { 
                     let delBtn = penggunaAktif.Role === 'admin' ? `<button class="btn-del" onclick="hapusProspek('${p['ID Prospek']}')">Hapus</button>` : '';
@@ -2392,9 +2417,75 @@
                     penawaranHtml = `<div style="margin-top:10px; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;"><p style="margin:0 0 5px 0; font-size:12px; color:#065f46; font-weight:bold;">📄 Surat Penawaran Tersedia</p><a href="${linkP}" target="_blank" class="dl-btn" style="background:#10b981; color:white; border:none; display:block; text-align:center;">⬇️ Buka / Download Penawaran</a></div>`;
                 }
 
-                container.innerHTML += `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p>${waHtml}<p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${buktiChatHtml}${penawaranHtml}${btnHtml}</div>`;
+                let riwayatFollowUpHtml = '';
+                let riwayatFollowUp = String(p['Riwayat Follow Up'] || '').trim();
+                if (riwayatFollowUp) {
+                    let riwayatAman = riwayatFollowUp.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+                    riwayatAman = riwayatAman.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#0f766e; font-weight:600; overflow-wrap:anywhere;">Buka bukti chat</a>');
+                    let waktuFollowUpTerakhir = p['Waktu Follow Up Terakhir'] ? formatWaktu(p['Waktu Follow Up Terakhir']) : '';
+                    riwayatFollowUpHtml = `<div style="margin-top:12px; padding:12px; background:#f0fdfa; border:1px solid #99f6e4; border-radius:10px;">
+                        <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:8px;">
+                            <strong style="font-size:12px; color:#0f766e;">🕘 Riwayat Follow Up</strong>
+                            ${waktuFollowUpTerakhir ? `<span style="font-size:10px; color:#64748b;">Terakhir: ${waktuFollowUpTerakhir}</span>` : ''}
+                        </div>
+                        <div style="font-size:12px; line-height:1.6; color:#334155; white-space:pre-wrap; overflow-wrap:anywhere; max-height:220px; overflow-y:auto;">${riwayatAman}</div>
+                    </div>`;
+                }
+
+                container.innerHTML += `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p>${waHtml}<p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${buktiChatHtml}${penawaranHtml}${riwayatFollowUpHtml}${btnHtml}</div>`;
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada daftar calon customer (Leads).</p>';
+        }
+
+        function bukaModalFollowUp(idProspek) {
+            document.getElementById('followup-id-prospek').value = idProspek;
+            document.getElementById('followup-keterangan').value = '';
+            document.getElementById('followup-bukti').value = '';
+            document.getElementById('followup-status').style.display = 'none';
+            document.getElementById('modal-followup').style.display = 'flex';
+        }
+
+        async function submitFollowUp(e) {
+            e.preventDefault();
+            const idProspek = document.getElementById('followup-id-prospek').value;
+            const keterangan = document.getElementById('followup-keterangan').value.trim();
+            const fileInput = document.getElementById('followup-bukti');
+            const btn = document.getElementById('btn-submit-followup');
+            const statusInfo = document.getElementById('followup-status');
+
+            if (!keterangan) { showToast('Afwan, Keterangan Follow Up wajib diisi.', 'warning'); return; }
+            if (!fileInput.files.length) { showToast('Afwan, Bukti chat wajib dipilih.', 'warning'); return; }
+
+            btn.disabled = true;
+            btn.innerText = 'Mengompres & Menyimpan...';
+            statusInfo.style.display = 'block';
+
+            try {
+                const buktiFollowUp = await prosesUploadBebas(fileInput.files[0]);
+                const payload = {
+                    apiKey: API_KEY,
+                    action: 'addFollowUpProspek',
+                    idProspek: idProspek,
+                    namaSales: penggunaAktif ? penggunaAktif['Nama Asli'] : '',
+                    keterangan: keterangan,
+                    buktiFollowUp: buktiFollowUp
+                };
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
+                const hasil = await res.json();
+                if (hasil.status === 'sukses') {
+                    showToast('Alhamdulillah! Follow Up berhasil dicatat.', 'success');
+                    document.getElementById('modal-followup').style.display = 'none';
+                    await ambilSemuaData(true);
+                } else {
+                    showToast('Afwan, Follow Up gagal disimpan: ' + (hasil.pesan || 'Respons server tidak valid.'), 'error');
+                }
+            } catch (err) {
+                showToast('Afwan, Gagal mengompres atau mengirim bukti Follow Up.', 'error');
+            } finally {
+                statusInfo.style.display = 'none';
+                btn.disabled = false;
+                btn.innerText = 'Simpan Follow Up';
+            }
         }
 
         async function submitProspek(e) {
