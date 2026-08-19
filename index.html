@@ -622,6 +622,7 @@
                     </div>
                     <label>Alokasi Teknisi</label>
                     <div class="checkbox-group" id="teknisi-group"></div>
+                    <div id="div-ganti-teknisi" style="display:none; margin-top:10px; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px;"><label style="margin:0; color:#991b1b; display:flex; align-items:center; cursor:pointer;"><input type="checkbox" id="ganti-teknisi-cek" style="width:16px; height:16px; margin-right:8px; accent-color:#dc2626;"> 🔄 Ganti Teknisi (Beri SLA Baru & Simpan Jejak Lama)</label></div>
                     
                     <!-- FITUR BARU: KANVAS TTD DI AWAL (OPSIONAL) -->
                     <label>Tanda Tangan Klien (Opsional - Jika Klien di Toko)</label>
@@ -1147,7 +1148,16 @@
         
         function setTicketFilter(filterType) { currentTicketFilter = filterType; document.getElementById('btn-filter-aktif').classList.remove('active'); document.getElementById('btn-filter-riwayat').classList.remove('active'); if(filterType === 'aktif') document.getElementById('btn-filter-aktif').classList.add('active'); else document.getElementById('btn-filter-riwayat').classList.add('active'); renderTickets(); }
 
-        async function refreshManual() { const btn = document.getElementById('btn-refresh'); btn.innerText = '⏳'; btn.disabled = true; await ambilSemuaData(true); btn.innerText = 'Sinkron Data'; btn.disabled = false; }
+        async function refreshManual() { 
+            const btn = document.getElementById('btn-refresh'); 
+            const teksAwal = btn.innerText;
+            btn.innerText = '⏳ Menyinkronkan...'; 
+            btn.disabled = true; 
+            await ambilSemuaData(true); 
+            btn.innerText = teksAwal; 
+            btn.disabled = false; 
+            showToast('Sinkronisasi selesai! Data sudah terupdate.', 'success');
+        }
 
         async function ambilSemuaData(isSilentRefresh = false, trackId = null) {
             let maxRetries = 3; let data = null; let berhasil = false;
@@ -1161,7 +1171,7 @@
                     }
                     
                     const urlTarget = apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY;
-                    const response = await fetch(urlTarget, { redirect: "follow" }); 
+                    const response = await fetch(urlTarget, { redirect: "follow", cache: "no-store" }); 
                     if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                     
                     const rawText = await response.text();
@@ -1921,6 +1931,11 @@
                     infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`; 
                 }
 
+                let teknisiSebelumnyaKey = Object.keys(ticket).find(k => String(k).trim() === 'Teknisi Sebelumnya');
+                let teknisiSebelumnyaHtml = teknisiSebelumnyaKey && String(ticket[teknisiSebelumnyaKey] || '').trim() !== ''
+                    ? `<p style="font-size:11px; color:var(--danger); margin:0 0 5px 0;"><strong>Mantan Teknisi:</strong> ${ticket[teknisiSebelumnyaKey]}</p>`
+                    : '';
+
                 // ==========================================
                 // FITUR TRANSPARANSI POIN TEKNISI (HANYA JIKA SELESAI)
                 // ==========================================
@@ -1965,6 +1980,7 @@
                     <p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>
                     ${infoPenjualanHtml}
                     <p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
+                    ${teknisiSebelumnyaHtml}
                     ${htmlPoinTeknisi}
                     <div class="waktu-box">
                         ${infoSlaTeks}
@@ -2703,6 +2719,7 @@
                             sales: s, 
                             nilaiPenjualan: document.getElementById('input-nilai-penjualan').value,
                             teknisi: t,
+                            isGantiTeknisi: document.getElementById('ganti-teknisi-cek') ? document.getElementById('ganti-teknisi-cek').checked : false,
                             waKlien: document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '',
                             ttdKlienAwal: isCanvasInputDrawn ? canvasInput.toDataURL('image/png') : ""
                         };
@@ -2801,6 +2818,10 @@
             
             const tArr = String(t['Teknisi'] || '').split(',').map(n => n.trim()); 
             document.querySelectorAll('#teknisi-group input[type="checkbox"]').forEach(cb => cb.checked = tArr.includes(cb.value)); 
+            const divGantiTeknisi = document.getElementById('div-ganti-teknisi');
+            const cekGantiTeknisi = document.getElementById('ganti-teknisi-cek');
+            if (divGantiTeknisi) divGantiTeknisi.style.display = 'block';
+            if (cekGantiTeknisi) cekGantiTeknisi.checked = false;
             document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket';
         }
 
@@ -2816,6 +2837,11 @@
             clearSignatureInput();
             
             document.querySelectorAll('#sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
+
+            const divGantiTeknisi = document.getElementById('div-ganti-teknisi');
+            const cekGantiTeknisi = document.getElementById('ganti-teknisi-cek');
+            if (divGantiTeknisi) divGantiTeknisi.style.display = 'none';
+            if (cekGantiTeknisi) cekGantiTeknisi.checked = false;
             
             document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; 
             document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; 
