@@ -1242,27 +1242,40 @@
             e.preventDefault(); 
             const un = document.getElementById('username').value.trim().toLowerCase(); 
             const pwRaw = document.getElementById('password').value;
-            const pwHashed = await hashPassword(pwRaw);
+            const btnLogin = e.target.querySelector('button[type="submit"]');
+            const teksTombolAwal = btnLogin ? btnLogin.innerText : 'Masuk Workspace';
+            if (btnLogin) { btnLogin.innerText = 'Memeriksa...'; btnLogin.disabled = true; }
 
-            const cocok = globalUsers.find(u => {
-                let uName = String(u.Username || '').toLowerCase();
-                return uName === un && (u.Password === pwHashed || u.Password == pwRaw);
-            });
+            try {
+                const pwHashed = await hashPassword(pwRaw);
+                const payload = { apiKey: API_KEY, action: 'login', username: un, passwordHash: pwHashed, passwordRaw: pwRaw };
+                const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
-            if (cocok) { 
-                penggunaAktif = cocok; 
-                let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
-                
-                if(document.getElementById('ingat-saya').checked) {
-                    localStorage.setItem('sesiLoginSLA', dataSesi);
-                    localStorage.setItem('kredensialSLA', JSON.stringify({u: un, p: pwRaw}));
-                } else {
-                    sessionStorage.setItem('sesiLoginSLA', dataSesi);
-                    localStorage.removeItem('kredensialSLA'); 
+                const hasil = await response.json();
+                if (hasil.status === 'sukses' && hasil.user) {
+                    penggunaAktif = hasil.user;
+                    let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
+
+                    if(document.getElementById('ingat-saya').checked) {
+                        localStorage.setItem('sesiLoginSLA', dataSesi);
+                        sessionStorage.removeItem('sesiLoginSLA');
+                        localStorage.setItem('kredensialSLA', JSON.stringify({u: un, p: pwRaw}));
+                    } else {
+                        sessionStorage.setItem('sesiLoginSLA', dataSesi);
+                        localStorage.removeItem('sesiLoginSLA');
+                        localStorage.removeItem('kredensialSLA');
+                    }
+                    masukKeAplikasi();
+                    ambilSemuaData(true);
+                    return;
                 }
-                masukKeAplikasi(); 
-            } else { 
-                showToast('Afwan, Username atau Password tidak valid!', 'error'); 
+
+                if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
+                showToast('Afwan, ' + (hasil.pesan || 'Username atau Password tidak valid!'), 'error');
+            } catch (error) {
+                if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
+                showToast('Afwan, Gagal terhubung ke server. Silakan coba lagi.', 'error');
             }
         }
 
@@ -3175,7 +3188,25 @@
         if (trackParam && trackParam.trim() !== "") {
             ambilSemuaData(false, trackParam);
         } else {
-            ambilSemuaData();
+            const savedSessionAwal = localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA');
+            if (savedSessionAwal) {
+                ambilSemuaData(false);
+            } else {
+                document.getElementById('login-loading').style.display = 'none';
+                document.getElementById('login-form').style.display = 'block';
+                document.getElementById('login-wrapper').style.display = 'flex';
+                document.getElementById('app-wrapper').style.display = 'none';
+
+                const savedCredsAwal = localStorage.getItem('kredensialSLA');
+                if (savedCredsAwal) {
+                    try {
+                        const credsAwal = JSON.parse(savedCredsAwal);
+                        document.getElementById('username').value = credsAwal.u || '';
+                        document.getElementById('password').value = credsAwal.p || '';
+                        document.getElementById('ingat-saya').checked = true;
+                    } catch(e) {}
+                }
+            }
         }
         // ==========================================
         // FITUR MULTI-ITEM DALAM 1 TIKET PROSPEK
