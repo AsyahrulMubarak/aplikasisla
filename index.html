@@ -1249,7 +1249,7 @@
             try {
                 const pwHashed = await hashPassword(pwRaw);
                 const payload = { apiKey: API_KEY, action: 'login', username: un, passwordHash: pwHashed, passwordRaw: pwRaw };
-                const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
+                const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' });
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
                 const hasil = await response.json();
@@ -1267,7 +1267,15 @@
                         localStorage.removeItem('kredensialSLA');
                     }
                     masukKeAplikasi();
-                    ambilSemuaData(true);
+                    if (penggunaAktif.Role !== 'admin') {
+                        document.getElementById('loading').style.display = 'block';
+                        document.getElementById('loading').innerText = 'Mengunduh database SLA...';
+                    }
+                    await ambilSemuaData(true);
+                    if (penggunaAktif.Role !== 'admin') {
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('loading').innerText = 'Sinkronisasi data sistem...';
+                    }
                     return;
                 }
 
@@ -1275,7 +1283,7 @@
                 showToast('Afwan, ' + (hasil.pesan || 'Username atau Password tidak valid!'), 'error');
             } catch (error) {
                 if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
-                showToast('Afwan, Gagal terhubung ke server. Silakan coba lagi.', 'error');
+                showToast('Afwan, Koneksi tidak stabil atau terblokir. Pastikan internet lancar.', 'error');
             }
         }
 
