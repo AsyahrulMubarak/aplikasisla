@@ -58,6 +58,13 @@
             body { background: white; padding: 0; }
             .card { box-shadow: none; border: none; padding: 0; }
         }
+
+        @media (max-width: 768px) {
+            .form-row { flex-direction: column; align-items: stretch; gap: 10px; }
+            .header { flex-direction: column; text-align: center; gap: 15px; }
+            .btn-print { float: none; width: 100%; margin-top: 10px; }
+            .summary-box { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
@@ -66,7 +73,7 @@
         <div class="card">
             <div class="header">
                 <div>
-                    <h1 class="logo-text">ALFACOM MULTI SOLUTION</h1>
+                    <img src="depan_001.png" alt="Logo Alfacom" style="max-height: 45px; margin-bottom: 5px;">
                     <p style="margin: 5px 0 0 0; color: var(--text-muted);">Sistem Payroll & Slip Gaji Digital</p>
                 </div>
                 <button class="btn-print" onclick="window.location.href='index.html'" style="margin-right:10px; background:#fefce8; color:#a16207; border:1px solid #fde047;">🔙 Kembali ke Lobi</button>
@@ -89,10 +96,6 @@
                     <div class="form-group">
                         <label>Bulan & Tahun</label>
                         <input type="month" id="pilih-bulan" value="">
-                    </div>
-                    <div class="form-group" id="div-hari-kerja" style="display:none;">
-                        <label>Hari Kerja Efektif (Bisa Diedit)</label>
-                        <input type="number" id="input-hari-kerja" placeholder="Otomatis potong Minggu">
                     </div>
                     <button class="btn-primary" onclick="prosesData()">Proses Data</button>
                 </div>
@@ -128,24 +131,26 @@
                     </div>
                 </div>
 
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Hari, Tanggal</th>
-                            <th>Msk 1 (Pagi)</th>
-                            <th>Klr 1 (Jeda)</th>
-                            <th>Msk 2 (Siang)</th>
-                            <th>Klr 2 (Sore)</th>
-                            <th>Total Jam</th>
-                            <th>Status / Ket</th>
-                            <th>Lembur</th>
-                            <th>Potongan</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabel-absen">
-                        <!-- Otomatis dari JS -->
-                    </tbody>
-                </table>
+                <div style="overflow-x: auto; width: 100%; border: 1px solid var(--border); border-radius: 8px;">
+                    <table style="margin-top:0; border:none;">
+                        <thead>
+                            <tr>
+                                <th>Hari, Tanggal</th>
+                                <th>Msk 1 (Pagi)</th>
+                                <th>Klr 1 (Jeda)</th>
+                                <th>Msk 2 (Siang)</th>
+                                <th>Klr 2 (Sore)</th>
+                                <th>Total Jam</th>
+                                <th>Status / Ket</th>
+                                <th>Lembur</th>
+                                <th>Potongan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabel-absen">
+                            <!-- Otomatis dari JS -->
+                        </tbody>
+                    </table>
+                </div>
 
                 <!-- KOTAK RINCIAN TUNJANGAN -->
                 <div id="rincian-bonus-manual" style="margin-top:20px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border); display:none;">
@@ -243,27 +248,11 @@
 
             // Logika Hak Akses Master
             if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role.toLowerCase())) {
-                document.getElementById('div-hari-kerja').style.display = 'block';
                 document.getElementById('menu-tab').style.display = 'flex';
             }
 
-            hitungOtomatisHariKerja();
-            document.getElementById('pilih-bulan').addEventListener('change', hitungOtomatisHariKerja);
-
             await tarikSemuaData();
         };
-
-        function hitungOtomatisHariKerja() {
-            let val = document.getElementById('pilih-bulan').value;
-            if(!val) return;
-            let [thn, bln] = val.split('-');
-            let totalHari = new Date(thn, bln, 0).getDate();
-            let hariMinggu = 0;
-            for(let i = 1; i <= totalHari; i++) {
-                if(new Date(thn, bln - 1, i).getDay() === 0) hariMinggu++;
-            }
-            document.getElementById('input-hari-kerja').value = totalHari - hariMinggu;
-        }
 
         // ==========================================
         // FUNGSI MANAJEMEN TUNJANGAN TETAP PERMANEN
@@ -536,7 +525,7 @@
                     if (pMsk1 && pMsk1 > 8.0) potHariIni += ((pMsk1 - 8.0) * 60 * upahPerMenit);
                     if (pMsk2 && pMsk2 > 13.5) potHariIni += ((pMsk2 - 13.5) * 60 * upahPerMenit);
                     if (pKlr2 && pKlr2 < 17.0) potHariIni += ((17.0 - pKlr2) * 60 * upahPerMenit);
-                    if (pKlr2 && pKlr2 > 17.0) lemHariIni += ((pKlr2 - 17.0) * 60 * 5000);
+                    if (pKlr2 && pKlr2 > 17.0) lemHariIni += ((pKlr2 - 17.0) * 5000);
 
                     let tot1 = 0, tot2 = 0;
                     if (pMsk1 && pKlr1) tot1 = pKlr1 - pMsk1;
@@ -589,8 +578,12 @@
         function generateSlipIndividu() {
             let namaTarget = document.getElementById('pilih-pegawai').value;
             let bulanTahun = document.getElementById('pilih-bulan').value;
-            let hk = parseInt(document.getElementById('input-hari-kerja').value);
-            if(!namaTarget || !bulanTahun || isNaN(hk)) { alert("Lengkapi data!"); return; }
+            if(!namaTarget || !bulanTahun) { alert("Lengkapi data pegawai dan bulan!"); return; }
+
+            let [thn, bln] = bulanTahun.split('-');
+            let totalHariBulan = new Date(thn, bln, 0).getDate();
+            let hk = totalHariBulan;
+            for(let i = 1; i <= totalHariBulan; i++) { if(new Date(thn, bln - 1, i).getDay() === 0) hk--; }
 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('area-slip').style.display = 'none';
@@ -635,8 +628,12 @@
 
         function generateDashboardRekap() {
             let bulanTahun = document.getElementById('pilih-bulan').value;
-            let hk = parseInt(document.getElementById('input-hari-kerja').value);
-            if(!bulanTahun || isNaN(hk)) { alert("Lengkapi Bulan dan Hari Kerja!"); return; }
+            if(!bulanTahun) { alert("Lengkapi pilihan Bulan!"); return; }
+
+            let [thn, bln] = bulanTahun.split('-');
+            let totalHariBulan = new Date(thn, bln, 0).getDate();
+            let hk = totalHariBulan;
+            for(let i = 1; i <= totalHariBulan; i++) { if(new Date(thn, bln - 1, i).getDay() === 0) hk--; }
 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('area-dashboard').style.display = 'none';
