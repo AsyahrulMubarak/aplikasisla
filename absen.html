@@ -125,6 +125,8 @@
         let penggunaAktif = null;
         let jarakSekarang = 999999;
         let lokasiDitemukan = false;
+        let userLat = null;
+        let userLon = null;
 
         function showToast(message, isError = false) {
             let t = document.createElement('div');
@@ -192,6 +194,8 @@
                     (position) => {
                         let lat = position.coords.latitude;
                         let lon = position.coords.longitude;
+                        userLat = lat;
+                        userLon = lon;
                         jarakSekarang = hitungJarak(KANTOR_LAT, KANTOR_LON, lat, lon);
                         lokasiDitemukan = true;
                         
@@ -209,12 +213,16 @@
                         gpsBox.innerHTML = "❌ Izin GPS Ditolak / Gagal.";
                         jarakSekarang = 999999;
                         lokasiDitemukan = false;
+                        userLat = null;
+                        userLon = null;
                         cekKondisiAbsen();
                     },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             } else {
                 gpsBox.className = "gps-box error"; gpsBox.innerHTML = "❌ Browser tidak support GPS.";
+                userLat = null;
+                userLon = null;
             }
         }
 
@@ -338,6 +346,8 @@
                     keterangan: document.getElementById('input-keterangan').value,
                     fotoBase64: base64Foto
                 };
+
+                payload.mapsLink = (typeof userLat !== 'undefined' && userLat) ? "https://www.google.com/maps?q=" + userLat + "," + userLon : "-";
 
                 if (tipeAbsen.includes('Koreksi')) {
                     payload.koreksiStatus = document.getElementById('koreksi-status').value;
