@@ -8,7 +8,7 @@
     <style>
         :root { --primary: #1e3a8a; --surface: #ffffff; --bg: #f8fafc; --text-main: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --warning: #eab308; --danger: #ef4444; --success: #10b981; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 20px; font-size: 13px; }
-        .container { max-width: 1100px; margin: 0 auto; }
+        .container { width: 100%; max-width: 100%; margin: 0; padding: 20px 40px; box-sizing: border-box; }
         .card { background: var(--surface); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 15px; margin-bottom: 20px; }
         .logo-text { font-size: 20px; font-weight: 800; color: var(--primary); margin: 0; }
@@ -50,7 +50,7 @@
         .total-bersih .sum-val { color: #065f46; font-size: 32px; }
 
         #loading { display: none; text-align: center; padding: 40px; font-weight: 600; color: var(--primary); }
-        .btn-print { background: #475569; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; float: right;}
+        .btn-print { background: #475569; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
         .dashboard-table th { background: #0f766e; }
         
         @media print {
@@ -60,9 +60,10 @@
         }
 
         @media (max-width: 768px) {
+            .container { padding: 15px; }
             .form-row { flex-direction: column; align-items: stretch; gap: 10px; }
-            .header { flex-direction: column; text-align: center; gap: 15px; }
-            .btn-print { float: none; width: 100%; margin-top: 10px; }
+            .header { flex-direction: column; text-align: center; align-items: center; gap: 15px; }
+            .header > div { align-items: center !important; }
             .summary-box { flex-direction: column; }
         }
     </style>
@@ -72,12 +73,14 @@
     <div class="container">
         <div class="card">
             <div class="header">
-                <div>
-                    <img src="depan_001.png" alt="Logo Alfacom" style="max-height: 45px; margin-bottom: 5px;">
-                    <p style="margin: 5px 0 0 0; color: var(--text-muted);">Sistem Payroll & Slip Gaji Digital</p>
+                <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                    <img src="depan_001.png" alt="Logo Alfacom" style="max-height: 65px; width: auto; object-fit: contain; margin-bottom: 5px;">
+                    <p style="margin: 3px 0 0 0; color: var(--text-muted); font-size: 13px; font-weight: 600;">Sistem Payroll & Slip Gaji Digital</p>
                 </div>
-                <button class="btn-print" onclick="window.location.href='index.html'" style="margin-right:10px; background:#fefce8; color:#a16207; border:1px solid #fde047;">🔙 Kembali ke Lobi</button>
-                <button class="btn-print" onclick="window.print()">🖨️ Cetak PDF</button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button type="button" class="btn-print" onclick="window.location.href='index.html'" style="background:#fefce8; color:#a16207; border:1px solid #fde047; font-weight:bold;">🔙 Kembali ke Lobi</button>
+                    <button type="button" class="btn-print" onclick="window.print()" style="background:#475569; font-weight:bold;">🖨️ Cetak PDF</button>
+                </div>
             </div>
 
             <!-- TAB MENU (Hanya muncul jika Admin/Manager/Direktur) -->
@@ -442,7 +445,7 @@
             }
 
             let upahPerHari = gajiPokok / hariKerjaEfektif;
-            let upahPerJam = upahPerHari / 9; // Standar 9 Jam
+            let upahPerJam = upahPerHari / 9;
             let upahPerMenit = upahPerJam / 60;
             let [thnPilih, blnPilih] = bulanTahun.split('-');
 
@@ -459,7 +462,8 @@
             });
 
             let totalPotongan = 0; let totalLembur = 0; let countKehadiran = 0;
-            let barisHTML = ""; let countLupaPulang = 0; let sakitBeruntun = 0;
+            let barisHTML = ""; let countLupaPulang = 0;
+            let kuotaSakitTerpakai = 0; let sedangSakitBeruntun = false;
             let totalHariBulanIni = new Date(thnPilih, blnPilih, 0).getDate();
             const namaHariArr = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -470,20 +474,41 @@
                 let isAhad = (currDate.getDay() === 0);
 
                 let events = rekapanMentah[dateKey] || [];
-                let isSakit = events.some(e => String(e['Tipe Absen']).includes('Sakit'));
+                let isSakitExplicit = events.some(e => String(e['Tipe Absen']).includes('Sakit'));
+                let isIzinExplicit = events.some(e => String(e['Tipe Absen']).includes('Izin'));
+                let adaAbsenFisik = events.some(e => String(e['Tipe Absen']).includes('Masuk') || String(e['Tipe Absen']).includes('Keluar') || String(e['Tipe Absen']).includes('Pulang'));
+
+                if (adaAbsenFisik) sedangSakitBeruntun = false;
+                if (isSakitExplicit) sedangSakitBeruntun = true;
+
+                let applySakit = false;
+                let applyIzin = isIzinExplicit;
 
                 let msk1 = "-", klr1 = "-", msk2 = "-", klr2 = "-";
                 let ketList = []; let potHariIni = 0; let lemHariIni = 0; let totJam = 0; let isHadir = false;
+                let isLate = false; let isLupaKeluarParah = false; let isPokok2x = false;
 
-                if (isSakit) { sakitBeruntun = 1; }
-                else if (events.length === 0 && sakitBeruntun > 0 && sakitBeruntun < 3 && !isAhad) {
-                    sakitBeruntun++; isSakit = true; ketList.push("Sakit (Auto)");
-                } else { sakitBeruntun = 0; }
+                // Logika Kuota Sakit 3x (Jika ke-4 jadi Izin)
+                if (!isAhad && (isSakitExplicit || (sedangSakitBeruntun && !adaAbsenFisik))) {
+                    if (kuotaSakitTerpakai < 3) {
+                        applySakit = true;
+                        kuotaSakitTerpakai++;
+                        sedangSakitBeruntun = true;
+                    } else {
+                        applyIzin = true;
+                        sedangSakitBeruntun = true;
+                        if (!isIzinExplicit) ketList.push("Sakit (Kuota Habis -> Izin)");
+                    }
+                }
 
-                if (isSakit) {
+                if (applySakit) {
                     msk1 = "08:00"; msk2 = "13:30"; klr2 = "17:00";
                     totJam = 9; isHadir = true; countKehadiran++;
-                    ketList.push("Sakit");
+                    if (!isSakitExplicit) ketList.push("Sakit (Auto)");
+                    else ketList.push("Sakit");
+                } else if (applyIzin) {
+                    if (!isIzinExplicit && !ketList.includes("Sakit (Kuota Habis -> Izin)")) ketList.push("Izin (Auto)");
+                    else if (isIzinExplicit) ketList.push("Izin");
                 } else if (events.length > 0) {
                     isHadir = true; countKehadiran++;
                     let lastEventType = "";
@@ -493,12 +518,14 @@
                         let ed = new Date(e['Waktu Absen']);
                         let tipe = String(e['Tipe Absen']).trim();
                         let ket = String(e['Keterangan'] || "").trim();
-                        if (ket && ket !== "-") ketList.push(ket);
+                        if (ket && ket !== "-") {
+                            if (ket.toLowerCase().includes("pokok x2")) isPokok2x = true;
+                            ketList.push(ket);
+                        }
 
                         if (tipe === "Hukuman Sistem") {
                             potHariIni += (90 * upahPerMenit);
                             if(ket.includes("Lupa Absen")) ketList.push("Lupa Absen Istirahat (-1.5 Jam)");
-                            else ketList.push(ket);
                             return;
                         }
 
@@ -507,16 +534,26 @@
                         lastEventType = tipe;
 
                         if (tipe.includes("Masuk")) {
+                            if (jamFloat > 8.75) isLate = true;
                             if (jamFloat < 12.0) msk1 = jamStr; else msk2 = jamStr;
                         } else if (tipe.includes("Keluar") || tipe.includes("Pulang")) {
                             if (jamFloat <= 14.0) klr1 = jamStr; else klr2 = jamStr;
                         }
                     });
 
+                    if (msk1 === "-" && msk2 === "-" && (klr1 !== "-" || klr2 !== "-")) {
+                        msk2 = "13:30";
+                        ketList.push("Lupa Masuk (Auto 13:30)");
+                    }
+
                     if (lastEventType.includes("Masuk") && klr2 === "-") {
                         countLupaPulang++;
-                        if (countLupaPulang <= 3) { klr2 = "17:00"; ketList.push("Lupa Pulang (Auto 17:00)"); }
-                        else { klr2 = "15:30"; ketList.push("Lupa Pulang (Auto 15:30)"); }
+                        if (countLupaPulang <= 3) {
+                            klr2 = "17:00"; ketList.push("Lupa Pulang (Auto 17:00)");
+                        } else {
+                            klr2 = "15:30"; ketList.push("Lupa Pulang (Auto 15:30)");
+                            isLupaKeluarParah = true;
+                        }
                     }
 
                     let parseH = (t) => t === "-" ? null : parseInt(t.split(':')[0]) + parseInt(t.split(':')[1])/60;
@@ -536,10 +573,23 @@
                     totJam = tot1 + tot2; if(totJam < 0) totJam = 0;
                 }
 
+                if (isPokok2x && isHadir) {
+                    lemHariIni += upahPerHari;
+                    ketList.push("Pokok x2 (+ " + formatRp(upahPerHari) + ")");
+                }
+
                 totalPotongan += potHariIni; totalLembur += lemHariIni;
                 let txtJam = totJam > 0 ? totJam.toFixed(1) + "h" : "-";
-                let infoStr = ketList.join('<br>') || "-";
-                let rowBg = isAhad ? "background:#fecaca; color:#991b1b;" : (i%2===0 ? "background:#f1f5f9;" : "background:#ffffff;");
+
+                let uniqueKet = [...new Set(ketList)];
+                let infoStr = uniqueKet.join('<br>') || "-";
+
+                let rowBg = i%2===0 ? "background:#f1f5f9;" : "background:#ffffff;";
+                if (isAhad) rowBg = "background:#fecaca; color:#991b1b;";
+                else if (applySakit) rowBg = "background:#bfdbfe; color:#1e3a8a;";
+                else if (applyIzin) rowBg = "background:#bbf7d0; color:#166534;";
+                else if (isLupaKeluarParah) rowBg = "background:#e2e8f0; color:#334155;";
+                else if (isLate) rowBg = "background:#fef08a; color:#854d0e;";
 
                 barisHTML += `<tr style="${rowBg}">
                     <td><strong>${namaHari}, ${String(i).padStart(2,'0')}/${blnPilih}/${thnPilih}</strong></td>
