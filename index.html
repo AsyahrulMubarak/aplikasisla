@@ -157,7 +157,7 @@
             .container { width: calc(100% - 240px); max-width: 100%; margin-left: 240px; background: transparent; padding: 30px 40px; box-shadow: none; margin-top: 0; box-sizing: border-box; }
             .top-bar { background: var(--surface); border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 25px; padding: 15px 25px; border: 1px solid var(--border); }
             .tab-page { background: var(--surface); padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border); min-height: calc(100vh - 160px); }
-            #login-wrapper, #app-selector-wrapper, #client-tracking-wrapper { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: #f8fafc !important; z-index: 9999 !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 !important; padding: 20px !important; box-sizing: border-box !important; }
+            #login-wrapper, #app-selector-wrapper, #client-tracking-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; margin: 0; justify-content: center; align-items: center; box-sizing: border-box; background: #f8fafc; z-index: 9999; }
             .login-card { max-width: 400px; padding: 40px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 100%; }
             .charts-container { justify-content: flex-start; gap: 20px; }
             .chart-box { flex: 1; min-width: 300px; max-width: none; }
@@ -1010,7 +1010,10 @@
 
                     htmlGaransi += `<div class="card ${scG}" style="padding:15px; margin-bottom:10px; background:#f8fafc; border-radius:8px;">
                         ${htmlPeringatanInap}
-                        <h3 style="font-size:14px; margin:0 0 10px 0;">${g['Barang / Jasa']} <span class="badge ${bcG}" style="float:right;">${statGrs}</span></h3>
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px;">
+                            <h3 style="font-size:14px; margin:0; word-break:break-word; line-height:1.4;">${g['Barang / Jasa']}</h3>
+                            <span class="badge ${bcG}" style="white-space:nowrap; flex-shrink:0;">${statGrs}</span>
+                        </div>
                         <p style="margin:0 0 5px 0; font-size:12px;"><strong>Durasi Garansi:</strong> ${g['Durasi (Hari)']} Hari</p>
                         <p style="margin:0 0 5px 0; font-size:12px;"><strong>Habis Pada:</strong> ${tglHabis}</p>
                         ${ketKlienHtml}
