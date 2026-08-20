@@ -26,7 +26,7 @@
         .btn-absen:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
         .btn-back { background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 10px; width: 100%; font-size: 13px; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 10px; }
         
-        #keterangan-section, #foto-section { display: none; margin-top: 15px; }
+        #foto-section { display: none; margin-top: 15px; }
         .info-text { font-size: 11px; color: var(--danger); margin-top: 5px; }
         
         /* Loading Overlay */
@@ -83,15 +83,15 @@
                 <span>📍 Mencari Lokasi GPS...</span>
             </div>
 
-            <div id="keterangan-section">
-                <label id="label-keterangan" style="font-weight:600; display:block; margin-bottom:5px; color:#475569;">Keterangan / Alasan (Opsional)</label>
-                <input type="text" id="input-keterangan" placeholder="Ketik alasan di sini...">
-            </div>
-
             <div id="foto-section">
                 <label>Foto Bukti (Kamera Langsung)</label>
                 <div class="info-text" id="info-foto">Diperlukan foto area/perangkat kerja</div>
                 <input type="file" id="input-foto" accept="image/*" capture="environment" style="border:none; padding:0;">
+            </div>
+
+            <div id="keterangan-section" style="margin-bottom:20px;">
+                <label id="label-keterangan" style="color:#475569; font-size:12px; font-weight:600; margin-bottom:8px; display:block;">📝 Keterangan / Alasan (Opsional)</label>
+                <textarea id="input-keterangan" rows="2" style="width:100%; padding:12px 15px; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; font-size:14px; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;" placeholder="Tuliskan keterangan (Contoh: Shift malam, mampir beli material, dll)..."></textarea>
             </div>
 
             <button type="submit" id="btn-submit" class="btn-absen" disabled>Kirim Absen</button>
@@ -257,7 +257,7 @@
                 }
             }
 
-            ketSection.style.display = butuhKet ? "block" : "none";
+            ketSection.style.display = "block";
             inputKet.required = butuhKet;
             inputKet.placeholder = placeholderKet;
             
@@ -384,7 +384,7 @@
                 let session = JSON.parse(localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA'));
                 if(!session || !session.user) { showToast('Sesi tidak valid!', true); return; }
 
-                let res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'getTinjauanAbsen', nama: session.user['Nama Asli'] }) });
+                let res = await fetch(API_ABSEN_URL, { method:'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'getTinjauanAbsen', nama: session.user['Nama Asli'] }) });
                 let json = await res.json();
 
                 if(json.status === 'sukses' && json.data.length > 0) {
