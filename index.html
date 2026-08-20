@@ -142,6 +142,24 @@
         .btn-cm-danger { background: var(--danger); color: white; } .btn-cm-danger:hover { background: #dc2626; }
         .icon-btn-pwd { position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:var(--text-muted); display:flex; align-items:center; justify-content:center; z-index:10; }
         .icon-btn-pwd:hover { color:var(--primary); }
+
+        /* --- DESKTOP / LAPTOP RESPONSIVE UI --- */
+        @media (min-width: 768px) {
+            body { padding: 20px; background-color: #cbd5e1; display: flex; justify-content: center; align-items: flex-start; }
+            .bottom-nav { position: fixed; top: 20px; left: 20px; width: 240px; height: calc(100vh - 40px); flex-direction: column; justify-content: flex-start; padding-top: 30px; border-radius: 16px; box-shadow: 4px 0 15px rgba(0,0,0,0.05); border: 1px solid var(--border); overflow-y: auto; background: var(--surface); }
+            .nav-btn { flex: none; flex-direction: row; justify-content: flex-start; padding: 15px 25px; border-top: none; border-left: 4px solid transparent; width: 100%; box-sizing: border-box; margin-bottom: 5px; border-radius: 0; }
+            .nav-btn .icon { font-size: 22px; margin-bottom: 0; margin-right: 15px; }
+            .nav-btn .text { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
+            .nav-btn.active { border-top: none; border-left-color: var(--primary); background: #eff6ff; }
+            .container { width: calc(100% - 280px); max-width: 1100px; margin-left: 260px; background: transparent; padding: 0; box-shadow: none; margin-top: 0; }
+            .tab-page { background: var(--surface); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border); min-height: calc(100vh - 40px); }
+            .top-bar { border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 20px; }
+            #login-wrapper, #app-selector-wrapper { height: 90vh; margin-left: -260px; /* Center form on desktop */ }
+            .charts-container { justify-content: flex-start; }
+            .chart-box { flex: none; width: calc(50% - 15px); }
+            .checkbox-group { grid-template-columns: 1fr 1fr 1fr; }
+            #modal-bug .modal-content, #modal-update .modal-content, #modal-followup .modal-content, #modal-banding .modal-content, #modal-penawaran .modal-content, #modal-export .modal-content, #modal-poin .modal-content { max-width: 550px; }
+        }
     </style>
 </head>
 <body>
@@ -642,7 +660,7 @@
                     <input type="text" id="input-notrans-sls" required>
                     <label>Nama Pembeli</label><input type="text" id="input-pembeli-sls" required>
                     <label>Barang / Jasa Terjual</label><input type="text" id="input-barang-sls" required>
-                    <label>Sales Bertugas</label><select id="input-sales-sls" required></select>
+                    <label>Sales Bertugas</label><div class="checkbox-group" id="input-sales-sls-group"></div>
                     <label style="color:var(--purple);">Nominal Omzet (Rp)</label>
                     <input type="number" id="input-nilai-sls" required style="border-color:#d8b4fe;">
                     <button type="submit" id="btn-submit-sls" class="btn-solid-primary" style="background:var(--purple);">Simpan Penjualan</button>
@@ -1420,21 +1438,17 @@
                 const salesGroup = document.getElementById('sales-group'); if(salesGroup) salesGroup.innerHTML = '';
                 const prospekSalesGroup = document.getElementById('prospek-sales-group'); if(prospekSalesGroup) prospekSalesGroup.innerHTML = '';
                 
-                const salesSelectSls = document.getElementById('input-sales-sls'); const currentSalesSlsVal = salesSelectSls.value;
+                const salesGroupSls = document.getElementById('input-sales-sls-group'); if(salesGroupSls) salesGroupSls.innerHTML = '';
                 const garansiSalesGroup = document.getElementById('garansi-sales-group'); 
                 if(garansiSalesGroup) garansiSalesGroup.innerHTML = '';
-                
-                salesSelectSls.innerHTML = '<option value="" disabled selected>-- Pilih Sales --</option>';
                 
                 let salesList = (globalUsers || []).filter(u => u && u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
                 salesList.forEach(s => { 
                     if(salesGroup) salesGroup.innerHTML += `<label><input type="checkbox" value="${s}" onchange="togglePenjualanInput()"> ${s}</label>`;
                     if(prospekSalesGroup) prospekSalesGroup.innerHTML += `<label><input type="checkbox" value="${s}"> ${s}</label>`;
-                    salesSelectSls.innerHTML += `<option value="${s}">${s}</option>`;
+                    if(salesGroupSls) salesGroupSls.innerHTML += `<label><input type="checkbox" value="${s}"> ${s}</label>`;
                     if(garansiSalesGroup) garansiSalesGroup.innerHTML += `<label><input type="checkbox" value="${s}" onchange="toggleGaransiOmzet()"> ${s}</label>`;
                 });
-                
-                salesSelectSls.value = currentSalesSlsVal;
             } catch(e) { console.error("Error render inputs:", e); }
         }
 
@@ -1554,7 +1568,7 @@
                             let dtSelesai = new Date(tSelesai);
                             if (!isNaN(dtSelesai.getTime())) {
                                 let jamKerja = hitungDurasiJamKerjaMs(dtSelesai, now) / 3600000;
-                                if (jamKerja >= 24) { statsAdminNota.telat++; } else { statsAdminNota.aman++; }
+                                if (jamKerja >= 9) { statsAdminNota.telat++; } else { statsAdminNota.aman++; }
                             }
                         } else { statsAdminNota.aman++; }
                     }
@@ -1572,6 +1586,28 @@
                             }
                         }
                     });
+
+                    let keyPenalti = Object.keys(t).find(k => k && k.includes('Penalti Teknisi Lama'));
+                    let penaltiLama = keyPenalti ? t[keyPenalti] : null;
+                    if (penaltiLama && typeof penaltiLama === 'string' && penaltiLama.includes('| Kerja:')) {
+                        let parts = penaltiLama.split('|');
+                        let tekLamaName = parts[0].trim();
+                        let resLama = parts[1].split(':')[1].trim();
+                        let krjLama = parts[2].split(':')[1].trim();
+
+                        let nLama = tekLamaName.toLowerCase() === 'syawal' ? 'Muhammad Syawal' : tekLamaName;
+                        let keyLama = Object.keys(statsTeknisi).find(k => k.toLowerCase() === nLama.toLowerCase());
+
+                        if (keyLama) {
+                            if(resLama === 'TERPENUHI') { statsTeknisi[keyLama].resp_tepat++; statsTeknisi[keyLama].resp_total++; }
+                            else if(resLama === 'GAGAL') { statsTeknisi[keyLama].resp_telat++; statsTeknisi[keyLama].resp_total++; }
+                            else if(resLama === 'AMAN') { statsTeknisi[keyLama].resp_aman++; }
+                            
+                            if(krjLama === 'TERPENUHI') { statsTeknisi[keyLama].peng_tepat++; statsTeknisi[keyLama].peng_total++; }
+                            else if(krjLama === 'TERLAMBAT') { statsTeknisi[keyLama].peng_telat++; statsTeknisi[keyLama].peng_total++; }
+                            else if(krjLama === 'AMAN') { statsTeknisi[keyLama].peng_aman++; }
+                        }
+                    }
 
                     // Sales Logic (Omzet masuk di bulan tiket selesai)
                     let sNames = String(t['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
@@ -1673,7 +1709,7 @@
             let aTotal = statsAdmin.tepat + statsAdmin.telat + statsAdmin.proses; let aRate = aTotal > 0 ? Math.round((statsAdmin.tepat / aTotal) * 100) : 0; let aP1 = aTotal === 0 ? 0 : (statsAdmin.tepat / aTotal) * 100; let aP2 = aTotal === 0 ? 0 : aP1 + (statsAdmin.telat / aTotal) * 100; let aBg = aTotal === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${aP1}%, var(--danger) ${aP1}% ${aP2}%, var(--warning) ${aP2}% 100%)`;
 
             let htmlAdmin = `<h3 class="section-title">Performa Admin (SLA Internal)</h3><div class="card" style="border-left-color:#3b82f6;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:#3b82f6; font-size:16px;">SLA 1: Distribusi Tugas Teknisi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 3 Hari (27 Jam Kerja).</p><div class="charts-container"><div class="chart-box" style="flex:1;"><div class="chart-title">DISTRIBUSI TUGAS</div><div class="donut" style="background: ${aBg};"><div class="donut-inner"><span class="donut-val" style="color:${aRate>=80?'var(--success)':(aRate>=50?'var(--warning)':'var(--danger)')}">${aTotal>0?aRate+'%':'-'}</span><span class="donut-label">Sukses</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Cepat</span> <b>${statsAdmin.tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat (>3 Hari)</span> <b>${statsAdmin.telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${statsAdmin.proses}</b></div></div></div></div></div>`;
-            htmlAdmin += `<div class="card" style="border-left-color:var(--purple); margin-top:15px;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--purple); font-size:16px;">SLA 2: Pembuatan Nota & Garansi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 24 Jam Kerja setelah teknisi menyelesaikan tiket.</p><div style="display:flex; justify-content:space-around; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);"><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--success);">${statsAdminNota.aman}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Tiket Aman</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--danger);">${statsAdminNota.telat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">SLA GAGAL</div></div></div></div>`;
+            htmlAdmin += `<div class="card" style="border-left-color:var(--purple); margin-top:15px;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--purple); font-size:16px;">SLA 2: Pembuatan Nota & Garansi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 9 Jam Kerja setelah teknisi menyelesaikan tiket.</p><div style="display:flex; justify-content:space-around; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);"><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--success);">${statsAdminNota.aman}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Tiket Aman</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--danger);">${statsAdminNota.telat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">SLA GAGAL</div></div></div></div>`;
             htmlAdmin += `<div class="card" style="border-left-color:var(--warning); margin-top:15px;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--warning); font-size:16px;">SLA 3: Serah Terima Barang (Follow-Up)</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Klien mengambil barang maksimal 3 hari sejak selesai dikerjakan.</p><div style="display:flex; justify-content:space-around; background:#fffbeb; padding:15px; border-radius:8px; border:1px solid #fde68a;"><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--success);">${statsAdminFollowUp.cepat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Diserahkan</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--warning);">${statsAdminFollowUp.proses}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Masa Tunggu</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--danger);">${statsAdminFollowUp.telat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Mengendap >3 Hari</div></div></div></div>`;
 
             let htmlTeknisi = '<h3 class="section-title" style="margin-top:30px;">Papan Performa Teknisi</h3>';
@@ -1859,13 +1895,13 @@
                         if (!refsDiGaransi.includes(String(ticket['ID Tiket']).trim())) {
                             let tSelesai = new Date(ticket[Object.keys(ticket)[9]]);
                             if (!isNaN(tSelesai.getTime())) {
-                                let batasAdminNota = hitungTenggatJamKerja(tSelesai, 24);
+                                let batasAdminNota = hitungTenggatJamKerja(tSelesai, 9);
                                 let jamKerjaTelat = hitungDurasiJamKerjaMs(tSelesai, new Date()) / 3600000;
                                 
-                                if (jamKerjaTelat >= 24) {
-                                    infoSlaTeks += `<div style="margin-top:10px; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">🚨 SLA ADMIN (NOTA) GAGAL</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Belum input Garansi (>24 Jam Kerja)</p></div>`;
+                                if (jamKerjaTelat >= 9) {
+                                    infoSlaTeks += `<div style="margin-top:10px; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">🚨 SLA ADMIN (NOTA) GAGAL</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Belum input Garansi (>9 Jam Kerja)</p></div>`;
                                 } else {
-                                    infoSlaTeks += `<div style="margin-top:10px; background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ SLA Admin: Menunggu Nota/Garansi</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Batas 24 Jam Kerja: ${formatWaktu(batasAdminNota)}</p></div>`;
+                                    infoSlaTeks += `<div style="margin-top:10px; background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ SLA Admin: Menunggu Nota/Garansi</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Batas 9 Jam Kerja: ${formatWaktu(batasAdminNota)}</p></div>`;
                                 }
                             }
                         } else {
@@ -2389,15 +2425,18 @@
                 let sc = 'status-aman'; let bc = 'badge-aman';
                 if (textStatus.includes('Closing')) { sc = 'status-terpenuhi'; bc = 'badge-selesai'; }
                 else if (textStatus.includes('Kunjungan')) { sc = 'status-terlambat'; bc = 'badge-status'; }
+                else if (textStatus.includes('Menunggu Pemulihan')) { sc = 'status-aman'; bc = 'badge-tunggu'; }
                 else if (textStatus.includes('Batal')) { sc = 'status-terlambat'; bc = 'badge-cancel'; }
                 else if (textStatus.includes('Tanpa Keterangan')) { sc = 'status-aman'; bc = 'badge-status'; }
 
                 let btnHtml = '';
-                let isOwner = String(p['Sales Penanggung Jawab'] || '').toLowerCase() === penggunaAktif['Nama Asli'].toLowerCase();
+                let salesProspek = String(p['Sales Penanggung Jawab'] || '').split(',').map(nama => nama.trim().toLowerCase());
+                let isOwner = salesProspek.includes(String(penggunaAktif['Nama Asli'] || '').toLowerCase());
                 let canEditProspek = ['admin', 'manager'].includes(penggunaAktif.Role) || (penggunaAktif.Role === 'sales' && isOwner);
 
                 let isBatalAtauTanpaKet = textStatus.includes('Batal') || textStatus.includes('Tanpa Keterangan');
-                let canSeeUpdateForm = canEditProspek && !textStatus.includes('Closing');
+                let isMenungguPemulihan = textStatus.includes('Menunggu Pemulihan');
+                let canSeeUpdateForm = canEditProspek && !textStatus.includes('Closing') && !isMenungguPemulihan;
                 if (isBatalAtauTanpaKet && penggunaAktif.Role !== 'admin') {
                     canSeeUpdateForm = false; 
                 }
@@ -2422,11 +2461,25 @@
                     </div>`;
                 }
 
-                let statusAkhirProspek = ['Closing / Deal', 'Batal', 'Tanpa Keterangan'].includes(textStatus.trim());
-                let salesProspek = String(p['Sales Penanggung Jawab'] || '').split(',').map(nama => nama.trim().toLowerCase());
+                if (isBatalAtauTanpaKet && penggunaAktif.Role === 'sales' && isOwner) {
+                    btnHtml += `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="ajukanPemulihan('${p['ID Prospek']}')">♻️ Ajukan Pemulihan Klien</button>`;
+                }
+
+                if (isMenungguPemulihan) {
+                    if (penggunaAktif.Role === 'sales') {
+                        btnHtml += `<div style="margin-top:10px; padding:10px; text-align:center; background:#fffbeb; color:#b45309; border:1px solid #fde68a; border-radius:8px; font-size:12px; font-weight:600;">Menunggu Persetujuan Admin</div>`;
+                    } else if (penggunaAktif.Role === 'admin') {
+                        btnHtml += `<div class="btn-grid"><button class="btn-acc" onclick="responPemulihan('${p['ID Prospek']}', 'Tahap Penawaran')">Terima Pemulihan</button><button class="btn-del" onclick="responPemulihan('${p['ID Prospek']}', 'Batal')">Tolak Pemulihan</button></div>`;
+                    }
+                }
+
+                let statusAkhirProspek = ['Closing / Deal', 'Batal', 'Tanpa Keterangan', 'Menunggu Pemulihan'].includes(textStatus.trim());
                 let canCatatFollowUp = ['admin', 'manager'].includes(penggunaAktif.Role) || (penggunaAktif.Role === 'sales' && salesProspek.includes(String(penggunaAktif['Nama Asli'] || '').toLowerCase()));
                 if (canCatatFollowUp && !statusAkhirProspek) {
                     btnHtml += `<button class="btn-action-primary" style="background:#f0fdfa; color:#0f766e; border-color:#99f6e4;" onclick="bukaModalFollowUp('${p['ID Prospek']}')">💬 Catat Follow Up</button>`;
+                }
+                if (textStatus.includes('Penawaran') && canCatatFollowUp) {
+                    btnHtml += `<button class="btn-action-primary" style="background:#fff7ed; color:#d97706; border-color:#fde68a;" onclick="mintaPenawaran('${p['ID Prospek']}')">📄 Minta Surat Penawaran</button>`;
                 }
                 
                 if (['admin', 'manager'].includes(penggunaAktif.Role)) { 
@@ -2454,6 +2507,24 @@
                     penawaranHtml = `<div style="margin-top:10px; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;"><p style="margin:0 0 5px 0; font-size:12px; color:#065f46; font-weight:bold;">📄 Surat Penawaran Tersedia</p><a href="${linkP}" target="_blank" class="dl-btn" style="background:#10b981; color:white; border:none; display:block; text-align:center;">⬇️ Buka / Download Penawaran</a></div>`;
                 }
 
+                let htmlSlaPenawaran = '';
+                if (p['Waktu Minta Penawaran']) {
+                    if (p['Waktu Selesai Penawaran']) {
+                        htmlSlaPenawaran = '<div style="margin-top:10px; background:#f0fdf4; padding:10px; border-radius:8px; border:1px solid #bbf7d0;"><p style="margin:0; text-align:center; color:#166534; font-weight:bold;">✅ Surat Penawaran Selesai Dibuat</p></div>';
+                    } else {
+                        let waktuMintaPenawaran = new Date(p['Waktu Minta Penawaran']);
+                        if (!isNaN(waktuMintaPenawaran.getTime())) {
+                            let batasSlaPenawaran = hitungTenggatJamKerja(waktuMintaPenawaran, 9);
+                            let jamKerjaPenawaran = hitungDurasiJamKerjaMs(waktuMintaPenawaran, new Date()) / 3600000;
+                            if (jamKerjaPenawaran >= 9) {
+                                htmlSlaPenawaran = '<div style="margin-top:10px; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">🚨 SLA ADMIN GAGAL</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Surat Penawaran belum diupload (&gt;9 Jam Kerja)</p></div>';
+                            } else {
+                                htmlSlaPenawaran = `<div style="margin-top:10px; background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ Menunggu Admin Upload</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Batas 9 Jam Kerja: ${formatWaktu(batasSlaPenawaran)}</p></div>`;
+                            }
+                        }
+                    }
+                }
+
                 let riwayatFollowUpHtml = '';
                 let riwayatFollowUp = String(p['Riwayat Follow Up'] || '').trim();
                 if (riwayatFollowUp) {
@@ -2469,7 +2540,7 @@
                     </div>`;
                 }
 
-                container.innerHTML += `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p>${waHtml}<p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${buktiChatHtml}${penawaranHtml}${riwayatFollowUpHtml}${btnHtml}</div>`;
+                container.innerHTML += `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p>${waHtml}<p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${buktiChatHtml}${penawaranHtml}${htmlSlaPenawaran}${riwayatFollowUpHtml}${btnHtml}</div>`;
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada daftar calon customer (Leads).</p>';
         }
@@ -2635,6 +2706,67 @@
             document.getElementById('loading').style.display = 'none'; 
         }
 
+        async function ajukanPemulihan(id) {
+            const alasan = await showPrompt("Alasan klien ini aktif kembali?");
+            if (alasan === null || alasan.trim() === "") return;
+
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const payload = {
+                    apiKey: API_KEY,
+                    action: 'ajukanPemulihanProspek',
+                    idProspek: id,
+                    namaSales: penggunaAktif['Nama Asli'],
+                    alasan: alasan.trim()
+                };
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
+                const hasil = await res.json();
+                if (hasil.status === 'sukses') {
+                    showToast('Alhamdulillah! Pengajuan pemulihan berhasil dikirim.', 'success');
+                    await ambilSemuaData(true);
+                } else {
+                    showToast('Afwan, Gagal mengajukan pemulihan: ' + hasil.pesan, 'error');
+                }
+            } catch (err) {
+                showToast('Afwan, Gagal mengirim pengajuan pemulihan.', 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        async function responPemulihan(id, keputusan) {
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const payload = { apiKey: API_KEY, action: 'responPemulihanProspek', idProspek: id, keputusan: keputusan };
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
+                const hasil = await res.json();
+                if (hasil.status === 'sukses') {
+                    showToast('Alhamdulillah! Pengajuan pemulihan berhasil diproses.', 'success');
+                    await ambilSemuaData(true);
+                } else {
+                    showToast('Afwan, Gagal memproses pemulihan: ' + hasil.pesan, 'error');
+                }
+            } catch (err) {
+                showToast('Afwan, Gagal memproses pengajuan pemulihan.', 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        async function mintaPenawaran(idProspek) {
+            let acc = await showConfirm(`Bismillah, minta Admin buatkan Surat Penawaran? SLA 9 Jam Kerja untuk Admin akan dimulai.`);
+            if(!acc) return;
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'mintaPenawaran', idProspek: idProspek }) });
+                if ((await res.json()).status === 'sukses') {
+                    showToast('Alhamdulillah! Permintaan Penawaran terkirim ke Admin.', 'success');
+                    await ambilSemuaData(true);
+                } else { showToast('Afwan, Gagal mengirim permintaan.', 'error'); }
+            } catch(err) { showToast('Afwan, Terjadi kesalahan jaringan.', 'error'); }
+            document.getElementById('loading').style.display = 'none';
+        }
+
         async function hapusProspek(id) { 
             try {
                 let acc = await showConfirm(`Bismillah, hapus data prospek ${id} permanen?`); 
@@ -2747,8 +2879,15 @@
                     payload.noTransaksi = document.getElementById('input-notrans-sls').value; 
                     payload.pembeli = document.getElementById('input-pembeli-sls').value; 
                     payload.barang = document.getElementById('input-barang-sls').value; 
-                    payload.sales = document.getElementById('input-sales-sls').value; 
+                    payload.sales = Array.from(document.querySelectorAll('#input-sales-sls-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
                     payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
+
+                    if(payload.sales === "") {
+                        showToast('Afwan, Pilih minimal 1 sales!', 'warning');
+                        btn.innerText = 'Simpan Penjualan';
+                        btn.disabled = false;
+                        return;
+                    }
 
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 20000);
