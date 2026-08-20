@@ -145,7 +145,7 @@
 
         /* --- DESKTOP / LAPTOP RESPONSIVE UI (ENTERPRISE EDITION) --- */
         @media (min-width: 768px) {
-            body { padding: 0; background-color: #f8fafc; display: flex; align-items: flex-start; margin: 0; min-height: 100vh; }
+            body { padding: 0; background-color: #f8fafc; display: block; margin: 0; min-height: 100vh; }
             .header-branding { position: fixed; top: 0; left: 0; width: 240px; height: 70px; padding: 0; background: var(--surface); z-index: 1001; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); display: flex; justify-content: center; align-items: center; margin-bottom: 0; box-sizing: border-box; }
             .header-branding img { max-width: 140px; margin-bottom: 0; }
             .bottom-nav { position: fixed; top: 0; left: 0; width: 240px; height: 100vh; flex-direction: column; justify-content: flex-start; padding-top: 90px; border-radius: 0; box-shadow: none; border: none; border-right: 1px solid var(--border); overflow-y: auto; background: var(--surface); }
@@ -154,13 +154,13 @@
             .nav-btn .text { font-size: 14px; font-weight: 600; letter-spacing: 0; }
             .nav-btn:hover { background: #f1f5f9; color: var(--text-main); }
             .nav-btn.active { border-left-color: var(--primary); background: #eff6ff; color: var(--primary); }
-            .container { width: calc(100% - 240px); max-width: 1200px; margin-left: 240px; background: transparent; padding: 30px; box-shadow: none; margin-top: 0; box-sizing: border-box; }
+            .container { width: calc(100% - 240px); max-width: 100%; margin-left: 240px; background: transparent; padding: 30px 40px; box-shadow: none; margin-top: 0; box-sizing: border-box; }
             .top-bar { background: var(--surface); border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 25px; padding: 15px 25px; border: 1px solid var(--border); }
             .tab-page { background: var(--surface); padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border); min-height: calc(100vh - 160px); }
-            #login-wrapper, #app-selector-wrapper { height: 100vh; margin-left: -240px; display: flex; justify-content: center; align-items: center; }
-            .login-card { max-width: 400px; padding: 40px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+            #login-wrapper, #app-selector-wrapper, #client-tracking-wrapper { width: 100%; height: 100vh; margin: 0; display: flex; justify-content: center; align-items: center; box-sizing: border-box; }
+            .login-card { max-width: 400px; padding: 40px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 100%; }
             .charts-container { justify-content: flex-start; gap: 20px; }
-            .chart-box { flex: 1; min-width: 250px; max-width: calc(50% - 10px); }
+            .chart-box { flex: 1; min-width: 300px; max-width: none; }
             .checkbox-group { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
             #modal-bug .modal-content, #modal-update .modal-content, #modal-followup .modal-content, #modal-banding .modal-content, #modal-penawaran .modal-content, #modal-export .modal-content, #modal-poin .modal-content { max-width: 600px; }
         }
