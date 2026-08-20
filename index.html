@@ -453,6 +453,11 @@
                     <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
                 </select>
             </div>
+            <div class="search-wrapper" id="search-dash-wrapper" style="margin-bottom:15px;">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-dashboard" placeholder="Cari Nama Tim, Teknisi, atau Sales..." oninput="toggleClearBtn(this); filterDashboard()">
+                <span class="clear-icon" onclick="clearSearch('search-dashboard')">✖</span>
+            </div>
             <div id="dash-segment" class="segment-control" style="display:none;">
                 <button class="segment-btn active" id="btn-dash-sales" onclick="switchDashTab('sales')">Pencapaian Sales</button>
                 <button class="segment-btn" id="btn-dash-tek" onclick="switchDashTab('tek')">Performa Tim</button>
@@ -1096,7 +1101,7 @@
         }
 
         function toggleClearBtn(el) { const btn = el.nextElementSibling; if(btn && btn.classList.contains('clear-icon')) { btn.style.display = el.value.length > 0 ? 'block' : 'none'; } }
-        function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') renderTickets(); else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); } }
+        function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') renderTickets(); else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); else if(inputId === 'search-dashboard') filterDashboard(); } }
         function hapusCacheTotal() {
             if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(registrations) { for(let registration of registrations) { registration.unregister(); } }); caches.keys().then(function(names) { for (let name of names) caches.delete(name); }); }
             localStorage.clear(); sessionStorage.clear(); window.location.href = window.location.pathname + "?v=" + new Date().getTime();
@@ -3618,5 +3623,19 @@
                 } else { showToast('Afwan, Gagal update status pelunasan.', 'error'); }
             } catch(err) { showToast('Afwan, Koneksi error.', 'error'); }
             document.getElementById('loading').style.display = 'none';
+        }
+
+        function filterDashboard() {
+            let val = document.getElementById('search-dashboard').value.toLowerCase();
+            
+            let salesCards = document.querySelectorAll('#dash-sales-content .card');
+            salesCards.forEach(c => {
+                c.style.display = c.innerText.toLowerCase().includes(val) ? 'block' : 'none';
+            });
+            
+            let tekCards = document.querySelectorAll('#dash-tek-content .card');
+            tekCards.forEach(c => {
+                c.style.display = c.innerText.toLowerCase().includes(val) ? 'block' : 'none';
+            });
         }
     </script>
