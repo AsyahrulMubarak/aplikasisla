@@ -69,6 +69,7 @@
                     <h1 class="logo-text">ALFACOM MULTI SOLUTION</h1>
                     <p style="margin: 5px 0 0 0; color: var(--text-muted);">Sistem Payroll & Slip Gaji Digital</p>
                 </div>
+                <button class="btn-print" onclick="window.location.href='index.html'" style="margin-right:10px; background:#fefce8; color:#a16207; border:1px solid #fde047;">🔙 Kembali ke Lobi</button>
                 <button class="btn-print" onclick="window.print()">🖨️ Cetak PDF</button>
             </div>
 
@@ -130,11 +131,13 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Tanggal</th>
-                            <th>Masuk Pagi</th>
-                            <th>Masuk (Setelah Istirahat)</th>
-                            <th>Keluar (Sore)</th>
-                            <th>Status/Info</th>
+                            <th>Hari, Tanggal</th>
+                            <th>Msk 1 (Pagi)</th>
+                            <th>Klr 1 (Jeda)</th>
+                            <th>Msk 2 (Siang)</th>
+                            <th>Klr 2 (Sore)</th>
+                            <th>Total Jam</th>
+                            <th>Status / Ket</th>
                             <th>Lembur</th>
                             <th>Potongan</th>
                         </tr>
@@ -433,12 +436,10 @@
             let profil = globalUsers.find(u => u['Nama Asli'] === namaTarget) || {};
             let gapokRaw = profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)'] || 1500000; 
             let gajiPokok = parseFloat(gapokRaw) || 1500000;
-            
-            // Ambil Format String Tunjangan dari Database User
+
             let bonusStr = profil['Bonus Tambahan'] || profil['Bonus'] || profil['Honor Tambahan'] || '';
-            let totalTunjanganTetap = 0;
-            let arrayTunjangan = [];
-            
+            let totalTunjanganTetap = 0; let arrayTunjangan = [];
+
             if(bonusStr) {
                 let items = String(bonusStr).split('|');
                 items.forEach(item => {
@@ -452,92 +453,114 @@
             }
 
             let upahPerHari = gajiPokok / hariKerjaEfektif;
-            let upahPerMenit = upahPerHari / (9 * 60);
+            let upahPerJam = upahPerHari / 9; // Standar 9 Jam
+            let upahPerMenit = upahPerJam / 60;
             let [thnPilih, blnPilih] = bulanTahun.split('-');
-            
-            let rekapan = {};
+
+            let rekapanMentah = {};
             globalAbsen.forEach(a => {
                 if (a['Nama Pegawai'] !== namaTarget) return;
                 let d = new Date(a['Waktu Absen']);
                 if (isNaN(d.getTime())) return;
-                
                 if (d.getFullYear() == thnPilih && String(d.getMonth()+1).padStart(2,'0') == blnPilih) {
-                    let dateKey = d.toLocaleDateString('id-ID');
-                    if(!rekapan[dateKey]) rekapan[dateKey] = { masuk: null, istirahat: null, keluar: null, statusKhusus: [], objMasuk: null, objIst: null, objKel: null };
-                    
-                    let tipe = String(a['Tipe Absen']).trim();
-                    if(tipe === 'Masuk' || tipe === 'Koreksi Absen') { rekapan[dateKey].masuk = d; rekapan[dateKey].objMasuk = a; }
-                    else if(tipe === 'Masuk Setelah Istirahat') { rekapan[dateKey].istirahat = d; rekapan[dateKey].objIst = a; }
-                    else if(tipe === 'Keluar') { rekapan[dateKey].keluar = d; rekapan[dateKey].objKel = a; }
-                    else if(tipe === 'Sakit' || tipe === 'Izin') { rekapan[dateKey].statusKhusus.push(tipe); }
+                    let dateKey = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,'0') + "-" + String(d.getDate()).padStart(2,'0');
+                    if(!rekapanMentah[dateKey]) rekapanMentah[dateKey] = [];
+                    rekapanMentah[dateKey].push(a);
                 }
             });
 
             let totalPotongan = 0; let totalLembur = 0; let countKehadiran = 0;
-            let barisHTML = "";
+            let barisHTML = ""; let countLupaPulang = 0; let sakitBeruntun = 0;
+            let totalHariBulanIni = new Date(thnPilih, blnPilih, 0).getDate();
+            const namaHariArr = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
-            let arrTanggal = Object.keys(rekapan).sort((a,b) => {
-                let [d1,m1,y1] = a.split('/'); let [d2,m2,y2] = b.split('/');
-                return new Date(y1, m1-1, d1) - new Date(y2, m2-1, d2);
-            });
+            for (let i = 1; i <= totalHariBulanIni; i++) {
+                let currDate = new Date(thnPilih, blnPilih - 1, i);
+                let dateKey = currDate.getFullYear() + "-" + String(currDate.getMonth()+1).padStart(2,'0') + "-" + String(currDate.getDate()).padStart(2,'0');
+                let namaHari = namaHariArr[currDate.getDay()];
+                let isAhad = (currDate.getDay() === 0);
 
-            arrTanggal.forEach(tgl => {
-                let r = rekapan[tgl];
-                let htmlRow = `<tr><td><strong>${tgl}</strong></td>`;
-                
-                let strMasuk = formatJam(r.masuk);
-                let classMasuk = "";
-                if (r.masuk) {
-                    countKehadiran++;
-                    let h = r.masuk.getHours(); let m = r.masuk.getMinutes();
-                    let waktuAngka = h + (m/60);
-                    if (waktuAngka > 8.0 && waktuAngka <= 8.75) classMasuk = "kuning";
-                    else if (waktuAngka > 8.75) classMasuk = "merah";
-                }
-                htmlRow += `<td class="${classMasuk}">${strMasuk}</td>`;
+                let events = rekapanMentah[dateKey] || [];
+                let isSakit = events.some(e => String(e['Tipe Absen']).includes('Sakit'));
 
-                let strIstirahat = formatJam(r.istirahat);
-                let potonganHariIni = 0;
-                if (r.istirahat) {
-                    let h = r.istirahat.getHours(); let m = r.istirahat.getMinutes();
-                    let waktuAngka = h + (m/60);
-                    if (waktuAngka > 13.5) {
-                        let telatMenit = Math.floor((r.istirahat.getTime() - new Date(r.istirahat.getFullYear(), r.istirahat.getMonth(), r.istirahat.getDate(), 13, 30, 0).getTime()) / 60000);
-                        if (telatMenit > 90) telatMenit = 90;
-                        potonganHariIni = telatMenit * upahPerMenit;
+                let msk1 = "-", klr1 = "-", msk2 = "-", klr2 = "-";
+                let ketList = []; let potHariIni = 0; let lemHariIni = 0; let totJam = 0; let isHadir = false;
+
+                if (isSakit) { sakitBeruntun = 1; }
+                else if (events.length === 0 && sakitBeruntun > 0 && sakitBeruntun < 3 && !isAhad) {
+                    sakitBeruntun++; isSakit = true; ketList.push("Sakit (Auto)");
+                } else { sakitBeruntun = 0; }
+
+                if (isSakit) {
+                    msk1 = "08:00"; msk2 = "13:30"; klr2 = "17:00";
+                    totJam = 9; isHadir = true; countKehadiran++;
+                    ketList.push("Sakit");
+                } else if (events.length > 0) {
+                    isHadir = true; countKehadiran++;
+                    let lastEventType = "";
+                    events.sort((a,b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen']));
+
+                    events.forEach(e => {
+                        let ed = new Date(e['Waktu Absen']);
+                        let tipe = String(e['Tipe Absen']).trim();
+                        let ket = String(e['Keterangan'] || "").trim();
+                        if (ket && ket !== "-") ketList.push(ket);
+
+                        if (tipe === "Hukuman Sistem") {
+                            potHariIni += (90 * upahPerMenit);
+                            if(ket.includes("Lupa Absen")) ketList.push("Lupa Absen Istirahat (-1.5 Jam)");
+                            else ketList.push(ket);
+                            return;
+                        }
+
+                        let jamFloat = ed.getHours() + (ed.getMinutes() / 60);
+                        let jamStr = String(ed.getHours()).padStart(2,'0') + ":" + String(ed.getMinutes()).padStart(2,'0');
+                        lastEventType = tipe;
+
+                        if (tipe.includes("Masuk")) {
+                            if (jamFloat < 12.0) msk1 = jamStr; else msk2 = jamStr;
+                        } else if (tipe.includes("Keluar") || tipe.includes("Pulang")) {
+                            if (jamFloat <= 14.0) klr1 = jamStr; else klr2 = jamStr;
+                        }
+                    });
+
+                    if (lastEventType.includes("Masuk") && klr2 === "-") {
+                        countLupaPulang++;
+                        if (countLupaPulang <= 3) { klr2 = "17:00"; ketList.push("Lupa Pulang (Auto 17:00)"); }
+                        else { klr2 = "15:30"; ketList.push("Lupa Pulang (Auto 15:30)"); }
                     }
-                }
-                totalPotongan += potonganHariIni;
-                htmlRow += `<td>${strIstirahat}</td>`;
 
-                let strKeluar = formatJam(r.keluar);
-                let lemburHariIni = 0;
-                if (r.keluar) {
-                    let h = r.keluar.getHours(); let m = r.keluar.getMinutes();
-                    let waktuAngka = h + (m/60);
-                    if (waktuAngka > 17.0) {
-                        let lemburMenit = Math.floor((r.keluar.getTime() - new Date(r.keluar.getFullYear(), r.keluar.getMonth(), r.keluar.getDate(), 17, 0, 0).getTime()) / 60000);
-                        lemburHariIni = (lemburMenit / 60) * 5000;
-                    }
-                }
-                totalLembur += lemburHariIni;
-                htmlRow += `<td>${strKeluar}</td>`;
+                    let parseH = (t) => t === "-" ? null : parseInt(t.split(':')[0]) + parseInt(t.split(':')[1])/60;
+                    let pMsk1 = parseH(msk1), pKlr1 = parseH(klr1), pMsk2 = parseH(msk2), pKlr2 = parseH(klr2);
 
-                let infoStatus = r.statusKhusus.join(', ');
-                if(!infoStatus) {
-                    if (r.objKel && String(r.objKel['Status Disiplin']).includes('Lupa Absen')) {
-                        infoStatus = "<span style='color:red;'>Lupa Absen (-90m)</span>";
-                        potonganHariIni += (90 * upahPerMenit); totalPotongan += (90 * upahPerMenit);
-                    } else if (r.objMasuk && r.objMasuk['Tipe Absen'] === 'Koreksi Absen') {
-                        infoStatus = "<span style='color:green;'>Dikoreksi</span>";
-                    }
+                    if (pMsk1 && pMsk1 > 8.0) potHariIni += ((pMsk1 - 8.0) * 60 * upahPerMenit);
+                    if (pMsk2 && pMsk2 > 13.5) potHariIni += ((pMsk2 - 13.5) * 60 * upahPerMenit);
+                    if (pKlr2 && pKlr2 < 17.0) potHariIni += ((17.0 - pKlr2) * 60 * upahPerMenit);
+                    if (pKlr2 && pKlr2 > 17.0) lemHariIni += ((pKlr2 - 17.0) * 60 * 5000);
+
+                    let tot1 = 0, tot2 = 0;
+                    if (pMsk1 && pKlr1) tot1 = pKlr1 - pMsk1;
+                    else if (pMsk1 && pMsk2 && pKlr2) tot1 = 4;
+                    else if (pMsk1 && !pKlr1 && pKlr2) tot1 = (pKlr2 - pMsk1) - 1.5;
+                    if (pMsk2 && pKlr2) tot2 = pKlr2 - pMsk2;
+
+                    totJam = tot1 + tot2; if(totJam < 0) totJam = 0;
                 }
-                htmlRow += `<td>${infoStatus || '-'}</td>`;
-                htmlRow += `<td style="color:var(--success);">+ ${formatRp(lemburHariIni)}</td>`;
-                htmlRow += `<td style="color:var(--danger);">- ${formatRp(potonganHariIni)}</td></tr>`;
-                
-                barisHTML += htmlRow;
-            });
+
+                totalPotongan += potHariIni; totalLembur += lemHariIni;
+                let txtJam = totJam > 0 ? totJam.toFixed(1) + "h" : "-";
+                let infoStr = ketList.join('<br>') || "-";
+                let rowBg = isAhad ? "background:#fecaca; color:#991b1b;" : (i%2===0 ? "background:#f1f5f9;" : "background:#ffffff;");
+
+                barisHTML += `<tr style="${rowBg}">
+                    <td><strong>${namaHari}, ${String(i).padStart(2,'0')}/${blnPilih}/${thnPilih}</strong></td>
+                    <td>${msk1}</td><td>${klr1}</td><td>${msk2}</td><td>${klr2}</td>
+                    <td><strong>${txtJam}</strong></td>
+                    <td style="font-size:11px; text-align:left; line-height:1.4;">${infoStr}</td>
+                    <td style="color:var(--success);">+ ${formatRp(lemHariIni)}</td>
+                    <td style="color:var(--danger);">- ${formatRp(potHariIni)}</td>
+                </tr>`;
+            }
 
             let totalBonusPoin = 0;
             globalTickets.forEach(t => {
@@ -558,11 +581,9 @@
 
             let totalUpahHadir = (countKehadiran / hariKerjaEfektif) * gajiPokok;
             if (totalUpahHadir > gajiPokok) totalUpahHadir = gajiPokok;
-            
-            // TOTAL DENGAN MEMASUKKAN TUNJANGAN PERMANEN
             let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin + totalTunjanganTetap;
 
-            return { profil, gajiPokok, upahPerHari, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalTunjanganTetap, arrayTunjangan, totalBersih, barisHTML };
+            return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalTunjanganTetap, arrayTunjangan, totalBersih, barisHTML };
         }
 
         function generateSlipIndividu() {
@@ -579,7 +600,7 @@
             document.getElementById('res-nama').innerText = data.profil['Nama Asli'] || namaTarget;
             document.getElementById('res-role').innerText = String(data.profil.Role || 'Staff').toUpperCase();
             document.getElementById('res-gapok').innerText = formatRp(data.gajiPokok);
-            document.getElementById('res-upah-jam').innerText = formatRp(data.upahPerHari / 9) + " / Jam";
+            document.getElementById('res-upah-jam').innerText = formatRp(data.upahPerJam) + " / Jam";
             
             document.getElementById('tabel-absen').innerHTML = data.barisHTML;
             document.getElementById('sum-hadir').innerText = formatRp(data.totalUpahHadir);
