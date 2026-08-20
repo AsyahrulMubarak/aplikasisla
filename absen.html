@@ -61,12 +61,30 @@
                 <option value="Koreksi Absen">⚙️ Koreksi Absen (Lupa)</option>
             </select>
 
+            <div id="koreksi-fields" style="display:none; background:#f8fafc; padding:20px; border-radius:12px; border:1px solid #e2e8f0; margin-top:15px; margin-bottom:15px;">
+                <p style="margin:0 0 15px 0; font-size:13px; font-weight:bold; color:#0f766e; border-bottom:1px solid #ccfbf1; padding-bottom:8px;">⚙️ Masukkan Data Koreksi Manual</p>
+                
+                <label style="color:#475569; font-size:12px; font-weight:600; margin-bottom:5px; display:block;">📌 Status Absen yang Terlewat</label>
+                <select id="koreksi-status" style="width:100%; padding:12px 15px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; font-size:14px; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;">
+                    <option value="" disabled selected>-- Pilih Status --</option>
+                    <option value="Absen Masuk">Masuk Kerja</option>
+                    <option value="Masuk (Setelah Istirahat)">Masuk (Setelah Istirahat)</option>
+                    <option value="Absen Keluar">Keluar Kerja / Pulang</option>
+                </select>
+
+                <label style="color:#475569; font-size:12px; font-weight:600; margin-bottom:5px; display:block;">📅 Tanggal Absensi (Yang Terlewat)</label>
+                <input type="date" id="koreksi-tanggal" style="width:100%; padding:12px 15px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; font-size:14px; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;">
+                
+                <label style="color:#475569; font-size:12px; font-weight:600; margin-bottom:5px; display:block;">⏰ Waktu Jam (Seharusnya)</label>
+                <input type="time" id="koreksi-jam" style="width:100%; padding:12px 15px; margin-bottom:0; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; font-size:14px; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;" onchange="cekJamLembur()">
+            </div>
+
             <div class="gps-box" id="gps-status">
                 <span>📍 Mencari Lokasi GPS...</span>
             </div>
 
             <div id="keterangan-section">
-                <label id="label-keterangan">Keterangan / Alasan</label>
+                <label id="label-keterangan" style="font-weight:600; display:block; margin-bottom:5px; color:#475569;">Keterangan / Alasan (Opsional)</label>
                 <input type="text" id="input-keterangan" placeholder="Ketik alasan di sini...">
             </div>
 
@@ -77,8 +95,20 @@
             </div>
 
             <button type="submit" id="btn-submit" class="btn-absen" disabled>Kirim Absen</button>
-            <button type="button" class="btn-back" onclick="kembaliKeSLA()">Kembali ke SLA</button>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button type="button" style="flex:1; padding:12px; border-radius:8px; background:#eff6ff; color:#1e3a8a; border:1px solid #bfdbfe; font-weight:bold; cursor:pointer;" onclick="bukaTinjauan()">📋 Tinjauan Absen</button>
+                <button type="button" style="flex:1; padding:12px; border-radius:8px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:bold; cursor:pointer;" onclick="window.location.href='index.html'">Kembali ke Lobi</button>
+            </div>
         </form>
+    </div>
+
+    <div id="modal-tinjauan" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background:#fff; padding:20px; border-radius:12px; width:100%; max-width:500px; max-height:85vh; overflow-y:auto; position:relative;">
+            <h3 style="margin-top:0; color:#1e3a8a; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">📋 Tinjauan Absensi</h3>
+            <div id="tinjauan-loading" style="text-align:center; font-size:12px; color:#64748b; margin:20px 0;">Memuat data absensi...</div>
+            <div id="tinjauan-data"></div>
+            <button type="button" style="width:100%; padding:10px; margin-top:15px; border-radius:8px; background:#fef2f2; color:#ef4444; border:1px solid #fecaca; font-weight:bold; cursor:pointer;" onclick="document.getElementById('modal-tinjauan').style.display='none'">Tutup Tinjauan</button>
+        </div>
     </div>
 
     <script>
@@ -86,6 +116,7 @@
         // KONFIGURASI SISTEM
         // ==========================================
         const API_ABSEN_URL = "https://script.google.com/macros/s/AKfycbzWjDbDmP8HTkFhnr4i_-HDN4Gozsfa8tuSKnwIszLIphJdtfuUk9R0YdgZyotncqgyfg/exec";
+        const apiUrl = "https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec";
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
         const KANTOR_LAT = -3.9641006831731826;
         const KANTOR_LON = 122.54316001476751;
@@ -94,6 +125,14 @@
         let penggunaAktif = null;
         let jarakSekarang = 999999;
         let lokasiDitemukan = false;
+
+        function showToast(message, isError = false) {
+            let t = document.createElement('div');
+            t.style.cssText = `position:fixed; top:-50px; left:50%; transform:translateX(-50%); background:${isError?'#ef4444':'#10b981'}; color:#fff; padding:12px 20px; border-radius:30px; font-size:14px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:9999; transition:0.4s ease-in-out; opacity:0;`;
+            t.innerText = message; document.body.appendChild(t);
+            setTimeout(() => { t.style.top = '30px'; t.style.opacity = '1'; }, 10);
+            setTimeout(() => { t.style.top = '-50px'; t.style.opacity = '0'; setTimeout(()=>t.remove(), 400); }, 3500);
+        }
 
         // 1. CEK SSO (SINGLE SIGN ON) DARI LOCALSTORAGE
         window.onload = function() {
@@ -107,14 +146,34 @@
                         dapatkanLokasi();
                     } else { throw new Error("Sesi tidak valid"); }
                 } catch(e) {
-                    alert("Afwan, sesi login antum tidak valid. Silakan login dari awal.");
+                    showToast("Afwan, sesi login antum tidak valid. Silakan login dari awal.", true);
                     window.location.href = "index.html";
                 }
             } else {
-                alert("Afwan, antum harus login terlebih dahulu.");
+                showToast("Afwan, antum harus login terlebih dahulu.", true);
                 window.location.href = "index.html";
             }
         };
+
+        document.getElementById('tipe-absen').addEventListener('change', function() {
+            document.getElementById('koreksi-fields').style.display = this.value.includes('Koreksi') ? 'block' : 'none';
+        });
+
+        function cekJamLembur() {
+            const jamKerja = document.getElementById('koreksi-jam').value;
+            const labelKet = document.getElementById('label-keterangan');
+            const inputKet = document.getElementById('input-keterangan');
+            
+            if (jamKerja && jamKerja >= "20:00") {
+                labelKet.innerHTML = 'Keterangan / Alasan <span style="color:#ef4444;">*Wajib Diisi (Lembur)</span>';
+                inputKet.required = true;
+                inputKet.style.borderColor = "#ef4444";
+            } else {
+                labelKet.innerHTML = 'Keterangan / Alasan (Opsional)';
+                inputKet.required = false;
+                inputKet.style.borderColor = "#cbd5e1";
+            }
+        }
 
         // 2. SISTEM PELACAKAN GPS (HAVERSINE FORMULA)
         function hitungJarak(lat1, lon1, lat2, lon2) {
@@ -280,6 +339,18 @@
                     fotoBase64: base64Foto
                 };
 
+                if (tipeAbsen.includes('Koreksi')) {
+                    payload.koreksiStatus = document.getElementById('koreksi-status').value;
+                    payload.koreksiTanggal = document.getElementById('koreksi-tanggal').value;
+                    payload.koreksiJam = document.getElementById('koreksi-jam').value;
+                    
+                    if(!payload.koreksiStatus || !payload.koreksiTanggal || !payload.koreksiJam) {
+                        showToast("❌ Afwan, Status, Tanggal, dan Jam Koreksi WAJIB diisi!", true);
+                        overlay.style.display = 'none';
+                        return;
+                    }
+                }
+
                 textLoading.innerText = "Mencatat ke database Alfacom...";
                 
                 const response = await fetch(API_ABSEN_URL, {
@@ -290,16 +361,56 @@
                 const hasil = await response.json();
                 
                 if (hasil.status === 'sukses') {
-                    alert("✅ Alhamdulillah: " + hasil.pesan);
-                    window.location.href = "index.html"; // Balik ke portal
+                    showToast("✅ Alhamdulillah: " + hasil.pesan, false);
+                    document.getElementById('tipe-absen').value = '';
+                    document.getElementById('input-keterangan').value = '';
+                    document.getElementById('koreksi-fields').style.display = 'none';
+                    await bukaTinjauan();
                 } else {
-                    alert("❌ Afwan: " + hasil.pesan);
+                    showToast("❌ Afwan: " + hasil.pesan, true);
                 }
             } catch (err) {
-                alert("❌ Kesalahan Jaringan: Gagal menghubungi server absensi.");
+                showToast("❌ Kesalahan Jaringan: Gagal menghubungi server absensi.", true);
             } finally {
                 overlay.style.display = 'none';
             }
+        }
+
+        async function bukaTinjauan() {
+            document.getElementById('modal-tinjauan').style.display = 'flex';
+            document.getElementById('tinjauan-loading').style.display = 'block';
+            document.getElementById('tinjauan-data').innerHTML = '';
+            try {
+                let session = JSON.parse(localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA'));
+                if(!session || !session.user) { showToast('Sesi tidak valid!', true); return; }
+
+                let res = await fetch(apiUrl, { method:'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'getTinjauanAbsen', nama: session.user['Nama Asli'] }) });
+                let json = await res.json();
+
+                if(json.status === 'sukses' && json.data.length > 0) {
+                    let html = '';
+                    json.data.forEach(d => {
+                        let btnGPS = '';
+                        if(['admin', 'manager', 'direktur'].includes(session.user.Role.toLowerCase()) && d.gps && d.gps !== '-') {
+                            btnGPS = `<a href="${d.gps}" target="_blank" style="display:inline-block; margin-top:10px; padding:6px 12px; background:#fefce8; color:#a16207; border:1px solid #fde047; border-radius:6px; font-size:11px; text-decoration:none; font-weight:bold;">📍 Cek Lokasi GPS</a>`;
+                        }
+                        html += `<div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:8px; margin-bottom:10px; font-size:12px;">
+                            <div style="font-weight:bold; color:#1e3a8a; margin-bottom:8px;">📅 ${d.tanggal}</div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                                <div><span style="color:#64748b;">Nama:</span> <b>${d.nama}</b></div>
+                                <div><span style="color:#64748b;">Status:</span> <span style="color:#10b981; font-weight:bold;">${d.status}</span></div>
+                                <div><span style="color:#64748b;">Masuk:</span> <b>${d.masuk}</b></div>
+                                <div><span style="color:#64748b;">Keluar:</span> <b>${d.keluar}</b></div>
+                                <div style="grid-column: span 2;"><span style="color:#64748b;">Msk Stlh Istirahat:</span> <b>${d.istirahat}</b></div>
+                                <div style="grid-column: span 2;"><span style="color:#64748b;">Keterangan:</span> <i>${d.keterangan}</i></div>
+                            </div>
+                            ${btnGPS}
+                        </div>`;
+                    });
+                    document.getElementById('tinjauan-data').innerHTML = html;
+                } else { document.getElementById('tinjauan-data').innerHTML = '<div style="text-align:center; color:#ef4444; font-size:12px;">Data tidak ditemukan.</div>'; }
+            } catch(e) { document.getElementById('tinjauan-data').innerHTML = '<div style="text-align:center; color:#ef4444; font-size:12px;">Gagal memuat data.</div>'; }
+            document.getElementById('tinjauan-loading').style.display = 'none';
         }
 
         function kembaliKeSLA() { window.location.href = "index.html"; }
