@@ -486,6 +486,7 @@
 
                 let msk1 = "-", klr1 = "-", msk2 = "-", klr2 = "-";
                 let ketList = []; let potHariIni = 0; let lemHariIni = 0; let totJam = 0; let isHadir = false;
+                let txtLemburJam = "";
                 let isLate = false; let isLupaKeluarParah = false; let isPokok2x = false;
 
                 // Logika Kuota Sakit 3x (Jika ke-4 jadi Izin)
@@ -562,7 +563,11 @@
                     if (pMsk1 && pMsk1 > 8.0) potHariIni += ((pMsk1 - 8.0) * 60 * upahPerMenit);
                     if (pMsk2 && pMsk2 > 13.5) potHariIni += ((pMsk2 - 13.5) * 60 * upahPerMenit);
                     if (pKlr2 && pKlr2 < 17.0) potHariIni += ((17.0 - pKlr2) * 60 * upahPerMenit);
-                    if (pKlr2 && pKlr2 > 17.0) lemHariIni += ((pKlr2 - 17.0) * 5000);
+                    if (pKlr2 && pKlr2 > 17.0) {
+                        let durLembur = pKlr2 - 17.0;
+                        lemHariIni += (durLembur * 5000);
+                        txtLemburJam = durLembur.toFixed(1) + "j";
+                    }
 
                     let tot1 = 0, tot2 = 0;
                     if (pMsk1 && pKlr1) tot1 = pKlr1 - pMsk1;
@@ -596,7 +601,7 @@
                     <td>${msk1}</td><td>${klr1}</td><td>${msk2}</td><td>${klr2}</td>
                     <td><strong>${txtJam}</strong></td>
                     <td style="font-size:11px; text-align:left; line-height:1.4;">${infoStr}</td>
-                    <td style="color:var(--success);">+ ${formatRp(lemHariIni)}</td>
+                    <td style="color:var(--success); line-height:1.4;">${txtLemburJam ? `<span style="font-size:10px; color:#64748b;">${txtLemburJam}</span><br>` : ''}+ ${formatRp(lemHariIni)}</td>
                     <td style="color:var(--danger);">- ${formatRp(potHariIni)}</td>
                 </tr>`;
             }
