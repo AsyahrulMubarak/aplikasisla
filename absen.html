@@ -51,7 +51,7 @@
 
         <form id="form-absen" onsubmit="prosesAbsen(event)">
             <label>Tipe Kehadiran</label>
-            <select id="tipe-absen" required onchange="cekKondisiAbsen()">
+            <select id="tipe-absen" required onchange="cekKondisiAbsen(); cekKondisiKeterangan()">
                 <option value="" disabled selected>-- Pilih Tipe --</option>
                 <option value="Masuk">🟢 Masuk Kerja</option>
                 <option value="Masuk Setelah Istirahat">🟡 Masuk Setelah Istirahat</option>
@@ -65,7 +65,7 @@
                 <p style="margin:0 0 15px 0; font-size:13px; font-weight:bold; color:#0f766e; border-bottom:1px solid #ccfbf1; padding-bottom:8px;">⚙️ Masukkan Data Koreksi Manual</p>
                 
                 <label style="color:#475569; font-size:12px; font-weight:600; margin-bottom:5px; display:block;">📌 Status Absen yang Terlewat</label>
-                <select id="koreksi-status" style="width:100%; padding:12px 15px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; font-size:14px; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;">
+                <select id="koreksi-status" style="width:100%; padding:12px 15px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; font-size:14px; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;" onchange="cekKondisiKeterangan()">
                     <option value="" disabled selected>-- Pilih Status --</option>
                     <option value="Absen Masuk">Masuk Kerja</option>
                     <option value="Masuk (Setelah Istirahat)">Masuk (Setelah Istirahat)</option>
@@ -76,7 +76,7 @@
                 <input type="date" id="koreksi-tanggal" style="width:100%; padding:12px 15px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; font-size:14px; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;">
                 
                 <label style="color:#475569; font-size:12px; font-weight:600; margin-bottom:5px; display:block;">⏰ Waktu Jam (Seharusnya)</label>
-                <input type="time" id="koreksi-jam" style="width:100%; padding:12px 15px; margin-bottom:0; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; font-size:14px; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;" onchange="cekJamLembur()">
+                <input type="time" id="koreksi-jam" style="width:100%; padding:12px 15px; margin-bottom:0; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; font-size:14px; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;" onchange="cekKondisiKeterangan()">
             </div>
 
             <div class="gps-box" id="gps-status">
@@ -161,19 +161,29 @@
             document.getElementById('koreksi-fields').style.display = this.value.includes('Koreksi') ? 'block' : 'none';
         });
 
-        function cekJamLembur() {
-            const jamKerja = document.getElementById('koreksi-jam').value;
+        function cekKondisiKeterangan() {
+            const tipeAbsen = document.getElementById('tipe-absen').value;
+            const statusKoreksi = document.getElementById('koreksi-status') ? document.getElementById('koreksi-status').value : '';
+            const jamKoreksi = document.getElementById('koreksi-jam') ? document.getElementById('koreksi-jam').value : '';
             const labelKet = document.getElementById('label-keterangan');
             const inputKet = document.getElementById('input-keterangan');
             
-            if (jamKerja && jamKerja >= "20:00") {
-                labelKet.innerHTML = 'Keterangan / Alasan <span style="color:#ef4444;">*Wajib Diisi (Lembur)</span>';
-                inputKet.required = true;
-                inputKet.style.borderColor = "#ef4444";
+            let jamAktif = "";
+            let isKeluar = tipeAbsen.includes('Keluar') || (tipeAbsen.includes('Koreksi') && statusKoreksi.includes('Keluar'));
+
+            if (tipeAbsen.includes('Koreksi')) { jamAktif = jamKoreksi; } 
+            else { let now = new Date(); jamAktif = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0'); }
+
+            let wajib = false; let alasanWajib = "";
+            if (jamAktif >= "20:00") { wajib = true; alasanWajib = "(Lembur)"; } 
+            else if (isKeluar && jamAktif !== "" && jamAktif < "17:00") { wajib = true; alasanWajib = "(Izin Cepat)"; }
+
+            if (wajib) {
+                labelKet.innerHTML = `📝 Keterangan / Alasan <span style="color:#ef4444;">*Wajib Diisi ${alasanWajib}</span>`;
+                inputKet.required = true; inputKet.style.borderColor = "#ef4444";
             } else {
-                labelKet.innerHTML = 'Keterangan / Alasan (Opsional)';
-                inputKet.required = false;
-                inputKet.style.borderColor = "#cbd5e1";
+                labelKet.innerHTML = '📝 Keterangan / Alasan (Opsional)';
+                inputKet.required = false; inputKet.style.borderColor = "#cbd5e1";
             }
         }
 
@@ -207,6 +217,7 @@
                             gpsBox.innerHTML = `<span>🌍 Luar Kantor: <b>${jarakSekarang}m</b></span> <span>Wajib Keterangan</span>`;
                         }
                         cekKondisiAbsen(); // Re-evaluasi form
+                        cekKondisiKeterangan();
                     },
                     (error) => {
                         gpsBox.className = "gps-box error";
@@ -407,11 +418,11 @@
                         html += `<div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:8px; margin-bottom:10px; font-size:12px;">
                             <div style="font-weight:bold; color:#1e3a8a; margin-bottom:8px;">📅 ${d.tanggal}</div>
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                                <div><span style="color:#64748b;">Nama:</span> <b>${d.nama}</b></div>
-                                <div><span style="color:#64748b;">Status:</span> <span style="color:#10b981; font-weight:bold;">${d.status}</span></div>
-                                <div><span style="color:#64748b;">Masuk:</span> <b>${d.masuk}</b></div>
-                                <div><span style="color:#64748b;">Keluar:</span> <b>${d.keluar}</b></div>
-                                <div style="grid-column: span 2;"><span style="color:#64748b;">Msk Stlh Istirahat:</span> <b>${d.istirahat}</b></div>
+                                <div style="grid-column: span 2;"><span style="color:#64748b;">Nama:</span> <b style="font-size:14px;">${d.nama}</b></div>
+                                <div><span style="color:#64748b;">Msk 1 (Pagi):</span> <b>${d.masuk1}</b></div>
+                                <div><span style="color:#64748b;">Klr 1 (Jeda):</span> <b>${d.keluar1}</b></div>
+                                <div><span style="color:#64748b;">Msk 2 (Siang):</span> <b>${d.masuk2}</b></div>
+                                <div><span style="color:#64748b;">Klr 2 (Sore):</span> <b>${d.keluar2}</b></div>
                                 <div style="grid-column: span 2;"><span style="color:#64748b;">Keterangan:</span> <i>${d.keterangan}</i></div>
                             </div>
                             ${btnGPS}
