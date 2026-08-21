@@ -468,11 +468,17 @@
             let totalHariBulanIni = new Date(thnPilih, blnPilih, 0).getDate();
             const namaHariArr = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
+            // Variabel untuk melacak tanggal hari ini agar "Alpa" tidak menembus hari esok
+            let now = new Date();
+            let isCurrentMonth = (now.getFullYear() == thnPilih && String(now.getMonth()+1).padStart(2,'0') == blnPilih);
+            let todayDate = now.getDate();
+
             for (let i = 1; i <= totalHariBulanIni; i++) {
                 let currDate = new Date(thnPilih, blnPilih - 1, i);
                 let dateKey = currDate.getFullYear() + "-" + String(currDate.getMonth()+1).padStart(2,'0') + "-" + String(currDate.getDate()).padStart(2,'0');
                 let namaHari = namaHariArr[currDate.getDay()];
                 let isAhad = (currDate.getDay() === 0);
+                let isFutureDate = (isCurrentMonth && i > todayDate); // Mencegah tanggal masa depan dihitung
 
                 let events = rekapanMentah[dateKey] || [];
                 let isSakitExplicit = events.some(e => String(e['Tipe Absen']).includes('Sakit'));
@@ -486,12 +492,13 @@
                 let applyIzin = isIzinExplicit;
 
                 let msk1 = "-", klr1 = "-", msk2 = "-", klr2 = "-";
+                let bgM1 = "", bgK1 = "", bgM2 = "", bgK2 = ""; // Penyimpan warna per sel
+
                 let ketList = []; let potHariIni = 0; let lemHariIni = 0; let totJam = 0; let isHadir = false;
-                let isLate = false; let isLupaKeluarParah = false; let isLupaKeluarBiasa = false; let isPokok2x = false;
+                let isLupaKeluarParah = false; let isLupaKeluarBiasa = false; let isPokok2x = false; let isAlpa = false;
                 let txtLemburJam = "";
 
-                // Logika Kuota Sakit 3x (Jika ke-4 jadi Sakit Kosong, latarnya tetap biru)
-                if (!isAhad && (isSakitExplicit || (sedangSakitBeruntun && !adaAbsenFisik))) {
+                if (!isAhad && !isFutureDate && (isSakitExplicit || (sedangSakitBeruntun && !adaAbsenFisik))) {
                     if (kuotaSakitTerpakai < 3) {
                         applySakitFull = true; kuotaSakitTerpakai++; sedangSakitBeruntun = true;
                     } else {
@@ -517,6 +524,8 @@
                         let ed = new Date(e['Waktu Absen']);
                         let tipe = String(e['Tipe Absen']).trim();
                         let ket = String(e['Keterangan'] || "").trim();
+                        let isKoreksi = tipe.includes("Koreksi");
+
                         if (ket && ket !== "-") {
                             if (ket.toLowerCase().includes("pokok x2")) isPokok2x = true;
                             ketList.push(ket);
@@ -533,25 +542,39 @@
                         lastEventType = tipe;
 
                         if (tipe.includes("Masuk")) {
-                            if (jamFloat > 8.75) isLate = true;
-                            if (jamFloat < 12.0) msk1 = jamStr; else msk2 = jamStr;
+                            if (jamFloat < 12.0) {
+                                msk1 = jamStr;
+                                if (isKoreksi) bgM1 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
+                                else if (jamFloat > 8.75) bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Telat
+                            } else {
+                                msk2 = jamStr;
+                                if (isKoreksi) bgM2 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
+                                else if (jamFloat > 13.5) bgM2 = "background:#fef08a; color:#854d0e;"; // Kuning Telat
+                            }
                         } else if (tipe.includes("Keluar") || tipe.includes("Pulang")) {
-                            if (jamFloat <= 14.0) klr1 = jamStr; else klr2 = jamStr;
+                            if (jamFloat <= 14.0) {
+                                klr1 = jamStr;
+                                if (isKoreksi) bgK1 = "background:#fbcfe8; color:#be185d;";
+                            } else {
+                                klr2 = jamStr;
+                                if (isKoreksi) bgK2 = "background:#fbcfe8; color:#be185d;";
+                            }
                         }
                     });
 
                     if (msk1 === "-" && msk2 === "-" && (klr1 !== "-" || klr2 !== "-")) {
-                        msk2 = "13:30";
+                        msk2 = "13:30"; bgM2 = "background:#e0f2fe; color:#0369a1;"; // Biru Muda Auto
                         ketList.push("Lupa Masuk (Auto 13:30)");
                     }
 
                     if (lastEventType.includes("Masuk") && klr2 === "-") {
                         countLupaPulang++;
                         if (countLupaPulang <= 3) {
-                            klr2 = "17:00"; ketList.push("Lupa Pulang (Auto 17:00)"); isLupaKeluarBiasa = true;
+                            klr2 = "17:00"; ketList.push("Lupa Pulang (Auto 17:00)");
+                            bgK2 = "background:#e0f2fe; color:#0369a1;"; // Biru Muda
                         } else {
                             klr2 = "15:30"; ketList.push("Lupa Pulang (Auto 15:30)");
-                            isLupaKeluarParah = true;
+                            bgK2 = "background:#e2e8f0; color:#334155;"; // Abu Parah
                         }
                     }
 
@@ -574,6 +597,10 @@
                     if (pMsk2 && pKlr2) tot2 = pKlr2 - pMsk2;
 
                     totJam = tot1 + tot2; if(totJam < 0) totJam = 0;
+                } else if (!isAhad && !isFutureDate) {
+                    // LOGIKA ALPA: Bukan Ahad, Bukan Masa Depan, Tidak Hadir, Tidak Sakit, Tidak Izin
+                    isAlpa = true;
+                    ketList.push("Alpa (Tanpa Keterangan)");
                 }
 
                 if (isPokok2x && isHadir) {
@@ -588,24 +615,37 @@
                 let uniqueKet = [...new Set(ketList)];
                 let infoStr = uniqueKet.join('<br>') || "-";
 
-                // PEWARNAAN BARIS DAN KOTAK JAM
-                let rowBg = i%2===0 ? "background:#f1f5f9;" : "background:#ffffff;";
-                if (isAhad) rowBg = "background:#fecaca; color:#991b1b;";
+                // ==========================================
+                // PEWARNAAN BARIS DAN KOTAK SPESIFIK
+                // ==========================================
+                let rowBg = i%2===0 ? "background:#f1f5f9;" : "background:#ffffff;"; // Default Belang
+                let globalCellBg = "";
 
-                let timeBg = "";
-                if (applySakitFull || applySakitKosong) timeBg = "background:#bfdbfe; color:#1e3a8a;"; // Biru Sakit
-                else if (applyIzin) timeBg = "background:#bbf7d0; color:#166534;"; // Hijau Izin
-                else if (isLupaKeluarParah) timeBg = "background:#e2e8f0; color:#334155;"; // Abu-abu Parah
-                else if (isLupaKeluarBiasa) timeBg = "background:#e0f2fe; color:#0369a1;"; // Biru Muda Lupa Pulang Biasa
-                else if (isLate) timeBg = "background:#fef08a; color:#854d0e;"; // Kuning Terlambat
+                if (isAhad) {
+                    rowBg = "background:#fecaca; color:#991b1b;"; // Merah Ahad (Satu Baris)
+                    globalCellBg = rowBg;
+                } else if (isAlpa) {
+                    rowBg = "background:#1e293b; color:#f8fafc;"; // Hitam Alpa (Satu Baris)
+                    globalCellBg = rowBg;
+                } else if (applySakitFull || applySakitKosong) {
+                    globalCellBg = "background:#bfdbfe; color:#1e3a8a;"; // Biru Sakit (Seluruh Kotak Jam)
+                } else if (applyIzin) {
+                    globalCellBg = "background:#bbf7d0; color:#166534;"; // Hijau Izin (Seluruh Kotak Jam)
+                }
+
+                // Terapkan warna global jika ada, tapi utamakan warna spesifik (telat/koreksi/hukum)
+                let finalBgM1 = bgM1 || globalCellBg;
+                let finalBgK1 = bgK1 || globalCellBg;
+                let finalBgM2 = bgM2 || globalCellBg;
+                let finalBgK2 = bgK2 || globalCellBg;
 
                 barisHTML += `<tr style="${rowBg}">
                     <td><strong>${namaHari}, ${String(i).padStart(2,'0')}/${blnPilih}/${thnPilih}</strong></td>
-                    <td style="${timeBg}">${msk1}</td>
-                    <td style="${timeBg}">${klr1}</td>
-                    <td style="${timeBg}">${msk2}</td>
-                    <td style="${timeBg}">${klr2}</td>
-                    <td style="${timeBg}"><strong>${txtJam}</strong></td>
+                    <td style="${finalBgM1}">${msk1}</td>
+                    <td style="${finalBgK1}">${klr1}</td>
+                    <td style="${finalBgM2}">${msk2}</td>
+                    <td style="${finalBgK2}">${klr2}</td>
+                    <td style="${globalCellBg}"><strong>${txtJam}</strong></td>
                     <td style="color:#0f766e; font-weight:600;">${upahHariIniStr}</td>
                     <td style="font-size:11px; text-align:left; line-height:1.4;">${infoStr}</td>
                     <td style="color:var(--success); line-height:1.4;">${txtLemburJam ? `<span style="font-size:10px; color:#64748b;">${txtLemburJam}</span><br>` : ''}+ ${formatRp(lemHariIni)}</td>
