@@ -453,12 +453,27 @@
             let rekapanMentah = {};
             globalAbsen.forEach(a => {
                 if (a['Nama Pegawai'] !== namaTarget) return;
-                let d = new Date(a['Waktu Absen']);
-                if (isNaN(d.getTime())) return;
+                let dOrig = new Date(a['Waktu Absen']);
+                if (isNaN(dOrig.getTime())) return;
+
+                let d = new Date(dOrig.getTime());
+                let tipe = String(a['Tipe Absen']).trim();
+                let h = d.getHours();
+                let isOvernight = false;
+
+                // Tarik mundur absen dini hari ke hari kemarin
+                if ((tipe.includes('Keluar') || tipe.includes('Pulang')) && h >= 0 && h <= 5) {
+                    d.setDate(d.getDate() - 1);
+                    isOvernight = true;
+                }
+
                 if (d.getFullYear() == thnPilih && String(d.getMonth()+1).padStart(2,'0') == blnPilih) {
                     let dateKey = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,'0') + "-" + String(d.getDate()).padStart(2,'0');
                     if(!rekapanMentah[dateKey]) rekapanMentah[dateKey] = [];
-                    rekapanMentah[dateKey].push(a);
+
+                    let aCopy = {...a};
+                    if (isOvernight) aCopy['isOvernight'] = true;
+                    rekapanMentah[dateKey].push(aCopy);
                 }
             });
 
@@ -537,8 +552,12 @@
                             return;
                         }
 
-                        let jamFloat = ed.getHours() + (ed.getMinutes() / 60);
-                        let jamStr = String(ed.getHours()).padStart(2,'0') + ":" + String(ed.getMinutes()).padStart(2,'0');
+                        let jamFloat = ed.getHours() + (ed.getMinutes() / 60) + (ed.getSeconds() / 3600);
+                        let jamStr = String(ed.getHours()).padStart(2,'0') + ":" + String(ed.getMinutes()).padStart(2,'0') + ":" + String(ed.getSeconds()).padStart(2,'0');
+                        if (e['isOvernight']) {
+                            jamFloat += 24; // Agar 02:00 pagi dibaca sebagai 26:00
+                            jamStr += " (+1)"; // Penanda visual di tabel
+                        }
                         lastEventType = tipe;
 
                         if (tipe.includes("Masuk")) {
@@ -578,16 +597,44 @@
                         }
                     }
 
-                    let parseH = (t) => t === "-" ? null : parseInt(t.split(':')[0]) + parseInt(t.split(':')[1])/60;
+                    let parseH = (t) => {
+                        if (t === "-") return null;
+                        let cleanT = t.replace(" (+1)", "");
+                        let p = cleanT.split(':');
+                        let hasil = parseInt(p[0]) + parseInt(p[1])/60;
+                        if (p.length > 2) hasil += parseInt(p[2])/3600; // Tambahan baca detik
+                        if (t.includes("(+1)")) hasil += 24;
+                        return hasil;
+                    };
                     let pMsk1 = parseH(msk1), pKlr1 = parseH(klr1), pMsk2 = parseH(msk2), pKlr2 = parseH(klr2);
 
-                    if (pMsk1 && pMsk1 > 8.0) potHariIni += ((pMsk1 - 8.0) * 60 * upahPerMenit);
-                    if (pMsk2 && pMsk2 > 13.5) potHariIni += ((pMsk2 - 13.5) * 60 * upahPerMenit);
-                    if (pKlr2 && pKlr2 < 17.0) potHariIni += ((17.0 - pKlr2) * 60 * upahPerMenit);
-                    if (pKlr2 && pKlr2 > 17.0) {
-                        let durLembur = pKlr2 - 17.0;
-                        lemHariIni += (durLembur * 5000);
-                        txtLemburJam = durLembur.toFixed(1) + "j";
+                    let calcTotalMin = (hours) => Math.floor(hours * 60); // Konversi jam ke menit bulat (abaikan sisa detik)
+
+                    if (pMsk1) {
+                        let msk1Menit = calcTotalMin(pMsk1);
+                        if (msk1Menit >= (8 * 60 + 46)) { // Jika masuk >= 08:46
+                            // let minLate = msk1Menit - (8 * 60);
+                            // potHariIni += (minLate * upahPerMenit); // DIMATIKAN SEMENTARA SESUAI INSTRUKSI MANAGER
+                        }
+                    }
+                    if (pMsk2) {
+                        let msk2Menit = calcTotalMin(pMsk2);
+                        if (msk2Menit > (13 * 60 + 30)) { // Telat masuk setelah istirahat (Lewat 13:30)
+                            let minLate = msk2Menit - (13 * 60 + 30);
+                            potHariIni += (minLate * upahPerMenit);
+                        }
+                    }
+                    if (pKlr2) {
+                        let klr2Menit = calcTotalMin(pKlr2);
+                        if (klr2Menit < (17 * 60)) { // Pulang cepat (sebelum 17:00)
+                            let minEarly = (17 * 60) - klr2Menit;
+                            potHariIni += (minEarly * upahPerMenit);
+                        }
+                        if (klr2Menit > (17 * 60)) { // Lembur (setelah 17:00)
+                            let minLembur = klr2Menit - (17 * 60);
+                            lemHariIni += (minLembur * (5000 / 60)); // Rp 5000 per 60 menit
+                            txtLemburJam = (minLembur / 60).toFixed(2) + "j";
+                        }
                     }
 
                     let tot1 = 0, tot2 = 0;
@@ -609,8 +656,13 @@
                 }
 
                 totalPotongan += potHariIni; totalLembur += lemHariIni;
-                let txtJam = totJam > 0 ? totJam.toFixed(1) + "h" : "-";
-                let upahHariIniStr = isHadir ? formatRp(upahPerHari) : "-";
+                let txtJam = totJam > 0 ? totJam.toFixed(2) + "h" : "-";
+                let upahHariIniStr = "-";
+                if (isHadir) {
+                    let upahBersihHariIni = upahPerHari - potHariIni + lemHariIni;
+                    if (upahBersihHariIni < 0) upahBersihHariIni = 0; // Cegah angka minus jika denda sangat besar
+                    upahHariIniStr = formatRp(upahBersihHariIni);
+                }
 
                 let uniqueKet = [...new Set(ketList)];
                 let infoStr = uniqueKet.join('<br>') || "-";

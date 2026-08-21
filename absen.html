@@ -84,7 +84,7 @@
             </div>
 
             <div id="foto-section">
-                <label>Foto Bukti (Kamera Langsung)</label>
+                <label id="label-foto">Foto Bukti (Kamera Langsung)</label>
                 <div class="info-text" id="info-foto">Diperlukan foto area/perangkat kerja</div>
                 <input type="file" id="input-foto" accept="image/*" capture="environment" style="border:none; padding:0;">
             </div>
@@ -167,23 +167,56 @@
             const jamKoreksi = document.getElementById('koreksi-jam') ? document.getElementById('koreksi-jam').value : '';
             const labelKet = document.getElementById('label-keterangan');
             const inputKet = document.getElementById('input-keterangan');
-            
+
+            let labelFoto = document.getElementById('label-foto');
+            const inputFoto = document.getElementById('input-foto');
+            if (inputFoto && !labelFoto) { // Suntik ID otomatis jika belum ada
+                let prev = inputFoto.previousElementSibling;
+                if (prev && prev.tagName === 'LABEL') { prev.id = 'label-foto'; labelFoto = prev; }
+            }
+
+            // Simpan aturan wajib yang sudah ditetapkan cekKondisiAbsen agar tidak tertimpa.
+            const wajibKetSebelumnya = Boolean(inputKet && inputKet.required);
+            const wajibFotoSebelumnya = Boolean(inputFoto && inputFoto.required && !tipeAbsen.includes('Koreksi'));
+
             let jamAktif = "";
             let isKeluar = tipeAbsen.includes('Keluar') || (tipeAbsen.includes('Koreksi') && statusKoreksi.includes('Keluar'));
 
             if (tipeAbsen.includes('Koreksi')) { jamAktif = jamKoreksi; } 
             else { let now = new Date(); jamAktif = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0'); }
 
-            let wajib = false; let alasanWajib = "";
+            let jamF = jamAktif ? parseInt(jamAktif.split(':')[0]) + (parseInt(jamAktif.split(':')[1])/60) : 0;
+
+            let wajib = false; let alasanWajib = ""; let wajibFoto = false;
             if (jamAktif >= "20:00") { wajib = true; alasanWajib = "(Lembur)"; } 
-            else if (isKeluar && jamAktif !== "" && jamAktif < "17:00") { wajib = true; alasanWajib = "(Izin Cepat)"; }
+            else if (isKeluar && jamAktif !== "" && jamF > 5.0 && jamF < 17.0) { wajib = true; alasanWajib = "(Izin Cepat)"; }
+            else if (isKeluar && jamF >= 0 && jamF <= 5.0) { // DINI HARI
+                wajib = true; alasanWajib = "(Lembur Ekstrem)";
+                wajibFoto = true;
+            }
 
             if (wajib) {
-                labelKet.innerHTML = `📝 Keterangan / Alasan <span style="color:#ef4444;">*Wajib Diisi ${alasanWajib}</span>`;
+                labelKet.innerHTML = `📝 Keterangan / Alasan <span style="color:#ef4444;">*Wajib ${alasanWajib}</span>`;
+                inputKet.required = true; inputKet.style.borderColor = "#ef4444";
+            } else if (wajibKetSebelumnya) {
+                labelKet.innerHTML = '📝 Keterangan / Alasan <span style="color:#ef4444;">*Wajib</span>';
                 inputKet.required = true; inputKet.style.borderColor = "#ef4444";
             } else {
                 labelKet.innerHTML = '📝 Keterangan / Alasan (Opsional)';
                 inputKet.required = false; inputKet.style.borderColor = "#cbd5e1";
+            }
+
+            if (labelFoto && inputFoto) {
+                const fotoWajibAkhir = wajibFoto || wajibFotoSebelumnya;
+                if (wajibFoto) {
+                    labelFoto.innerHTML = `📷 Foto Bukti Pekerjaan <span style="color:#ef4444;">*Wajib (Lembur Dini Hari)</span>`;
+                } else {
+                    labelFoto.innerHTML = `📷 Foto Bukti Pekerjaan`;
+                }
+                inputFoto.required = fotoWajibAkhir;
+
+                const fotoSection = document.getElementById('foto-section');
+                if (fotoSection) fotoSection.style.display = fotoWajibAkhir ? 'block' : 'none';
             }
         }
 
