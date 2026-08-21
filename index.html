@@ -389,7 +389,7 @@
             <form id="form-update" onsubmit="submitUpdate(event)">
                 <input type="hidden" id="update-id">
                 <label>Status Pekerjaan</label>
-                <select id="update-status" required onchange="cekKeterangan()">
+                <select id="update-status" required onchange="cekKeterangan(); toggleKanvasByStatus(this.value)">
                     <option value="Menunggu">Menunggu</option>
                     <option value="On Progress">On Progress (Sedang Dikerjakan)</option>
                     <option value="Pending">Pending (Ditunda)</option>
@@ -409,6 +409,8 @@
                     <textarea id="ba-deskripsi" rows="3" placeholder="Barang terpasang/tindakan..."></textarea>
                     <label>Kritik & Saran (Opsional)</label>
                     <textarea id="ba-kritik" rows="2" placeholder="Masukan dari Klien..."></textarea>
+                    <!-- BUNGKUS NAMA & TTD KLIEN -->
+                    <div id="wadah-ttd-klien" style="display: none; padding-top: 10px; border-top: 1px solid #e2e8f0; margin-top:15px;">
                     <label>Nama PIC Klien</label>
                     <input type="text" id="ba-nama-customer" placeholder="Nama penanda tangan">
                     <label>Tanda Tangan <span id="status-ttd" style="color:var(--success); font-weight:normal; font-size:11px;"></span></label>
@@ -418,6 +420,7 @@
                         <img id="ttd-update-preview-img" src="" alt="Tanda Tangan Klien" style="max-width:100%; max-height:150px; object-fit:contain;">
                     </div>
                     <button type="button" id="btn-clear-signature" class="btn-outline-cancel" style="margin-top:0;" onclick="clearSignature()">Bersihkan Kanvas</button>
+                    </div> <!-- Penutup wadah-ttd-klien -->
                 </div>
                 <button type="submit" id="btn-submit-update" class="btn-solid-primary">Simpan Data</button>
                 <button type="button" class="btn-outline-cancel" onclick="tutupModal()">Tutup</button>
@@ -3095,10 +3098,33 @@
         
         async function responBanding(idTiket, keputusan, namaSales) { let alasan = ''; if (keputusan === 'Ditolak') { alasan = await showPrompt("Bismillah, Tuliskan alasan penolakan untuk Sales:"); if(alasan === null) return; if(alasan.trim() === "") { showToast("Afwan, Alasan penolakan wajib diisi!", "warning"); return; } } else { let acc = await showConfirm(`Bismillah, yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`, false); if(!acc) return; } document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'responBanding', idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); if ((await res.json()).status === 'sukses') { showToast(`Alhamdulillah! Klaim berhasil diproses (${keputusan}).`, 'success'); await ambilSemuaData(true); } } catch (err) {} document.getElementById('loading').style.display = 'none'; }
         
+        function toggleKanvasByStatus(statusVal) {
+            const wadah = document.getElementById('wadah-ttd-klien');
+            if (wadah) {
+                // Jika status mengandung kata 'selesai', munculkan kanvas
+                if (statusVal && statusVal.toLowerCase().includes('selesai')) {
+                    wadah.style.display = 'block';
+                    setTimeout(resizeCanvas, 100); // Penting agar kanvas dirender dengan ukuran normal
+                } else {
+                    // Sembunyikan jika statusnya masih proses/pending
+                    wadah.style.display = 'none';
+                }
+            }
+        }
+
         function toggleBAT() { const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); if (baSection.style.display === 'none' || baSection.style.display === '') { baSection.style.display = 'block'; btnToggle.innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 50); } else { baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; } }
         function bukaModalUpdate(id) { const t = (globalTickets || []).find(x => x && x['ID Tiket'] === id); if(!t) return; document.getElementById('update-id').value = id; const statusElement = document.getElementById('update-status'); statusElement.value = t['Status'] || 'Menunggu'; document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat.'; document.getElementById('update-keterangan').value = ''; document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || ''; document.getElementById('ba-nama-customer').value = t['Nama Customer'] || ''; document.getElementById('ba-kritik').value = t['Kritik & Saran'] || '';
         const valTTD = String(t['Tanda Tangan'] || ''); const hasExistingTTD = valTTD.length > 50; const canvasContainer = canvas.parentElement; const btnClearTTD = document.getElementById('btn-clear-signature'); const previewContainer = document.getElementById('ttd-update-preview-container'); const previewImg = document.getElementById('ttd-update-preview-img'); document.getElementById('status-ttd').innerText = hasExistingTTD ? '(Tersimpan)' : ''; clearSignature();
         if (hasExistingTTD) { canvasContainer.style.display = 'none'; if (btnClearTTD) btnClearTTD.style.display = 'none'; previewContainer.style.display = 'block'; previewImg.src = valTTD; } else { canvasContainer.style.display = 'block'; if (btnClearTTD) btnClearTTD.style.display = 'block'; previewContainer.style.display = 'none'; previewImg.src = ''; setTimeout(resizeCanvas, 100); }
+
+        // Panggil fungsi penampil berdasarkan status saat ini.
+        toggleKanvasByStatus(statusElement.value);
+
+        // TTD lama harus tetap terlihat meskipun tiket dibuka kembali untuk revisi.
+        if (hasExistingTTD) {
+            const wadahTTDKlien = document.getElementById('wadah-ttd-klien');
+            if (wadahTTDKlien) wadahTTDKlien.style.display = 'block';
+        }
         cekKeterangan(); 
         if (t['Status'] === 'Selesai') { 
         document.getElementById('update-title').innerText = 'Revisi BAT / Re-Open: ' + id; 
