@@ -113,6 +113,10 @@
                         <label style="color:#be185d;">📉 Potongan Kasbon Bulan Ini (Rp)</label>
                         <input type="number" id="input-kasbon" placeholder="Contoh: 50000" value="0">
                     </div>
+                    <div class="form-group">
+                        <label style="color:#0284c7;">✈️ Tgl Luar Kota (Pokok x2)</label>
+                        <input type="text" id="input-luar-kota" placeholder="Contoh: 12, 13, 15" value="">
+                    </div>
                 </div>
 
                 <!-- WADAH MANAJEMEN TUNJANGAN PERMANEN -->
@@ -551,6 +555,10 @@
             let isCurrentMonth = (now.getFullYear() == thnPilih && String(now.getMonth()+1).padStart(2,'0') == blnPilih);
             let todayDate = now.getDate();
 
+            let strLuarKota = document.getElementById('input-luar-kota') ? document.getElementById('input-luar-kota').value : '';
+            let arrLuarKota = strLuarKota.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+            let countTelatPagi = 0; let countAlpa = 0;
+
             for (let i = 1; i <= totalHariBulanIni; i++) {
                 let currDate = new Date(thnPilih, blnPilih - 1, i);
                 let dateKey = currDate.getFullYear() + "-" + String(currDate.getMonth()+1).padStart(2,'0') + "-" + String(currDate.getDate()).padStart(2,'0');
@@ -674,8 +682,10 @@
 
                     if (pMsk1) {
                         let msk1Menit = calcTotalMin(pMsk1);
+                        if (msk1Menit > (8 * 60 + 45)) countTelatPagi++; // Lacak telat lebih dari 08:45
+
                         if (msk1Menit > (8 * 60)) { // Jika masuk lewat dari 08:00
-                            let minLate = msk1Menit - (8 * 60); // Argo pemotongan langsung berjalan
+                            let minLate = msk1Menit - (8 * 60);
                             potHariIni += (minLate * upahPerMenit);
                         }
                     }
@@ -707,10 +717,13 @@
 
                     totJam = tot1 + tot2; if(totJam < 0) totJam = 0;
                 } else if (!isAhad && !isFutureDate) {
-                    // LOGIKA ALPA: Bukan Ahad, Bukan Masa Depan, Tidak Hadir, Tidak Sakit, Tidak Izin
-                    isAlpa = true;
+                    // LOGIKA ALPA
+                    isAlpa = true; countAlpa++;
                     ketList.push("Alpa (Tanpa Keterangan)");
                 }
+
+                // Deteksi Input Tanggal Luar Kota dari Admin
+                if (arrLuarKota.includes(i)) isPokok2x = true;
 
                 if (isPokok2x && isHadir) {
                     lemHariIni += upahPerHari;
@@ -780,6 +793,18 @@
                                 totalBonusPoin += ((poinTiket / tekArr.length) * 10000);
                             }
                         }
+                    }
+                }
+            });
+
+            // EVALUASI BONUS DISIPLIN (Hanya berlaku untuk tunjangan yang namanya mengandung kata 'disiplin' atau 'rajin')
+            arrayTunjangan.forEach(t => {
+                if (t.nama.toLowerCase().includes('disiplin') || t.nama.toLowerCase().includes('rajin')) {
+                    // Jika telat > 3x ATAU alpa > 2x, bonus ditarik kembali!
+                    if (countTelatPagi > 3 || countAlpa > 2) {
+                        totalTunjanganTetap -= t.nominal; // Tarik uangnya dari total
+                        t.nama = t.nama + ` (Hangus: ${countTelatPagi}x Telat, ${countAlpa}x Alpa)`;
+                        t.nominal = 0; // Nol-kan nominal agar tampil di slip sebagai hangus
                     }
                 }
             });
