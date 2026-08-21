@@ -190,6 +190,47 @@
                     <div class="sum-title">TOTAL UPAH BERSIH DITERIMA</div>
                     <div class="sum-val" id="sum-total">Rp 0</div>
                 </div>
+
+                <!-- PAPAN INFORMASI & LEGENDA -->
+                <div style="margin-top:25px; display:flex; gap:20px; flex-wrap:wrap; border-top:2px solid var(--border); padding-top:20px;">
+                    <!-- Card 1: Arti Warna -->
+                    <div style="flex:1; min-width:250px; background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <h4 style="margin:0 0 10px 0; color:var(--primary); border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">🎨 Legenda Warna</h4>
+                        <ul style="list-style:none; padding:0; margin:0; font-size:11px; line-height:1.7;">
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#fecaca; margin-right:5px; border-radius:2px;"></span> <strong>Merah:</strong> Hari Libur (Ahad)</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#1e293b; margin-right:5px; border-radius:2px;"></span> <strong>Hitam:</strong> Alpa (Tanpa Keterangan)</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#fef08a; margin-right:5px; border-radius:2px;"></span> <strong>Kuning:</strong> Terlambat (Pagi >08:45 / Siang >13:30)</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#bfdbfe; margin-right:5px; border-radius:2px;"></span> <strong>Biru:</strong> Sakit (Full Upah / Non-Upah)</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#bbf7d0; margin-right:5px; border-radius:2px;"></span> <strong>Hijau:</strong> Izin</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#fbcfe8; margin-right:5px; border-radius:2px;"></span> <strong>Pink:</strong> Koreksi Absen</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#e0f2fe; margin-right:5px; border-radius:2px;"></span> <strong>Biru Muda:</strong> Lupa absen (Auto-fill sistem toleransi)</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#e2e8f0; margin-right:5px; border-radius:2px;"></span> <strong>Abu-abu:</strong> Penalti Lupa Pulang (Melebihi kuota)</li>
+                        </ul>
+                    </div>
+            
+                    <!-- Card 2: Toleransi -->
+                    <div style="flex:1; min-width:250px; background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <h4 style="margin:0 0 10px 0; color:#059669; border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">⚖️ Aturan Hak & Toleransi</h4>
+                        <ul style="padding-left:15px; margin:0; font-size:11px; line-height:1.7;">
+                            <li><strong>Toleransi Keterlambatan:</strong> Pagi hari indikator aman s.d 08:45 (namun nominal potongan tetap ditarik sejak 08:00).</li>
+                            <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari beruntun dibayar penuh. Hari ke-4 dan seterusnya otomatis dihitung sebagai Izin (Sakit Non-Upah).</li>
+                            <li><strong>Toleransi Lupa Pulang:</strong> Maksimal 3x dalam sebulan sistem otomatis menutup absen di jam 17:00 (Aman dari denda).</li>
+                            <li><strong>Koreksi Absen:</strong> Dapat digunakan bila terjadi kendala sistem lapangan, disetujui secara situasional.</li>
+                        </ul>
+                    </div>
+            
+                    <!-- Card 3: Pelanggaran -->
+                    <div style="flex:1; min-width:250px; background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <h4 style="margin:0 0 10px 0; color:#e11d48; border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">⚠️ Pelanggaran & Hukuman</h4>
+                        <ul style="padding-left:15px; margin:0; font-size:11px; line-height:1.7;">
+                            <li><strong>Lupa Absen Pagi:</strong> Sistem otomatis mengisi masuk jam 13:30. Gaji dipotong dari 08:00 s.d 13:30.</li>
+                            <li><strong>Telat Masuk Siang (>13:30):</strong> Gaji dipotong proporsional per menit keterlambatan.</li>
+                            <li><strong>Pulang Cepat (<17:00):</strong> Gaji dipotong proporsional per menit dari selisih waktu pulang.</li>
+                            <li><strong>Lupa Pulang > 3x:</strong> Pada pelanggaran ke-4 dan seterusnya, sistem mengunci absen pulang di jam 15:30 (Gaji terpotong 1.5 jam).</li>
+                            <li><strong>Lupa Absen Istirahat:</strong> Mendapat hukuman sistem otomatis (Potongan 1.5 jam).</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
 
             <!-- AREA 2: DASHBOARD REKAPITULASI MASTER -->
