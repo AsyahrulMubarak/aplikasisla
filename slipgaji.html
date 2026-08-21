@@ -144,6 +144,7 @@
                                 <th>Msk 2 (Siang)</th>
                                 <th>Klr 2 (Sore)</th>
                                 <th>Total Jam</th>
+                                <th>Upah Harian</th>
                                 <th>Status / Ket</th>
                                 <th>Lembur</th>
                                 <th>Potongan</th>
@@ -481,35 +482,32 @@
                 if (adaAbsenFisik) sedangSakitBeruntun = false;
                 if (isSakitExplicit) sedangSakitBeruntun = true;
 
-                let applySakit = false;
+                let applySakitFull = false; let applySakitKosong = false;
                 let applyIzin = isIzinExplicit;
 
                 let msk1 = "-", klr1 = "-", msk2 = "-", klr2 = "-";
                 let ketList = []; let potHariIni = 0; let lemHariIni = 0; let totJam = 0; let isHadir = false;
+                let isLate = false; let isLupaKeluarParah = false; let isLupaKeluarBiasa = false; let isPokok2x = false;
                 let txtLemburJam = "";
-                let isLate = false; let isLupaKeluarParah = false; let isPokok2x = false;
 
-                // Logika Kuota Sakit 3x (Jika ke-4 jadi Izin)
+                // Logika Kuota Sakit 3x (Jika ke-4 jadi Sakit Kosong, latarnya tetap biru)
                 if (!isAhad && (isSakitExplicit || (sedangSakitBeruntun && !adaAbsenFisik))) {
                     if (kuotaSakitTerpakai < 3) {
-                        applySakit = true;
-                        kuotaSakitTerpakai++;
-                        sedangSakitBeruntun = true;
+                        applySakitFull = true; kuotaSakitTerpakai++; sedangSakitBeruntun = true;
                     } else {
-                        applyIzin = true;
+                        applySakitKosong = true;
                         sedangSakitBeruntun = true;
-                        if (!isIzinExplicit) ketList.push("Sakit (Kuota Habis -> Izin)");
                     }
                 }
 
-                if (applySakit) {
+                if (applySakitFull) {
                     msk1 = "08:00"; msk2 = "13:30"; klr2 = "17:00";
                     totJam = 9; isHadir = true; countKehadiran++;
-                    if (!isSakitExplicit) ketList.push("Sakit (Auto)");
-                    else ketList.push("Sakit");
+                    ketList.push(isSakitExplicit ? "Sakit" : "Sakit (Auto)");
+                } else if (applySakitKosong) {
+                    ketList.push(isSakitExplicit ? "Sakit (Non Upah)" : "Sakit (Auto - Non Upah)");
                 } else if (applyIzin) {
-                    if (!isIzinExplicit && !ketList.includes("Sakit (Kuota Habis -> Izin)")) ketList.push("Izin (Auto)");
-                    else if (isIzinExplicit) ketList.push("Izin");
+                    ketList.push(isIzinExplicit ? "Izin" : "Izin (Auto)");
                 } else if (events.length > 0) {
                     isHadir = true; countKehadiran++;
                     let lastEventType = "";
@@ -550,7 +548,7 @@
                     if (lastEventType.includes("Masuk") && klr2 === "-") {
                         countLupaPulang++;
                         if (countLupaPulang <= 3) {
-                            klr2 = "17:00"; ketList.push("Lupa Pulang (Auto 17:00)");
+                            klr2 = "17:00"; ketList.push("Lupa Pulang (Auto 17:00)"); isLupaKeluarBiasa = true;
                         } else {
                             klr2 = "15:30"; ketList.push("Lupa Pulang (Auto 15:30)");
                             isLupaKeluarParah = true;
@@ -585,21 +583,30 @@
 
                 totalPotongan += potHariIni; totalLembur += lemHariIni;
                 let txtJam = totJam > 0 ? totJam.toFixed(1) + "h" : "-";
+                let upahHariIniStr = isHadir ? formatRp(upahPerHari) : "-";
 
                 let uniqueKet = [...new Set(ketList)];
                 let infoStr = uniqueKet.join('<br>') || "-";
 
+                // PEWARNAAN BARIS DAN KOTAK JAM
                 let rowBg = i%2===0 ? "background:#f1f5f9;" : "background:#ffffff;";
                 if (isAhad) rowBg = "background:#fecaca; color:#991b1b;";
-                else if (applySakit) rowBg = "background:#bfdbfe; color:#1e3a8a;";
-                else if (applyIzin) rowBg = "background:#bbf7d0; color:#166534;";
-                else if (isLupaKeluarParah) rowBg = "background:#e2e8f0; color:#334155;";
-                else if (isLate) rowBg = "background:#fef08a; color:#854d0e;";
+
+                let timeBg = "";
+                if (applySakitFull || applySakitKosong) timeBg = "background:#bfdbfe; color:#1e3a8a;"; // Biru Sakit
+                else if (applyIzin) timeBg = "background:#bbf7d0; color:#166534;"; // Hijau Izin
+                else if (isLupaKeluarParah) timeBg = "background:#e2e8f0; color:#334155;"; // Abu-abu Parah
+                else if (isLupaKeluarBiasa) timeBg = "background:#e0f2fe; color:#0369a1;"; // Biru Muda Lupa Pulang Biasa
+                else if (isLate) timeBg = "background:#fef08a; color:#854d0e;"; // Kuning Terlambat
 
                 barisHTML += `<tr style="${rowBg}">
                     <td><strong>${namaHari}, ${String(i).padStart(2,'0')}/${blnPilih}/${thnPilih}</strong></td>
-                    <td>${msk1}</td><td>${klr1}</td><td>${msk2}</td><td>${klr2}</td>
-                    <td><strong>${txtJam}</strong></td>
+                    <td style="${timeBg}">${msk1}</td>
+                    <td style="${timeBg}">${klr1}</td>
+                    <td style="${timeBg}">${msk2}</td>
+                    <td style="${timeBg}">${klr2}</td>
+                    <td style="${timeBg}"><strong>${txtJam}</strong></td>
+                    <td style="color:#0f766e; font-weight:600;">${upahHariIniStr}</td>
                     <td style="font-size:11px; text-align:left; line-height:1.4;">${infoStr}</td>
                     <td style="color:var(--success); line-height:1.4;">${txtLemburJam ? `<span style="font-size:10px; color:#64748b;">${txtLemburJam}</span><br>` : ''}+ ${formatRp(lemHariIni)}</td>
                     <td style="color:var(--danger);">- ${formatRp(potHariIni)}</td>
