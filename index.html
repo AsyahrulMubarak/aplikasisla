@@ -1685,25 +1685,39 @@
                 }
             });
 
-            let dataProspek = typeof globalProspek !== 'undefined' ? globalProspek : [];
-            dataProspek.forEach(prp => {
-                if(!prp) return;
-                if(!inPeriode(prp['Tanggal Input'])) return; // <-- Filter Bulan Prospek
+            // === PERBAIKAN LOGIKA OMZET PROSPEK B2B (MULTI-SALES FULL OMZET) ===
+            (globalProspek || []).forEach(p => {
+                if (!p) return;
+                if (!inPeriode(p['Tanggal Input'])) return; // Filter Bulan Prospek
 
-                let statusPrp = String(prp['Status Prospek'] || '').trim().toLowerCase();
-                let nominalPrp = parseInt(prp['Estimasi (Rp)'] || prp['Estimasi Nilai Proyek (Rp)'] || prp['Estimasi'] || 0) || 0;
-                let arrPrpSales = String(prp['Sales Penanggung Jawab'] || prp['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
-                let potPerSales = arrPrpSales.length > 0 ? (nominalPrp / arrPrpSales.length) : 0;
+                let statusProspek = String(p['Status'] || p['Status Prospek'] || '').trim().toUpperCase();
+                let arrSales = String(p['Sales Penanggung Jawab'] || p['Sales'] || '')
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(s => s !== "" && s !== "-");
 
-                arrPrpSales.forEach(sName => {
-                    let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
-                    if (!sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; sKey = sName; }
-                    
-                    if (statusPrp.includes('penawaran') || statusPrp.includes('kunjungan')) {
-                        statsSales[sKey].potensi_omzet += potPerSales; 
-                    } else if (statusPrp.includes('closing') || statusPrp.includes('deal')) {
+                // Fleksibel membaca nominal dari struktur Prospek lama maupun baru.
+                let nilaiDeal = parseFloat(
+                    p['Nilai Deal'] || p['Nominal Deal'] || p['Penawaran Akhir'] ||
+                    p['Estimasi Nilai'] || p['Estimasi (Rp)'] ||
+                    p['Estimasi Nilai Proyek (Rp)'] || p['Estimasi'] || 0
+                ) || 0;
+                let potensiPerSales = arrSales.length > 0 ? (nilaiDeal / arrSales.length) : 0;
+
+                arrSales.forEach(namaSalesTarget => {
+                    let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === namaSalesTarget.toLowerCase());
+                    if (!sKey) {
+                        statsSales[namaSalesTarget] = { nama: namaSalesTarget, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 };
+                        sKey = namaSalesTarget;
+                    }
+
+                    if (statusProspek.includes('DEAL') || statusProspek.includes('CLOSING')) {
+                        // FULL omzet diberikan kepada setiap sales yang terlibat, tanpa dibagi.
+                        statsSales[sKey].revenue += nilaiDeal;
                         statsSales[sKey].prospek_deal++;
-                    } else if (statusPrp.includes('batal') || statusPrp.includes('tanpa keterangan')) {
+                    } else if (statusProspek.includes('PENAWARAN') || statusProspek.includes('KUNJUNGAN')) {
+                        statsSales[sKey].potensi_omzet += potensiPerSales;
+                    } else if (statusProspek.includes('BATAL') || statusProspek.includes('TANPA KETERANGAN')) {
                         statsSales[sKey].prospek_batal++;
                     }
                 });
