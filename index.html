@@ -178,8 +178,9 @@
             <p id="track-id-text" style="font-size:14px; font-weight:bold; color:var(--text-main); margin-top:0; border-bottom:1px solid var(--border); padding-bottom:10px;"></p>
             
             <div id="track-auth-section">
-                <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px; line-height:1.5;">Demi keamanan data, silakan masukkan <b>Kata Kunci (Nama Instansi / Perusahaan / Nama Anda)</b> yang terdaftar pada tiket perbaikan ini.</p>
-                <input type="text" id="track-keyword" placeholder="Nomor WA (Awalan 62) atau Nama Instansi" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px; box-sizing:border-box;">
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px; line-height:1.5;">Demi keamanan data, gunakan salah satu identitas yang terdaftar pada tiket perbaikan.</p>
+                <label for="track-keyword" style="display:block; font-size:12px; font-weight:600; color:var(--text-main); margin-bottom:6px;">Masukkan No. WA / Nama / Nomor Tiket</label>
+                <input type="text" id="track-keyword" placeholder="Masukkan No. WA / Nama / Nomor Tiket" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px; box-sizing:border-box;">
                 <button class="btn-solid-primary" style="background:#10b981;" onclick="verifyClientTracking()">Buka Data Tiket</button>
             </div>
             
@@ -893,36 +894,35 @@
 
         function verifyClientTracking() {
             let keywordRaw = document.getElementById('track-keyword').value.toLowerCase().trim();
-            if(keywordRaw === "") { showToast("Bismillah, harap masukkan Nomor WhatsApp atau Nama Instansi!", "warning"); return; }
-            
-            let t = globalTickets.find(x => x && x['ID Tiket'] === currentTrackTicket);
-            if(!t) { showToast("Afwan, Tiket tidak ditemukan di sistem kami.", "error"); return; }
-            
-            let waKey = Object.keys(t).find(k => k && k.toLowerCase().includes('wa klien'));
-            let noWaAsli = (waKey && t[waKey]) ? String(t[waKey]).replace(/\D/g, '') : '';
-            
+            if(keywordRaw === "") { showToast("Bismillah, harap masukkan Nomor WhatsApp, Nama, atau Nomor Tiket!", "warning"); return; }
+
             let inputWa = keywordRaw.replace(/\D/g, '');
             if (inputWa.startsWith('0')) inputWa = '62' + inputWa.substring(1);
-            
-            // Logika Sandi Cerdas (Hybrid)
-            let isVerified = false;
-            
-            if (noWaAsli !== "" && noWaAsli === inputWa) {
-                isVerified = true;
-            } else if (noWaAsli === "" && keywordRaw !== "") {
-                // Fallback Kritis: Jika Admin lupa input WA, izinkan pakai Nama Instansi
-                let namaKlien = String(t['Klien & Lokasi'] || "").toLowerCase();
-                let noTrans = String(t['No Transaksi'] || t[Object.keys(t)[1]] || "").toLowerCase();
-                if (namaKlien.includes(keywordRaw) || (noTrans !== "" && noTrans.includes(keywordRaw))) {
-                    isVerified = true;
-                }
-            }
 
-            if (isVerified) {
-                tampilkanDataPelacakanKlien(t);
-            } else {
-                showToast("Afwan, Nomor WA / Kata Kunci Anda tidak cocok demi keamanan data.", "error");
-            }
+            // Izinkan pencarian menggunakan No. WA, Nama, atau Nomor Tiket langsung.
+            let tiketDitemukan = (globalTickets || []).filter(t => {
+                if (!t) return false;
+                let waKey = Object.keys(t).find(k => k && k.toLowerCase().includes('wa klien'));
+                let noWaAsli = (waKey && t[waKey]) ? String(t[waKey]).replace(/\D/g, '') : '';
+                if (noWaAsli.startsWith('0')) noWaAsli = '62' + noWaAsli.substring(1);
+
+                let namaKlien = String(t['Nama Klien'] || t['Klien & Lokasi'] || '').toLowerCase();
+                let idTiket = String(t['ID Tiket'] || '').toLowerCase();
+                return (noWaAsli !== '' && noWaAsli === inputWa) ||
+                    namaKlien.includes(keywordRaw) ||
+                    idTiket === keywordRaw;
+            });
+
+            // Pada tautan tracking, prioritaskan tiket yang tercantum pada URL.
+            let t = tiketDitemukan.find(x => String(x['ID Tiket'] || '') === String(currentTrackTicket || '')) ||
+                tiketDitemukan.find(x => String(x['ID Tiket'] || '').toLowerCase() === keywordRaw) ||
+                tiketDitemukan[0];
+
+            if (!t) { showToast("Afwan, No. WA, Nama, atau Nomor Tiket tidak cocok.", "error"); return; }
+
+            currentTrackTicket = t['ID Tiket'];
+            document.getElementById('track-id-text').innerText = "ID Tiket Perbaikan: " + currentTrackTicket;
+            tampilkanDataPelacakanKlien(t);
         }
         function tampilkanDataPelacakanKlien(t) {
             document.getElementById('track-auth-section').style.display = 'none';
