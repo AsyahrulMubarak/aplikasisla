@@ -103,6 +103,18 @@
                     <button class="btn-primary" onclick="prosesData()">Proses Data</button>
                 </div>
 
+                <!-- INPUT VARIABEL BULANAN (FEE & KASBON) -->
+                <div class="form-row" id="div-komponen-variabel" style="margin-top: 15px; border-top: 1px dashed #bfdbfe; padding-top: 15px; width:100%;">
+                    <div class="form-group">
+                        <label style="color:#047857;">📈 Fee Marketing Bulan Ini (Rp)</label>
+                        <input type="number" id="input-fee" placeholder="Contoh: 150000" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label style="color:#be185d;">📉 Potongan Kasbon Bulan Ini (Rp)</label>
+                        <input type="number" id="input-kasbon" placeholder="Contoh: 50000" value="0">
+                    </div>
+                </div>
+
                 <!-- WADAH MANAJEMEN TUNJANGAN PERMANEN -->
                 <div id="dynamic-bonus-section">
                     <label style="color:#065f46; font-size:14px;">⚙️ Manajemen Tunjangan Tetap / Honor Pegawai (Permanen)</label>
@@ -184,6 +196,14 @@
                         <div class="sum-title">Bonus Poin SLA</div>
                         <div class="sum-val plus" id="sum-poin">Rp 0</div>
                     </div>
+                    <div class="sum-card" id="box-fee" style="display:none; background:#ecfccb; border-color:#bef264;">
+                        <div class="sum-title" style="color:#4d7c0f;">Fee Marketing</div>
+                        <div class="sum-val plus" id="sum-fee">Rp 0</div>
+                    </div>
+                    <div class="sum-card" id="box-kasbon" style="display:none; background:#fee2e2; border-color:#fca5a5;">
+                        <div class="sum-title" style="color:#be185d;">Potongan Kasbon</div>
+                        <div class="sum-val minus" id="sum-kasbon">Rp 0</div>
+                    </div>
                 </div>
 
                 <div class="total-bersih">
@@ -199,7 +219,7 @@
                         <ul style="list-style:none; padding:0; margin:0; font-size:11px; line-height:1.7;">
                             <li><span style="display:inline-block; width:12px; height:12px; background:#fecaca; margin-right:5px; border-radius:2px;"></span> <strong>Merah:</strong> Hari Libur (Ahad)</li>
                             <li><span style="display:inline-block; width:12px; height:12px; background:#1e293b; margin-right:5px; border-radius:2px;"></span> <strong>Hitam:</strong> Alpa (Tanpa Keterangan)</li>
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#fef08a; margin-right:5px; border-radius:2px;"></span> <strong>Kuning:</strong> Terlambat (Pagi >08:45 / Siang >13:30)</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#fef08a; margin-right:5px; border-radius:2px;"></span> <strong>Kuning:</strong> Terlambat Masuk Pagi (>08:45)</li>
                             <li><span style="display:inline-block; width:12px; height:12px; background:#bfdbfe; margin-right:5px; border-radius:2px;"></span> <strong>Biru:</strong> Sakit (Full Upah / Non-Upah)</li>
                             <li><span style="display:inline-block; width:12px; height:12px; background:#bbf7d0; margin-right:5px; border-radius:2px;"></span> <strong>Hijau:</strong> Izin</li>
                             <li><span style="display:inline-block; width:12px; height:12px; background:#fbcfe8; margin-right:5px; border-radius:2px;"></span> <strong>Pink:</strong> Koreksi Absen</li>
@@ -215,7 +235,7 @@
                             <li><strong>Toleransi Keterlambatan:</strong> Pagi hari indikator aman s.d 08:45 (namun nominal potongan tetap ditarik sejak 08:00).</li>
                             <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari beruntun dibayar penuh. Hari ke-4 dan seterusnya otomatis dihitung sebagai Izin (Sakit Non-Upah).</li>
                             <li><strong>Toleransi Lupa Pulang:</strong> Maksimal 3x dalam sebulan sistem otomatis menutup absen di jam 17:00 (Aman dari denda).</li>
-                            <li><strong>Koreksi Absen:</strong> Dapat digunakan bila terjadi kendala sistem lapangan, disetujui secara situasional.</li>
+                            <li><strong>Koreksi Absen:</strong> Dapat digunakan bila terjadi kendala sistem (Maksimal 7x per bulan).</li>
                         </ul>
                     </div>
             
@@ -397,12 +417,14 @@
             
             if (tabId === 'slip') {
                 document.getElementById('div-pilih-pegawai').style.display = 'block';
+                document.getElementById('div-komponen-variabel').style.display = 'flex';
                 if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role.toLowerCase())) {
                     document.getElementById('dynamic-bonus-section').style.display = 'block';
                 }
                 loadTunjanganPegawai();
             } else {
                 document.getElementById('div-pilih-pegawai').style.display = 'none';
+                document.getElementById('div-komponen-variabel').style.display = 'none';
                 document.getElementById('dynamic-bonus-section').style.display = 'none';
             }
         }
@@ -609,7 +631,6 @@
                             } else {
                                 msk2 = jamStr;
                                 if (isKoreksi) bgM2 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
-                                else if (jamFloat > 13.5) bgM2 = "background:#fef08a; color:#854d0e;"; // Kuning Telat
                             }
                         } else if (tipe.includes("Keluar") || tipe.includes("Pulang")) {
                             if (jamFloat <= 14.0) {
@@ -815,6 +836,22 @@
 
             document.getElementById('sum-honor').innerText = "+ " + formatRp(data.totalTunjanganTetap);
             document.getElementById('sum-poin').innerText = "+ " + formatRp(data.totalBonusPoin);
+
+            let feeMarketing = parseFloat(document.getElementById('input-fee').value) || 0;
+            let kasbon = parseFloat(document.getElementById('input-kasbon').value) || 0;
+
+            data.totalBersih = data.totalBersih + feeMarketing - kasbon;
+
+            if (feeMarketing > 0) {
+                document.getElementById('box-fee').style.display = 'block';
+                document.getElementById('sum-fee').innerText = "+ " + formatRp(feeMarketing);
+            } else { document.getElementById('box-fee').style.display = 'none'; }
+
+            if (kasbon > 0) {
+                document.getElementById('box-kasbon').style.display = 'block';
+                document.getElementById('sum-kasbon').innerText = "- " + formatRp(kasbon);
+            } else { document.getElementById('box-kasbon').style.display = 'none'; }
+
             document.getElementById('sum-total').innerText = formatRp(data.totalBersih);
 
             document.getElementById('loading').style.display = 'none';
