@@ -725,20 +725,26 @@
                 // Deteksi Input Tanggal Luar Kota dari Admin
                 if (arrLuarKota.includes(i)) isPokok2x = true;
 
-                if (isPokok2x && isHadir) {
-                    lemHariIni += upahPerHari;
-                    ketList.push("Pokok x2 (+ " + formatRp(upahPerHari) + ")");
-                }
-
-                totalPotongan += potHariIni; totalLembur += lemHariIni;
                 let txtJam = totJam > 0 ? totJam.toFixed(2) + "h" : "-";
                 let upahHariIniStr = "-";
                 if (isHadir) {
+                    // 1. Hitung Upah Bersih Reguler
                     let upahBersihHariIni = upahPerHari - potHariIni + lemHariIni;
-                    if (upahBersihHariIni < 0) upahBersihHariIni = 0; // Cegah angka minus jika denda sangat besar
+                    if (upahBersihHariIni < 0) upahBersihHariIni = 0;
+
+                    // 2. Terapkan Penggandaan Luar Kota JIKA ADA
+                    if (isPokok2x) {
+                        // Bonus Luar Kota = Sejumlah Upah Bersih (sehingga totalnya x2)
+                        let bonusLuarKota = upahBersihHariIni;
+                        lemHariIni += bonusLuarKota; // Masukkan ke wadah lembur agar ditambahkan ke Total Gaji Akhir
+                        upahBersihHariIni += bonusLuarKota; // Perbarui upah bersih hari ini untuk ditampilkan di tabel
+                        ketList.push("Pokok x2 (+ " + formatRp(bonusLuarKota) + ")");
+                    }
+
                     upahHariIniStr = formatRp(upahBersihHariIni);
                 }
 
+                totalPotongan += potHariIni; totalLembur += lemHariIni;
                 let uniqueKet = [...new Set(ketList)];
                 let infoStr = uniqueKet.join('<br>') || "-";
 
