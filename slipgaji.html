@@ -612,9 +612,9 @@
 
                     if (pMsk1) {
                         let msk1Menit = calcTotalMin(pMsk1);
-                        if (msk1Menit >= (8 * 60 + 46)) { // Jika masuk >= 08:46
-                            // let minLate = msk1Menit - (8 * 60);
-                            // potHariIni += (minLate * upahPerMenit); // DIMATIKAN SEMENTARA SESUAI INSTRUKSI MANAGER
+                        if (msk1Menit > (8 * 60)) { // Jika masuk lewat dari 08:00
+                            let minLate = msk1Menit - (8 * 60); // Argo pemotongan langsung berjalan
+                            potHariIni += (minLate * upahPerMenit);
                         }
                     }
                     if (pMsk2) {
