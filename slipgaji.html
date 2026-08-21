@@ -466,7 +466,12 @@
             if (isAdmin) {
                 select.innerHTML = '<option value="" disabled selected>-- Pilih Pegawai --</option>';
                 let sortedUsers = globalUsers.filter(u => u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
-                sortedUsers.forEach(u => { select.innerHTML += `<option value="${u['Nama Asli']}">${u['Nama Asli']} (${u.Role})</option>`; });
+                sortedUsers.forEach(u => {
+                    let gapok = parseFloat(u['Gaji Pokok'] || u['Gaji Pokok (Rp)']) || 0;
+                    if (gapok > 0) {
+                        select.innerHTML += `<option value="${u['Nama Asli']}">${u['Nama Asli']} (${u.Role})</option>`;
+                    }
+                });
             } else {
                 select.innerHTML = `<option value="${penggunaAktif['Nama Asli']}" selected>${penggunaAktif['Nama Asli']}</option>`;
                 select.disabled = true;
