@@ -33,6 +33,69 @@
         #loading-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Modul Pengajuan Sakit / Izin */
+        .modal-overlay { display:none; position:fixed; inset:0; z-index:9000; padding:20px; box-sizing:border-box; background:rgba(15,23,42,0.72); backdrop-filter:blur(5px); align-items:center; justify-content:center; }
+        .modal-card { width:100%; max-width:560px; max-height:90vh; overflow-y:auto; background:#fff; border-radius:18px; box-shadow:0 24px 70px rgba(15,23,42,0.28); border:1px solid rgba(255,255,255,0.75); }
+        .modal-card.modal-wide { max-width:760px; }
+        .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; padding:22px 24px 18px; border-bottom:1px solid #e2e8f0; background:linear-gradient(135deg,#eff6ff 0%,#f8fafc 58%,#f0fdf4 100%); border-radius:18px 18px 0 0; }
+        .modal-title { margin:0; color:#1e3a8a; font-size:18px; text-align:left; }
+        .modal-subtitle { margin:6px 0 0; color:#64748b; font-size:12px; line-height:1.6; }
+        .modal-close { flex:0 0 auto; width:34px; height:34px; border:none; border-radius:50%; background:#fff; color:#64748b; font-size:20px; cursor:pointer; box-shadow:0 2px 8px rgba(15,23,42,0.08); }
+        .modal-close:hover { color:#ef4444; background:#fef2f2; }
+        .modal-body { padding:22px 24px 24px; }
+        .identity-strip { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; margin-bottom:18px; }
+        .identity-icon { width:38px; height:38px; display:grid; place-items:center; border-radius:10px; background:#dbeafe; color:#1e3a8a; font-size:18px; }
+        .identity-text { min-width:0; }
+        .identity-text strong { display:block; color:#0f172a; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .identity-text span { display:block; color:#64748b; font-size:11px; margin-top:2px; }
+        .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .form-field { min-width:0; }
+        .form-field.full { grid-column:1 / -1; }
+        .form-field label { margin:0 0 7px; color:#334155; }
+        .form-control { width:100%; padding:12px 13px; border:1px solid #cbd5e1; border-radius:10px; box-sizing:border-box; background:#fff; color:#0f172a; font:inherit; font-size:13px; transition:0.2s; }
+        .form-control:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.12); }
+        textarea.form-control { min-height:104px; resize:vertical; line-height:1.55; }
+        input[type="file"].form-control { padding:10px; background:#f8fafc; }
+        .field-help { display:block; margin-top:6px; color:#64748b; font-size:10px; line-height:1.45; }
+        .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; padding-top:18px; border-top:1px solid #e2e8f0; }
+        .btn-modal { border:none; border-radius:10px; padding:12px 16px; font:inherit; font-size:13px; font-weight:700; cursor:pointer; transition:0.2s; }
+        .btn-modal:disabled { opacity:0.55; cursor:not-allowed; }
+        .btn-modal.secondary { color:#475569; background:#f1f5f9; border:1px solid #cbd5e1; }
+        .btn-modal.primary { color:#fff; background:linear-gradient(135deg,#1e3a8a,#2563eb); box-shadow:0 6px 14px rgba(30,58,138,0.2); }
+        .btn-modal.danger { color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; }
+        .btn-modal.success { color:#047857; background:#ecfdf5; border:1px solid #a7f3d0; }
+        .approval-summary { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; padding:12px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; color:#1e3a8a; font-size:12px; }
+        .approval-list { display:grid; gap:12px; }
+        .approval-card { padding:16px; border:1px solid #e2e8f0; border-left:4px solid #f59e0b; border-radius:12px; background:#fff; box-shadow:0 4px 14px rgba(15,23,42,0.05); }
+        .approval-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
+        .approval-name { margin:0; color:#0f172a; font-size:14px; }
+        .approval-role { margin-top:3px; color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:0.06em; }
+        .type-badge { flex:0 0 auto; padding:5px 9px; border-radius:999px; background:#fef3c7; color:#92400e; font-size:10px; font-weight:700; }
+        .type-badge.sakit { background:#fee2e2; color:#991b1b; }
+        .approval-meta { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:11px; }
+        .meta-box { padding:9px 10px; border-radius:9px; background:#f8fafc; color:#475569; font-size:10px; }
+        .meta-box strong { display:block; color:#0f172a; font-size:11px; margin-top:3px; }
+        .approval-reason { margin:0 0 12px; padding:11px 12px; background:#fffbeb; border-radius:9px; color:#713f12; font-size:11px; line-height:1.55; white-space:pre-wrap; }
+        .approval-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+        .evidence-link { margin-right:auto; padding:8px 10px; color:#1d4ed8; background:#eff6ff; border-radius:8px; font-size:10px; font-weight:700; text-decoration:none; }
+        .empty-state { padding:36px 18px; text-align:center; color:#64748b; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; font-size:12px; line-height:1.7; }
+        body.modal-open { overflow:hidden; }
+
+        @media (max-width:560px) {
+            body { padding:12px; }
+            .card { padding:22px 18px; }
+            .modal-overlay { padding:10px; align-items:flex-end; }
+            .modal-card { max-height:94vh; border-radius:18px 18px 0 0; }
+            .modal-head { padding:18px; border-radius:18px 18px 0 0; }
+            .modal-body { padding:18px; }
+            .form-grid, .approval-meta { grid-template-columns:1fr; }
+            .form-field.full { grid-column:auto; }
+            .modal-actions { flex-direction:column-reverse; }
+            .btn-modal { width:100%; }
+            .approval-controls .btn-modal { width:auto; flex:1; }
+            .evidence-link { width:100%; margin:0; text-align:center; box-sizing:border-box; }
+        }
     </style>
 </head>
 <body>
@@ -56,8 +119,6 @@
                 <option value="Masuk">🟢 Masuk Kerja</option>
                 <option value="Masuk Setelah Istirahat">🟡 Masuk Setelah Istirahat</option>
                 <option value="Keluar">🔴 Keluar / Pulang</option>
-                <option value="Sakit">🏥 Sakit</option>
-                <option value="Izin">📝 Izin</option>
                 <option value="Koreksi Absen">⚙️ Koreksi Absen (Lupa)</option>
             </select>
 
@@ -97,8 +158,10 @@
             <button type="submit" id="btn-submit" class="btn-absen" disabled>Kirim Absen</button>
             <div style="display:flex; gap:10px; margin-top:15px;">
                 <button type="button" style="flex:1; padding:12px; border-radius:8px; background:#eff6ff; color:#1e3a8a; border:1px solid #bfdbfe; font-weight:bold; cursor:pointer;" onclick="bukaTinjauan()">📋 Tinjauan Absen</button>
-                <button type="button" style="flex:1; padding:12px; border-radius:8px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:bold; cursor:pointer;" onclick="window.location.href='index.html'">Kembali ke Lobi</button>
+                <button type="button" id="btn-buka-pengajuan" style="flex:1; padding:12px; border-radius:8px; background:#fefce8; color:#a16207; border:1px solid #fde047; font-weight:bold; cursor:pointer;" onclick="bukaModalPengajuan()">📝 Ajukan Cuti/Sakit</button>
             </div>
+            <button type="button" id="btn-approval-manajemen" style="display:none; width:100%; padding:12px; border-radius:8px; background:#1e3a8a; color:white; border:none; font-weight:bold; cursor:pointer; margin-top:10px;" onclick="bukaModalApproval()">🛡️ Approval Pengajuan</button>
+            <button type="button" class="btn-back" onclick="window.location.href='index.html'">Kembali ke Lobi</button>
         </form>
     </div>
 
@@ -108,6 +171,85 @@
             <div id="tinjauan-loading" style="text-align:center; font-size:12px; color:#64748b; margin:20px 0;">Memuat data absensi...</div>
             <div id="tinjauan-data"></div>
             <button type="button" style="width:100%; padding:10px; margin-top:15px; border-radius:8px; background:#fef2f2; color:#ef4444; border:1px solid #fecaca; font-weight:bold; cursor:pointer;" onclick="document.getElementById('modal-tinjauan').style.display='none'">Tutup Tinjauan</button>
+        </div>
+    </div>
+
+    <div id="modal-pengajuan" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="judul-modal-pengajuan">
+        <div class="modal-card">
+            <div class="modal-head">
+                <div>
+                    <h3 class="modal-title" id="judul-modal-pengajuan">📝 Pengajuan Sakit / Izin</h3>
+                    <p class="modal-subtitle">Lengkapi data dengan benar. Pengajuan akan diteruskan mengikuti rantai komando Alfacom.</p>
+                </div>
+                <button type="button" class="modal-close" aria-label="Tutup" onclick="tutupModal('modal-pengajuan')">×</button>
+            </div>
+            <form id="form-pengajuan-cuti" class="modal-body" onsubmit="kirimPengajuanCuti(event)">
+                <div class="identity-strip">
+                    <div class="identity-icon">👤</div>
+                    <div class="identity-text">
+                        <strong id="pengajuan-nama">Pegawai Alfacom</strong>
+                        <span id="pengajuan-role">Role</span>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-field full">
+                        <label for="pengajuan-jenis">Jenis Pengajuan</label>
+                        <select id="pengajuan-jenis" class="form-control" required>
+                            <option value="" disabled selected>-- Pilih Sakit atau Izin --</option>
+                            <option value="Sakit">🏥 Sakit</option>
+                            <option value="Izin">📝 Izin / Cuti</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="pengajuan-mulai">Tanggal Mulai</label>
+                        <input type="date" id="pengajuan-mulai" class="form-control" required onchange="sinkronTanggalPengajuan()">
+                    </div>
+                    <div class="form-field">
+                        <label for="pengajuan-selesai">Tanggal Selesai</label>
+                        <input type="date" id="pengajuan-selesai" class="form-control" required>
+                    </div>
+                    <div class="form-field full">
+                        <label for="pengajuan-alasan">Alasan</label>
+                        <textarea id="pengajuan-alasan" class="form-control" maxlength="2000" required placeholder="Jelaskan alasan sakit atau izin dengan ringkas dan jelas..."></textarea>
+                        <span class="field-help">Maksimal 2.000 karakter. Informasi ini hanya dapat dibaca oleh manajemen.</span>
+                    </div>
+                    <div class="form-field full">
+                        <label for="pengajuan-foto">Bukti Foto</label>
+                        <input type="file" id="pengajuan-foto" class="form-control" accept="image/*" capture="environment" required>
+                        <span class="field-help">Lampirkan surat dokter atau bukti pendukung. Foto akan dikompres sebelum dikirim.</span>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-modal secondary" onclick="tutupModal('modal-pengajuan')">Batal</button>
+                    <button type="submit" id="btn-kirim-pengajuan" class="btn-modal primary">Kirim Pengajuan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-approval" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="judul-modal-approval">
+        <div class="modal-card modal-wide">
+            <div class="modal-head">
+                <div>
+                    <h3 class="modal-title" id="judul-modal-approval">🛡️ Approval Pengajuan</h3>
+                    <p class="modal-subtitle">Tinjau alasan, rentang tanggal, dan bukti sebelum memberikan keputusan.</p>
+                </div>
+                <button type="button" class="modal-close" aria-label="Tutup" onclick="tutupModal('modal-approval')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="approval-summary">
+                    <span>Pengajuan berstatus <strong>Menunggu</strong></span>
+                    <strong id="jumlah-pengajuan">0 data</strong>
+                </div>
+                <div id="approval-loading" class="empty-state">Memuat daftar pengajuan...</div>
+                <div id="approval-list" class="approval-list"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-modal secondary" onclick="tutupModal('modal-approval')">Tutup</button>
+                    <button type="button" class="btn-modal primary" onclick="muatDaftarPengajuan()">Muat Ulang</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -130,7 +272,7 @@
 
         function showToast(message, isError = false) {
             let t = document.createElement('div');
-            t.style.cssText = `position:fixed; top:-50px; left:50%; transform:translateX(-50%); background:${isError?'#ef4444':'#10b981'}; color:#fff; padding:12px 20px; border-radius:30px; font-size:14px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:9999; transition:0.4s ease-in-out; opacity:0;`;
+            t.style.cssText = `position:fixed; top:-50px; left:50%; transform:translateX(-50%); background:${isError?'#ef4444':'#10b981'}; color:#fff; padding:12px 20px; border-radius:30px; font-size:14px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:12000; transition:0.4s ease-in-out; opacity:0;`;
             t.innerText = message; document.body.appendChild(t);
             setTimeout(() => { t.style.top = '30px'; t.style.opacity = '1'; }, 10);
             setTimeout(() => { t.style.top = '-50px'; t.style.opacity = '0'; setTimeout(()=>t.remove(), 400); }, 3500);
@@ -145,6 +287,16 @@
                     if (parsedSession && parsedSession.user) {
                         penggunaAktif = parsedSession.user;
                         document.getElementById('user-display').innerHTML = `<b>${penggunaAktif['Nama Asli']}</b><br>Role: ${penggunaAktif.Role.toUpperCase()}`;
+
+                        const roleAktif = String(penggunaAktif.Role || '').trim().toLowerCase();
+                        const isManajemen = ['admin', 'manager', 'direktur'].includes(roleAktif) ||
+                            (roleAktif.includes('admin') && roleAktif.includes('manager'));
+                        document.getElementById('btn-approval-manajemen').style.display = isManajemen ? 'block' : 'none';
+
+                        // Direktur hanya bertindak sebagai pemberi keputusan.
+                        if (roleAktif === 'direktur') {
+                            document.getElementById('btn-buka-pengajuan').style.display = 'none';
+                        }
                         dapatkanLokasi();
                     } else { throw new Error("Sesi tidak valid"); }
                 } catch(e) {
@@ -287,11 +439,7 @@
             if (!tipe || !lokasiDitemukan) { btnSubmit.disabled = true; return; }
 
             // Logika Tipe Absen
-            if (tipe === 'Sakit' || tipe === 'Izin') {
-                butuhKet = true; butuhFoto = true;
-                placeholderKet = "Sebutkan alasan / sakit apa...";
-                document.getElementById('info-foto').innerText = "Wajib lampirkan foto surat dokter / bukti izin";
-            } else if (tipe === 'Koreksi Absen') {
+            if (tipe === 'Koreksi Absen') {
                 butuhKet = true;
                 placeholderKet = "Alasan lupa absen (Sisa Max 7x)...";
             } else {
@@ -353,10 +501,243 @@
                         const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
                         resolve(canvas.toDataURL('image/jpeg', 0.6));
                     };
+                    img.onerror = () => reject(new Error('Format foto tidak dapat dibaca.'));
                 };
                 reader.onerror = error => reject(error);
             });
         }
+
+        function roleManajemenAktif() {
+            const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
+            return ['admin', 'manager', 'direktur'].includes(role) || (role.includes('admin') && role.includes('manager'));
+        }
+
+        function payloadDenganSesi(action, tambahan = {}) {
+            return Object.assign({
+                apiKey: API_KEY,
+                action: action,
+                username: penggunaAktif.Username,
+                passwordHash: penggunaAktif.Password,
+                namaAsli: penggunaAktif['Nama Asli'],
+                role: penggunaAktif.Role
+            }, tambahan);
+        }
+
+        function formatTanggalInputLokal(date) {
+            return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+        }
+
+        function sinkronTanggalPengajuan() {
+            const mulai = document.getElementById('pengajuan-mulai').value;
+            const selesai = document.getElementById('pengajuan-selesai');
+            selesai.min = mulai || '';
+            if (mulai && (!selesai.value || selesai.value < mulai)) selesai.value = mulai;
+        }
+
+        function bukaModalPengajuan() {
+            if (!penggunaAktif) return showToast('Sesi pengguna belum siap.', true);
+            if (String(penggunaAktif.Role || '').trim().toLowerCase() === 'direktur') {
+                return showToast('Direktur tidak perlu melakukan pengajuan melalui sistem.', true);
+            }
+
+            const form = document.getElementById('form-pengajuan-cuti');
+            form.reset();
+            const hariIni = formatTanggalInputLokal(new Date());
+            document.getElementById('pengajuan-mulai').value = hariIni;
+            document.getElementById('pengajuan-selesai').value = hariIni;
+            sinkronTanggalPengajuan();
+            document.getElementById('pengajuan-nama').innerText = penggunaAktif['Nama Asli'] || penggunaAktif.Username || '-';
+            document.getElementById('pengajuan-role').innerText = 'Role: ' + String(penggunaAktif.Role || '-').toUpperCase();
+            document.getElementById('modal-pengajuan').style.display = 'flex';
+            document.body.classList.add('modal-open');
+        }
+
+        function tutupModal(idModal) {
+            const modal = document.getElementById(idModal);
+            if (modal) modal.style.display = 'none';
+            const masihTerbuka = Array.from(document.querySelectorAll('.modal-overlay')).some(item => item.style.display === 'flex');
+            if (!masihTerbuka) document.body.classList.remove('modal-open');
+        }
+
+        async function kirimPengajuanCuti(event) {
+            event.preventDefault();
+            if (!penggunaAktif) return showToast('Sesi pengguna tidak valid.', true);
+
+            const roleAktif = String(penggunaAktif.Role || '').trim().toLowerCase();
+            if (roleAktif === 'direktur') return showToast('Direktur tidak perlu melakukan pengajuan melalui sistem.', true);
+
+            const jenis = document.getElementById('pengajuan-jenis').value;
+            const tanggalMulai = document.getElementById('pengajuan-mulai').value;
+            const selesai = document.getElementById('pengajuan-selesai').value;
+            const alasan = document.getElementById('pengajuan-alasan').value.trim();
+            const inputFoto = document.getElementById('pengajuan-foto');
+            if (!jenis || !tanggalMulai || !selesai || !alasan || inputFoto.files.length === 0) {
+                return showToast('Lengkapi jenis, tanggal, alasan, dan bukti foto.', true);
+            }
+            if (selesai < tanggalMulai) return showToast('Tanggal selesai tidak boleh lebih awal dari tanggal mulai.', true);
+
+            const btn = document.getElementById('btn-kirim-pengajuan');
+            const overlay = document.getElementById('loading-overlay');
+            const textLoading = document.getElementById('loading-text');
+            btn.disabled = true;
+            btn.innerText = 'Mengirim...';
+            overlay.style.display = 'flex';
+            textLoading.innerText = 'Mengompres bukti dan menyimpan pengajuan...';
+
+            try {
+                const buktiFotoBase64 = await kompresFoto(inputFoto.files[0]);
+                const payload = payloadDenganSesi('ajukanSakitIzin', {
+                    jenis: jenis,
+                    tanggalMulai: tanggalMulai,
+                    selesai: selesai,
+                    alasan: alasan,
+                    buktiFotoBase64: buktiFotoBase64
+                });
+                const response = await fetch(API_ABSEN_URL, { method:'POST', redirect:'follow', body:JSON.stringify(payload) });
+                const hasil = await response.json();
+
+                if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Pengajuan ditolak oleh sistem.');
+                showToast('✅ ' + hasil.pesan, false);
+                document.getElementById('form-pengajuan-cuti').reset();
+                tutupModal('modal-pengajuan');
+            } catch (error) {
+                showToast('❌ ' + (error.message || 'Gagal mengirim pengajuan.'), true);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Kirim Pengajuan';
+                overlay.style.display = 'none';
+            }
+        }
+
+        function escapeHTML(nilai) {
+            return String(nilai == null ? '' : nilai).replace(/[&<>'"]/g, karakter => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[karakter]);
+        }
+
+        function formatTanggalTampil(nilai, denganJam = false) {
+            if (!nilai) return '-';
+            const tanggal = new Date(nilai);
+            if (isNaN(tanggal.getTime())) return escapeHTML(nilai);
+            return new Intl.DateTimeFormat('id-ID', {
+                day:'2-digit', month:'short', year:'numeric',
+                hour: denganJam ? '2-digit' : undefined,
+                minute: denganJam ? '2-digit' : undefined,
+                timeZone:'Asia/Makassar'
+            }).format(tanggal);
+        }
+
+        function bukaModalApproval() {
+            if (!roleManajemenAktif()) return showToast('Menu ini hanya tersedia untuk manajemen.', true);
+            document.getElementById('modal-approval').style.display = 'flex';
+            document.body.classList.add('modal-open');
+            muatDaftarPengajuan();
+        }
+
+        async function muatDaftarPengajuan() {
+            const loading = document.getElementById('approval-loading');
+            const list = document.getElementById('approval-list');
+            const jumlah = document.getElementById('jumlah-pengajuan');
+            loading.style.display = 'block';
+            loading.innerHTML = 'Memuat daftar pengajuan...';
+            list.innerHTML = '';
+            jumlah.innerText = 'Memuat...';
+
+            try {
+                const response = await fetch(API_ABSEN_URL, {
+                    method:'POST', redirect:'follow', body:JSON.stringify(payloadDenganSesi('getDaftarPengajuan'))
+                });
+                const hasil = await response.json();
+                if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Daftar pengajuan gagal dimuat.');
+
+                const dataPengajuan = Array.isArray(hasil.data) ? hasil.data : [];
+                jumlah.innerText = dataPengajuan.length + ' data';
+                if (dataPengajuan.length === 0) {
+                    loading.innerHTML = '✅ Tidak ada pengajuan yang menunggu keputusan.';
+                    return;
+                }
+
+                loading.style.display = 'none';
+                list.innerHTML = dataPengajuan.map(item => {
+                    const idPengajuan = String(item['ID Pengajuan'] || '');
+                    if (!/^[A-Za-z0-9_-]+$/.test(idPengajuan)) return '';
+                    const jenis = String(item['Jenis (Sakit/Izin)'] || '-');
+                    const classJenis = jenis.toLowerCase() === 'sakit' ? ' sakit' : '';
+                    const bukti = String(item['Bukti Foto'] || '');
+                    const linkBukti = /^https?:\/\//i.test(bukti)
+                        ? `<a class="evidence-link" href="${escapeHTML(bukti)}" target="_blank" rel="noopener noreferrer">📎 Lihat Bukti</a>`
+                        : '<span class="evidence-link" style="color:#94a3b8;">Tanpa Bukti</span>';
+
+                    return `<article class="approval-card">
+                        <div class="approval-card-head">
+                            <div>
+                                <h4 class="approval-name">${escapeHTML(item['Nama Pegawai'] || '-')}</h4>
+                                <div class="approval-role">${escapeHTML(item.Role || '-')} · ${escapeHTML(idPengajuan)}</div>
+                            </div>
+                            <span class="type-badge${classJenis}">${escapeHTML(jenis)}</span>
+                        </div>
+                        <div class="approval-meta">
+                            <div class="meta-box">Tanggal Mulai<strong>${formatTanggalTampil(item['Tanggal Mulai'])}</strong></div>
+                            <div class="meta-box">Tanggal Selesai<strong>${formatTanggalTampil(item.Selesai)}</strong></div>
+                            <div class="meta-box" style="grid-column:1 / -1;">Diajukan<strong>${formatTanggalTampil(item['Waktu Pengajuan'], true)}</strong></div>
+                        </div>
+                        <p class="approval-reason"><strong>Alasan:</strong> ${escapeHTML(item.Alasan || '-')}</p>
+                        <div class="approval-controls">
+                            ${linkBukti}
+                            <button type="button" class="btn-modal danger" onclick="prosesApproval('${idPengajuan}', 'Ditolak')">Tolak</button>
+                            <button type="button" class="btn-modal success" onclick="prosesApproval('${idPengajuan}', 'Disetujui')">Setujui</button>
+                        </div>
+                    </article>`;
+                }).join('');
+            } catch (error) {
+                jumlah.innerText = 'Gagal';
+                loading.style.display = 'block';
+                loading.innerHTML = '❌ ' + escapeHTML(error.message || 'Gagal memuat data.');
+            }
+        }
+
+        async function prosesApproval(idPengajuan, keputusan) {
+            if (!roleManajemenAktif()) return showToast('Akses approval ditolak.', true);
+            const pertanyaan = keputusan === 'Disetujui'
+                ? 'Setujui pengajuan ini dan masukkan ke data Absen?'
+                : 'Tolak pengajuan ini? Keputusan akan dicatat atas nama Anda.';
+            if (!window.confirm(pertanyaan)) return;
+
+            const overlay = document.getElementById('loading-overlay');
+            const textLoading = document.getElementById('loading-text');
+            overlay.style.display = 'flex';
+            textLoading.innerText = 'Mencatat keputusan pengajuan...';
+            try {
+                const payload = payloadDenganSesi('responPengajuan', {
+                    idPengajuan: idPengajuan,
+                    keputusan: keputusan,
+                    namaPemberiAcc: penggunaAktif['Nama Asli']
+                });
+                const response = await fetch(API_ABSEN_URL, { method:'POST', redirect:'follow', body:JSON.stringify(payload) });
+                const hasil = await response.json();
+                if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Keputusan gagal disimpan.');
+                showToast('✅ ' + hasil.pesan, false);
+                await muatDaftarPengajuan();
+            } catch (error) {
+                showToast('❌ ' + (error.message || 'Gagal memproses pengajuan.'), true);
+                await muatDaftarPengajuan();
+            } finally {
+                overlay.style.display = 'none';
+            }
+        }
+
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', event => {
+                if (event.target === modal) tutupModal(modal.id);
+            });
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay').forEach(modal => {
+                    if (modal.style.display === 'flex') tutupModal(modal.id);
+                });
+            }
+        });
 
         async function prosesAbsen(e) {
             e.preventDefault();
