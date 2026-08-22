@@ -66,6 +66,14 @@
             .header > div { align-items: center !important; }
             .summary-box { flex-direction: column; }
         }
+
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-radius: 8px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-left: 5px solid; font-size: 14px; font-weight: 600; animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; max-width: 300px;}
+        .toast-success { border-left-color: var(--success); color: #064e3b; }
+        .toast-error { border-left-color: var(--danger); color: #7f1d1d; }
+        .toast-warning { border-left-color: var(--warning); color: #78350f; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
     </style>
 </head>
 <body>
@@ -314,6 +322,24 @@
         let urutanLoadPayroll = 0;
         let currentTab = 'slip';
 
+        function showToast(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if(!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            let icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : '⚠️');
+            toast.innerHTML = `<span style="font-size:18px;">${icon}</span> <span style="flex:1;">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'toastOut 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+                setTimeout(() => { toast.remove(); }, 300);
+            }, 3500);
+        }
+
         window.onload = async function() {
             let now = new Date();
             let m = String(now.getMonth() + 1).padStart(2, '0');
@@ -459,9 +485,9 @@
         async function simpanVariabelPayroll() {
             let namaPegawai = document.getElementById('pilih-pegawai').value;
             let periode = document.getElementById('pilih-bulan').value;
-            if (!namaPegawai || !periode) { alert('Pilih pegawai dan periode terlebih dahulu.'); return; }
-            if (cekKunciBulan()) { alert('Periode lampau telah dikunci dan tidak dapat diubah.'); return; }
-            if (periodePayrollTermuat !== periode) { alert('Data periode belum selesai dimuat. Silakan coba lagi.'); return; }
+            if (!namaPegawai || !periode) { showToast('Pilih pegawai dan periode terlebih dahulu.', 'warning'); return; }
+            if (cekKunciBulan()) { showToast('Periode lampau telah dikunci dan tidak dapat diubah.', 'warning'); return; }
+            if (periodePayrollTermuat !== periode) { showToast('Data periode belum selesai dimuat. Silakan coba lagi.', 'warning'); return; }
 
             let btn = document.getElementById('btn-simpan-variabel');
             btn.disabled = true;
@@ -486,9 +512,9 @@
                 globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] = json.data;
                 periodePayrollTermuat = periode;
                 terapkanVariabelPayrollKeForm(namaPegawai);
-                alert('Alhamdulillah! Komponen payroll ' + periode + ' untuk ' + namaPegawai + ' berhasil disimpan.');
+                showToast('Alhamdulillah! Komponen payroll ' + periode + ' untuk ' + namaPegawai + ' berhasil disimpan.', 'success');
             } catch (err) {
-                alert('Afwan, gagal menyimpan komponen payroll: ' + err.message);
+                showToast('Afwan, gagal menyimpan komponen payroll: ' + err.message, 'error');
             } finally {
                 btn.innerText = '💾 Simpan Komponen Bulanan';
                 cekKunciBulan();
@@ -539,7 +565,7 @@
 
         async function simpanTunjanganDatabase() {
             let namaTarget = document.getElementById('pilih-pegawai').value;
-            if(!namaTarget) { alert("Pilih pegawai dulu!"); return; }
+            if(!namaTarget) { showToast("Pilih pegawai dulu!", "warning"); return; }
             
             let items = [];
             document.querySelectorAll('.bonus-item').forEach(el => {
@@ -574,11 +600,11 @@
                         if(profil.hasOwnProperty('Bonus Tambahan')) profil['Bonus Tambahan'] = finalStr;
                         else if(profil.hasOwnProperty('Bonus')) profil['Bonus'] = finalStr;
                     }
-                    alert("Alhamdulillah! Tunjangan permanen milik " + namaTarget + " berhasil disimpan ke Database.");
+                    showToast("Alhamdulillah! Tunjangan permanen milik " + namaTarget + " berhasil disimpan ke Database.", "success");
                 } else {
-                    alert("Afwan, gagal: " + json.pesan);
+                    showToast("Afwan, gagal: " + json.pesan, "error");
                 }
-            } catch(e) { alert("Afwan, Terjadi kesalahan jaringan."); }
+            } catch(e) { showToast("Afwan, Terjadi kesalahan jaringan.", "error"); }
             
             btn.innerText = '💾 Simpan Permanen ke Database'; btn.disabled = false;
         }
@@ -629,7 +655,7 @@
                 loadTunjanganPegawai();
                 cekKunciBulan();
                 await muatVariabelPayroll(true);
-            } catch(e) { alert("Gagal menarik data. Detail: " + e.message); }
+            } catch(e) { showToast("Gagal menarik data. Detail: " + e.message, "error"); }
             document.getElementById('loading').style.display = 'none';
         }
 
@@ -664,7 +690,7 @@
 
         async function prosesData() {
             let payrollSiap = await muatVariabelPayroll(false);
-            if (!payrollSiap) { alert('Data komponen payroll belum berhasil dimuat. Silakan coba lagi.'); return; }
+            if (!payrollSiap) { showToast('Data komponen payroll belum berhasil dimuat. Silakan coba lagi.', 'error'); return; }
             if (currentTab === 'slip') { generateSlipIndividu(); } 
             else { generateDashboardRekap(); }
         }
@@ -1029,7 +1055,7 @@
         function generateSlipIndividu() {
             let namaTarget = document.getElementById('pilih-pegawai').value;
             let bulanTahun = document.getElementById('pilih-bulan').value;
-            if(!namaTarget || !bulanTahun) { alert("Lengkapi data pegawai dan bulan!"); return; }
+            if(!namaTarget || !bulanTahun) { showToast("Lengkapi data pegawai dan bulan!", "warning"); return; }
 
             let [thn, bln] = bulanTahun.split('-');
             let totalHariBulan = new Date(thn, bln, 0).getDate();
@@ -1102,7 +1128,7 @@
 
         function generateDashboardRekap() {
             let bulanTahun = document.getElementById('pilih-bulan').value;
-            if(!bulanTahun) { alert("Lengkapi pilihan Bulan!"); return; }
+            if(!bulanTahun) { showToast("Lengkapi pilihan Bulan!", "warning"); return; }
 
             let [thn, bln] = bulanTahun.split('-');
             let totalHariBulan = new Date(thn, bln, 0).getDate();

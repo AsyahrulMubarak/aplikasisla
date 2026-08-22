@@ -65,6 +65,15 @@
         .btn-modal.primary { color:#fff; background:linear-gradient(135deg,#1e3a8a,#2563eb); box-shadow:0 6px 14px rgba(30,58,138,0.2); }
         .btn-modal.danger { color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; }
         .btn-modal.success { color:#047857; background:#ecfdf5; border:1px solid #a7f3d0; }
+        .confirm-card { max-width:410px; overflow:hidden; }
+        .confirm-content { padding:28px 26px 24px; text-align:center; }
+        .confirm-icon { width:58px; height:58px; display:grid; place-items:center; margin:0 auto 16px; border-radius:18px; font-size:26px; font-weight:700; }
+        .confirm-icon.success { color:#047857; background:#ecfdf5; border:1px solid #a7f3d0; }
+        .confirm-icon.danger { color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; }
+        .confirm-title { margin:0; color:#0f172a; font-size:18px; }
+        .confirm-message { margin:10px 0 0; color:#64748b; font-size:13px; line-height:1.65; }
+        .confirm-actions { justify-content:center; margin-top:24px; }
+        .confirm-actions .btn-modal { flex:1; }
         .approval-summary { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; padding:12px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; color:#1e3a8a; font-size:12px; }
         .approval-list { display:grid; gap:12px; }
         .approval-card { padding:16px; border:1px solid #e2e8f0; border-left:4px solid #f59e0b; border-radius:12px; background:#fff; box-shadow:0 4px 14px rgba(15,23,42,0.05); }
@@ -253,6 +262,20 @@
         </div>
     </div>
 
+    <div id="custom-confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-msg">
+        <div class="modal-card confirm-card">
+            <div class="confirm-content">
+                <div id="confirm-icon" class="confirm-icon success" aria-hidden="true">✓</div>
+                <h3 id="confirm-title" class="confirm-title">Konfirmasi Keputusan</h3>
+                <p id="confirm-msg" class="confirm-message">Apakah Anda yakin?</p>
+                <div class="modal-actions confirm-actions">
+                    <button type="button" id="btn-confirm-no" class="btn-modal secondary">Batal</button>
+                    <button type="button" id="btn-confirm-yes" class="btn-modal success">Ya, Setujui</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ==========================================
         // KONFIGURASI SISTEM
@@ -269,6 +292,7 @@
         let lokasiDitemukan = false;
         let userLat = null;
         let userLon = null;
+        let resolverConfirmAktif = null;
 
         function showToast(message, isError = false) {
             let t = document.createElement('div');
@@ -276,6 +300,41 @@
             t.innerText = message; document.body.appendChild(t);
             setTimeout(() => { t.style.top = '30px'; t.style.opacity = '1'; }, 10);
             setTimeout(() => { t.style.top = '-50px'; t.style.opacity = '0'; setTimeout(()=>t.remove(), 400); }, 3500);
+        }
+
+        function selesaikanConfirm(hasil) {
+            const resolver = resolverConfirmAktif;
+            resolverConfirmAktif = null;
+            tutupModal('custom-confirm-modal');
+            if (resolver) resolver(Boolean(hasil));
+        }
+
+        function showConfirm(message, isDanger = true) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('custom-confirm-modal');
+                const pesan = document.getElementById('confirm-msg');
+                const ikon = document.getElementById('confirm-icon');
+                const btnYes = document.getElementById('btn-confirm-yes');
+                const btnNo = document.getElementById('btn-confirm-no');
+
+                // Fail-safe: keputusan sensitif tidak boleh berlanjut jika komponen modal hilang.
+                if (!modal || !pesan || !ikon || !btnYes || !btnNo) {
+                    resolve(false);
+                    return;
+                }
+
+                if (resolverConfirmAktif) resolverConfirmAktif(false);
+                resolverConfirmAktif = resolve;
+                pesan.innerText = message;
+                ikon.className = 'confirm-icon ' + (isDanger ? 'danger' : 'success');
+                ikon.innerText = isDanger ? '!' : '✓';
+                btnYes.className = 'btn-modal ' + (isDanger ? 'danger' : 'success');
+                btnYes.innerText = isDanger ? 'Ya, Tolak' : 'Ya, Setujui';
+                btnYes.onclick = () => selesaikanConfirm(true);
+                btnNo.onclick = () => selesaikanConfirm(false);
+                modal.style.display = 'flex';
+                document.body.classList.add('modal-open');
+            });
         }
 
         // 1. CEK SSO (SINGLE SIGN ON) DARI LOCALSTORAGE
@@ -698,26 +757,36 @@
 
         async function prosesApproval(idPengajuan, keputusan) {
             if (!roleManajemenAktif()) return showToast('Akses approval ditolak.', true);
-            const pertanyaan = keputusan === 'Disetujui'
-                ? 'Setujui pengajuan ini dan masukkan ke data Absen?'
+
+            const pesanConfirm = keputusan === 'Disetujui'
+                ? 'Bismillah, setujui pengajuan ini dan masukkan ke data Absen?'
                 : 'Tolak pengajuan ini? Keputusan akan dicatat atas nama Anda.';
-            if (!window.confirm(pertanyaan)) return;
+
+            // Gunakan custom modal confirm (Hijau untuk Setuju, Merah untuk Tolak)
+            const isDanger = keputusan === 'Ditolak';
+            const acc = await showConfirm(pesanConfirm, isDanger);
+
+            if (!acc) return; // Batal jika user klik No
 
             const overlay = document.getElementById('loading-overlay');
             const textLoading = document.getElementById('loading-text');
             overlay.style.display = 'flex';
             textLoading.innerText = 'Mencatat keputusan pengajuan...';
+
             try {
                 const payload = payloadDenganSesi('responPengajuan', {
                     idPengajuan: idPengajuan,
                     keputusan: keputusan,
                     namaPemberiAcc: penggunaAktif['Nama Asli']
                 });
-                const response = await fetch(API_ABSEN_URL, { method:'POST', redirect:'follow', body:JSON.stringify(payload) });
+
+                const response = await fetch(API_ABSEN_URL, { method: 'POST', redirect:'follow', body:JSON.stringify(payload) });
                 const hasil = await response.json();
+
                 if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Keputusan gagal disimpan.');
+
                 showToast('✅ ' + hasil.pesan, false);
-                await muatDaftarPengajuan();
+                await muatDaftarPengajuan(); // Segarkan antrean
             } catch (error) {
                 showToast('❌ ' + (error.message || 'Gagal memproses pengajuan.'), true);
                 await muatDaftarPengajuan();
@@ -728,13 +797,24 @@
 
         document.querySelectorAll('.modal-overlay').forEach(modal => {
             modal.addEventListener('click', event => {
-                if (event.target === modal) tutupModal(modal.id);
+                if (event.target !== modal) return;
+                if (modal.id === 'custom-confirm-modal') {
+                    selesaikanConfirm(false);
+                    return;
+                }
+                tutupModal(modal.id);
             });
         });
         document.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
+                const modalConfirm = document.getElementById('custom-confirm-modal');
+                if (modalConfirm && modalConfirm.style.display === 'flex') {
+                    selesaikanConfirm(false);
+                    return;
+                }
                 document.querySelectorAll('.modal-overlay').forEach(modal => {
-                    if (modal.style.display === 'flex') tutupModal(modal.id);
+                    if (modal.style.display !== 'flex') return;
+                    tutupModal(modal.id);
                 });
             }
         });
