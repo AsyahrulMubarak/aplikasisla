@@ -1731,13 +1731,47 @@
                 if(!inPeriode(p['Waktu Lapor'])) return; // <-- Filter Bulan Penjualan
 
                 let sNames = String(p['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
-                let rawRevSls = p['Nominal (Rp)'] || p['Nominal'] || 0; 
-                let revPerSalesSls = sNames.length > 0 ? (parseInt(rawRevSls) / sNames.length) : 0;
+
+                // === SISTEM PENCEGAH DOUBLE OMZET (PROSPEK VS PENJUALAN) ===
+                let namaPembeli = String(
+                    p['Nama Pembeli'] || p['Pembeli'] || p['Nama Klien'] || p['Nama Customer'] || ''
+                ).trim().toLowerCase();
+                let nominalJual = parseFloat(
+                    p['Nominal (Rp)'] || p['Nominal Omzet'] || p['Total Transaksi'] || p['Nominal'] || 0
+                ) || 0;
+
+                // Cek apakah transaksi ini sudah pernah dihitung di Prospek yang DEAL.
+                let isDariProspek = (typeof globalProspek !== 'undefined' ? globalProspek : []).some(prp => {
+                    let namaPrp = String(
+                        prp['Nama Calon Customer'] || prp['Calon Customer'] ||
+                        prp['Nama Klien'] || prp['Nama Customer'] || ''
+                    ).trim().toLowerCase();
+                    let nominalPrp = parseFloat(
+                        prp['Nilai Deal'] || prp['Nominal Deal'] || prp['Penawaran Akhir'] ||
+                        prp['Estimasi Nilai'] || prp['Estimasi (Rp)'] ||
+                        prp['Estimasi Nilai Proyek (Rp)'] || prp['Estimasi'] || 0
+                    ) || 0;
+                    let statusPrp = String(prp['Status Prospek'] || prp['Status'] || '').toUpperCase();
+
+                    return (statusPrp.includes('DEAL') || statusPrp.includes('CLOSING')) &&
+                           (namaPrp === namaPembeli) &&
+                           (nominalPrp === nominalJual);
+                });
+
+                let revPerSalesSls = sNames.length > 0 ? (nominalJual / sNames.length) : 0;
 
                 sNames.forEach(sName => {
                     let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                     if (!sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; sKey = sName; }
-                    if (sKey) { statsSales[sKey].total++; statsSales[sKey].selesai++; statsSales[sKey].revenue += revPerSalesSls; }
+                    if (sKey) {
+                        statsSales[sKey].total++;
+                        statsSales[sKey].selesai++;
+
+                        // Penjualan langsung hanya menambah omzet jika belum dihitung oleh Prospek.
+                        if (!isDariProspek) {
+                            statsSales[sKey].revenue += revPerSalesSls;
+                        }
+                    }
                 });
             });
             
