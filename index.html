@@ -666,7 +666,7 @@
                         <div style="flex: 1;"><label>SLA Respon (Jam)</label><input type="number" id="input-sla-respon" step="0.1" required></div>
                         <div style="flex: 1;"><label>SLA Pengerjaan (Jam)</label><input type="number" id="input-sla" step="0.1" required></div>
                     </div>
-                    <label>Nama Klien & Lokasi</label><input type="text" id="input-klien" required>
+                    <label>Nama Klien & Lokasi</label><input type="text" id="input-klien" required oninput="deteksiSalesDariProspek(this, 'sales-group')">
                     <!-- FITUR BARU WA KLIEN -->
                     <label style="color:#1e3a8a;">No WhatsApp Klien (Opsional - Untuk Notif Tracking)</label>
                     <input type="tel" id="input-wa-klien" placeholder="Contoh: 6285123456789" oninput="formatWA(this)">
@@ -709,7 +709,7 @@
                     <label>ID Penjualan</label><input type="text" id="input-id-sls" class="input-terkunci" readonly>
                     <label>No Transaksi (iPOS)</label>
                     <input type="text" id="input-notrans-sls" required>
-                    <label>Nama Pembeli</label><input type="text" id="input-pembeli-sls" required>
+                    <label>Nama Pembeli</label><input type="text" id="input-pembeli-sls" required oninput="deteksiSalesDariProspek(this, 'input-sales-sls-group')">
                     <label>Barang / Jasa Terjual</label><input type="text" id="input-barang-sls" required>
                     <label>Sales Bertugas</label><div class="checkbox-group" id="input-sales-sls-group"></div>
                     <label style="color:var(--purple);">Nominal Omzet (Rp)</label>
@@ -3855,6 +3855,64 @@
                 await ambilSemuaData(true);
             } catch (err) {
                 showToast("Afwan, permintaan revisi gagal dikirim.", "error");
+            }
+        }
+
+        // === FITUR SENSOR AUTO-FILL SALES DARI PROSPEK ===
+        function deteksiSalesDariProspek(elemenInputKlien, idTargetKolomSales) {
+            if (!elemenInputKlien) return;
+
+            let namaDiketik = String(elemenInputKlien.value || '').toLowerCase().trim();
+
+            // Jangan mendeteksi jika ketikan masih terlalu pendek (kurang dari 3 huruf).
+            if (namaDiketik.length < 3) return;
+
+            let prospekMatch = (typeof globalProspek !== 'undefined' ? globalProspek : []).find(prp => {
+                let namaPrp = String(prp['Calon Customer'] || prp['Nama Klien'] || prp['Nama Customer'] || '').toLowerCase().trim();
+                let statusPrp = String(prp['Status Prospek'] || prp['Status'] || '').toUpperCase();
+
+                return (statusPrp.includes('DEAL') || statusPrp.includes('CLOSING')) &&
+                       (namaPrp === namaDiketik);
+            });
+
+            if (!prospekMatch) return;
+
+            let namaSales = prospekMatch['Sales Penanggung Jawab'] || prospekMatch['Sales'] || '';
+            let targetInputSales = document.getElementById(idTargetKolomSales);
+            if (!namaSales || !targetInputSales) return;
+
+            let salesBerhasilDiisi = false;
+
+            // Kompatibel dengan input/select biasa jika struktur form berubah kelak.
+            if (targetInputSales.matches('input, select, textarea')) {
+                if (String(targetInputSales.value || '').trim() === '') {
+                    targetInputSales.value = namaSales;
+                    targetInputSales.dispatchEvent(new Event('change', { bubbles: true }));
+                    salesBerhasilDiisi = true;
+                }
+            } else {
+                // Struktur saat ini menggunakan grup checkbox Sales.
+                let checkboxSales = Array.from(targetInputSales.querySelectorAll('input[type="checkbox"]'));
+                let sudahAdaPilihan = checkboxSales.some(checkbox => checkbox.checked);
+
+                if (!sudahAdaPilihan) {
+                    let daftarNamaSales = String(namaSales).split(',').map(nama => nama.trim()).filter(Boolean);
+                    daftarNamaSales.forEach(nama => {
+                        let checkboxCocok = checkboxSales.find(checkbox =>
+                            String(checkbox.value || '').trim().toLowerCase() === nama.toLowerCase()
+                        );
+
+                        if (checkboxCocok) {
+                            checkboxCocok.checked = true;
+                            checkboxCocok.dispatchEvent(new Event('change', { bubbles: true }));
+                            salesBerhasilDiisi = true;
+                        }
+                    });
+                }
+            }
+
+            if (salesBerhasilDiisi && typeof showToast === 'function') {
+                showToast("🤖 Sinkronisasi Prospek: Sales otomatis terisi!", "info");
             }
         }
 
