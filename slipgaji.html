@@ -94,11 +94,11 @@
                 <div class="form-row">
                     <div class="form-group" id="div-pilih-pegawai">
                         <label>Pilih Pegawai</label>
-                        <select id="pilih-pegawai" onchange="loadTunjanganPegawai()"></select>
+                        <select id="pilih-pegawai" onchange="handleFilterPayrollChange()"></select>
                     </div>
                     <div class="form-group">
                         <label>Bulan & Tahun</label>
-                        <input type="month" id="pilih-bulan" value="">
+                        <input type="month" id="pilih-bulan" value="" onchange="handleFilterPayrollChange()">
                     </div>
                     <button class="btn-primary" onclick="prosesData()">Proses Data</button>
                 </div>
@@ -116,6 +116,10 @@
                     <div class="form-group">
                         <label style="color:#0284c7;">✈️ Tgl Luar Kota (Pokok x2)</label>
                         <input type="text" id="input-luar-kota" placeholder="Contoh: 12, 13, 15" value="">
+                    </div>
+                    <div class="form-group" style="justify-content:flex-end;">
+                        <button type="button" id="btn-simpan-variabel" class="btn-primary" onclick="simpanVariabelPayroll()" style="width:100%;">💾 Simpan Komponen Bulanan</button>
+                        <small id="info-kunci-bulan" style="display:block; margin-top:6px; color:#64748b; line-height:1.4;"></small>
                     </div>
                 </div>
 
@@ -269,9 +273,9 @@
                                 <th>Role</th>
                                 <th>Hadir</th>
                                 <th>Gaji Pokok</th>
-                                <th>Potongan</th>
+                                <th>Potongan + Kasbon</th>
                                 <th>Lembur</th>
-                                <th>Tunjangan + Poin</th>
+                                <th>Tunjangan + Poin + Fee</th>
                                 <th>TOTAL DIBAYARKAN</th>
                             </tr>
                         </thead>
@@ -300,6 +304,9 @@
 
         let penggunaAktif = null;
         let globalUsers = []; let globalTickets = []; let globalAbsen = [];
+        let globalPayrollBulanan = {};
+        let periodePayrollTermuat = '';
+        let urutanLoadPayroll = 0;
         let currentTab = 'slip';
 
         window.onload = async function() {
@@ -322,6 +329,166 @@
 
             await tarikSemuaData();
         };
+
+        function normalisasiNamaPayroll(nama) {
+            return String(nama || '').trim().toLowerCase();
+        }
+
+        function cekKunciBulan() {
+            let bulanDipilihStr = document.getElementById('pilih-bulan').value;
+            if (!bulanDipilihStr || !/^\d{4}-\d{2}$/.test(bulanDipilihStr)) return false;
+
+            let bagianPeriode = bulanDipilihStr.split('-');
+            let datePilih = new Date(parseInt(bagianPeriode[0]), parseInt(bagianPeriode[1]) - 1, 1);
+            let dateSekarang = new Date();
+            let bulanIni = new Date(dateSekarang.getFullYear(), dateSekarang.getMonth(), 1);
+            let isPastMonth = datePilih < bulanIni;
+            let inputBulanan = [
+                document.getElementById('input-fee'),
+                document.getElementById('input-kasbon'),
+                document.getElementById('input-luar-kota')
+            ];
+            let bgWarna = isPastMonth ? '#f1f5f9' : '#ffffff';
+
+            inputBulanan.forEach(input => {
+                if (!input) return;
+                input.disabled = isPastMonth;
+                input.style.background = bgWarna;
+                input.title = isPastMonth ? 'Periode lampau telah dikunci untuk menjaga audit payroll.' : '';
+            });
+
+            let btnSimpan = document.getElementById('btn-simpan-variabel');
+            if (btnSimpan) btnSimpan.disabled = isPastMonth;
+
+            let infoKunci = document.getElementById('info-kunci-bulan');
+            if (infoKunci) {
+                infoKunci.innerText = isPastMonth
+                    ? '🔒 Periode lampau terkunci dan hanya dapat dilihat.'
+                    : '🔓 Periode aktif—perubahan masih dapat disimpan.';
+                infoKunci.style.color = isPastMonth ? '#b45309' : '#047857';
+            }
+            return isPastMonth;
+        }
+
+        function terapkanVariabelPayrollKeForm(namaPegawai) {
+            let dataPayroll = globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] || {};
+            document.getElementById('input-fee').value = parseFloat(dataPayroll.fee) || 0;
+            document.getElementById('input-kasbon').value = parseFloat(dataPayroll.kasbon) || 0;
+            document.getElementById('input-luar-kota').value = dataPayroll.luarKota || '';
+        }
+
+        async function muatVariabelPayroll(terapkanKeForm = true) {
+            let periode = document.getElementById('pilih-bulan').value;
+            let namaPegawai = document.getElementById('pilih-pegawai').value;
+            if (!periode) return false;
+
+            if (periodePayrollTermuat === periode) {
+                if (terapkanKeForm) terapkanVariabelPayrollKeForm(namaPegawai);
+                cekKunciBulan();
+                return true;
+            }
+
+            let urutanRequest = ++urutanLoadPayroll;
+            let btnSimpan = document.getElementById('btn-simpan-variabel');
+            if (btnSimpan) btnSimpan.disabled = true;
+            if (terapkanKeForm) {
+                document.getElementById('input-fee').value = 0;
+                document.getElementById('input-kasbon').value = 0;
+                document.getElementById('input-luar-kota').value = '';
+            }
+            try {
+                const res = await fetch(API_SLA, {
+                    method: 'POST',
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'getVariabelPayroll', periode: periode })
+                });
+                const json = await res.json();
+                if (json.status !== 'sukses') throw new Error(json.pesan || 'Data payroll gagal dimuat.');
+                if (urutanRequest !== urutanLoadPayroll || document.getElementById('pilih-bulan').value !== periode) return false;
+
+                globalPayrollBulanan = {};
+                (json.data || []).forEach(item => {
+                    globalPayrollBulanan[normalisasiNamaPayroll(item.namaPegawai)] = item;
+                });
+                periodePayrollTermuat = periode;
+                if (terapkanKeForm) terapkanVariabelPayrollKeForm(namaPegawai);
+                cekKunciBulan();
+                return true;
+            } catch (err) {
+                if (urutanRequest !== urutanLoadPayroll) return false;
+                globalPayrollBulanan = {};
+                periodePayrollTermuat = '';
+                let infoKunci = document.getElementById('info-kunci-bulan');
+                if (infoKunci) {
+                    infoKunci.innerText = '⚠️ Data komponen bulanan gagal dimuat.';
+                    infoKunci.style.color = '#b91c1c';
+                }
+                if (btnSimpan) btnSimpan.disabled = true;
+                return false;
+            }
+        }
+
+        async function handleFilterPayrollChange() {
+            loadTunjanganPegawai();
+            cekKunciBulan();
+            await muatVariabelPayroll(true);
+        }
+
+        function ambilVariabelPayroll(namaPegawai, periode, gunakanInputAktif) {
+            let dataTersimpan = globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] || {};
+            let hasil = {
+                fee: parseFloat(dataTersimpan.fee) || 0,
+                kasbon: parseFloat(dataTersimpan.kasbon) || 0,
+                luarKota: dataTersimpan.luarKota || ''
+            };
+
+            let namaTerpilih = document.getElementById('pilih-pegawai').value;
+            let periodeTerpilih = document.getElementById('pilih-bulan').value;
+            if (gunakanInputAktif && normalisasiNamaPayroll(namaTerpilih) === normalisasiNamaPayroll(namaPegawai) && periodeTerpilih === periode) {
+                hasil.fee = parseFloat(document.getElementById('input-fee').value) || 0;
+                hasil.kasbon = parseFloat(document.getElementById('input-kasbon').value) || 0;
+                hasil.luarKota = document.getElementById('input-luar-kota').value || '';
+            }
+            return hasil;
+        }
+
+        async function simpanVariabelPayroll() {
+            let namaPegawai = document.getElementById('pilih-pegawai').value;
+            let periode = document.getElementById('pilih-bulan').value;
+            if (!namaPegawai || !periode) { alert('Pilih pegawai dan periode terlebih dahulu.'); return; }
+            if (cekKunciBulan()) { alert('Periode lampau telah dikunci dan tidak dapat diubah.'); return; }
+            if (periodePayrollTermuat !== periode) { alert('Data periode belum selesai dimuat. Silakan coba lagi.'); return; }
+
+            let btn = document.getElementById('btn-simpan-variabel');
+            btn.disabled = true;
+            btn.innerText = 'Menyimpan...';
+            try {
+                const res = await fetch(API_SLA, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        apiKey: API_KEY,
+                        action: 'simpanVariabelPayroll',
+                        periode: periode,
+                        namaPegawai: namaPegawai,
+                        fee: document.getElementById('input-fee').value,
+                        kasbon: document.getElementById('input-kasbon').value,
+                        luarKota: document.getElementById('input-luar-kota').value,
+                        diubahOleh: penggunaAktif['Nama Asli'] || penggunaAktif.Username || '-'
+                    })
+                });
+                const json = await res.json();
+                if (json.status !== 'sukses') throw new Error(json.pesan || 'Penyimpanan gagal.');
+
+                globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] = json.data;
+                periodePayrollTermuat = periode;
+                terapkanVariabelPayrollKeForm(namaPegawai);
+                alert('Alhamdulillah! Komponen payroll ' + periode + ' untuk ' + namaPegawai + ' berhasil disimpan.');
+            } catch (err) {
+                alert('Afwan, gagal menyimpan komponen payroll: ' + err.message);
+            } finally {
+                btn.innerText = '💾 Simpan Komponen Bulanan';
+                cekKunciBulan();
+            }
+        }
 
         // ==========================================
         // FUNGSI MANAJEMEN TUNJANGAN TETAP PERMANEN
@@ -454,6 +621,9 @@
                     });
                 }
                 isiDropdownPegawai();
+                loadTunjanganPegawai();
+                cekKunciBulan();
+                await muatVariabelPayroll(true);
             } catch(e) { alert("Gagal menarik data. Detail: " + e.message); }
             document.getElementById('loading').style.display = 'none';
         }
@@ -477,8 +647,6 @@
                 select.disabled = true;
             }
             
-            // Panggil loading form jika user langsung terpilih
-            if (select.value) loadTunjanganPegawai();
         }
 
         function formatRp(angka) { return "Rp " + Math.round(angka).toLocaleString('id-ID'); }
@@ -489,7 +657,9 @@
             return String(d.getHours()).padStart(2,'0') + ":" + String(d.getMinutes()).padStart(2,'0');
         }
 
-        function prosesData() {
+        async function prosesData() {
+            let payrollSiap = await muatVariabelPayroll(false);
+            if (!payrollSiap) { alert('Data komponen payroll belum berhasil dimuat. Silakan coba lagi.'); return; }
             if (currentTab === 'slip') { generateSlipIndividu(); } 
             else { generateDashboardRekap(); }
         }
@@ -497,7 +667,7 @@
         // ==========================================
         // MESIN KALKULASI GAJI INTI (DIPAKAI BERSAMA)
         // ==========================================
-        function kalkulasiGajiPegawai(namaTarget, bulanTahun, hariKerjaEfektif) {
+        function kalkulasiGajiPegawai(namaTarget, bulanTahun, hariKerjaEfektif, gunakanInputAktif = false) {
             let profil = globalUsers.find(u => u['Nama Asli'] === namaTarget) || {};
             let gapokRaw = profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)'] || 1500000; 
             let gajiPokok = parseFloat(gapokRaw) || 1500000;
@@ -521,6 +691,7 @@
             let upahPerJam = upahPerHari / 9;
             let upahPerMenit = upahPerJam / 60;
             let [thnPilih, blnPilih] = bulanTahun.split('-');
+            let variabelPayroll = ambilVariabelPayroll(namaTarget, bulanTahun, gunakanInputAktif);
 
             let rekapanMentah = {};
             globalAbsen.forEach(a => {
@@ -560,7 +731,7 @@
             let isCurrentMonth = (now.getFullYear() == thnPilih && String(now.getMonth()+1).padStart(2,'0') == blnPilih);
             let todayDate = now.getDate();
 
-            let strLuarKota = document.getElementById('input-luar-kota') ? document.getElementById('input-luar-kota').value : '';
+            let strLuarKota = variabelPayroll.luarKota;
             let arrLuarKota = strLuarKota.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
             let countTelatPagi = 0; let countAlpa = 0;
 
@@ -822,9 +993,11 @@
 
             let totalUpahHadir = (countKehadiran / hariKerjaEfektif) * gajiPokok;
             if (totalUpahHadir > gajiPokok) totalUpahHadir = gajiPokok;
-            let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin + totalTunjanganTetap;
+            let feeMarketing = variabelPayroll.fee;
+            let kasbon = variabelPayroll.kasbon;
+            let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin + totalTunjanganTetap + feeMarketing - kasbon;
 
-            return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalTunjanganTetap, arrayTunjangan, totalBersih, barisHTML };
+            return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalTunjanganTetap, feeMarketing, kasbon, luarKota: variabelPayroll.luarKota, arrayTunjangan, totalBersih, barisHTML };
         }
 
         function generateSlipIndividu() {
@@ -840,7 +1013,7 @@
             document.getElementById('loading').style.display = 'block';
             document.getElementById('area-slip').style.display = 'none';
 
-            let data = kalkulasiGajiPegawai(namaTarget, bulanTahun, hk);
+            let data = kalkulasiGajiPegawai(namaTarget, bulanTahun, hk, true);
 
             document.getElementById('res-nama').innerText = data.profil['Nama Asli'] || namaTarget;
             document.getElementById('res-role').innerText = String(data.profil.Role || 'Staff').toUpperCase();
@@ -873,10 +1046,8 @@
             document.getElementById('sum-honor').innerText = "+ " + formatRp(data.totalTunjanganTetap);
             document.getElementById('sum-poin').innerText = "+ " + formatRp(data.totalBonusPoin);
 
-            let feeMarketing = parseFloat(document.getElementById('input-fee').value) || 0;
-            let kasbon = parseFloat(document.getElementById('input-kasbon').value) || 0;
-
-            data.totalBersih = data.totalBersih + feeMarketing - kasbon;
+            let feeMarketing = data.feeMarketing;
+            let kasbon = data.kasbon;
 
             if (feeMarketing > 0) {
                 document.getElementById('box-fee').style.display = 'block';
@@ -913,10 +1084,14 @@
             let sortedUsers = globalUsers.filter(u => u['Nama Asli'] && u.Role !== 'direktur').sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
 
             sortedUsers.forEach(u => {
+                let gapokRekap = parseFloat(u['Gaji Pokok'] || u['Gaji Pokok (Rp)']) || 0;
+                if (gapokRekap === 0) return; // Freelance/non-gapok tidak masuk Master Rekapitulasi.
+
                 let data = kalkulasiGajiPegawai(u['Nama Asli'], bulanTahun, hk);
                 if(data.countKehadiran > 0 || data.gajiPokok > 0) { 
                     grandTotal += data.totalBersih;
-                    let totalBonusGabungan = data.totalBonusPoin + data.totalTunjanganTetap;
+                    let totalPotonganGabungan = data.totalPotongan + data.kasbon;
+                    let totalBonusGabungan = data.totalBonusPoin + data.totalTunjanganTetap + data.feeMarketing;
                     
                     tbody.innerHTML += `
                         <tr>
@@ -924,7 +1099,7 @@
                             <td>${String(data.profil.Role).toUpperCase()}</td>
                             <td>${data.countKehadiran} Hari</td>
                             <td>${formatRp(data.gajiPokok)}</td>
-                            <td style="color:var(--danger);">${formatRp(data.totalPotongan)}</td>
+                            <td style="color:var(--danger);">${formatRp(totalPotonganGabungan)}</td>
                             <td style="color:var(--success);">${formatRp(data.totalLembur)}</td>
                             <td style="color:var(--primary);">${formatRp(totalBonusGabungan)}</td>
                             <td style="font-weight:bold; color:var(--success); font-size:14px;">${formatRp(data.totalBersih)}</td>
