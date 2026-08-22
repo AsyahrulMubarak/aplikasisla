@@ -630,6 +630,38 @@
                     <label>ID Tiket</label><input type="text" id="input-id" class="input-terkunci" readonly>
                     <label style="color:#166534;">No Transaksi / SO (iPOS - Opsional)</label>
                     <input type="text" id="input-notrans-sla" placeholder="Contoh: 0761/KSR/UTM/0826" style="margin-bottom: 15px;">
+
+                    <!-- WIDGET KALKULATOR SLA -->
+                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                        <label style="font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 8px; display: block;">🤖 Kalkulator SLA Pemasangan Otomatis</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 11px; color: #475569;">Jenis Proyek</label>
+                                <select id="calc-jenis" onchange="hitungSLAOtomatis()" style="width: 100%; padding: 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                                    <option value="">-- Manual --</option>
+                                    <option value="CCTV">CCTV</option>
+                                    <option value="Jaringan">Jaringan / LAN</option>
+                                    <option value="PABX">PABX / Telepon</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: #475569;">Jumlah Titik</label>
+                                <input type="number" id="calc-titik" oninput="hitungSLAOtomatis()" placeholder="Misal: 5" min="1" style="width: 100%; padding: 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: #475569;">Medan Lokasi</label>
+                                <select id="calc-medan" onchange="hitungSLAOtomatis()" style="width: 100%; padding: 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                                    <option value="1">Mudah (Plafon Loss)</option>
+                                    <option value="2">Menengah (Ruko / Pipa)</option>
+                                    <option value="3">Sulit (Pabrik / Beton)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 11px; color: #0284c7; font-style: italic;">
+                            *Pilih jenis proyek untuk menghitung otomatis ke kolom SLA di bawah.
+                        </div>
+                    </div>
+
                     <div style="display: flex; gap:15px;">
                         <div style="flex: 1;"><label>SLA Respon (Jam)</label><input type="number" id="input-sla-respon" step="0.1" required></div>
                         <div style="flex: 1;"><label>SLA Pengerjaan (Jam)</label><input type="number" id="input-sla" step="0.1" required></div>
@@ -1769,7 +1801,7 @@
 
                         // Penjualan langsung hanya menambah omzet jika belum dihitung oleh Prospek.
                         if (!isDariProspek) {
-                            statsSales[sKey].revenue += revPerSalesSls;
+                            statsSales[sKey].revenue += nominalJual;
                         }
                     }
                 });
@@ -3757,5 +3789,41 @@
             tekCards.forEach(c => {
                 c.style.display = c.innerText.toLowerCase().includes(val) ? 'block' : 'none';
             });
+        }
+
+        function hitungSLAOtomatis() {
+            let jenis = document.getElementById('calc-jenis').value;
+            let titik = parseInt(document.getElementById('calc-titik').value) || 0;
+            let medan = parseInt(document.getElementById('calc-medan').value) || 1;
+
+            // Jangan hitung jika jenis manual/kosong atau titik 0
+            if (!jenis || titik <= 0) return;
+
+            let waktuDasar = 0;
+            let bobot = 0;
+
+            if (jenis === 'CCTV') {
+                waktuDasar = 3;
+                if (medan === 1) bobot = 1.5;
+                else if (medan === 2) bobot = 3;
+                else if (medan === 3) bobot = 4.5;
+            } else if (jenis === 'Jaringan') {
+                waktuDasar = 3;
+                if (medan === 1) bobot = 1;
+                else if (medan === 2) bobot = 2;
+                else if (medan === 3) bobot = 3.5;
+            } else if (jenis === 'PABX') {
+                waktuDasar = 4;
+                if (medan === 1) bobot = 1;
+                else if (medan === 2) bobot = 2;
+                else if (medan === 3) bobot = 3;
+            }
+
+            let totalSLA = waktuDasar + (titik * bobot);
+            let targetInputSLA = document.getElementById('input-sla');
+
+            if (targetInputSLA) {
+                targetInputSLA.value = totalSLA;
+            }
         }
     </script>
