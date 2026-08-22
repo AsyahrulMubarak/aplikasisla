@@ -91,6 +91,70 @@
         .empty-state { padding:36px 18px; text-align:center; color:#64748b; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; font-size:12px; line-height:1.7; }
         body.modal-open { overflow:hidden; }
 
+        /* 1. PERHALUS WARNA DASAR (Lebih Clean & Modern) */
+        :root {
+            --primary: #1e40af;
+            --primary-hover: #1e3a8a;
+            --surface: #ffffff;
+            --bg: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        /* 2. PERCANTIK KOTAK / CARD (Shadow Halus & Sudut Melengkung) */
+        .card, .form-card, .login-card {
+            background: var(--surface);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.01);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.02);
+            transform: translateY(-2px);
+        }
+
+        /* 3. RAPIKAN FORM INPUT (Nyaman Dilihat) */
+        input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="tel"], input[type="date"], input[type="month"], select, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            background-color: #f8fafc;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background-color: var(--surface);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        /* 4. PERTEGAS TOMBOL (Modern & Clickable) */
+        .btn-solid-primary, .btn-absen, .btn-login {
+            background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+            transition: all 0.2s ease;
+            letter-spacing: 0.3px;
+        }
+        .btn-solid-primary:hover, .btn-absen:hover, .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.3);
+        }
+
         @media (max-width:560px) {
             body { padding:12px; }
             .card { padding:22px 18px; }
@@ -254,9 +318,12 @@
                 </div>
                 <div id="approval-loading" class="empty-state">Memuat daftar pengajuan...</div>
                 <div id="approval-list" class="approval-list"></div>
-                <div class="modal-actions">
+                <div class="modal-actions" style="justify-content: space-between;">
                     <button type="button" class="btn-modal secondary" onclick="tutupModal('modal-approval')">Tutup</button>
-                    <button type="button" class="btn-modal primary" onclick="muatDaftarPengajuan()">Muat Ulang</button>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" class="btn-modal secondary" onclick="muatDaftarPengajuan()">🔄 Antrean</button>
+                        <button type="button" class="btn-modal primary" style="background:#475569;" onclick="muatRiwayatPengajuan()">🗄️ Riwayat</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -688,6 +755,7 @@
 
         function bukaModalApproval() {
             if (!roleManajemenAktif()) return showToast('Menu ini hanya tersedia untuk manajemen.', true);
+            document.getElementById('judul-modal-approval').innerHTML = '🛡️ Approval Pengajuan';
             document.getElementById('modal-approval').style.display = 'flex';
             document.body.classList.add('modal-open');
             muatDaftarPengajuan();
@@ -697,6 +765,10 @@
             const loading = document.getElementById('approval-loading');
             const list = document.getElementById('approval-list');
             const jumlah = document.getElementById('jumlah-pengajuan');
+            const judul = document.getElementById('judul-modal-approval');
+            const labelRingkasan = document.querySelector('#modal-approval .approval-summary span');
+            judul.innerHTML = '🛡️ Approval Pengajuan';
+            if (labelRingkasan) labelRingkasan.innerHTML = 'Pengajuan berstatus <strong>Menunggu</strong>';
             loading.style.display = 'block';
             loading.innerHTML = 'Memuat daftar pengajuan...';
             list.innerHTML = '';
@@ -752,6 +824,73 @@
                 jumlah.innerText = 'Gagal';
                 loading.style.display = 'block';
                 loading.innerHTML = '❌ ' + escapeHTML(error.message || 'Gagal memuat data.');
+            }
+        }
+
+        async function muatRiwayatPengajuan() {
+            const loading = document.getElementById('approval-loading');
+            const list = document.getElementById('approval-list');
+            const jumlah = document.getElementById('jumlah-pengajuan');
+            const judul = document.getElementById('judul-modal-approval');
+            const labelRingkasan = document.querySelector('#modal-approval .approval-summary span');
+
+            judul.innerHTML = '🗄️ Riwayat Keputusan';
+            if (labelRingkasan) labelRingkasan.innerHTML = 'Pengajuan berstatus <strong>Disetujui / Ditolak</strong>';
+            loading.style.display = 'block';
+            loading.innerHTML = 'Memuat riwayat pengajuan...';
+            list.innerHTML = '';
+            jumlah.innerText = 'Memuat...';
+
+            try {
+                const response = await fetch(API_ABSEN_URL, {
+                    method: 'POST', redirect: 'follow', body: JSON.stringify(payloadDenganSesi('getRiwayatPengajuan'))
+                });
+                const hasil = await response.json();
+                if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Riwayat gagal dimuat.');
+
+                const dataRiwayat = Array.isArray(hasil.data) ? hasil.data : [];
+                jumlah.innerText = dataRiwayat.length + ' riwayat terbaru';
+
+                if (dataRiwayat.length === 0) {
+                    loading.innerHTML = '✅ Belum ada riwayat pengajuan.';
+                    return;
+                }
+                loading.style.display = 'none';
+
+                list.innerHTML = dataRiwayat.map(item => {
+                    const jenis = String(item['Jenis (Sakit/Izin)'] || '-');
+                    const status = String(item['Status (Menunggu/Disetujui/Ditolak)'] || '-');
+                    const disetujuiOleh = escapeHTML(item['Disetujui Oleh'] || '-');
+                    const waktuAcc = formatTanggalTampil(item['Waktu Disetujui'], true);
+
+                    let bgStatus = status === 'Disetujui' ? '#ecfdf5' : '#fef2f2';
+                    let colStatus = status === 'Disetujui' ? '#065f46' : '#991b1b';
+                    let iconStatus = status === 'Disetujui' ? '✅' : '❌';
+
+                    return `<article class="approval-card" style="border-left-color:${colStatus};">
+                        <div class="approval-card-head">
+                            <div>
+                                <h4 class="approval-name">${escapeHTML(item['Nama Pegawai'] || '-')}</h4>
+                                <div class="approval-role">${escapeHTML(item.Role || '')} · ${escapeHTML(jenis)}</div>
+                            </div>
+                            <span class="type-badge" style="background:${bgStatus}; color:${colStatus}; font-size:11px;">${iconStatus} ${escapeHTML(status)}</span>
+                        </div>
+                        <div class="approval-meta">
+                            <div class="meta-box">Tanggal Mulai<strong>${formatTanggalTampil(item['Tanggal Mulai'])}</strong></div>
+                            <div class="meta-box">Tanggal Selesai<strong>${formatTanggalTampil(item['Selesai'])}</strong></div>
+                        </div>
+                        <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-top:12px; font-size:11px; color:#475569; border:1px solid #e2e8f0;">
+                            <div style="margin-bottom:6px;"><strong>Alasan Pegawai:</strong> <i>"${escapeHTML(item.Alasan || '-')}"</i></div>
+                            <div style="margin-bottom:4px; padding-top:6px; border-top:1px dashed #cbd5e1;"><strong>Dieksekusi Oleh:</strong> <span style="color:#1e3a8a; font-weight:bold;">${disetujuiOleh}</span></div>
+                            <div><strong>Waktu Eksekusi:</strong> ${waktuAcc}</div>
+                        </div>
+                    </article>`;
+                }).join('');
+
+            } catch (error) {
+                jumlah.innerText = 'Gagal';
+                loading.style.display = 'block';
+                loading.innerHTML = '❌ ' + escapeHTML(error.message || 'Riwayat gagal dimuat.');
             }
         }
 

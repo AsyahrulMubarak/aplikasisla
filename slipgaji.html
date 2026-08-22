@@ -52,6 +52,70 @@
         #loading { display: none; text-align: center; padding: 40px; font-weight: 600; color: var(--primary); }
         .btn-print { background: #475569; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
         .dashboard-table th { background: #0f766e; }
+
+        /* 1. PERHALUS WARNA DASAR (Lebih Clean & Modern) */
+        :root {
+            --primary: #1e40af;
+            --primary-hover: #1e3a8a;
+            --surface: #ffffff;
+            --bg: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        /* 2. PERCANTIK KOTAK / CARD (Shadow Halus & Sudut Melengkung) */
+        .card, .form-card, .login-card {
+            background: var(--surface);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.01);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.02);
+            transform: translateY(-2px);
+        }
+
+        /* 3. RAPIKAN FORM INPUT (Nyaman Dilihat) */
+        input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="tel"], input[type="date"], input[type="month"], select, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            background-color: #f8fafc;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background-color: var(--surface);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        /* 4. PERTEGAS TOMBOL (Modern & Clickable) */
+        .btn-solid-primary, .btn-absen, .btn-login, .btn-primary {
+            background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+            transition: all 0.2s ease;
+            letter-spacing: 0.3px;
+        }
+        .btn-solid-primary:hover, .btn-absen:hover, .btn-login:hover, .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.3);
+        }
         
         @media print {
             .control-panel, .btn-print, .segment-control { display: none !important; }
