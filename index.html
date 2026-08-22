@@ -2604,8 +2604,29 @@
                 
                 let penawaranHtml = '';
                 if (p['Surat Penawaran'] && p['Surat Penawaran'].length > 10) {
-                    let linkP = p['Surat Penawaran'];
-                    penawaranHtml = `<div style="margin-top:10px; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;"><p style="margin:0 0 5px 0; font-size:12px; color:#065f46; font-weight:bold;">📄 Surat Penawaran Tersedia</p><a href="${linkP}" target="_blank" class="dl-btn" style="background:#10b981; color:white; border:none; display:block; text-align:center;">⬇️ Buka / Download Penawaran</a></div>`;
+                    let linkSP = p['Surat Penawaran'];
+                    let noWAKlien = String(p['No WA'] || p['Telepon'] || '').replace(/\D/g, '');
+                    if (noWAKlien.startsWith('0')) noWAKlien = '62' + noWAKlien.substring(1);
+
+                    let namaKlien = p['Nama Calon Customer'] || p['Calon Customer'] || 'Bapak/Ibu';
+                    let namaSalesSP = String(penggunaAktif['Nama Asli'] || p['Sales Penanggung Jawab'] || '-');
+                    let teksTemplate = encodeURIComponent(`Assalamu'alaikum ${namaKlien},\n\nBerikut kami lampirkan Surat Penawaran dari Alfacom Multi Solution.\n\nSilakan diunduh dan dipelajari. Jika ada yang ingin didiskusikan, kami siap membantu!`);
+
+                    // Data atribut diamankan agar nama Sales/ID tidak merusak onclick kartu.
+                    let idProspekAttr = String(p['ID Prospek'] || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    let namaSalesAttr = namaSalesSP.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                    let aksiPenawaranHtml = `<a href="${linkSP}" target="_blank" rel="noopener noreferrer" class="btn-solid-primary" style="font-size:11px; padding:6px 10px; text-decoration:none;">📥 Unduh SP</a>`;
+                    if (penggunaAktif.Role === 'sales' && isOwner) {
+                        aksiPenawaranHtml += `
+                            <button type="button" data-id="${idProspekAttr}" data-sales="${namaSalesAttr}" onclick="mintaRevisiSP(this.dataset.id, this.dataset.sales)" class="btn-outline-cancel" style="font-size:11px; padding:6px 10px; margin:0;">✏️ Revisi SP</button>
+                            <a href="https://wa.me/${noWAKlien}?text=${teksTemplate}" target="_blank" rel="noopener noreferrer" class="btn-solid-success" style="font-size:11px; padding:6px 10px; background:#10b981; color:#fff; text-decoration:none; border-radius:6px;">💬 Kirim SP (WA)</a>`;
+                    }
+
+                    penawaranHtml = `<div style="margin-top:10px; padding:10px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px;">
+                        <p style="margin:0 0 5px 0; font-size:12px; color:#065f46; font-weight:bold;">📄 Surat Penawaran Tersedia</p>
+                        <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">${aksiPenawaranHtml}</div>
+                    </div>`;
                 }
 
                 let htmlSlaPenawaran = '';
@@ -2615,12 +2636,14 @@
                     } else {
                         let waktuMintaPenawaran = new Date(p['Waktu Minta Penawaran']);
                         if (!isNaN(waktuMintaPenawaran.getTime())) {
-                            let batasSlaPenawaran = hitungTenggatJamKerja(waktuMintaPenawaran, 9);
+                            let targetSlaPenawaran = parseFloat(p['Target SLA Penawaran (Jam)']) || (textStatus.includes('Revisi SP') ? 3 : 9);
+                            let batasSlaPenawaran = hitungTenggatJamKerja(waktuMintaPenawaran, targetSlaPenawaran);
                             let jamKerjaPenawaran = hitungDurasiJamKerjaMs(waktuMintaPenawaran, new Date()) / 3600000;
-                            if (jamKerjaPenawaran >= 9) {
-                                htmlSlaPenawaran = '<div style="margin-top:10px; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">🚨 SLA ADMIN GAGAL</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Surat Penawaran belum diupload (&gt;9 Jam Kerja)</p></div>';
+                            let labelSlaPenawaran = targetSlaPenawaran === 3 ? 'SLA Revisi 3 Jam' : 'SLA SP 9 Jam';
+                            if (jamKerjaPenawaran >= targetSlaPenawaran) {
+                                htmlSlaPenawaran = `<div style="margin-top:10px; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">🚨 SLA ADMIN GAGAL</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Surat Penawaran belum diupload (&gt;${targetSlaPenawaran} Jam Kerja)</p></div>`;
                             } else {
-                                htmlSlaPenawaran = `<div style="margin-top:10px; background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ Menunggu Admin Upload</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Batas 9 Jam Kerja: ${formatWaktu(batasSlaPenawaran)}</p></div>`;
+                                htmlSlaPenawaran = `<div style="margin-top:10px; background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ Menunggu Admin Upload</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">${labelSlaPenawaran} — Batas: ${formatWaktu(batasSlaPenawaran)}</p></div>`;
                             }
                         }
                     }
@@ -3789,6 +3812,50 @@
             tekCards.forEach(c => {
                 c.style.display = c.innerText.toLowerCase().includes(val) ? 'block' : 'none';
             });
+        }
+
+        async function mintaRevisiSP(id, sales) {
+            let catatan = prompt("Bismillah, ketik bagian apa saja yang perlu direvisi oleh Admin:");
+            if (!catatan || catatan.trim() === "") return;
+
+            showToast("Mengirim permintaan revisi...", "info");
+
+            // Dukungan jika frontend dijalankan langsung melalui Google Apps Script.
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler((res) => {
+                        if (res === true || (res && res.status === 'sukses')) {
+                            showToast("Permintaan Revisi terkirim ke Admin!", "success");
+                            ambilSemuaData(true);
+                        } else {
+                            showToast("Afwan, permintaan revisi gagal diproses.", "error");
+                        }
+                    })
+                    .withFailureHandler(() => showToast("Afwan, gagal menghubungi backend.", "error"))
+                    .prosesRevisiSPBackend(id, catatan.trim(), sales);
+                return;
+            }
+
+            // Jalur utama deployment Vercel: kirim melalui Web App API yang sudah digunakan aplikasi.
+            try {
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        apiKey: API_KEY,
+                        action: 'prosesRevisiSP',
+                        idProspek: id,
+                        catatan: catatan.trim(),
+                        namaSales: sales
+                    })
+                });
+                const hasil = await res.json();
+                if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Permintaan revisi gagal.');
+
+                showToast("Permintaan Revisi terkirim ke Admin!", "success");
+                await ambilSemuaData(true);
+            } catch (err) {
+                showToast("Afwan, permintaan revisi gagal dikirim.", "error");
+            }
         }
 
         function hitungSLAOtomatis() {
