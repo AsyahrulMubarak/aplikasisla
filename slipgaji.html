@@ -189,7 +189,7 @@
                         <div style="font-size:10px; color:#64748b; margin-top:5px;">Hadir: <span id="count-hadir">0</span> / <span id="count-wajib">0</span> Hari</div>
                     </div>
                     <div class="sum-card">
-                        <div class="sum-title">Total Potongan (Telat)</div>
+                        <div class="sum-title">Total Potongan</div>
                         <div class="sum-val minus" id="sum-potongan">Rp 0</div>
                     </div>
                     <div class="sum-card">
@@ -211,6 +211,11 @@
                     <div class="sum-card" id="box-kasbon" style="display:none; background:#fee2e2; border-color:#fca5a5;">
                         <div class="sum-title" style="color:#be185d;">Potongan Kasbon</div>
                         <div class="sum-val minus" id="sum-kasbon">Rp 0</div>
+                    </div>
+                    <div class="sum-card" id="row-denda-disiplin" style="display:none; background:#fef2f2; border-color:#fecaca;">
+                        <div class="sum-title" style="color:#b91c1c;">⚠️ Pelanggaran Kedisiplinan</div>
+                        <div class="sum-val minus" id="sum-denda-disiplin">- Rp 300.000</div>
+                        <div style="font-size:10px; color:#991b1b; margin-top:5px; line-height:1.4;">Telat + Izin &gt; 3 kali atau Alpa &gt; 2 kali.</div>
                     </div>
                 </div>
 
@@ -733,7 +738,7 @@
 
             let strLuarKota = variabelPayroll.luarKota;
             let arrLuarKota = strLuarKota.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
-            let countTelatPagi = 0; let countAlpa = 0;
+            let countTelatPagi = 0; let countIzin = 0; let countAlpa = 0;
 
             for (let i = 1; i <= totalHariBulanIni; i++) {
                 let currDate = new Date(thnPilih, blnPilih - 1, i);
@@ -746,6 +751,9 @@
                 let isSakitExplicit = events.some(e => String(e['Tipe Absen']).includes('Sakit'));
                 let isIzinExplicit = events.some(e => String(e['Tipe Absen']).includes('Izin'));
                 let adaAbsenFisik = events.some(e => String(e['Tipe Absen']).includes('Masuk') || String(e['Tipe Absen']).includes('Keluar') || String(e['Tipe Absen']).includes('Pulang'));
+
+                // Izin dihitung satu kali per hari kerja untuk evaluasi kedisiplinan.
+                if (isIzinExplicit && !isAhad && !isFutureDate) countIzin++;
 
                 if (adaAbsenFisik) sedangSakitBeruntun = false;
                 if (isSakitExplicit) sedangSakitBeruntun = true;
@@ -979,17 +987,35 @@
                 }
             });
 
-            // EVALUASI BONUS DISIPLIN (Hanya berlaku untuk tunjangan yang namanya mengandung kata 'disiplin' atau 'rajin')
-            arrayTunjangan.forEach(t => {
-                if (t.nama.toLowerCase().includes('disiplin') || t.nama.toLowerCase().includes('rajin')) {
-                    // Jika telat > 3x ATAU alpa > 2x, bonus ditarik kembali!
-                    if (countTelatPagi > 3 || countAlpa > 2) {
-                        totalTunjanganTetap -= t.nominal; // Tarik uangnya dari total
-                        t.nama = t.nama + ` (Hangus: ${countTelatPagi}x Telat, ${countAlpa}x Alpa)`;
-                        t.nominal = 0; // Nol-kan nominal agar tampil di slip sebagai hangus
-                    }
+            // === SISTEM PENALTI KEDISIPLINAN ALFACOM (REVISI SKENARIO A, B, C) ===
+            let totalTelatIzin = countTelatPagi + countIzin;
+            let isMelanggarDisiplin = (totalTelatIzin > 3) || (countAlpa > 2);
+
+            // SKENARIO C: Pegawai berikut belum memiliki akad penalti kedisiplinan.
+            let namaPegawaiKecil = String(namaTarget).trim().toLowerCase();
+            let isKebal = ['fauzan', 'dafa', 'mubarak'].includes(namaPegawaiKecil);
+
+            // Format tunjangan aplikasi adalah objek { nama, nominal }.
+            let indexBonusDisiplin = arrayTunjangan.findIndex(t =>
+                String(t.nama || '').trim().toLowerCase() === 'bonus disiplin'
+            );
+            let dendaDisiplin = 0;
+
+            if (isMelanggarDisiplin && !isKebal) {
+                if (indexBonusDisiplin !== -1) {
+                    // SKENARIO A: Bonus disiplin hangus, tanpa denda tambahan.
+                    let bonusDisiplin = arrayTunjangan[indexBonusDisiplin];
+                    bonusDisiplin.nama = `Bonus Disiplin (Hangus: ${countTelatPagi}x Telat, ${countIzin}x Izin, ${countAlpa}x Alpa)`;
+                    bonusDisiplin.nominal = 0;
+                } else {
+                    // SKENARIO B: Tidak memiliki bonus disiplin, kenakan denda Rp300.000.
+                    dendaDisiplin = 300000;
                 }
-            });
+            }
+
+            // Hitung ulang sesudah kemungkinan bonus disiplin dinolkan.
+            totalTunjanganTetap = arrayTunjangan.reduce((total, t) => total + (parseFloat(t.nominal) || 0), 0);
+            totalPotongan += dendaDisiplin;
 
             let totalUpahHadir = (countKehadiran / hariKerjaEfektif) * gajiPokok;
             if (totalUpahHadir > gajiPokok) totalUpahHadir = gajiPokok;
@@ -997,7 +1023,7 @@
             let kasbon = variabelPayroll.kasbon;
             let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin + totalTunjanganTetap + feeMarketing - kasbon;
 
-            return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalTunjanganTetap, feeMarketing, kasbon, luarKota: variabelPayroll.luarKota, arrayTunjangan, totalBersih, barisHTML };
+            return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalTunjanganTetap, feeMarketing, kasbon, luarKota: variabelPayroll.luarKota, arrayTunjangan, dendaDisiplin, countTelatPagi, countIzin, countAlpa, totalBersih, barisHTML };
         }
 
         function generateSlipIndividu() {
@@ -1058,6 +1084,15 @@
                 document.getElementById('box-kasbon').style.display = 'block';
                 document.getElementById('sum-kasbon').innerText = "- " + formatRp(kasbon);
             } else { document.getElementById('box-kasbon').style.display = 'none'; }
+
+            // Tampilkan Skenario B secara eksplisit pada slip cetak.
+            let boxDendaDisiplin = document.getElementById('row-denda-disiplin');
+            if (boxDendaDisiplin) {
+                boxDendaDisiplin.style.display = data.dendaDisiplin > 0 ? 'block' : 'none';
+                if (data.dendaDisiplin > 0) {
+                    document.getElementById('sum-denda-disiplin').innerText = "- " + formatRp(data.dendaDisiplin);
+                }
+            }
 
             document.getElementById('sum-total').innerText = formatRp(data.totalBersih);
 
