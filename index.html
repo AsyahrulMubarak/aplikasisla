@@ -501,22 +501,36 @@
         <div id="loading" style="display:none;">Sinkronisasi data sistem...</div>
         
         <div id="page-dashboard" class="tab-page">
-            <div id="admin-export-section" style="display:none; text-align:right; margin-bottom:15px;">
-                <button class="btn-solid-primary" style="background:#0f766e; margin:0; width:auto; padding:8px 15px; font-size:12px; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);" onclick="document.getElementById('modal-export').style.display='flex'">📥 Cetak Laporan</button>
-            </div>
             <!-- MESIN WAKTU / FILTER DASBOR -->
-            <div id="dashboard-filter-section" style="background:#fff; padding:15px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px; display:flex; gap:10px; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-                <label style="margin:0; font-size:12px; color:var(--text-muted);">Periode:</label>
-                <select id="filter-bulan-dash" onchange="renderDashboard()" style="padding:8px; font-size:13px; flex:1; margin:0; cursor:pointer;">
-                    <option value="all">Semua Bulan</option>
-                    <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
-                    <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
-                    <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
-                    <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
-                </select>
-                <select id="filter-tahun-dash" onchange="renderDashboard()" style="padding:8px; font-size:13px; width:80px; margin:0; cursor:pointer;">
-                    <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
-                </select>
+            <div id="dashboard-filter-section" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: #ffffff; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid var(--border); margin-bottom: 20px; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1 1 240px;">
+                    <span style="font-weight: 600; color: var(--text-main); font-size: 14px;">Periode:</span>
+                    <select id="filter-bulan-dash" onchange="renderDashboard()" style="padding: 8px; font-size: 13px; flex: 1 1 140px; margin: 0; cursor: pointer;">
+                        <option value="all">Semua Bulan</option>
+                        <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+                        <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+                        <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+                        <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+                    </select>
+                    <select id="filter-tahun-dash" onchange="renderDashboard()" style="padding: 8px; font-size: 13px; width: 88px; margin: 0; cursor: pointer;">
+                        <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
+                    </select>
+                </div>
+                <button id="btn-cetak-laporan" class="btn-solid-primary" style="display: none; background: #0f766e; padding: 10px 16px; border-radius: 8px; font-size: 13px; border: none; color: white; font-weight: 600; width: auto; margin: 0;" onclick="cetakLaporan()">🖨️ Cetak Laporan</button>
+            </div>
+            <div id="executive-summary" style="display: none; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                <div style="background: linear-gradient(135deg, #1e40af, #2563eb); color: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(37,99,235,0.2);">
+                    <div style="font-size: 11px; opacity: 0.9; margin-bottom: 5px;">Total Omzet</div>
+                    <div id="exec-omzet" style="font-size: 16px; font-weight: bold;">Rp 0</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #047857, #059669); color: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(5,150,105,0.2);">
+                    <div style="font-size: 11px; opacity: 0.9; margin-bottom: 5px;">Win Rate Tim</div>
+                    <div id="exec-winrate" style="font-size: 16px; font-weight: bold;">0%</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #b45309, #d97706); color: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(217,119,6,0.2);">
+                    <div style="font-size: 11px; opacity: 0.9; margin-bottom: 5px;">Potensi Pipeline</div>
+                    <div id="exec-pipeline" style="font-size: 16px; font-weight: bold;">Rp 0</div>
+                </div>
             </div>
             <div class="search-wrapper" id="search-dash-wrapper" style="margin-bottom:15px;">
                 <span class="search-icon">🔍</span>
@@ -761,8 +775,10 @@
                     <button type="button" id="btn-clear-signature-input" class="btn-outline-cancel" style="margin-top:0; margin-bottom:15px;" onclick="clearSignatureInput()">Bersihkan TTD</button>
                     <!-- ========================================= -->
                     
-                    <button type="submit" id="btn-submit-pekerjaan" class="btn-solid-primary">Simpan Tiket</button>
-                    <button type="button" id="btn-batal-edit-tiket" class="btn-outline-cancel" style="display:none;" onclick="batalEditTiket()">Batal Mode Edit</button>
+                    <div id="edit-ticket-actions" style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 20px;">
+                        <button type="button" id="btn-batal-edit-tiket" class="btn-modal secondary" style="display: none; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; margin: 0;" onclick="batalEditTiket()">Batal</button>
+                        <button type="submit" id="btn-submit-edit" class="btn-solid-primary" style="padding: 12px; border-radius: 10px; font-weight: 600; margin: 0; width: 100%;">Simpan Tiket</button>
+                    </div>
                 </form>
             </div>
             <div class="form-card" id="form-input-sls-container" style="display:none; border-top-color:var(--purple);">
@@ -1213,6 +1229,10 @@
             localStorage.clear(); sessionStorage.clear(); window.location.href = window.location.pathname + "?v=" + new Date().getTime();
         }
 
+        function cetakLaporan() {
+            document.getElementById('modal-export').style.display = 'flex';
+        }
+
         async function prosesExportExcel(e) {
             e.preventDefault(); const jenis = document.getElementById('export-jenis').value; const bulan = document.getElementById('export-bulan').value; const tahun = document.getElementById('export-tahun').value;
             const btn = e.target.querySelector('button[type="submit"]'); let textAwal = btn.innerText; btn.innerText = "Merakit Excel..."; btn.disabled = true;
@@ -1502,7 +1522,7 @@
                 }
 
                 if (penggunaAktif.Role === 'admin') { 
-                    document.getElementById('admin-export-section').style.display = 'block';
+                    document.getElementById('btn-cetak-laporan').style.display = 'block';
                     document.getElementById('nav-tiket').style.display = 'flex';
                     document.getElementById('nav-penjualan').style.display = 'flex';
                     document.getElementById('nav-prospek').style.display = 'flex';
@@ -1512,7 +1532,7 @@
                     document.getElementById('btn-tambah-prospek').style.display = 'block';
                 } 
                 else if (penggunaAktif.Role === 'direktur') { 
-                    document.getElementById('admin-export-section').style.display = 'block';
+                    document.getElementById('btn-cetak-laporan').style.display = 'block';
                     document.getElementById('nav-tiket').style.display = 'flex';
                     document.getElementById('nav-penjualan').style.display = 'flex';
                     document.getElementById('nav-prospek').style.display = 'flex';
@@ -1522,7 +1542,7 @@
                     document.getElementById('btn-tambah-prospek').style.display = 'none'; 
                 }
                 else if (penggunaAktif.Role === 'manager') { 
-                    document.getElementById('admin-export-section').style.display = 'block';
+                    document.getElementById('btn-cetak-laporan').style.display = 'block';
                     document.getElementById('nav-tiket').style.display = 'flex';
                     document.getElementById('nav-penjualan').style.display = 'flex';
                     document.getElementById('nav-prospek').style.display = 'flex';
@@ -1532,7 +1552,7 @@
                     document.getElementById('btn-tambah-prospek').style.display = 'block';
                 }
                 else if (penggunaAktif.Role === 'sales') { 
-                    document.getElementById('admin-export-section').style.display = 'none';
+                    document.getElementById('btn-cetak-laporan').style.display = 'none';
                     document.getElementById('nav-garansi').style.display = 'none';
                     document.getElementById('nav-tiket').style.display = 'flex';
                     document.getElementById('nav-penjualan').style.display = 'flex';
@@ -1544,7 +1564,7 @@
                     document.getElementById('btn-tambah-prospek').style.display = 'block';
                 } 
                 else { 
-                    document.getElementById('admin-export-section').style.display = 'none';
+                    document.getElementById('btn-cetak-laporan').style.display = 'none';
                     document.getElementById('nav-garansi').style.display = 'none';
                     document.getElementById('nav-tiket').style.display = 'flex';
                     document.getElementById('nav-penjualan').style.display = 'none'; 
@@ -1639,6 +1659,60 @@
                 if (isNaN(d.getTime())) return false;
                 return (d.getMonth() + 1 == selBulan) && (d.getFullYear() == selTahun);
             }
+
+            // RINGKASAN EKSEKUTIF KHUSUS MANAJEMEN
+            let roleDash = String((penggunaAktif && penggunaAktif.Role) || '').toLowerCase();
+            let isEksekutif = roleDash === 'admin' || roleDash === 'manager' || roleDash === 'direktur';
+            let execSection = document.getElementById('executive-summary');
+            if (execSection) execSection.style.display = isEksekutif ? 'grid' : 'none';
+
+            if (isEksekutif) {
+                let totalOmzetAll = 0;
+                let totalPipeline = 0;
+                let prospekTotal = 0;
+                let prospekDeal = 0;
+
+                function nilaiEksekutif(rawValue) {
+                    if (typeof rawValue === 'number') return isNaN(rawValue) ? 0 : rawValue;
+                    let teksNilai = String(rawValue || '').trim();
+                    if (!teksNilai) return 0;
+                    let angkaBersih = teksNilai.replace(/[^0-9,.-]/g, '');
+                    if (angkaBersih.indexOf(',') !== -1) angkaBersih = angkaBersih.replace(/\./g, '').replace(',', '.');
+                    else if (/^-?\d{1,3}(\.\d{3})+$/.test(angkaBersih)) angkaBersih = angkaBersih.replace(/\./g, '');
+                    return parseFloat(angkaBersih) || 0;
+                }
+
+                // Omzet penjualan langsung pada periode yang sedang dipilih.
+                (globalPenjualan || []).forEach(p => {
+                    if (!p) return;
+                    let tanggalPenjualan = p['Tanggal'] || p['Waktu Lapor'] || p['Tanggal Input'];
+                    if (!inPeriode(tanggalPenjualan)) return;
+                    totalOmzetAll += nilaiEksekutif(
+                        p['Nominal (Rp)'] || p['Nominal Omzet'] || p['Total Transaksi'] || p['Nominal'] || 0
+                    );
+                });
+
+                // Pipeline dan win rate seluruh Prospek pada periode yang sama.
+                (globalProspek || []).forEach(p => {
+                    if (!p || !inPeriode(p['Tanggal Input'] || p['Tanggal'])) return;
+                    prospekTotal++;
+                    let stat = String(p['Status Prospek'] || p['Status'] || '').toLowerCase();
+                    if (stat.indexOf('closing') !== -1 || stat.indexOf('deal') !== -1) {
+                        prospekDeal++;
+                    } else if (stat.indexOf('batal') === -1 && stat.indexOf('tanpa keterangan') === -1) {
+                        totalPipeline += nilaiEksekutif(
+                            p['Potensi Nilai'] || p['Estimasi (Rp)'] || p['Estimasi Nilai Proyek (Rp)'] ||
+                            p['Estimasi'] || p['Nominal'] || 0
+                        );
+                    }
+                });
+
+                let winRateAll = prospekTotal > 0 ? Math.round((prospekDeal / prospekTotal) * 100) : 0;
+                document.getElementById('exec-omzet').innerText = 'Rp ' + totalOmzetAll.toLocaleString('id-ID');
+                document.getElementById('exec-winrate').innerText = winRateAll + '%';
+                document.getElementById('exec-pipeline').innerText = 'Rp ' + totalPipeline.toLocaleString('id-ID');
+            }
+
             (globalUsers || []).forEach(u => { 
                 if (u && u.Role === 'teknisi' && u['Nama Asli']) { 
                     let namaAsli = u['Nama Asli']; if (namaAsli.toLowerCase() === 'syawal') namaAsli = 'Muhammad Syawal'; 
@@ -3045,7 +3119,7 @@
         async function submitData(e, type) { 
             e.preventDefault(); 
             const payload = { apiKey: API_KEY };
-            let btnID = type === 'sla' ? 'btn-submit-pekerjaan' : 'btn-submit-sls';
+            let btnID = type === 'sla' ? 'btn-submit-edit' : 'btn-submit-sls';
             let btn = document.getElementById(btnID);
             
             if(btn) { btn.innerText = 'Menyiapkan Data...'; btn.disabled = true; }
@@ -3213,7 +3287,9 @@
                 setTimeout(resizeCanvasInput, 50);
             }
 
-            document.getElementById('btn-submit-pekerjaan').innerText = 'Update Tiket';
+            document.getElementById('btn-batal-edit-tiket').style.display = 'block';
+            document.getElementById('edit-ticket-actions').style.gridTemplateColumns = '1fr 1fr';
+            document.getElementById('btn-submit-edit').innerText = 'Update Tiket';
         }
 
         function batalEditTiket() { 
@@ -3244,9 +3320,10 @@
             if (divGantiTeknisi) divGantiTeknisi.style.display = 'none';
             if (cekGantiTeknisi) cekGantiTeknisi.checked = false;
             
-            document.getElementById('btn-submit-pekerjaan').innerText = 'Simpan Tiket'; 
-            document.getElementById('btn-submit-pekerjaan').style.background = 'var(--primary)'; 
+            document.getElementById('btn-submit-edit').innerText = 'Simpan Tiket'; 
+            document.getElementById('btn-submit-edit').style.background = 'var(--primary)'; 
             document.getElementById('btn-batal-edit-tiket').style.display = 'none'; 
+            document.getElementById('edit-ticket-actions').style.gridTemplateColumns = '1fr';
             document.getElementById('input-notrans-sla').value = ''; 
             togglePenjualanInput(); setAutoIDs(); 
         
