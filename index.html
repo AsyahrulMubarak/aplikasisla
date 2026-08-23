@@ -8,7 +8,6 @@
     <meta http-equiv="Expires" content="0">
     <title>Sistem Manajemen SLA</title>
     
-    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1e3a8a">
     <link rel="apple-touch-icon" href="depan_001.png">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -16,8 +15,12 @@
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) { registration.unregister(); }
+                for (let registration of registrations) {
+                    registration.unregister();
+                }
             });
+        }
+        if ('caches' in window) {
             caches.keys().then(function(names) {
                 for (let name of names) caches.delete(name);
             });
@@ -47,6 +50,8 @@
         .btn-outline-warning:hover { background: var(--warning); color: white; }
         .btn-outline-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
         .btn-outline-danger:hover { background: var(--danger); color: white; }
+        .btn-outline-lobby { background: transparent; color: var(--primary); border: 1px solid var(--primary); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+        .btn-outline-lobby:hover { background: var(--primary); color: white; }
         .tab-page { display: none; animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--surface); box-shadow: 0 -4px 15px rgba(0,0,0,0.03); display: flex; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
@@ -279,22 +284,6 @@
         </div>
     </div>
 
-    <div id="pwa-install-modal" class="custom-modal-backdrop" style="z-index: 9999;">
-        <div class="custom-modal-box">
-            <img src="depan_001.png" style="width:70px; margin-bottom:15px; border-radius:12px;">
-            <h3 class="custom-modal-title" style="color:var(--primary);">Install Aplikasi SLA</h3>
-            <div style="background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; text-align: left;">
-                <label style="display: flex; align-items: center; font-size: 13px; font-weight: 600; color: var(--text-main); margin: 0; cursor: pointer;">
-                    <input type="checkbox" id="pwa-never-show" style="margin-right: 10px; width: 16px; height: 16px; accent-color: var(--primary);"> Jangan tampilkan lagi
-                </label>
-            </div>
-            <div class="custom-modal-actions">
-                <button class="custom-modal-btn btn-cm-cancel" onclick="tolakInstall()">Nanti Saja</button>
-                <button class="custom-modal-btn btn-cm-confirm" onclick="terimaInstall()">Install Sekarang</button>
-            </div>
-        </div>
-    </div>
-
     <div id="custom-prompt-modal" class="custom-modal-backdrop">
         <div class="custom-modal-box">
             <h3 class="custom-modal-title" id="prompt-title">Input Diperlukan</h3>
@@ -379,17 +368,17 @@
             <p style="font-size:13px; color:var(--text-muted); margin-bottom:25px;">Bismillah, silakan pilih modul aplikasi yang ingin diakses:</p>
             
             <div style="display:flex; flex-direction:column; gap:12px;">
-                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#1e3a8a;" onclick="pilihAplikasi('sla')">
+                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#1e3a8a;" onclick="bukaModul('sla')">
                     <span style="font-size:20px;">📋</span> Manajemen SLA
                 </button>
                 
-                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#10b981;" onclick="pilihAplikasi('absen')">
+                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#10b981;" onclick="bukaModul('absen')">
                     <span style="font-size:20px;">📅</span> Sistem Absensi (Beta)
                 </button>
-                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#eab308; color:#fff;" onclick="window.location.href='slipgaji.html'">
+                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#eab308; color:#fff;" onclick="bukaModul('gaji')">
                     <span style="font-size:20px;">🧾</span> Slip Gaji Digital
                 </button>
-                <p style="font-size:11px; color:var(--warning); margin-top:15px; font-style:italic; text-align:center;">*Mode Beta: Halaman ini sementara hanya tampil untuk Admin.</p>
+                <p style="font-size:11px; color:var(--warning); margin-top:15px; font-style:italic; text-align:center;">*Absensi dan Slip Gaji sementara hanya dapat dibuka oleh Admin, Manager, dan Direktur.</p>
             </div>
         </div>
     </div>
@@ -498,6 +487,7 @@
         <div class="top-bar">
             <span id="nama-login">User</span>
             <div class="top-bar-buttons">
+                <button id="btn-kembali-lobby" onclick="kembaliKeLobby()" class="btn-outline-lobby" style="display:none;">🏠 Kembali ke Lobby</button>
                 <button onclick="bukaModalBug()" class="btn-outline-danger" style="border-color:#ef4444; color:#ef4444;">🐞 Lapor Bug</button>
                 <button onclick="refreshManual()" id="btn-refresh" class="btn-outline-warning">Sinkron Data</button>
                 <button class="btn-outline-danger" onclick="prosesLogout()">Keluar</button>
@@ -1432,31 +1422,65 @@
         // ==========================================
         // FITUR PORTAL GATEWAY (SSO ALFACOM)
         // ==========================================
+        function punyaAksesLobby() {
+            if (!penggunaAktif) return false;
+            let role = String(penggunaAktif.Role || '').toLowerCase();
+            let hasGaji = parseFloat(penggunaAktif['Gaji Pokok'] || penggunaAktif['Gaji Pokok (Rp)']) > 0;
+            return hasGaji || role === 'direktur';
+        }
+
         function masukKeAplikasi() {
             document.getElementById('login-wrapper').style.display = 'none';
-            
-            // Filter: Hanya Admin yang diarahkan ke Hub Pemilihan Aplikasi (Mode Beta)
-            if (penggunaAktif && penggunaAktif.Role === 'admin') {
+
+            let role = String((penggunaAktif && penggunaAktif.Role) || '').toLowerCase();
+            let hasGaji = parseFloat(penggunaAktif && (penggunaAktif['Gaji Pokok'] || penggunaAktif['Gaji Pokok (Rp)'])) > 0;
+            if (hasGaji || role === 'direktur') {
                 document.getElementById('app-wrapper').style.display = 'none';
                 document.getElementById('app-selector-wrapper').style.display = 'flex';
             } else {
-                bukaAplikasiSLA(); // Pegawai lain langsung masuk (Bypass) ke SLA
+                document.getElementById('app-selector-wrapper').style.display = 'none';
+                bukaAplikasiSLA();
             }
         }
 
-        function pilihAplikasi(jenis) {
-            if (jenis === 'sla') {
+        function bukaModul(namaModul) {
+            let role = String((penggunaAktif && penggunaAktif.Role) || '').toLowerCase();
+            let isManajemen = role === 'admin' || role === 'manager' || role === 'direktur';
+
+            if (namaModul === 'absen' || namaModul === 'gaji') {
+                if (!isManajemen) {
+                    showToast('Afwan, menu ini masih dalam tahap pengembangan untuk posisi Anda.', 'warning');
+                    return;
+                }
+                window.location.href = namaModul === 'absen' ? 'absen.html' : 'slipgaji.html';
+            } else if (namaModul === 'sla') {
                 document.getElementById('app-selector-wrapper').style.display = 'none';
                 bukaAplikasiSLA();
-            } else if (jenis === 'absen') {
-                // KODE YANG LAMA (showToast) DIHAPUS, GANTI DENGAN KODE REDIRECT INI:
-                window.location.href = "absen.html";
             }
         }
+
+        // Alias kompatibilitas untuk pemanggilan lama yang mungkin masih tersimpan di browser.
+        function pilihAplikasi(jenis) { bukaModul(jenis); }
+
+        function kembaliKeLobby() {
+            if (!punyaAksesLobby()) {
+                document.getElementById('btn-kembali-lobby').style.display = 'none';
+                return;
+            }
+            if (intervalAutoRefresh) {
+                clearInterval(intervalAutoRefresh);
+                intervalAutoRefresh = null;
+            }
+            document.getElementById('app-wrapper').style.display = 'none';
+            document.getElementById('app-selector-wrapper').style.display = 'flex';
+        }
+
         // Ini adalah fungsi asli antum, HANYA diubah namanya saja menjadi bukaAplikasiSLA()
         function bukaAplikasiSLA() {
             try {
+                document.getElementById('app-selector-wrapper').style.display = 'none';
                 document.getElementById('app-wrapper').style.display = 'block';
+                document.getElementById('btn-kembali-lobby').style.display = punyaAksesLobby() ? 'inline-block' : 'none';
                 
                 let namaTampil = penggunaAktif['Nama Asli'] || 'User';
                 let roleTampil = String(penggunaAktif.Role || '').toUpperCase();
@@ -1524,7 +1548,7 @@
                 }
 
                 renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); switchTab('dashboard'); 
-                if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('modal-followup').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex' || document.getElementById('pwa-install-modal').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
+                if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('modal-followup').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
             } catch(e) { showToast("Afwan, Error merender aplikasi", "error"); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
@@ -2278,14 +2302,14 @@
 
         function autoFillGaransi() {
             try {
-                let val = document.getElementById('garansi-referensi').value;
+                let val = document.getElementById('garansi-referensi').value || '';
                 let poinSection = document.getElementById('garansi-poin-section');
                 
                 if(!val) {
                     document.getElementById('garansi-pelanggan').value = '';
                     document.getElementById('garansi-barang').value = '';
                     document.getElementById('garansi-notrans').value = '';
-                    document.getElementById('garansi-sales').value = '';
+                    document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
                     document.getElementById('garansi-omzet').value = '';
                     document.getElementById('garansi-keterangan').value = '';
                     if (poinSection) poinSection.style.display = 'none'; // Sembunyikan jika kosong
@@ -2293,11 +2317,16 @@
                     return;
                 }
                 if(val.startsWith('TKT-')) {
-                    let t = (globalTickets || []).find(x => x && x['ID Tiket'] === val);
-                    if(t) {
-                        document.getElementById('garansi-pelanggan').value = t['Klien & Lokasi'] || '';
-                        document.getElementById('garansi-barang').value = t['Jenis Pekerjaan'] || '';
-                        document.getElementById('garansi-notrans').value = t['No Transaksi'] || t[Object.keys(t)[1]] || '';
+                    let t = (globalTickets || []).find(x => x && x['ID Tiket'] === val) || {};
+                    if(Object.keys(t).length > 0) {
+                        let namaPelanggan = t['Klien & Lokasi'] || '-';
+                        let barangGaransi = t['Jenis Pekerjaan'] || '-';
+                        let noTransaksi = t['No Transaksi'] || t[Object.keys(t)[1]] || '';
+                        let salesGaransi = t['Sales'] || '';
+                        let omzetGaransi = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || '';
+                        document.getElementById('garansi-pelanggan').value = namaPelanggan;
+                        document.getElementById('garansi-barang').value = barangGaransi;
+                        document.getElementById('garansi-notrans').value = noTransaksi;
                         document.getElementById('garansi-keterangan').value = '';
                         
                         // MUNCULKAN KOTAK POIN & ISI OTOMATIS JIKA SUDAH ADA POIN SEBELUMNYA
@@ -2307,12 +2336,11 @@
                             document.getElementById('garansi-poin-veto').checked = (String(t['Veto Admin'] || '').toLowerCase() === 'ya');
                         }
 
-                        if (t['Sales'] && t['Sales'] !== '-') {
-                            let sArr = String(t['Sales']).split(',').map(n => n.trim());
+                        if (salesGaransi && salesGaransi !== '-') {
+                            let sArr = String(salesGaransi).split(',').map(n => n.trim());
                             document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = sArr.includes(cb.value));
                             toggleGaransiOmzet();
-                            let omzetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || '';
-                            document.getElementById('garansi-omzet').value = omzetVal;
+                            document.getElementById('garansi-omzet').value = omzetGaransi;
                         } else {
                             document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
                             document.getElementById('garansi-omzet').value = '';
@@ -2320,22 +2348,26 @@
                         }
                     }
                 } else if (val.startsWith('SLS-')) {
-                    let p = (globalPenjualan || []).find(x => x && x['ID Penjualan'] === val);
-                    if(p) {
-                        document.getElementById('garansi-pelanggan').value = p['Nama Pembeli'] || '';
-                        document.getElementById('garansi-barang').value = p['Barang / Jasa'] || '';
-                        document.getElementById('garansi-notrans').value = p['No Transaksi'] || p[Object.keys(p)[1]] || '';
+                    let p = (globalPenjualan || []).find(x => x && x['ID Penjualan'] === val) || {};
+                    if(Object.keys(p).length > 0) {
+                        let namaPelanggan = p['Nama Pembeli'] || '-';
+                        let barangGaransi = p['Barang / Jasa'] || '-';
+                        let noTransaksi = p['No Transaksi'] || p[Object.keys(p)[1]] || '';
+                        let salesGaransi = p['Sales'] || '';
+                        let omzetGaransi = p['Nominal (Rp)'] || p['Nominal'] || p['Nilai Penjualan (Rp)'] || p['Nilai Penjualan'] || '';
+                        document.getElementById('garansi-pelanggan').value = namaPelanggan;
+                        document.getElementById('garansi-barang').value = barangGaransi;
+                        document.getElementById('garansi-notrans').value = noTransaksi;
                         document.getElementById('garansi-keterangan').value = '';
                         
                         // SEMBUNYIKAN KOTAK POIN KARENA INI PENJUALAN LANGSUNG
                         if (poinSection) poinSection.style.display = 'none';
                         
-                        if (t['Sales'] && t['Sales'] !== '-') {
-                            let sArr = String(t['Sales']).split(',').map(n => n.trim());
+                        if (salesGaransi && salesGaransi !== '-') {
+                            let sArr = String(salesGaransi).split(',').map(n => n.trim());
                             document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = sArr.includes(cb.value));
                             toggleGaransiOmzet();
-                            let omzetVal = t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || '';
-                            document.getElementById('garansi-omzet').value = omzetVal;
+                            document.getElementById('garansi-omzet').value = omzetGaransi;
                         } else {
                             document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
                             document.getElementById('garansi-omzet').value = '';
