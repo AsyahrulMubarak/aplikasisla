@@ -502,34 +502,39 @@
         
         <div id="page-dashboard" class="tab-page">
             <!-- MESIN WAKTU / FILTER DASBOR -->
-            <div id="dashboard-filter-section" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: #ffffff; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid var(--border); margin-bottom: 20px; gap: 15px;">
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1 1 240px;">
-                    <span style="font-weight: 600; color: var(--text-main); font-size: 14px;">Periode:</span>
-                    <select id="filter-bulan-dash" onchange="renderDashboard()" style="padding: 8px; font-size: 13px; flex: 1 1 140px; margin: 0; cursor: pointer;">
+            <div id="dashboard-filter-section" style="background: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+                <!-- Baris Atas: Judul & Tombol Cetak -->
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                    <span style="font-weight: 600; color: var(--text-main); font-size: 14px;">Periode Dasbor</span>
+                    <button id="btn-cetak-laporan" class="btn-solid-primary" style="display: none; background: #0f766e; padding: 8px 12px; border-radius: 8px; font-size: 12px; border: none; color: white; font-weight: 600; width: auto; margin: 0; white-space: nowrap;" onclick="cetakLaporan()">🖨️ Cetak</button>
+                </div>
+
+                <!-- Baris Bawah: Grid 2 Kolom untuk Dropdown -->
+                <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px;">
+                    <select id="filter-bulan-dash" onchange="renderDashboard()" style="padding: 10px; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; min-width: 0; margin: 0; cursor: pointer;">
                         <option value="all">Semua Bulan</option>
                         <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
                         <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
                         <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
                         <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
                     </select>
-                    <select id="filter-tahun-dash" onchange="renderDashboard()" style="padding: 8px; font-size: 13px; width: 88px; margin: 0; cursor: pointer;">
+                    <select id="filter-tahun-dash" onchange="renderDashboard()" style="padding: 10px; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; min-width: 0; margin: 0; cursor: pointer;">
                         <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
                     </select>
                 </div>
-                <button id="btn-cetak-laporan" class="btn-solid-primary" style="display: none; background: #0f766e; padding: 10px 16px; border-radius: 8px; font-size: 13px; border: none; color: white; font-weight: 600; width: auto; margin: 0;" onclick="cetakLaporan()">🖨️ Cetak Laporan</button>
             </div>
-            <div id="executive-summary" style="display: none; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 20px;">
-                <div style="background: linear-gradient(135deg, #1e40af, #2563eb); color: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(37,99,235,0.2);">
+            <div id="executive-summary" style="display: none; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                <div style="background: linear-gradient(135deg, #1e40af, #2563eb); color: white; padding: 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(37,99,235,0.2); min-width: 0;">
                     <div style="font-size: 11px; opacity: 0.9; margin-bottom: 5px;">Total Omzet</div>
-                    <div id="exec-omzet" style="font-size: 16px; font-weight: bold;">Rp 0</div>
+                    <div id="exec-omzet" style="font-size: 15px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Rp 0</div>
                 </div>
-                <div style="background: linear-gradient(135deg, #047857, #059669); color: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(5,150,105,0.2);">
+                <div style="background: linear-gradient(135deg, #047857, #059669); color: white; padding: 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(5,150,105,0.2); min-width: 0;">
                     <div style="font-size: 11px; opacity: 0.9; margin-bottom: 5px;">Win Rate Tim</div>
-                    <div id="exec-winrate" style="font-size: 16px; font-weight: bold;">0%</div>
+                    <div id="exec-winrate" style="font-size: 15px; font-weight: bold; white-space: nowrap;">0%</div>
                 </div>
-                <div style="background: linear-gradient(135deg, #b45309, #d97706); color: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(217,119,6,0.2);">
+                <div style="background: linear-gradient(135deg, #b45309, #d97706); color: white; padding: 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(217,119,6,0.2); min-width: 0;">
                     <div style="font-size: 11px; opacity: 0.9; margin-bottom: 5px;">Potensi Pipeline</div>
-                    <div id="exec-pipeline" style="font-size: 16px; font-weight: bold;">Rp 0</div>
+                    <div id="exec-pipeline" style="font-size: 15px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Rp 0</div>
                 </div>
             </div>
             <div class="search-wrapper" id="search-dash-wrapper" style="margin-bottom:15px;">
