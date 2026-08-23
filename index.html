@@ -1305,7 +1305,9 @@
                         document.getElementById('login-loading').style.display = 'block'; 
                     }
                     
-                    const urlTarget = apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY;
+                    let urlTarget = apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY;
+                    if (trackId) urlTarget += "&trackId=" + encodeURIComponent(trackId);
+                    
                     const response = await fetch(urlTarget, { redirect: "follow", cache: "no-store" }); 
                     if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                     
@@ -1348,8 +1350,13 @@
                     if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { 
                         localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Afwan, sesi login telah berakhir.', 'warning'); 
                     } else { 
-                        const cekDB = globalUsers.find(u => u && u.Username === parsedSession.user.Username && u.Password === parsedSession.user.Password); 
-                        if(cekDB) { penggunaAktif = cekDB; } else { localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
+                        const cekDB = globalUsers.find(u => u && u.Username === parsedSession.user.Username); 
+                        if(cekDB) {
+                            penggunaAktif = cekDB;
+                            const sesiBersih = JSON.stringify({ user: cekDB, loginTime: parsedSession.loginTime });
+                            if (localStorage.getItem('sesiLoginSLA')) localStorage.setItem('sesiLoginSLA', sesiBersih);
+                            else sessionStorage.setItem('sesiLoginSLA', sesiBersih);
+                        } else { localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
                     }
                 }
             } catch(e) {
@@ -1363,16 +1370,6 @@
                     document.getElementById('login-form').style.display = 'block'; 
                     document.getElementById('login-wrapper').style.display = 'flex'; 
                     document.getElementById('app-wrapper').style.display = 'none'; 
-                    
-                    let savedCreds = localStorage.getItem('kredensialSLA');
-                    if(savedCreds) {
-                        try {
-                            let creds = JSON.parse(savedCreds);
-                            document.getElementById('username').value = creds.u || '';
-                            document.getElementById('password').value = creds.p || '';
-                            document.getElementById('ingat-saya').checked = true;
-                        } catch(e){}
-                    }
                 } else { 
                     if (!isSilentRefresh) { masukKeAplikasi(); } 
                     else { 
@@ -1400,17 +1397,17 @@
                 const hasil = await response.json();
                 if (hasil.status === 'sukses' && hasil.user) {
                     penggunaAktif = hasil.user;
+                    if (Object.prototype.hasOwnProperty.call(penggunaAktif, 'Password')) delete penggunaAktif.Password;
                     let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
 
                     if(document.getElementById('ingat-saya').checked) {
                         localStorage.setItem('sesiLoginSLA', dataSesi);
                         sessionStorage.removeItem('sesiLoginSLA');
-                        localStorage.setItem('kredensialSLA', JSON.stringify({u: un, p: pwRaw}));
                     } else {
                         sessionStorage.setItem('sesiLoginSLA', dataSesi);
                         localStorage.removeItem('sesiLoginSLA');
-                        localStorage.removeItem('kredensialSLA');
                     }
+                    localStorage.removeItem('kredensialSLA'); // Hapus jejak bahaya lama jika ada
                     masukKeAplikasi();
                     if (penggunaAktif.Role !== 'admin') {
                         document.getElementById('loading').style.display = 'block';
@@ -3500,8 +3497,7 @@
             let finalPw = "";
 
             if (modeEditUser) {
-                const oldUser = (globalUsers || []).find(u => u && u.Username === document.getElementById('new-username').value);
-                if (inputPw === "") { finalPw = oldUser ? oldUser.Password : ''; } 
+                if (inputPw === "") { finalPw = ''; } 
                 else { finalPw = await hashPassword(inputPw); } 
             } else { finalPw = await hashPassword(inputPw); }
 
@@ -3531,7 +3527,6 @@
                     showToast('Alhamdulillah! Profil tersimpan.', 'success'); 
                     
                     if (penggunaAktif && penggunaAktif.Username === payload.username) {
-                        penggunaAktif.Password = payload.password;
                         let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
                         if(localStorage.getItem('sesiLoginSLA')) localStorage.setItem('sesiLoginSLA', dataSesi);
                         else sessionStorage.setItem('sesiLoginSLA', dataSesi);
@@ -3606,6 +3601,7 @@
         // ==========================================
         const urlParams = new URLSearchParams(window.location.search);
         const trackParam = urlParams.get('track');
+        localStorage.removeItem('kredensialSLA'); // Bersihkan kredensial lama tanpa menunggu login berikutnya
         if (trackParam && trackParam.trim() !== "") {
             ambilSemuaData(false, trackParam);
         } else {
@@ -3618,15 +3614,6 @@
                 document.getElementById('login-wrapper').style.display = 'flex';
                 document.getElementById('app-wrapper').style.display = 'none';
 
-                const savedCredsAwal = localStorage.getItem('kredensialSLA');
-                if (savedCredsAwal) {
-                    try {
-                        const credsAwal = JSON.parse(savedCredsAwal);
-                        document.getElementById('username').value = credsAwal.u || '';
-                        document.getElementById('password').value = credsAwal.p || '';
-                        document.getElementById('ingat-saya').checked = true;
-                    } catch(e) {}
-                }
             }
         }
         // ==========================================
