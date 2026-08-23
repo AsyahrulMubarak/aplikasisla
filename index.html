@@ -350,10 +350,7 @@
                         <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     </span>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; text-align:left;">
-                    <label style="display:flex; align-items:center; font-size:12px; margin:0; cursor:pointer; font-weight:600; color:var(--text-main);">
-                        <input type="checkbox" id="ingat-saya" style="width:14px; height:14px; margin:0 8px 0 0; accent-color:var(--primary);" checked> Ingat Saya
-                    </label>
+                <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:20px; text-align:right;">
                     <a href="#" onclick="mintaResetSandi()" style="font-size:12px; color:var(--primary); text-decoration:none; font-weight:600;">Lupa Sandi?</a>
                 </div>
                 <button type="submit" class="btn-login">Masuk Workspace</button>
@@ -379,6 +376,9 @@
                     <span style="font-size:20px;">🧾</span> Slip Gaji Digital
                 </button>
                 <p style="font-size:11px; color:var(--warning); margin-top:15px; font-style:italic; text-align:center;">*Absensi dan Slip Gaji sementara hanya dapat dibuka oleh Admin, Manager, dan Direktur.</p>
+                <button class="btn-outline-danger" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; margin-top:20px; width:100%; border:1px solid #ef4444; color:#ef4444; background:transparent; border-radius:10px; cursor:pointer; font-weight:bold;" onclick="prosesLogout()">
+                    🚪 Keluar Aplikasi
+                </button>
             </div>
         </div>
     </div>
@@ -1366,7 +1366,8 @@
             }
             
             try {
-                let savedSession = localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA');
+                localStorage.removeItem('sesiLoginSLA'); // Bersihkan sesi persisten lama.
+                let savedSession = sessionStorage.getItem('sesiLoginSLA');
                 if (savedSession) {
                     const parsedSession = JSON.parse(savedSession);
                     if (!parsedSession || !parsedSession.user || !parsedSession.loginTime) throw new Error("Sesi tidak valid");
@@ -1377,8 +1378,7 @@
                         if(cekDB) {
                             penggunaAktif = cekDB;
                             const sesiBersih = JSON.stringify({ user: cekDB, loginTime: parsedSession.loginTime });
-                            if (localStorage.getItem('sesiLoginSLA')) localStorage.setItem('sesiLoginSLA', sesiBersih);
-                            else sessionStorage.setItem('sesiLoginSLA', sesiBersih);
+                            sessionStorage.setItem('sesiLoginSLA', sesiBersih);
                         } else { localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
                     }
                 }
@@ -1423,13 +1423,8 @@
                     if (Object.prototype.hasOwnProperty.call(penggunaAktif, 'Password')) delete penggunaAktif.Password;
                     let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
 
-                    if(document.getElementById('ingat-saya').checked) {
-                        localStorage.setItem('sesiLoginSLA', dataSesi);
-                        sessionStorage.removeItem('sesiLoginSLA');
-                    } else {
-                        sessionStorage.setItem('sesiLoginSLA', dataSesi);
-                        localStorage.removeItem('sesiLoginSLA');
-                    }
+                    sessionStorage.setItem('sesiLoginSLA', dataSesi);
+                    localStorage.removeItem('sesiLoginSLA');
                     localStorage.removeItem('kredensialSLA'); // Hapus jejak bahaya lama jika ada
                     masukKeAplikasi();
                     if (penggunaAktif.Role !== 'admin') {
@@ -3663,8 +3658,7 @@
                     
                     if (penggunaAktif && penggunaAktif.Username === payload.username) {
                         let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
-                        if(localStorage.getItem('sesiLoginSLA')) localStorage.setItem('sesiLoginSLA', dataSesi);
-                        else sessionStorage.setItem('sesiLoginSLA', dataSesi);
+                        sessionStorage.setItem('sesiLoginSLA', dataSesi);
                     }
 
                     if (penggunaAktif && penggunaAktif.Role === 'admin') {
@@ -3679,8 +3673,7 @@
                         if (uUpdated) {
                             penggunaAktif = uUpdated;
                             let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
-                            if(localStorage.getItem('sesiLoginSLA')) localStorage.setItem('sesiLoginSLA', dataSesi);
-                            else sessionStorage.setItem('sesiLoginSLA', dataSesi);
+                            sessionStorage.setItem('sesiLoginSLA', dataSesi);
                         }
                         siapkanProfilPribadi();
                     }
@@ -3740,7 +3733,8 @@
         if (trackParam && trackParam.trim() !== "") {
             ambilSemuaData(false, trackParam);
         } else {
-            const savedSessionAwal = localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA');
+            localStorage.removeItem('sesiLoginSLA');
+            const savedSessionAwal = sessionStorage.getItem('sesiLoginSLA');
             if (savedSessionAwal) {
                 ambilSemuaData(false);
             } else {
