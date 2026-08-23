@@ -45,7 +45,7 @@
         .logo { max-width: 180px; height: auto; }
         .top-bar { display: flex; justify-content: space-between; align-items: center; background: var(--surface); padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
         .top-bar span { font-weight: 700; font-size: 14px; color: var(--primary); }
-        .top-bar-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+        .top-bar-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; margin-top: 15px; }
         .btn-outline-warning { background: transparent; color: var(--warning); border: 1px solid var(--warning); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
         .btn-outline-warning:hover { background: var(--warning); color: white; }
         .btn-outline-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
@@ -472,11 +472,16 @@
                         <p style="font-size:12px; color:#10b981; font-weight:bold; margin-top:0;">✅ Tanda Tangan Klien Sudah Terekam</p>
                         <img id="ttd-update-preview-img" src="" alt="Tanda Tangan Klien" style="max-width:100%; max-height:150px; object-fit:contain;">
                     </div>
-                    <button type="button" id="btn-clear-signature" class="btn-outline-cancel" style="margin-top:0;" onclick="clearSignature()">Bersihkan Kanvas</button>
                     </div> <!-- Penutup wadah-ttd-klien -->
                 </div>
-                <button type="submit" id="btn-submit-update" class="btn-solid-primary">Simpan Data</button>
-                <button type="button" class="btn-outline-cancel" onclick="tutupModal()">Tutup</button>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">
+                    <button type="button" id="btn-clear-signature" class="btn-outline-danger" onclick="bersihkanTtdUpdate()" style="padding: 10px; font-size: 13px; border-radius: 8px; margin: 0;">Bersihkan TTD</button>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button type="button" class="btn-modal secondary" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; margin: 0;" onclick="tutupModal('modal-update')">Batal</button>
+                        <button type="button" id="btn-submit-update" class="btn-solid-primary" onclick="simpanUpdateTiket()" style="padding: 12px; border-radius: 10px; font-weight: 600; margin: 0; width: 100%;">Update Tiket</button>
+                    </div>
+                </div>
             </form>
         </div>
     </div>
@@ -486,11 +491,11 @@
         <div class="header-branding"><img src="depan_001.png" alt="Logo Alfacom" class="logo"></div>
         <div class="top-bar">
             <span id="nama-login">User</span>
-            <div class="top-bar-buttons">
-                <button id="btn-kembali-lobby" onclick="kembaliKeLobby()" class="btn-outline-lobby" style="display:none;">🏠 Kembali ke Lobby</button>
-                <button onclick="bukaModalBug()" class="btn-outline-danger" style="border-color:#ef4444; color:#ef4444;">🐞 Lapor Bug</button>
-                <button onclick="refreshManual()" id="btn-refresh" class="btn-outline-warning">Sinkron Data</button>
-                <button class="btn-outline-danger" onclick="prosesLogout()">Keluar</button>
+            <div class="top-bar-buttons" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; margin-top: 15px;">
+                <button id="btn-kembali-lobby" onclick="kembaliKeLobby()" class="btn-outline-lobby" style="display:none; padding: 10px; font-size: 13px;">🏠 Kembali ke Lobby</button>
+                <button onclick="bukaModalBug()" class="btn-outline-danger" style="padding: 10px; font-size: 13px;">🐞 Lapor Bug</button>
+                <button onclick="refreshManual()" id="btn-refresh" class="btn-outline-warning" style="padding: 10px; font-size: 13px;">🔄 Sinkron Data</button>
+                <button class="btn-outline-danger" onclick="prosesLogout()" style="padding: 10px; font-size: 13px;">Keluar</button>
             </div>
         </div>
         <div id="loading" style="display:none;">Sinkronisasi data sistem...</div>
@@ -609,10 +614,13 @@
         </div>
 
         <div id="page-garansi" class="tab-page">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <h3 class="section-title" style="margin:0; border:none; padding:0; color:#3b82f6;">Data Garansi Klien</h3>
-                <button id="btn-tambah-garansi" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:#3b82f6; display:none;" onclick="bukaFormGaransi()">+ Input Garansi</button>
-                <button onclick="scanDendaInap()" class="btn-action-primary" style="background:var(--warning); color:#fff; border:none; margin-bottom:15px; display:inline-block; width:auto; margin-left:10px;">🔍 Scan Klien Mengendap / Denda</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: var(--primary);">Data Garansi Klien</h3>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; justify-content: flex-end;">
+                    <button id="btn-tambah-garansi" class="btn-solid-primary" style="padding: 8px 15px; font-size: 13px; width: auto; margin: 0; display: none;" onclick="bukaModalGaransiBaru()">+ Input Garansi</button>
+                    <button class="btn-outline-warning" style="padding: 8px 15px; font-size: 13px; width: auto; margin: 0;" onclick="bukaModalScannerGaransi()">🔍 Scan Klien Mengendap / Denda</button>
+                </div>
             </div>
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
@@ -2247,6 +2255,9 @@
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan sesuai pencarian.</p>';
         }
 
+        function bukaModalGaransiBaru() { bukaFormGaransi(); }
+        function bukaModalScannerGaransi() { scanDendaInap(); }
+
         function bukaFormGaransi() {  
             try {
                 document.getElementById('form-garansi-container').style.display = 'block'; 
@@ -3282,14 +3293,18 @@
         
         function toggleKanvasByStatus(statusVal) {
             const wadah = document.getElementById('wadah-ttd-klien');
+            const btnClearTTD = document.getElementById('btn-clear-signature');
+            const previewTTD = document.getElementById('ttd-update-preview-container');
             if (wadah) {
                 // Jika status mengandung kata 'selesai', munculkan kanvas
                 if (statusVal && statusVal.toLowerCase().includes('selesai')) {
                     wadah.style.display = 'block';
+                    if (btnClearTTD && (!previewTTD || previewTTD.style.display === 'none')) btnClearTTD.style.display = 'block';
                     setTimeout(resizeCanvas, 100); // Penting agar kanvas dirender dengan ukuran normal
                 } else {
                     // Sembunyikan jika statusnya masih proses/pending
                     wadah.style.display = 'none';
+                    if (btnClearTTD) btnClearTTD.style.display = 'none';
                 }
             }
         }
@@ -3319,8 +3334,14 @@
         statusElement.classList.add('input-terkunci'); 
     }
     
-    document.getElementById('update-keterangan').style.display = 'none'; document.getElementById('label-keterangan').style.display = 'none'; document.getElementById('btn-submit-update').innerHTML = 'Simpan Revisi'; document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').style.display = 'none'; setTimeout(resizeCanvas, 100); } else { document.getElementById('update-title').innerText = 'Update: ' + id; statusElement.disabled = false; statusElement.classList.remove('input-terkunci'); document.getElementById('update-keterangan').style.display = 'block'; document.getElementById('label-keterangan').style.display = 'block'; document.getElementById('btn-submit-update').innerHTML = 'Simpan Data'; if (t['Deskripsi Pekerjaan (BA)']) { document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 100); } } document.getElementById('modal-update').style.display = 'flex'; }
-        function tutupModal() { document.getElementById('modal-update').style.display = 'none'; }
+    document.getElementById('update-keterangan').style.display = 'none'; document.getElementById('label-keterangan').style.display = 'none'; document.getElementById('btn-submit-update').innerHTML = 'Simpan Revisi'; document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').style.display = 'none'; setTimeout(resizeCanvas, 100); } else { document.getElementById('update-title').innerText = 'Update: ' + id; statusElement.disabled = false; statusElement.classList.remove('input-terkunci'); document.getElementById('update-keterangan').style.display = 'block'; document.getElementById('label-keterangan').style.display = 'block'; document.getElementById('btn-submit-update').innerHTML = 'Update Tiket'; if (t['Deskripsi Pekerjaan (BA)']) { document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 100); } } document.getElementById('modal-update').style.display = 'flex'; }
+        function bersihkanTtdUpdate() { clearSignature(); }
+        function simpanUpdateTiket() {
+            const formUpdate = document.getElementById('form-update');
+            if (formUpdate.requestSubmit) formUpdate.requestSubmit();
+            else formUpdate.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        }
+        function tutupModal(modalId) { document.getElementById(modalId || 'modal-update').style.display = 'none'; }
         function cekKeterangan() { const status = document.getElementById('update-status').value; const ket = document.getElementById('update-keterangan'); const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); const baDesk = document.getElementById('ba-deskripsi'); const baNama = document.getElementById('ba-nama-customer'); const infoText = document.getElementById('info-wajib-text'); if (status === 'Pending' || status === 'Cancel' || status === 'Outsource') { ket.placeholder = "Wajib diisi! Masukkan alasan / info bengkel rekanan di sini..."; } else { ket.placeholder = "Ketik update kegiatan di sini..."; } if (status === 'Selesai') { btnToggle.style.display = 'none'; baSection.style.display = 'block'; baDesk.required = true; baNama.required = true; infoText.innerText = "*Wajib diisi beserta Tanda Tangan Customer"; setTimeout(resizeCanvas, 50); } else if (status === 'On Progress' || status === 'Pending') { btnToggle.style.display = 'block'; baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; baDesk.required = false; baNama.required = false; infoText.innerText = "*Bisa dicicil tanpa harus Tanda Tangan"; } else { btnToggle.style.display = 'none'; baSection.style.display = 'none'; baDesk.required = false; baNama.required = false; } }
         
         async function submitUpdate(e) { 
@@ -3380,7 +3401,7 @@
                     showToast('Afwan, Gagal mengupdate data: ' + result.pesan, 'error'); 
                 } 
             } catch(err) { window.location.reload(); } 
-            btn.innerText = 'Simpan Data'; btn.disabled = false; 
+            btn.innerText = 'Update Tiket'; btn.disabled = false; 
         }
         
         async function hapusTiket(idTiket) { 
