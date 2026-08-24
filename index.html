@@ -1370,14 +1370,14 @@
                 let savedSession = sessionStorage.getItem('sesiLoginSLA');
                 if (savedSession) {
                     const parsedSession = JSON.parse(savedSession);
-                    if (!parsedSession || !parsedSession.user || !parsedSession.loginTime) throw new Error("Sesi tidak valid");
+                    if (!parsedSession || !parsedSession.user || !parsedSession.user.SessionToken || !parsedSession.loginTime) throw new Error("Sesi tidak valid");
                     if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { 
                         localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Afwan, sesi login telah berakhir.', 'warning'); 
                     } else { 
                         const cekDB = globalUsers.find(u => u && u.Username === parsedSession.user.Username); 
                         if(cekDB) {
-                            penggunaAktif = cekDB;
-                            const sesiBersih = JSON.stringify({ user: cekDB, loginTime: parsedSession.loginTime });
+                            penggunaAktif = Object.assign({}, cekDB, { SessionToken: parsedSession.user.SessionToken });
+                            const sesiBersih = JSON.stringify({ user: penggunaAktif, loginTime: parsedSession.loginTime });
                             sessionStorage.setItem('sesiLoginSLA', sesiBersih);
                         } else { localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
                     }
@@ -1421,6 +1421,7 @@
                 if (hasil.status === 'sukses' && hasil.user) {
                     penggunaAktif = hasil.user;
                     if (Object.prototype.hasOwnProperty.call(penggunaAktif, 'Password')) delete penggunaAktif.Password;
+                    if (!penggunaAktif.SessionToken) throw new Error('Token sesi tidak diterima dari server.');
                     let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
 
                     sessionStorage.setItem('sesiLoginSLA', dataSesi);
@@ -3671,7 +3672,8 @@
                     if (penggunaAktif && penggunaAktif.Role !== 'admin') {
                         const uUpdated = (globalUsers || []).find(x => x && x.Username === penggunaAktif.Username);
                         if (uUpdated) {
-                            penggunaAktif = uUpdated;
+                            const sessionTokenAktif = penggunaAktif.SessionToken;
+                            penggunaAktif = Object.assign({}, uUpdated, { SessionToken: sessionTokenAktif });
                             let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
                             sessionStorage.setItem('sesiLoginSLA', dataSesi);
                         }

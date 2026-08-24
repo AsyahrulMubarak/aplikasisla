@@ -410,7 +410,7 @@
             if (savedSession) {
                 try {
                     let parsedSession = JSON.parse(savedSession);
-                    if (parsedSession && parsedSession.user) {
+                    if (parsedSession && parsedSession.user && parsedSession.user.SessionToken) {
                         penggunaAktif = parsedSession.user;
                         document.getElementById('user-display').innerHTML = `<b>${penggunaAktif['Nama Asli']}</b><br>Role: ${penggunaAktif.Role.toUpperCase()}`;
 
@@ -643,7 +643,10 @@
                 apiKey: API_KEY,
                 action: action,
                 username: penggunaAktif.Username,
-                passwordHash: penggunaAktif.Password,
+                user: {
+                    Username: penggunaAktif.Username,
+                    SessionToken: penggunaAktif.SessionToken
+                },
                 namaAsli: penggunaAktif['Nama Asli'],
                 role: penggunaAktif.Role
             }, tambahan);
@@ -981,7 +984,10 @@
                 const payload = {
                     apiKey: API_KEY,
                     username: penggunaAktif.Username,
-                    passwordHash: penggunaAktif.Password, // Keamanan Berlapis
+                    user: {
+                        Username: penggunaAktif.Username,
+                        SessionToken: penggunaAktif.SessionToken
+                    },
                     namaAsli: penggunaAktif['Nama Asli'],
                     role: penggunaAktif.Role,
                     tipeAbsen: tipeAbsen,
@@ -1038,7 +1044,12 @@
                 let session = JSON.parse(localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA'));
                 if(!session || !session.user) { showToast('Sesi tidak valid!', true); return; }
 
-                let res = await fetch(API_ABSEN_URL, { method:'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'getTinjauanAbsen', nama: session.user['Nama Asli'] }) });
+                let res = await fetch(API_ABSEN_URL, { method:'POST', body: JSON.stringify({
+                    apiKey: API_KEY,
+                    action: 'getTinjauanAbsen',
+                    nama: session.user['Nama Asli'],
+                    user: { Username: session.user.Username, SessionToken: session.user.SessionToken }
+                }) });
                 let json = await res.json();
 
                 if(json.status === 'sukses' && json.data.length > 0) {
