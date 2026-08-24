@@ -1669,6 +1669,31 @@
                 return (d.getMonth() + 1 == selBulan) && (d.getFullYear() == selTahun);
             }
 
+            // DATA STREAM SEPARATION: nominal aktual dan potensi tidak boleh saling menggantikan.
+            function nilaiDashboard_(rawValue) {
+                if (typeof rawValue === 'number') return isNaN(rawValue) ? 0 : rawValue;
+                let teksNilai = String(rawValue || '').trim();
+                if (!teksNilai) return 0;
+                let angkaBersih = teksNilai.replace(/[^0-9,.-]/g, '');
+                if (angkaBersih.indexOf(',') !== -1) angkaBersih = angkaBersih.replace(/\./g, '').replace(',', '.');
+                else if (/^-?\d{1,3}(\.\d{3})+$/.test(angkaBersih)) angkaBersih = angkaBersih.replace(/\./g, '');
+                return parseFloat(angkaBersih) || 0;
+            }
+
+            function statusProspekDashboard_(prospek) {
+                return String((prospek && (prospek['Status Prospek'] || prospek['Status'])) || '').trim().toLowerCase();
+            }
+
+            function isProspekClosingDashboard_(prospek) {
+                let status = statusProspekDashboard_(prospek);
+                return status.includes('closing') || status.includes('deal');
+            }
+
+            function isProspekBatalDashboard_(prospek) {
+                let status = statusProspekDashboard_(prospek);
+                return status.includes('batal') || status.includes('cancel') || status.includes('tanpa keterangan');
+            }
+
             // RINGKASAN EKSEKUTIF KHUSUS MANAJEMEN
             let roleDash = String((penggunaAktif && penggunaAktif.Role) || '').toLowerCase();
             let isEksekutif = roleDash === 'admin' || roleDash === 'manager' || roleDash === 'direktur';
@@ -1681,35 +1706,36 @@
                 let prospekTotal = 0;
                 let prospekDeal = 0;
 
-                function nilaiEksekutif(rawValue) {
-                    if (typeof rawValue === 'number') return isNaN(rawValue) ? 0 : rawValue;
-                    let teksNilai = String(rawValue || '').trim();
-                    if (!teksNilai) return 0;
-                    let angkaBersih = teksNilai.replace(/[^0-9,.-]/g, '');
-                    if (angkaBersih.indexOf(',') !== -1) angkaBersih = angkaBersih.replace(/\./g, '').replace(',', '.');
-                    else if (/^-?\d{1,3}(\.\d{3})+$/.test(angkaBersih)) angkaBersih = angkaBersih.replace(/\./g, '');
-                    return parseFloat(angkaBersih) || 0;
-                }
-
-                // Omzet penjualan langsung pada periode yang sedang dipilih.
+                // REAL REVENUE STREAM 1: transaksi yang sudah dibukukan di tab Penjualan.
                 (globalPenjualan || []).forEach(p => {
                     if (!p) return;
                     let tanggalPenjualan = p['Tanggal'] || p['Waktu Lapor'] || p['Tanggal Input'];
                     if (!inPeriode(tanggalPenjualan)) return;
-                    totalOmzetAll += nilaiEksekutif(
+                    totalOmzetAll += nilaiDashboard_(
                         p['Nominal (Rp)'] || p['Nominal Omzet'] || p['Total Transaksi'] || p['Nominal'] || 0
                     );
                 });
 
-                // Pipeline dan win rate seluruh Prospek pada periode yang sama.
+                // REAL REVENUE STREAM 2: servis/tiket hanya setelah pembayaran benar-benar Lunas.
+                (globalTickets || []).forEach(t => {
+                    if (!t) return;
+                    let idTiket = String(t['ID Tiket'] || '').trim();
+                    if (!idTiket || idTiket.startsWith('SLS-')) return;
+                    let statusPembayaran = String(t['Status Pembayaran'] || '').trim().toLowerCase();
+                    if (!statusPembayaran.includes('lunas')) return;
+                    let tanggalAktual = t['Tanggal Lunas'] || t['Waktu Selesai'] || t[Object.keys(t)[9]];
+                    if (!inPeriode(tanggalAktual)) return;
+                    totalOmzetAll += nilaiDashboard_(t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0);
+                });
+
+                // PIPELINE STREAM: Prospek Closing/Deal dan Batal tidak menyumbang rupiah potensi.
                 (globalProspek || []).forEach(p => {
                     if (!p || !inPeriode(p['Tanggal Input'] || p['Tanggal'])) return;
                     prospekTotal++;
-                    let stat = String(p['Status Prospek'] || p['Status'] || '').toLowerCase();
-                    if (stat.indexOf('closing') !== -1 || stat.indexOf('deal') !== -1) {
+                    if (isProspekClosingDashboard_(p)) {
                         prospekDeal++;
-                    } else if (stat.indexOf('batal') === -1 && stat.indexOf('tanpa keterangan') === -1) {
-                        totalPipeline += nilaiEksekutif(
+                    } else if (!isProspekBatalDashboard_(p)) {
+                        totalPipeline += nilaiDashboard_(
                             p['Potensi Nilai'] || p['Estimasi (Rp)'] || p['Estimasi Nilai Proyek (Rp)'] ||
                             p['Estimasi'] || p['Nominal'] || 0
                         );
@@ -1742,16 +1768,16 @@
                 let tLapor = t[Object.keys(t)[2]];
                 let acuanWaktuSLA = tSelesai ? tSelesai : tLapor; // Acuan untuk performa SLA & Omzet
                 
-                let nilaiJualDash = parseInt(t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0);
-                let statBayar = t['Status Pembayaran'] || '';
-                let tLunas = t['Tanggal Lunas'] || tSelesai; 
+                let nilaiJualDash = nilaiDashboard_(t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0);
+                let statBayar = String(t['Status Pembayaran'] || '').trim().toLowerCase();
+                let tLunas = t['Tanggal Lunas'] || tSelesai;
                 
                 // MESIN WAKTU GANDA:
                 let isInPeriodeSLA = inPeriode(acuanWaktuSLA);
                 
                 // POIN HANYA MUNCUL DI DASBOR JIKA STATUSNYA SUDAH LUNAS / VERIFIKASI
                 let isInPeriodePoin = false;
-                if (statBayar === 'Lunas' && tLunas) {
+                if (statBayar.includes('lunas') && tLunas) {
                     isInPeriodePoin = inPeriode(tLunas);
                 }
 
@@ -1838,16 +1864,26 @@
                         }
                     }
 
-                    // Sales Logic (Omzet masuk di bulan tiket selesai)
+                    // Kuantitas tiket mengikuti periode SLA. Nominal omzet diproses terpisah saat Lunas.
                     let sNames = String(t['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
-                    let revPerSales = sNames.length > 0 ? (nilaiJualDash / sNames.length) : 0;
                     sNames.forEach(sName => {
                         let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                         if (!sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; sKey = sName; }
-                        if (sKey) { 
-                            statsSales[sKey].total++; 
-                            if (statusTiket === 'Selesai') { statsSales[sKey].revenue += revPerSales; statsSales[sKey].selesai++; } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; }
+                        if (sKey) {
+                            statsSales[sKey].total++;
+                            if (statusTiket === 'Selesai') { statsSales[sKey].selesai++; } else if (statusTiket === 'Cancel') { statsSales[sKey].batal++; } else { statsSales[sKey].progress++; }
                         }
+                    });
+                }
+
+                // Omzet servis aktual masuk ke pencapaian Sales pada periode pembayaran Lunas.
+                if (isInPeriodePoin && statusTiket === 'Selesai') {
+                    let salesTiketLunas = String(t['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
+                    let omzetTiketPerSales = salesTiketLunas.length > 0 ? (nilaiJualDash / salesTiketLunas.length) : 0;
+                    salesTiketLunas.forEach(sName => {
+                        let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
+                        if (!sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; sKey = sName; }
+                        statsSales[sKey].revenue += omzetTiketPerSales;
                     });
                 }
                 // ==========================================
@@ -1896,24 +1932,21 @@
                 }
             });
 
-            // === PERBAIKAN LOGIKA OMZET PROSPEK B2B (MULTI-SALES FULL OMZET) ===
+            // === PROSPEK: HANYA PIPELINE AKTIF DAN JUMLAH WIN/LOSS, TANPA OMZET AKTUAL ===
             (globalProspek || []).forEach(p => {
                 if (!p) return;
                 if (!inPeriode(p['Tanggal Input'])) return; // Filter Bulan Prospek
 
-                let statusProspek = String(p['Status'] || p['Status Prospek'] || '').trim().toUpperCase();
                 let arrSales = String(p['Sales Penanggung Jawab'] || p['Sales'] || '')
                     .split(',')
                     .map(s => s.trim())
                     .filter(s => s !== "" && s !== "-");
 
-                // Fleksibel membaca nominal dari struktur Prospek lama maupun baru.
-                let nilaiDeal = parseFloat(
-                    p['Nilai Deal'] || p['Nominal Deal'] || p['Penawaran Akhir'] ||
-                    p['Estimasi Nilai'] || p['Estimasi (Rp)'] ||
-                    p['Estimasi Nilai Proyek (Rp)'] || p['Estimasi'] || 0
-                ) || 0;
-                let potensiPerSales = arrSales.length > 0 ? (nilaiDeal / arrSales.length) : 0;
+                let nilaiPotensi = nilaiDashboard_(
+                    p['Potensi Nilai'] || p['Estimasi Nilai'] || p['Estimasi (Rp)'] ||
+                    p['Estimasi Nilai Proyek (Rp)'] || p['Estimasi'] || p['Nominal'] || 0
+                );
+                let potensiPerSales = arrSales.length > 0 ? (nilaiPotensi / arrSales.length) : 0;
 
                 arrSales.forEach(namaSalesTarget => {
                     let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === namaSalesTarget.toLowerCase());
@@ -1922,49 +1955,28 @@
                         sKey = namaSalesTarget;
                     }
 
-                    if (statusProspek.includes('DEAL') || statusProspek.includes('CLOSING')) {
-                        // FULL omzet diberikan kepada setiap sales yang terlibat, tanpa dibagi.
-                        statsSales[sKey].revenue += nilaiDeal;
+                    if (isProspekClosingDashboard_(p)) {
+                        // Closing tetap dihitung sebagai kuantitas win, tetapi tidak membawa nilai rupiah.
                         statsSales[sKey].prospek_deal++;
-                    } else if (statusProspek.includes('PENAWARAN') || statusProspek.includes('KUNJUNGAN')) {
-                        statsSales[sKey].potensi_omzet += potensiPerSales;
-                    } else if (statusProspek.includes('BATAL') || statusProspek.includes('TANPA KETERANGAN')) {
+                    } else if (isProspekBatalDashboard_(p)) {
                         statsSales[sKey].prospek_batal++;
+                    } else {
+                        // Semua status selain Closing/Deal dan Batal/Cancel adalah pipeline aktif.
+                        statsSales[sKey].potensi_omzet += potensiPerSales;
                     }
                 });
             });
 
             (globalPenjualan || []).forEach(p => {
                 if(!p) return;
-                if(!inPeriode(p['Waktu Lapor'])) return; // <-- Filter Bulan Penjualan
+                if(!inPeriode(p['Tanggal'] || p['Waktu Lapor'] || p['Tanggal Input'])) return; // Filter Bulan Penjualan
 
                 let sNames = String(p['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
 
-                // === SISTEM PENCEGAH DOUBLE OMZET (PROSPEK VS PENJUALAN) ===
-                let namaPembeli = String(
-                    p['Nama Pembeli'] || p['Pembeli'] || p['Nama Klien'] || p['Nama Customer'] || ''
-                ).trim().toLowerCase();
-                let nominalJual = parseFloat(
+                // REAL REVENUE: Prospek tidak pernah menjadi sumber nominal aktual.
+                let nominalJual = nilaiDashboard_(
                     p['Nominal (Rp)'] || p['Nominal Omzet'] || p['Total Transaksi'] || p['Nominal'] || 0
-                ) || 0;
-
-                // Cek apakah transaksi ini sudah pernah dihitung di Prospek yang DEAL.
-                let isDariProspek = (typeof globalProspek !== 'undefined' ? globalProspek : []).some(prp => {
-                    let namaPrp = String(
-                        prp['Nama Calon Customer'] || prp['Calon Customer'] ||
-                        prp['Nama Klien'] || prp['Nama Customer'] || ''
-                    ).trim().toLowerCase();
-                    let nominalPrp = parseFloat(
-                        prp['Nilai Deal'] || prp['Nominal Deal'] || prp['Penawaran Akhir'] ||
-                        prp['Estimasi Nilai'] || prp['Estimasi (Rp)'] ||
-                        prp['Estimasi Nilai Proyek (Rp)'] || prp['Estimasi'] || 0
-                    ) || 0;
-                    let statusPrp = String(prp['Status Prospek'] || prp['Status'] || '').toUpperCase();
-
-                    return (statusPrp.includes('DEAL') || statusPrp.includes('CLOSING')) &&
-                           (namaPrp === namaPembeli) &&
-                           (nominalPrp === nominalJual);
-                });
+                );
 
                 let revPerSalesSls = sNames.length > 0 ? (nominalJual / sNames.length) : 0;
 
@@ -1975,10 +1987,8 @@
                         statsSales[sKey].total++;
                         statsSales[sKey].selesai++;
 
-                        // Penjualan langsung hanya menambah omzet jika belum dihitung oleh Prospek.
-                        if (!isDariProspek) {
-                            statsSales[sKey].revenue += nominalJual;
-                        }
+                        // Dibagi per Sales agar total tim tidak menggandakan satu transaksi multi-sales.
+                        statsSales[sKey].revenue += revPerSalesSls;
                     }
                 });
             });
