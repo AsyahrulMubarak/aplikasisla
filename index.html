@@ -750,7 +750,7 @@
                     <label>Nama Klien & Lokasi</label><input type="text" id="input-klien" required oninput="deteksiSalesDariProspek(this, 'sales-group')">
                     <!-- FITUR BARU WA KLIEN -->
                     <label style="color:#1e3a8a;">No WhatsApp Klien (Opsional - Untuk Notif Tracking)</label>
-                    <input type="tel" id="input-wa-klien" placeholder="Contoh: 6285123456789" oninput="formatWA(this)">
+                    <input type="tel" id="input-wa-klien" placeholder="Contoh: 6285123456789" oninput="formatWA(this); deteksiSalesDariProspek(this, 'sales-group', 'wa')">
                     <!-- ===================== -->
                     
                     <label>Jenis Pekerjaan</label>
@@ -4063,21 +4063,44 @@
         }
 
         // === FITUR SENSOR AUTO-FILL SALES DARI PROSPEK ===
-        function deteksiSalesDariProspek(elemenInputKlien, idTargetKolomSales) {
+        function normalisasiWASementara_(nomorWA) {
+            let waBersih = String(nomorWA || '').replace(/\D/g, '');
+            if (waBersih.startsWith('0')) waBersih = '62' + waBersih.substring(1);
+            else if (waBersih.startsWith('8')) waBersih = '62' + waBersih;
+            return waBersih;
+        }
+
+        function deteksiSalesDariProspek(elemenInputKlien, idTargetKolomSales, modePencarian) {
             if (!elemenInputKlien) return;
 
-            let namaDiketik = String(elemenInputKlien.value || '').toLowerCase().trim();
+            let cariDenganWA = modePencarian === 'wa' || elemenInputKlien.id === 'input-wa-klien';
+            let namaDiketik = cariDenganWA
+                ? String((document.getElementById('input-klien') || {}).value || '').toLowerCase().trim()
+                : String(elemenInputKlien.value || '').toLowerCase().trim();
+            let waDiketik = cariDenganWA
+                ? normalisasiWASementara_(elemenInputKlien.value)
+                : normalisasiWASementara_((document.getElementById('input-wa-klien') || {}).value);
 
-            // Jangan mendeteksi jika ketikan masih terlalu pendek (kurang dari 3 huruf).
-            if (namaDiketik.length < 3) return;
+            // Nama minimal 3 karakter; nomor WA minimal 8 digit agar tidak salah mencocokkan.
+            let namaLayakDicari = namaDiketik.length >= 3;
+            let waLayakDicari = waDiketik.length >= 8;
+            if (!namaLayakDicari && !waLayakDicari) return;
 
-            let prospekMatch = (typeof globalProspek !== 'undefined' ? globalProspek : []).find(prp => {
-                let namaPrp = String(prp['Calon Customer'] || prp['Nama Klien'] || prp['Nama Customer'] || '').toLowerCase().trim();
-                let statusPrp = String(prp['Status Prospek'] || prp['Status'] || '').toUpperCase();
+            // Cari dari data terbaru dan prioritaskan kecocokan WA sebelum fallback ke nama.
+            let daftarProspek = typeof globalProspek !== 'undefined' ? globalProspek.slice().reverse() : [];
+            let prospekMatch = waLayakDicari ? daftarProspek.find(prp => {
+                if (!prp) return false;
+                let waPrp = normalisasiWASementara_(prp['No WA'] || prp['No WhatsApp'] || prp['WA'] || prp['Telepon'] || '');
+                return waPrp === waDiketik;
+            }) : null;
 
-                return (statusPrp.includes('DEAL') || statusPrp.includes('CLOSING')) &&
-                       (namaPrp === namaDiketik);
-            });
+            if (!prospekMatch && namaLayakDicari) {
+                prospekMatch = daftarProspek.find(prp => {
+                    if (!prp) return false;
+                    let namaPrp = String(prp['Nama Calon Customer'] || prp['Calon Customer'] || prp['Nama Klien'] || prp['Nama Customer'] || '').toLowerCase().trim();
+                    return namaPrp === namaDiketik;
+                });
+            }
 
             if (!prospekMatch) return;
 
