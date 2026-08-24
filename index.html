@@ -1827,7 +1827,7 @@
                 const salesGroupSls = document.getElementById('input-sales-sls-group'); if(salesGroupSls) salesGroupSls.innerHTML = '';
                 const garansiSalesGroup = document.getElementById('garansi-sales-group'); 
                 if(garansiSalesGroup) garansiSalesGroup.innerHTML = '';
-                
+
                 let salesList = (globalUsers || []).filter(u => u && u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
                 salesList.forEach(s => { 
                     if(salesGroup) salesGroup.innerHTML += `<label><input type="checkbox" value="${s}" onchange="togglePenjualanInput()"> ${s}</label>`;
@@ -2168,6 +2168,40 @@
                 return parseFloat(angkaBersih) || 0;
             }
 
+            function nilaiOmzetGaransiDashboard_(garansi) {
+                if (!garansi) return 0;
+                return nilaiDashboard_(
+                    garansi['Omzet'] || garansi['Omzet (Rp)'] ||
+                    garansi['Nilai Penjualan / Omzet (Rp)'] ||
+                    garansi['Nilai Penjualan (Rp)'] || garansi['Nilai Penjualan'] || 0
+                );
+            }
+
+            function tanggalOmzetGaransiDashboard_(garansi) {
+                if (!garansi) return '';
+
+                let tanggalGaransi = garansi['Tanggal Transaksi'] || garansi['Tanggal Input'] || garansi['Tanggal Mulai'];
+                if (tanggalGaransi) return tanggalGaransi;
+
+                // Data Garansi lama belum memiliki tanggal input khusus; gunakan tanggal transaksi referensinya.
+                let referensi = String(garansi['Referensi (Tiket/Nota)'] || '').trim();
+                if (referensi.startsWith('TKT-')) {
+                    let tiketReferensi = (globalTickets || []).find(tiket => tiket && tiket['ID Tiket'] === referensi);
+                    if (tiketReferensi) {
+                        return tiketReferensi['Tanggal Lunas'] || tiketReferensi['Waktu Selesai'] ||
+                            tiketReferensi[Object.keys(tiketReferensi)[9]] || tiketReferensi['Waktu Lapor'] || '';
+                    }
+                } else if (referensi.startsWith('SLS-')) {
+                    let penjualanReferensi = (globalPenjualan || []).find(penjualan => penjualan && penjualan['ID Penjualan'] === referensi);
+                    if (penjualanReferensi) {
+                        return penjualanReferensi['Tanggal'] || penjualanReferensi['Waktu Lapor'] ||
+                            penjualanReferensi['Tanggal Input'] || '';
+                    }
+                }
+
+                return '';
+            }
+
             function statusProspekDashboard_(prospek) {
                 return String((prospek && (prospek['Status Prospek'] || prospek['Status'])) || '').trim().toLowerCase();
             }
@@ -2204,16 +2238,10 @@
                     );
                 });
 
-                // REAL REVENUE STREAM 2: servis/tiket hanya setelah pembayaran benar-benar Lunas.
-                (globalTickets || []).forEach(t => {
-                    if (!t) return;
-                    let idTiket = String(t['ID Tiket'] || '').trim();
-                    if (!idTiket || idTiket.startsWith('SLS-')) return;
-                    let statusPembayaran = String(t['Status Pembayaran'] || '').trim().toLowerCase();
-                    if (!statusPembayaran.includes('lunas')) return;
-                    let tanggalAktual = t['Tanggal Lunas'] || t['Waktu Selesai'] || t[Object.keys(t)[9]];
-                    if (!inPeriode(tanggalAktual)) return;
-                    totalOmzetAll += nilaiDashboard_(t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0);
+                // REAL REVENUE STREAM 2: omzet jasa yang sudah dicatat Admin di tab Garansi.
+                (globalGaransi || []).forEach(g => {
+                    if (!g || !inPeriode(tanggalOmzetGaransiDashboard_(g))) return;
+                    totalOmzetAll += nilaiOmzetGaransiDashboard_(g);
                 });
 
                 // PIPELINE STREAM: Prospek Closing/Deal dan Batal tidak menyumbang rupiah potensi.
@@ -2254,12 +2282,11 @@
                 // Ambil 3 jenis waktu
                 let tSelesai = t[Object.keys(t)[9]];
                 let tLapor = t[Object.keys(t)[2]];
-                let acuanWaktuSLA = tSelesai ? tSelesai : tLapor; // Acuan untuk performa SLA & Omzet
-                
-                let nilaiJualDash = nilaiDashboard_(t['Nilai Penjualan (Rp)'] || t['Nilai Penjualan'] || 0);
+                let acuanWaktuSLA = tSelesai ? tSelesai : tLapor; // Acuan untuk performa SLA
+
                 let statBayar = String(t['Status Pembayaran'] || '').trim().toLowerCase();
                 let tLunas = t['Tanggal Lunas'] || tSelesai;
-                
+
                 // MESIN WAKTU GANDA:
                 let isInPeriodeSLA = inPeriode(acuanWaktuSLA);
                 
@@ -2352,7 +2379,7 @@
                         }
                     }
 
-                    // Kuantitas tiket mengikuti periode SLA. Nominal omzet diproses terpisah saat Lunas.
+                    // Kuantitas tiket mengikuti periode SLA. Nominal omzet jasa berasal dari tab Garansi.
                     let sNames = String(t['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
                     sNames.forEach(sName => {
                         let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
@@ -2364,16 +2391,6 @@
                     });
                 }
 
-                // Omzet servis aktual masuk ke pencapaian Sales pada periode pembayaran Lunas.
-                if (isInPeriodePoin && statusTiket === 'Selesai') {
-                    let salesTiketLunas = String(t['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
-                    let omzetTiketPerSales = salesTiketLunas.length > 0 ? (nilaiJualDash / salesTiketLunas.length) : 0;
-                    salesTiketLunas.forEach(sName => {
-                        let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
-                        if (!sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; sKey = sName; }
-                        statsSales[sKey].revenue += omzetTiketPerSales;
-                    });
-                }
                 // ==========================================
                 // BLOK 2: PENCAIRAN POIN (Dihitung di Bulan Lunas)
                 // ==========================================
@@ -2480,7 +2497,30 @@
                     }
                 });
             });
-            
+
+            // REAL REVENUE JASA: nominal aktual hanya bersumber dari kolom Omzet di tab Garansi.
+            (globalGaransi || []).forEach(g => {
+                if (!g || !inPeriode(tanggalOmzetGaransiDashboard_(g))) return;
+
+                let nominalGaransi = nilaiOmzetGaransiDashboard_(g);
+                let salesGaransi = String(g['Sales'] || '')
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(s => s !== '' && s !== '-');
+                let omzetGaransiPerSales = salesGaransi.length > 0 ? (nominalGaransi / salesGaransi.length) : 0;
+
+                salesGaransi.forEach(namaSales => {
+                    let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === namaSales.toLowerCase());
+                    if (!sKey) {
+                        statsSales[namaSales] = { nama: namaSales, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 };
+                        sKey = namaSales;
+                    }
+
+                    // Hanya menambah omzet; jumlah transaksi tetap berasal dari Tiket/Penjualan agar tidak berlipat.
+                    statsSales[sKey].revenue += omzetGaransiPerSales;
+                });
+            });
+
             let aTotal = statsAdmin.tepat + statsAdmin.telat + statsAdmin.proses; let aRate = aTotal > 0 ? Math.round((statsAdmin.tepat / aTotal) * 100) : 0; let aP1 = aTotal === 0 ? 0 : (statsAdmin.tepat / aTotal) * 100; let aP2 = aTotal === 0 ? 0 : aP1 + (statsAdmin.telat / aTotal) * 100; let aBg = aTotal === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${aP1}%, var(--danger) ${aP1}% ${aP2}%, var(--warning) ${aP2}% 100%)`;
 
             let htmlAdmin = `<h3 class="section-title">Performa Admin (SLA Internal)</h3><div class="card" style="border-left-color:#3b82f6;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:#3b82f6; font-size:16px;">SLA 1: Distribusi Tugas Teknisi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 3 Hari (27 Jam Kerja).</p><div class="charts-container"><div class="chart-box" style="flex:1;"><div class="chart-title">DISTRIBUSI TUGAS</div><div class="donut" style="background: ${aBg};"><div class="donut-inner"><span class="donut-val" style="color:${aRate>=80?'var(--success)':(aRate>=50?'var(--warning)':'var(--danger)')}">${aTotal>0?aRate+'%':'-'}</span><span class="donut-label">Sukses</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Cepat</span> <b>${statsAdmin.tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat (>3 Hari)</span> <b>${statsAdmin.telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${statsAdmin.proses}</b></div></div></div></div></div>`;
