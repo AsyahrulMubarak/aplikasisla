@@ -129,7 +129,7 @@
         .legend-item { display: flex; justify-content: space-between; align-items: center; color: #4a5568; font-weight: 500;}
         .legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; }
         .code-badge { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--primary); border: 1px solid #e2e8f0; }
-        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
         .toast { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-radius: 8px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-left: 5px solid; font-size: 14px; font-weight: 600; animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; max-width: 300px;}
         .toast-success { border-left-color: var(--success); color: #064e3b; }
         .toast-error { border-left-color: var(--danger); color: #7f1d1d; }
@@ -581,7 +581,7 @@
             </div>
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-prospek-input" placeholder="Cari Calon Customer, Kebutuhan, Sales..." oninput="toggleClearBtn(this); renderProspek()">
+                <input type="text" id="search-prospek-input" placeholder="Cari Calon Customer, No WA, Kebutuhan, Sales..." oninput="toggleClearBtn(this); renderProspek()">
                 <span class="clear-icon" onclick="clearSearch('search-prospek-input')">✖</span>
             </div>
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
@@ -643,7 +643,7 @@
             </div>
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-garansi-input" placeholder="Cari Pelanggan, Barang, Referensi..." oninput="toggleClearBtn(this); renderGaransi()">
+                <input type="text" id="search-garansi-input" placeholder="Cari Pelanggan, Barang, Referensi, No Transaksi..." oninput="toggleClearBtn(this); renderGaransi()">
                 <span class="clear-icon" onclick="clearSearch('search-garansi-input')">✖</span>
             </div>
             <div id="form-garansi-container" class="form-card" style="display:none; border-top-color:#3b82f6;">
@@ -1440,11 +1440,19 @@
                     return;
                 }
 
-                if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
-                showToast('Afwan, ' + (hasil.pesan || 'Username atau Password tidak valid!'), 'error');
+                // Tampilkan pesan penolakan langsung dari server agar pengguna mengetahui penyebab login gagal.
+                showToast(hasil.pesan || 'Afwan, Login gagal. Periksa kembali Username dan Password Anda.', 'error');
+                if (btnLogin) {
+                    btnLogin.innerText = teksTombolAwal;
+                    btnLogin.disabled = false;
+                }
             } catch (error) {
-                if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
-                showToast('Afwan, Koneksi tidak stabil atau terblokir. Pastikan internet lancar.', 'error');
+                console.error('Error saat login:', error);
+                showToast('Afwan, terjadi kesalahan jaringan atau server tidak merespons.', 'error');
+                if (btnLogin) {
+                    btnLogin.innerText = teksTombolAwal;
+                    btnLogin.disabled = false;
+                }
             }
         }
 
@@ -2469,7 +2477,7 @@
             if(!container) return;
             container.innerHTML = ''; 
             let searchInput = document.getElementById('search-garansi-input'); 
-            let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
+            let keywordPencarian = searchInput ? searchInput.value.trim().toLowerCase() : '';
             
             let htmlAda = false;
             let garansiDitampilkan = [...(globalGaransi || [])];
@@ -2498,10 +2506,17 @@
                 if(!g) return;
                 let idGrs = String(g['ID Garansi'] || '');
                 if (!idGrs) return;
+                let noTransGrs = g['No Transaksi'] || g[Object.keys(g)[8]] || '';
                 
-                if (searchVal !== '') {
-                    let strCari = `${g['ID Garansi']} ${g['Referensi (Tiket/Nota)']} ${g['Nama Pelanggan']} ${g['Barang / Jasa']}`.toLowerCase();
-                    if (!strCari.includes(searchVal)) return;
+                if (keywordPencarian !== '') {
+                    let strCari = [
+                        g['ID Garansi'],
+                        g['Referensi (Tiket/Nota)'],
+                        g['Nama Pelanggan'],
+                        g['Barang / Jasa'],
+                        noTransGrs
+                    ].map(nilai => String(nilai || '').toLowerCase()).join(' ');
+                    if (!strCari.includes(keywordPencarian)) return;
                 }
                 htmlAda = true;
                 
@@ -2516,7 +2531,7 @@
                     isExpired = true;
                 }
 
-                if (isExpired && !flagPembatasHabis && searchVal === '') {
+                if (isExpired && !flagPembatasHabis && keywordPencarian === '') {
                     container.innerHTML += `<div style="margin: 30px 0 15px 0; text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 10px;"><span style="background: #f1f5f9; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #64748b;">↓ RIWAYAT GARANSI HABIS / DIKLAIM ↓</span></div>`;
                     flagPembatasHabis = true;
                 }
@@ -2525,7 +2540,6 @@
                 let tglHabis = g['Tanggal Habis'] ? formatWaktu(g['Tanggal Habis']) : '-';
 
                 let durasiTeks = g['Durasi (Hari)'] == 0 ? 'Tidak Ada' : g['Durasi (Hari)'] + ' Hari';
-                let noTransGrs = g['No Transaksi'] || g[Object.keys(g)[8]] || '';
                 let noTransGrsHtml = noTransGrs ? `<p><strong>No Trans:</strong> <span class="code-badge">${noTransGrs}</span></p>` : '';
                 
                 let ketGrs = g['Keterangan'] || g[Object.keys(g)[11]] || '';
@@ -2682,7 +2696,8 @@
 
         function renderProspek() {
             const container = document.getElementById('prospek-container'); container.innerHTML = ''; 
-            let searchInput = document.getElementById('search-prospek-input'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
+            let searchInput = document.getElementById('search-prospek-input');
+            let keywordPencarian = searchInput ? searchInput.value.trim().toLowerCase() : '';
             let pDitampilkan = [];
             
             if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
@@ -2694,10 +2709,19 @@
                 if(!p) return;
                 let idPrp = String(p['ID Prospek'] || '');
                 if (!idPrp) return;
+                let waKey = Object.keys(p).find(k => k && k.toLowerCase().includes('no wa'));
+                let noWaPrp = waKey && p[waKey] ? p[waKey] : (p['Telepon'] || '');
                 
-                if (searchVal !== '') {
-                    let strCari = `${p['ID Prospek']} ${p['Nama Calon Customer']} ${p['Kebutuhan']} ${p['Status Prospek']} ${p['Sales Penanggung Jawab']}`.toLowerCase();
-                    if (!strCari.includes(searchVal)) return;
+                if (keywordPencarian !== '') {
+                    let strCari = [
+                        p['ID Prospek'],
+                        p['Nama Calon Customer'],
+                        noWaPrp,
+                        p['Kebutuhan'],
+                        p['Status Prospek'],
+                        p['Sales Penanggung Jawab']
+                    ].map(nilai => String(nilai || '').toLowerCase()).join(' ');
+                    if (!strCari.includes(keywordPencarian)) return;
                 }
                 htmlAda = true;
                 
@@ -2775,8 +2799,6 @@
                 let estVal = p['Estimasi (Rp)'] || p['Estimasi Nilai Proyek (Rp)'] || p['Estimasi'] || 0;
                 let estimasiHtml = parseInt(estVal) > 0 ? `<p style="color:var(--success);"><strong>${labelEstimasi}</strong> ${formatRp(estVal)}</p>` : '';
                 // -------------------------
-                let waKey = Object.keys(p).find(k => k && k.toLowerCase().includes('no wa'));
-                let noWaPrp = waKey && p[waKey] ? p[waKey] : '';
                 let waHtml = noWaPrp ? `<p><strong>No WA:</strong> <a href="https://wa.me/${noWaPrp}" target="_blank" style="color:var(--primary); text-decoration:none; font-weight:600;">📱 ${noWaPrp}</a></p>` : '';
                 
                 let buktiChatHtml = p['Bukti Chat'] && p['Bukti Chat'].length > 10 ? `<div style="margin-top:10px;"><a href="${p['Bukti Chat']}" download="Bukti_Chat_${p['ID Prospek']}.jpg" class="dl-btn" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">⬇️ Unduh Bukti Chat</a></div>` : '';
