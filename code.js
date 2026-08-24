@@ -115,7 +115,11 @@ function hitungDurasiJamKerjaMs(waktuMulai, waktuSelesai) {
 // ==========================================
 function kirimNotifWA(nomorTujuan, pesan) {
   if (!nomorTujuan || nomorTujuan === "" || nomorTujuan === "-") return false;
-  var tokenWA = "FCqNxCZG2c7HAMCf5eyb"; 
+  var tokenWA = PropertiesService.getScriptProperties().getProperty("FONNTE_TOKEN");
+  if (!tokenWA) {
+    console.error("Konfigurasi FONNTE_TOKEN belum tersedia di Script Properties.");
+    return false;
+  }
   var options = { "method": "post", "headers": { "Authorization": tokenWA }, "payload": { "target": nomorTujuan, "message": pesan, "delay": "2" }, "muteHttpExceptions": true };
   try {
     var response = UrlFetchApp.fetch("https://api.fonnte.com/send", options);
@@ -613,6 +617,142 @@ function buatSessionToken_(username) {
   return Utilities.base64EncodeWebSafe(payloadToken, Utilities.Charset.UTF_8) + '.' + byteArrayToHex_(signature);
 }
 
+function bandingkanStringKonstan_(nilaiA, nilaiB) {
+  var a = String(nilaiA || '');
+  var b = String(nilaiB || '');
+  if (a.length !== b.length) return false;
+  var beda = 0;
+  for (var i = 0; i < a.length; i++) beda |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return beda === 0;
+}
+
+function verifikasiSessionToken_(dataUser) {
+  try {
+    if (!SESSION_TOKEN_SECRET || !dataUser || !dataUser.Username || !dataUser.SessionToken) return false;
+    var bagianToken = String(dataUser.SessionToken).split('.');
+    if (bagianToken.length !== 2 || !/^[0-9a-f]{64}$/i.test(bagianToken[1])) return false;
+
+    var payloadToken = Utilities.newBlob(Utilities.base64DecodeWebSafe(bagianToken[0])).getDataAsString();
+    var pemisahTerakhir = payloadToken.lastIndexOf('|');
+    if (pemisahTerakhir <= 0) return false;
+
+    var usernameToken = payloadToken.substring(0, pemisahTerakhir).trim().toLowerCase();
+    var kedaluwarsaPada = parseInt(payloadToken.substring(pemisahTerakhir + 1), 10);
+    var usernameRequest = String(dataUser.Username || '').trim().toLowerCase();
+    if (!usernameToken || usernameToken !== usernameRequest || isNaN(kedaluwarsaPada) || Date.now() > kedaluwarsaPada) return false;
+
+    var signatureSeharusnya = byteArrayToHex_(Utilities.computeHmacSha256Signature(
+      payloadToken,
+      SESSION_TOKEN_SECRET,
+      Utilities.Charset.UTF_8
+    ));
+    return bandingkanStringKonstan_(signatureSeharusnya, bagianToken[1].toLowerCase());
+  } catch (error) {
+    return false;
+  }
+}
+
+function otorisasiAdminBroadcastCRM_(dataUser, usersData) {
+  if (!verifikasiSessionToken_(dataUser) || !usersData || usersData.length < 2) return false;
+  var headerUsers = usersData[0] || [];
+  var colUsername = headerUsers.indexOf('Username');
+  var colRole = headerUsers.indexOf('Role');
+  if (colUsername === -1 || colRole === -1) return false;
+
+  var usernameRequest = String(dataUser.Username || '').trim().toLowerCase();
+  for (var i = 1; i < usersData.length; i++) {
+    var usernameDB = String(usersData[i][colUsername] || '').trim().toLowerCase();
+    if (usernameDB === usernameRequest) {
+      return String(usersData[i][colRole] || '').trim().toLowerCase() === 'admin';
+    }
+  }
+  return false;
+}
+
+function prosesBroadcastCRM_(data, usersData, ss) {
+  if (!otorisasiAdminBroadcastCRM_(data && data.user, usersData)) {
+    return { status: 'gagal', pesan: 'Afwan: Akses Broadcast ditolak. Sesi Admin tidak sah atau telah kedaluwarsa.' };
+  }
+
+  var pesanTemplate = String((data && data.pesan) || '').trim();
+  var daftarKlien = data && Array.isArray(data.klien) ? data.klien : [];
+  if (!pesanTemplate) return { status: 'gagal', pesan: 'Isi pesan Broadcast tidak boleh kosong.' };
+  if (pesanTemplate.length > 2000) return { status: 'gagal', pesan: 'Isi pesan Broadcast maksimal 2.000 karakter.' };
+  if (daftarKlien.length === 0) return { status: 'gagal', pesan: 'Daftar pelanggan Broadcast kosong.' };
+  if (daftarKlien.length > 50) return { status: 'gagal', pesan: 'Maksimal 50 pelanggan dalam satu batch Broadcast.' };
+
+  var spreadsheet = ss || SpreadsheetApp.getActiveSpreadsheet();
+  var sheetDatabaseKlien = spreadsheet.getSheetByName('Database Klien');
+  if (!sheetDatabaseKlien || sheetDatabaseKlien.getLastRow() < 2) {
+    return { status: 'gagal', pesan: 'Database Klien belum tersedia atau masih kosong.' };
+  }
+  var dataDatabaseKlien = sheetDatabaseKlien.getDataRange().getValues();
+  var headerDatabaseKlien = dataDatabaseKlien[0] || [];
+  var colNamaKlien = headerDatabaseKlien.indexOf('Nama Klien');
+  var colNoWAKlien = headerDatabaseKlien.indexOf('No WA');
+  if (colNamaKlien === -1 || colNoWAKlien === -1) {
+    return { status: 'gagal', pesan: 'Header Database Klien tidak lengkap.' };
+  }
+  var klienTerdaftar = {};
+  for (var db = 1; db < dataDatabaseKlien.length; db++) {
+    var noWADatabase = normalisasiNoWA_(dataDatabaseKlien[db][colNoWAKlien]);
+    if (!/^628\d{7,12}$/.test(noWADatabase)) continue;
+    klienTerdaftar[noWADatabase] = String(dataDatabaseKlien[db][colNamaKlien] || '').replace(/[\r\n\t]+/g, ' ').trim().substring(0, 120) || 'Pelanggan';
+  }
+
+  var requestId = String((data && data.requestId) || '').trim();
+  var cache = CacheService.getScriptCache();
+  if (/^[A-Za-z0-9_-]{10,120}$/.test(requestId)) {
+    if (cache.get(requestId)) return { status: 'gagal', pesan: 'Permintaan Broadcast yang sama sudah pernah diproses.' };
+    cache.put(requestId, 'diproses', 600);
+  }
+
+  var targetUnik = [];
+  var nomorSudahAda = {};
+  var daftarGagal = [];
+  for (var i = 0; i < daftarKlien.length; i++) {
+    var item = daftarKlien[i] || {};
+    var namaKlienRequest = String(item.nama || '').replace(/[\r\n\t]+/g, ' ').trim().substring(0, 120) || 'Pelanggan';
+    var noWANormal = normalisasiNoWA_(item.noWa);
+    if (!/^628\d{7,12}$/.test(noWANormal) || !klienTerdaftar[noWANormal]) {
+      daftarGagal.push({ nama: namaKlienRequest, noWa: noWANormal || String(item.noWa || '') });
+      continue;
+    }
+    if (nomorSudahAda[noWANormal]) continue;
+    nomorSudahAda[noWANormal] = true;
+    targetUnik.push({ nama: klienTerdaftar[noWANormal], noWa: noWANormal });
+  }
+
+  if (targetUnik.length === 0) {
+    return { status: 'gagal', pesan: 'Tidak ada nomor WhatsApp pelanggan yang valid.', terkirim: 0, gagal: daftarGagal.length, daftarGagal: daftarGagal };
+  }
+
+  var jumlahTerkirim = 0;
+  for (var t = 0; t < targetUnik.length; t++) {
+    var target = targetUnik[t];
+    var pesanPersonal = pesanTemplate.replace(/\[Nama\]/g, target.nama);
+    if (kirimNotifWA(target.noWa, pesanPersonal)) jumlahTerkirim++;
+    else daftarGagal.push({ nama: target.nama, noWa: target.noWa });
+    if (t < targetUnik.length - 1) Utilities.sleep(2000);
+  }
+
+  var jumlahTarget = targetUnik.length;
+  var statusHasil = jumlahTerkirim === jumlahTarget ? 'sukses' : (jumlahTerkirim > 0 ? 'sebagian' : 'gagal');
+  var pesanHasil = statusHasil === 'sukses'
+    ? 'Alhamdulillah! Broadcast berhasil dikirim ke ' + jumlahTerkirim + ' pelanggan.'
+    : 'Broadcast selesai. Berhasil: ' + jumlahTerkirim + ', gagal: ' + daftarGagal.length + '.';
+  console.log('Broadcast CRM oleh ' + String(data.user.Username || '') + ': ' + jumlahTerkirim + '/' + jumlahTarget + ' terkirim.');
+
+  return {
+    status: statusHasil,
+    pesan: pesanHasil,
+    total: jumlahTarget,
+    terkirim: jumlahTerkirim,
+    gagal: daftarGagal.length,
+    daftarGagal: daftarGagal
+  };
+}
+
 function doGet(e) {
   try {
     if (!e || !e.parameter || e.parameter.apiKey !== SECRET_API_KEY) {
@@ -778,6 +918,11 @@ function doPost(e) {
     sheetUsers = ss.getSheetByName("Users");
     var sheetTiket = ss.getSheetByName("Tiket") || ss.getSheets()[0];
     var usersData = sheetUsers ? sheetUsers.getDataRange().getValues() : [];
+
+    if (data.action === 'broadcastCRM') {
+      var hasilBroadcastCRM = prosesBroadcastCRM_(data, usersData, ss);
+      return ContentService.createTextOutput(JSON.stringify(hasilBroadcastCRM)).setMimeType(ContentService.MimeType.JSON);
+    }
     
     // ===============================================
     // FITUR GARANSI

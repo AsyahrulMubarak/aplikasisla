@@ -148,6 +148,23 @@
         .crm-badge-category { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
         .crm-badge-vip { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; }
         .crm-badge-regular { color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; }
+        .crm-broadcast-toolbar { position: sticky; top: 12px; z-index: 25; display: none; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; margin-bottom: 15px; border: 1px solid #99f6e4; border-radius: 14px; background: linear-gradient(135deg, rgba(240,253,250,0.98), rgba(239,246,255,0.98)); box-shadow: 0 10px 24px rgba(15,118,110,0.12); backdrop-filter: blur(8px); }
+        .crm-broadcast-summary { display: flex; align-items: center; gap: 10px; color: #0f766e; font-size: 12px; font-weight: 800; }
+        .crm-selected-count { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 999px; background: #0f766e; color: #fff; font-size: 12px; }
+        .crm-broadcast-btn { width: auto; min-width: 210px; margin: 0; background: linear-gradient(135deg, #0f766e, #2563eb); display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .crm-broadcast-btn:disabled { cursor: not-allowed; opacity: 0.48; transform: none; box-shadow: none; }
+        .crm-select-col { width: 48px; text-align: center !important; }
+        .crm-select-checkbox { width: 18px; height: 18px; margin: 0; cursor: pointer; accent-color: #0f766e; }
+        .crm-select-checkbox:disabled { cursor: not-allowed; opacity: 0.35; }
+        .crm-row-selected { background: #ecfdf5; box-shadow: inset 4px 0 0 #10b981; }
+        .crm-row-selected:hover { background: #d1fae5 !important; }
+        .broadcast-info-card { display: flex; align-items: center; gap: 12px; padding: 13px 14px; margin-bottom: 16px; border-radius: 12px; background: linear-gradient(135deg, #ecfdf5, #eff6ff); border: 1px solid #a7f3d0; color: #065f46; }
+        .broadcast-info-card .icon { font-size: 24px; }
+        .broadcast-helper { margin: 8px 0 16px; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+        .broadcast-helper strong { color: #0f766e; font-family: monospace; background: #ccfbf1; padding: 2px 5px; border-radius: 4px; }
+        .broadcast-loading { display: none; align-items: center; justify-content: center; gap: 8px; margin: 12px 0 0; color: #0f766e; font-size: 12px; font-weight: 700; }
+        .broadcast-spinner { width: 16px; height: 16px; border: 2px solid #99f6e4; border-top-color: #0f766e; border-radius: 50%; animation: broadcastSpin 0.75s linear infinite; }
+        @keyframes broadcastSpin { to { transform: rotate(360deg); } }
         #info-klien-badge.crm-context-active { display: block; color: #065f46; background: linear-gradient(90deg, #ecfdf5, #eff6ff); border: 1px solid #a7f3d0; border-left: 4px solid #10b981; border-radius: 9px; padding: 9px 11px; font-weight: 700; line-height: 1.45; }
         .crm-empty-state { padding: 44px 20px; text-align: center; color: var(--text-muted); }
         .crm-empty-state .icon { display: block; font-size: 34px; margin-bottom: 10px; }
@@ -258,6 +275,8 @@
         @media (max-width: 520px) {
             .crm-stat-grid { grid-template-columns: 1fr; }
             .crm-hero { padding: 18px; }
+            .crm-broadcast-toolbar { position: static; align-items: stretch; flex-direction: column; }
+            .crm-broadcast-btn { width: 100%; min-width: 0; }
         }
     </style>
 </head>
@@ -319,6 +338,33 @@
                 <button class="custom-modal-btn btn-cm-cancel" id="btn-prompt-cancel">Batal</button>
                 <button class="custom-modal-btn btn-cm-confirm" id="btn-prompt-submit">Kirim</button>
             </div>
+        </div>
+    </div>
+
+    <div id="modal-broadcast" class="modal" role="dialog" aria-modal="true" aria-labelledby="broadcast-title">
+        <div class="modal-content" style="border-top:4px solid #0f766e; max-width:560px;">
+            <h3 id="broadcast-title" class="modal-title" style="color:#0f766e;">📣 Broadcast Promo CRM</h3>
+            <form id="form-broadcast-crm" onsubmit="kirimBroadcastCRM(event)">
+                <div class="broadcast-info-card">
+                    <span class="icon">👥</span>
+                    <div>
+                        <strong id="broadcast-recipient-info">Mengirim pesan ke 0 Pelanggan</strong>
+                        <div style="font-size:11px; margin-top:3px; color:#047857;">Pesan dikirim satu per satu melalui Fonnte.</div>
+                    </div>
+                </div>
+                <label for="broadcast-message">Isi Pesan WhatsApp</label>
+                <textarea id="broadcast-message" rows="8" maxlength="2000" placeholder="Contoh: Assalamu'alaikum [Nama], ada promo spesial dari Alfacom untuk Anda..." oninput="perbaruiHitungKarakterBroadcast_()" required></textarea>
+                <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+                    <p class="broadcast-helper">Gunakan tag <strong>[Nama]</strong> untuk memanggil nama klien secara otomatis.</p>
+                    <span id="broadcast-char-count" style="font-size:10px; color:var(--text-muted); white-space:nowrap; margin-top:8px;">0/2000</span>
+                </div>
+                <div id="broadcast-loading" class="broadcast-loading" aria-live="polite">
+                    <span class="broadcast-spinner"></span>
+                    <span>Broadcast sedang diproses, jangan tutup halaman...</span>
+                </div>
+                <button type="submit" id="btn-kirim-broadcast" class="btn-solid-primary" style="background:linear-gradient(135deg,#0f766e,#2563eb);">📤 Kirim Sekarang</button>
+                <button type="button" id="btn-batal-broadcast" class="btn-outline-cancel" onclick="tutupModalBroadcastCRM()">Batal</button>
+            </form>
         </div>
     </div>
 
@@ -669,6 +715,13 @@
                 <div class="crm-stat-card"><span class="crm-stat-label">Pelanggan VIP</span><span class="crm-stat-value" id="crm-total-vip">0</span></div>
                 <div class="crm-stat-card"><span class="crm-stat-label">Akumulasi Transaksi</span><span class="crm-stat-value" id="crm-total-transaksi">0</span></div>
             </div>
+            <div id="crm-broadcast-toolbar" class="crm-broadcast-toolbar">
+                <div class="crm-broadcast-summary">
+                    <span class="crm-selected-count" id="crm-selected-count">0</span>
+                    <span>Pelanggan dipilih untuk menerima promo</span>
+                </div>
+                <button type="button" id="btn-broadcast-crm" class="btn-solid-primary crm-broadcast-btn" onclick="bukaModalBroadcastCRM()" disabled>📣 Kirim Broadcast Promo</button>
+            </div>
             <div class="search-wrapper" style="margin-bottom:15px;">
                 <span class="search-icon">🔍</span>
                 <input type="text" id="search-klien-input" placeholder="Cari Nama Klien, No WA, atau Kategori..." oninput="toggleClearBtn(this); renderKlien()">
@@ -920,9 +973,11 @@
 
         let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let globalProspek = []; let globalKlien = []; let globalGaransi = [];
         let buktiProspekTerpilih = null;
+        let pilihanBroadcastCRM = new Map();
+        let broadcastCRMSedangDikirim = false;
         let penggunaAktif = null;
         let modeEditUser = false; let modeEditTiket = false; let ttdTiketEditTersimpan = ''; let intervalAutoRefresh; let currentTabId = 'dashboard';
-        let currentTicketFilter = 'aktif'; 
+        let currentTicketFilter = 'aktif';
         let currentTrackTicket = null;
 
         function hitungTenggatJamKerja(waktuMulai, durasiJam) {
@@ -1809,6 +1864,184 @@
             return ['admin', 'manager', 'direktur'].includes(role);
         }
 
+        function punyaAksesBroadcastCRM_() {
+            return String((penggunaAktif && penggunaAktif.Role) || '').trim().toLowerCase() === 'admin';
+        }
+
+        function dapatkanKlienBroadcastTerpilih_() {
+            return Array.from(pilihanBroadcastCRM.values()).map(klien => ({
+                nama: String(klien.nama || '').trim() || 'Pelanggan',
+                noWa: normalisasiWASementara_(klien.noWa)
+            })).filter(klien => /^628\d{7,12}$/.test(klien.noWa));
+        }
+
+        function perbaruiStatusBroadcastCRM_() {
+            const toolbar = document.getElementById('crm-broadcast-toolbar');
+            const tombol = document.getElementById('btn-broadcast-crm');
+            const jumlahEl = document.getElementById('crm-selected-count');
+            const punyaAkses = punyaAksesBroadcastCRM_();
+            const jumlahTerpilih = dapatkanKlienBroadcastTerpilih_().length;
+
+            if (toolbar) toolbar.style.display = punyaAkses ? 'flex' : 'none';
+            if (jumlahEl) jumlahEl.textContent = jumlahTerpilih.toLocaleString('id-ID');
+            if (tombol) {
+                tombol.disabled = !punyaAkses || jumlahTerpilih === 0 || broadcastCRMSedangDikirim;
+                tombol.innerHTML = jumlahTerpilih > 0
+                    ? `📣 Kirim Broadcast Promo (${jumlahTerpilih})`
+                    : '📣 Kirim Broadcast Promo';
+            }
+
+            const checkboxTerlihat = Array.from(document.querySelectorAll('#klien-container .crm-client-checkbox:not(:disabled)'));
+            const pilihSemua = document.getElementById('crm-select-all');
+            if (pilihSemua) {
+                const jumlahDicentang = checkboxTerlihat.filter(checkbox => checkbox.checked).length;
+                pilihSemua.checked = checkboxTerlihat.length > 0 && jumlahDicentang === checkboxTerlihat.length;
+                pilihSemua.indeterminate = jumlahDicentang > 0 && jumlahDicentang < checkboxTerlihat.length;
+                pilihSemua.disabled = checkboxTerlihat.length === 0;
+            }
+        }
+
+        function ubahPilihanBroadcastCRM(checkbox) {
+            if (!punyaAksesBroadcastCRM_() || !checkbox) return;
+            const noWa = normalisasiWASementara_(checkbox.dataset.noWa || '');
+            const nama = String(checkbox.dataset.nama || '').trim() || 'Pelanggan';
+            if (!/^628\d{7,12}$/.test(noWa)) {
+                checkbox.checked = false;
+                showToast('Afwan, nomor WA pelanggan ini tidak valid.', 'warning');
+                return;
+            }
+
+            if (checkbox.checked) pilihanBroadcastCRM.set(noWa, { nama: nama, noWa: noWa });
+            else pilihanBroadcastCRM.delete(noWa);
+
+            const baris = checkbox.closest('tr');
+            if (baris) baris.classList.toggle('crm-row-selected', checkbox.checked);
+            perbaruiStatusBroadcastCRM_();
+        }
+
+        function ubahPilihSemuaBroadcastCRM(checkboxSemua) {
+            if (!punyaAksesBroadcastCRM_() || !checkboxSemua) return;
+            const checkboxKlien = Array.from(document.querySelectorAll('#klien-container .crm-client-checkbox:not(:disabled)'));
+            checkboxKlien.forEach(checkbox => {
+                checkbox.checked = checkboxSemua.checked;
+                const noWa = normalisasiWASementara_(checkbox.dataset.noWa || '');
+                const nama = String(checkbox.dataset.nama || '').trim() || 'Pelanggan';
+                if (checkboxSemua.checked && /^628\d{7,12}$/.test(noWa)) pilihanBroadcastCRM.set(noWa, { nama: nama, noWa: noWa });
+                else pilihanBroadcastCRM.delete(noWa);
+                const baris = checkbox.closest('tr');
+                if (baris) baris.classList.toggle('crm-row-selected', checkbox.checked);
+            });
+            perbaruiStatusBroadcastCRM_();
+        }
+
+        function perbaruiHitungKarakterBroadcast_() {
+            const textarea = document.getElementById('broadcast-message');
+            const penghitung = document.getElementById('broadcast-char-count');
+            if (textarea && penghitung) penghitung.textContent = `${textarea.value.length}/2000`;
+        }
+
+        function bukaModalBroadcastCRM() {
+            const penerima = dapatkanKlienBroadcastTerpilih_();
+            if (!punyaAksesBroadcastCRM_()) {
+                showToast('Afwan, Broadcast CRM hanya dapat dijalankan oleh Admin.', 'warning');
+                return;
+            }
+            if (penerima.length === 0) {
+                showToast('Pilih minimal satu pelanggan terlebih dahulu.', 'warning');
+                return;
+            }
+            if (penerima.length > 50) {
+                showToast('Maksimal 50 pelanggan dalam satu batch broadcast.', 'warning');
+                return;
+            }
+
+            const info = document.getElementById('broadcast-recipient-info');
+            const modal = document.getElementById('modal-broadcast');
+            if (info) info.textContent = `Mengirim pesan ke ${penerima.length} Pelanggan`;
+            if (modal) modal.style.display = 'flex';
+            perbaruiHitungKarakterBroadcast_();
+            setTimeout(() => {
+                const textarea = document.getElementById('broadcast-message');
+                if (textarea) textarea.focus();
+            }, 100);
+        }
+
+        function tutupModalBroadcastCRM(paksa) {
+            if (broadcastCRMSedangDikirim && paksa !== true) return;
+            const modal = document.getElementById('modal-broadcast');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function kirimBroadcastCRM(event) {
+            event.preventDefault();
+            if (broadcastCRMSedangDikirim) return;
+
+            const penerima = dapatkanKlienBroadcastTerpilih_();
+            const textarea = document.getElementById('broadcast-message');
+            const pesan = String((textarea && textarea.value) || '').trim();
+            if (!punyaAksesBroadcastCRM_()) { showToast('Afwan, akses Broadcast CRM ditolak.', 'error'); return; }
+            if (penerima.length === 0) { showToast('Pilih minimal satu pelanggan.', 'warning'); return; }
+            if (penerima.length > 50) { showToast('Maksimal 50 pelanggan per batch.', 'warning'); return; }
+            if (!pesan) { showToast('Isi pesan Broadcast tidak boleh kosong.', 'warning'); return; }
+
+            const lanjut = await showConfirm(`Kirim Broadcast Promo ke ${penerima.length} pelanggan sekarang?`);
+            if (!lanjut) return;
+
+            const tombolKirim = document.getElementById('btn-kirim-broadcast');
+            const tombolBatal = document.getElementById('btn-batal-broadcast');
+            const loading = document.getElementById('broadcast-loading');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 240000);
+            broadcastCRMSedangDikirim = true;
+            if (tombolKirim) { tombolKirim.disabled = true; tombolKirim.innerHTML = '⏳ Mengirim Broadcast...'; }
+            if (tombolBatal) tombolBatal.disabled = true;
+            if (loading) loading.style.display = 'flex';
+            perbaruiStatusBroadcastCRM_();
+
+            try {
+                const payload = {
+                    apiKey: API_KEY,
+                    action: 'broadcastCRM',
+                    user: {
+                        Username: penggunaAktif && penggunaAktif.Username,
+                        SessionToken: penggunaAktif && penggunaAktif.SessionToken
+                    },
+                    klien: penerima,
+                    pesan: pesan,
+                    requestId: `BROADCAST-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+                };
+                const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload), signal: controller.signal });
+                const hasil = await response.json();
+
+                if (hasil.status === 'sukses' || hasil.status === 'sebagian') {
+                    pilihanBroadcastCRM.clear();
+                    if (Array.isArray(hasil.daftarGagal)) {
+                        hasil.daftarGagal.forEach(klien => {
+                            const noWa = normalisasiWASementara_(klien && klien.noWa);
+                            if (/^628\d{7,12}$/.test(noWa)) pilihanBroadcastCRM.set(noWa, { nama: klien.nama || 'Pelanggan', noWa: noWa });
+                        });
+                    }
+                    showToast(hasil.pesan || `Broadcast selesai. Terkirim: ${hasil.terkirim || 0}.`, hasil.status === 'sukses' ? 'success' : 'warning');
+                    if (textarea && hasil.status === 'sukses') textarea.value = '';
+                    renderKlien();
+                    tutupModalBroadcastCRM(true);
+                } else {
+                    showToast(hasil.pesan || 'Afwan, Broadcast gagal diproses.', 'error');
+                }
+            } catch (error) {
+                console.error('Error Broadcast CRM:', error);
+                showToast(error.name === 'AbortError' ? 'Afwan, proses Broadcast melewati batas waktu.' : 'Afwan, koneksi ke server Broadcast gagal.', 'error');
+            } finally {
+                clearTimeout(timeoutId);
+                broadcastCRMSedangDikirim = false;
+                if (tombolKirim) { tombolKirim.disabled = false; tombolKirim.innerHTML = '📤 Kirim Sekarang'; }
+                if (tombolBatal) tombolBatal.disabled = false;
+                if (loading) loading.style.display = 'none';
+                perbaruiHitungKarakterBroadcast_();
+                perbaruiStatusBroadcastCRM_();
+            }
+        }
+
         function amanTeksCRM_(nilai) {
             const petaKarakter = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
             return String(nilai === undefined || nilai === null ? '' : nilai).replace(/[&<>"']/g, karakter => petaKarakter[karakter]);
@@ -1831,11 +2064,17 @@
             if (!container) return;
 
             if (!punyaAksesCRM_()) {
+                pilihanBroadcastCRM.clear();
+                perbaruiStatusBroadcastCRM_();
                 container.innerHTML = '<div class="crm-empty-state"><span class="icon">🔒</span>Akses Data Klien dibatasi untuk Admin dan Manajemen.</div>';
                 return;
             }
 
             const seluruhKlien = (globalKlien || []).filter(klien => klien && (klien['ID Klien'] || klien['No WA']));
+            const nomorKlienAktif = new Set(seluruhKlien.map(klien => normalisasiWASementara_(klien['No WA'])).filter(noWa => /^628\d{7,12}$/.test(noWa)));
+            Array.from(pilihanBroadcastCRM.keys()).forEach(noWa => {
+                if (!nomorKlienAktif.has(noWa)) pilihanBroadcastCRM.delete(noWa);
+            });
             const totalTransaksiSemua = seluruhKlien.reduce((total, klien) => total + jumlahTransaksiKlien_(klien['Total Transaksi']), 0);
             const totalVIP = seluruhKlien.filter(klien => jumlahTransaksiKlien_(klien['Total Transaksi']) > 3).length;
             const elTotalKlien = document.getElementById('crm-total-klien');
@@ -1859,20 +2098,28 @@
 
             if (klienDitampilkan.length === 0) {
                 container.innerHTML = `<div class="crm-empty-state"><span class="icon">${keyword ? '🔎' : '👥'}</span>${keyword ? 'Tidak ada pelanggan yang cocok dengan pencarian.' : 'Database Klien belum memiliki data transaksi.'}</div>`;
+                perbaruiStatusBroadcastCRM_();
                 return;
             }
 
+            const tampilkanPilihan = punyaAksesBroadcastCRM_();
             let barisTabel = klienDitampilkan.map(klien => {
                 const namaKlien = String(klien['Nama Klien'] || 'Tanpa Nama').trim();
                 const inisial = namaKlien.split(/\s+/).filter(Boolean).slice(0, 2).map(kata => kata.charAt(0).toUpperCase()).join('') || 'K';
                 const noWA = String(klien['No WA'] || '-').trim();
+                const noWANormal = normalisasiWASementara_(noWA);
+                const nomorValid = /^628\d{7,12}$/.test(noWANormal);
+                const terpilih = nomorValid && pilihanBroadcastCRM.has(noWANormal);
                 const kategori = String(klien['Kategori'] || 'Perorangan').trim();
                 const totalTransaksi = jumlahTransaksiKlien_(klien['Total Transaksi']);
                 const statusPelanggan = totalTransaksi > 3
                     ? '<span class="crm-badge crm-badge-vip">⭐ VIP</span>'
                     : '<span class="crm-badge crm-badge-regular">Aktif</span>';
+                if (terpilih) pilihanBroadcastCRM.set(noWANormal, { nama: namaKlien, noWa: noWANormal });
+                const kolomPilihan = tampilkanPilihan ? `<td class="crm-select-col"><input type="checkbox" class="crm-select-checkbox crm-client-checkbox" data-nama="${amanTeksCRM_(namaKlien)}" data-no-wa="${amanTeksCRM_(noWANormal)}" aria-label="Pilih ${amanTeksCRM_(namaKlien)}" onchange="ubahPilihanBroadcastCRM(this)" ${terpilih ? 'checked' : ''} ${nomorValid ? '' : 'disabled title="Nomor WA tidak valid"'}></td>` : '';
 
-                return `<tr>
+                return `<tr class="${terpilih ? 'crm-row-selected' : ''}">
+                    ${kolomPilihan}
                     <td><div class="crm-client-name"><span class="crm-avatar">${amanTeksCRM_(inisial)}</span><span>${amanTeksCRM_(namaKlien)}</span></div></td>
                     <td><span class="code-badge">${amanTeksCRM_(noWA)}</span></td>
                     <td><span class="crm-badge crm-badge-category">${amanTeksCRM_(kategori)}</span></td>
@@ -1881,10 +2128,12 @@
                 </tr>`;
             }).join('');
 
+            const headerPilihan = tampilkanPilihan ? '<th class="crm-select-col"><input type="checkbox" id="crm-select-all" class="crm-select-checkbox" aria-label="Pilih semua pelanggan pada tabel" onchange="ubahPilihSemuaBroadcastCRM(this)"></th>' : '';
             container.innerHTML = `<table class="crm-table">
-                <thead><tr><th>Nama Klien</th><th>No WA</th><th>Kategori</th><th>Total Transaksi</th><th>Transaksi Terakhir</th></tr></thead>
+                <thead><tr>${headerPilihan}<th>Nama Klien</th><th>No WA</th><th>Kategori</th><th>Total Transaksi</th><th>Transaksi Terakhir</th></tr></thead>
                 <tbody>${barisTabel}</tbody>
             </table>`;
+            perbaruiStatusBroadcastCRM_();
         }
 
         function renderDashboard() {
