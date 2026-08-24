@@ -129,6 +129,28 @@
         .legend-item { display: flex; justify-content: space-between; align-items: center; color: #4a5568; font-weight: 500;}
         .legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; }
         .code-badge { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--primary); border: 1px solid #e2e8f0; }
+        .crm-hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #0f766e 0%, #0d9488 52%, #2563eb 100%); color: #fff; padding: 22px; border-radius: 16px; margin-bottom: 18px; box-shadow: 0 12px 24px rgba(15, 118, 110, 0.18); }
+        .crm-hero::after { content: ''; position: absolute; width: 150px; height: 150px; right: -45px; top: -70px; border-radius: 50%; background: rgba(255,255,255,0.12); }
+        .crm-hero h3 { position: relative; margin: 0 0 6px; font-size: 20px; z-index: 1; }
+        .crm-hero p { position: relative; margin: 0; max-width: 680px; font-size: 12px; line-height: 1.6; opacity: 0.9; z-index: 1; }
+        .crm-stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+        .crm-stat-card { padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: 0 4px 10px rgba(15,23,42,0.04); }
+        .crm-stat-label { display: block; color: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.45px; margin-bottom: 5px; }
+        .crm-stat-value { color: var(--text-main); font-size: 21px; font-weight: 800; }
+        .crm-table-shell { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: #fff; box-shadow: 0 6px 16px rgba(15,23,42,0.04); }
+        .crm-table { width: 100%; min-width: 760px; border-collapse: collapse; }
+        .crm-table th { position: sticky; top: 0; background: #f8fafc; color: #475569; font-size: 10px; text-transform: uppercase; letter-spacing: 0.45px; text-align: left; padding: 13px 14px; border-bottom: 1px solid var(--border); }
+        .crm-table td { padding: 13px 14px; font-size: 12px; color: #334155; vertical-align: middle; }
+        .crm-table tbody tr:hover { background: #f0fdfa; }
+        .crm-client-name { display: flex; align-items: center; gap: 10px; font-weight: 700; color: #0f172a; }
+        .crm-avatar { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 10px; background: linear-gradient(135deg, #ccfbf1, #dbeafe); color: #0f766e; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; }
+        .crm-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+        .crm-badge-category { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+        .crm-badge-vip { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; }
+        .crm-badge-regular { color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; }
+        #info-klien-badge.crm-context-active { display: block; color: #065f46; background: linear-gradient(90deg, #ecfdf5, #eff6ff); border: 1px solid #a7f3d0; border-left: 4px solid #10b981; border-radius: 9px; padding: 9px 11px; font-weight: 700; line-height: 1.45; }
+        .crm-empty-state { padding: 44px 20px; text-align: center; color: var(--text-muted); }
+        .crm-empty-state .icon { display: block; font-size: 34px; margin-bottom: 10px; }
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 12000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
         .toast { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-radius: 8px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-left: 5px solid; font-size: 14px; font-weight: 600; animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; max-width: 300px;}
         .toast-success { border-left-color: var(--success); color: #064e3b; }
@@ -232,6 +254,10 @@
             .chart-box { flex: 1; min-width: 300px; max-width: none; }
             .checkbox-group { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
             #modal-bug .modal-content, #modal-update .modal-content, #modal-followup .modal-content, #modal-banding .modal-content, #modal-penawaran .modal-content, #modal-export .modal-content, #modal-poin .modal-content { max-width: 600px; }
+        }
+        @media (max-width: 520px) {
+            .crm-stat-grid { grid-template-columns: 1fr; }
+            .crm-hero { padding: 18px; }
         }
     </style>
 </head>
@@ -632,6 +658,24 @@
             <div id="prospek-container"></div>
         </div>
 
+        <div id="page-klien" class="tab-page">
+            <div class="crm-hero">
+                <h3>👥 Data Klien (CRM)</h3>
+                <p>Pusat riwayat pelanggan Alfacom untuk mengenali pelanggan lama, frekuensi transaksi, dan konteks layanan sebelum tim membuat tiket baru.</p>
+            </div>
+            <div class="crm-stat-grid">
+                <div class="crm-stat-card"><span class="crm-stat-label">Total Pelanggan</span><span class="crm-stat-value" id="crm-total-klien">0</span></div>
+                <div class="crm-stat-card"><span class="crm-stat-label">Pelanggan VIP</span><span class="crm-stat-value" id="crm-total-vip">0</span></div>
+                <div class="crm-stat-card"><span class="crm-stat-label">Akumulasi Transaksi</span><span class="crm-stat-value" id="crm-total-transaksi">0</span></div>
+            </div>
+            <div class="search-wrapper" style="margin-bottom:15px;">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-klien-input" placeholder="Cari Nama Klien, No WA, atau Kategori..." oninput="toggleClearBtn(this); renderKlien()">
+                <span class="clear-icon" onclick="clearSearch('search-klien-input')">✖</span>
+            </div>
+            <div id="klien-container" class="crm-table-shell"></div>
+        </div>
+
         <div id="page-garansi" class="tab-page">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
                 <h3 style="margin: 0; color: var(--primary);">Data Garansi Klien</h3>
@@ -751,6 +795,7 @@
                     <!-- FITUR BARU WA KLIEN -->
                     <label style="color:#1e3a8a;">No WhatsApp Klien (Opsional - Untuk Notif Tracking)</label>
                     <input type="tel" id="input-wa-klien" placeholder="Contoh: 6285123456789" oninput="formatWA(this); deteksiSalesDariProspek(this, 'sales-group', 'wa')">
+                    <div id="info-klien-badge" style="font-size:12px; margin-top:5px;"></div>
                     <!-- ===================== -->
                     
                     <label>Jenis Pekerjaan</label>
@@ -861,6 +906,7 @@
             <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket</div></div>
             <div class="nav-btn" id="nav-penjualan" onclick="switchTab('penjualan')" style="display:none;"><div class="icon">🛒</div><div class="text">Penjualan</div></div>
             <div class="nav-btn" id="nav-prospek" onclick="switchTab('prospek')" style="display:none;"><div class="icon">🤝</div><div class="text">Prospek</div></div>
+            <div class="nav-btn" id="nav-klien" onclick="switchTab('klien')" style="display:none;"><div class="icon">👥</div><div class="text">Data Klien (CRM)</div></div>
             <div class="nav-btn" id="nav-garansi" onclick="switchTab('garansi')" style="display:flex;"><div class="icon">🛡️</div><div class="text">Garansi</div></div>
             <div class="nav-btn" id="nav-input" onclick="switchTab('input')" style="display:none;"><div class="icon">➕</div><div class="text">Input</div></div>
             <div class="nav-btn" id="nav-user" onclick="switchTab('user')" style="display:flex;"><div class="icon">⚙️</div><div class="text">Profil</div></div>
@@ -871,7 +917,7 @@
         const apiUrl = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
 
-        let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let globalProspek = []; let globalGaransi = [];
+        let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let globalProspek = []; let globalKlien = []; let globalGaransi = [];
         let penggunaAktif = null;
         let modeEditUser = false; let modeEditTiket = false; let ttdTiketEditTersimpan = ''; let intervalAutoRefresh; let currentTabId = 'dashboard';
         let currentTicketFilter = 'aktif'; 
@@ -1228,7 +1274,7 @@
         }
 
         function toggleClearBtn(el) { const btn = el.nextElementSibling; if(btn && btn.classList.contains('clear-icon')) { btn.style.display = el.value.length > 0 ? 'block' : 'none'; } }
-        function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') renderTickets(); else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-garansi-input') renderGaransi(); else if(inputId === 'search-dashboard') filterDashboard(); } }
+        function clearSearch(inputId) { const el = document.getElementById(inputId); if(el) { el.value = ''; toggleClearBtn(el); if(inputId === 'search-tiket') renderTickets(); else if(inputId === 'search-sls') renderPenjualan(); else if(inputId === 'search-prospek-input') renderProspek(); else if(inputId === 'search-klien-input') renderKlien(); else if(inputId === 'search-garansi-input') renderGaransi(); else if(inputId === 'search-dashboard') filterDashboard(); } }
         function hapusCacheTotal() {
             if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(registrations) { for(let registration of registrations) { registration.unregister(); } }); caches.keys().then(function(names) { for (let name of names) caches.delete(name); }); }
             localStorage.clear(); sessionStorage.clear(); window.location.href = window.location.pathname + "?v=" + new Date().getTime();
@@ -1274,8 +1320,12 @@
         canvasInput.addEventListener('mousedown', startDrawingInput); canvasInput.addEventListener('mousemove', drawInput); canvasInput.addEventListener('mouseup', stopDrawingInput); canvasInput.addEventListener('mouseout', stopDrawingInput); canvasInput.addEventListener('touchstart', startDrawingInput, {passive: false}); canvasInput.addEventListener('touchmove', drawInput, {passive: false}); canvasInput.addEventListener('touchend', stopDrawingInput);
         function clearSignatureInput() { ctxInput.clearRect(0, 0, canvasInput.width, canvasInput.height); isCanvasInputDrawn = false; }
 
-        function switchTab(tabId) { 
-            currentTabId = tabId; 
+        function switchTab(tabId) {
+            if (tabId === 'klien' && !punyaAksesCRM_()) {
+                showToast('Afwan, menu Data Klien hanya dapat diakses oleh Admin dan Manajemen.', 'warning');
+                return;
+            }
+            currentTabId = tabId;
             document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none'); 
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active')); 
             document.getElementById('page-' + tabId).style.display = 'block'; 
@@ -1356,8 +1406,9 @@
             
             globalTickets = data.tickets || []; 
             globalUsers = data.users || []; 
-            globalPenjualan = data.penjualan || []; 
-            globalProspek = data.prospek || []; 
+            globalPenjualan = data.penjualan || [];
+            globalProspek = data.prospek || [];
+            globalKlien = data.dataKlien || [];
             globalGaransi = data.garansi || [];
             
             if (trackId) {
@@ -1396,7 +1447,9 @@
                 } else { 
                     if (!isSilentRefresh) { masukKeAplikasi(); } 
                     else { 
-                        renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); 
+                        renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderKlien(); renderGaransi(); renderTabelUser();
+                        let inputWAKlienAktif = document.getElementById('input-wa-klien');
+                        if (inputWAKlienAktif) tampilkanInfoKlienCRM_(inputWAKlienAktif.value);
                         if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } 
                     } 
                 }
@@ -1523,8 +1576,9 @@
                 let roleTampil = String(penggunaAktif.Role || '').toUpperCase();
                 document.getElementById('nama-login').innerText = `${namaTampil} (${roleTampil})`;
                 
-                document.getElementById('nav-user').style.display = 'flex'; 
+                document.getElementById('nav-user').style.display = 'flex';
                 document.getElementById('nav-garansi').style.display = 'flex';
+                document.getElementById('nav-klien').style.display = punyaAksesCRM_() ? 'flex' : 'none';
 
                 if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
                     document.getElementById('btn-tambah-garansi').style.display = 'block';
@@ -1584,7 +1638,7 @@
                     document.getElementById('btn-tambah-prospek').style.display = 'none';
                 }
 
-                renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderGaransi(); renderTabelUser(); switchTab('dashboard'); 
+                renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderKlien(); renderGaransi(); renderTabelUser(); switchTab('dashboard');
                 if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('modal-followup').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
             } catch(e) { showToast("Afwan, Error merender aplikasi", "error"); }
         }
@@ -1646,6 +1700,89 @@
                 let garansiEl = document.getElementById('garansi-id');
                 if(garansiEl) { garansiEl.value = 'GRS-' + String(maxGrs + 1).padStart(3, '0'); }
             } catch(e) { console.error("Error setAutoIDs:", e); }
+        }
+
+        function punyaAksesCRM_() {
+            let role = String((penggunaAktif && penggunaAktif.Role) || '').trim().toLowerCase();
+            return ['admin', 'manager', 'direktur'].includes(role);
+        }
+
+        function amanTeksCRM_(nilai) {
+            const petaKarakter = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(nilai === undefined || nilai === null ? '' : nilai).replace(/[&<>"']/g, karakter => petaKarakter[karakter]);
+        }
+
+        function jumlahTransaksiKlien_(nilai) {
+            let angka = parseInt(nilai, 10);
+            return isNaN(angka) || angka < 0 ? 0 : angka;
+        }
+
+        function formatTanggalKlien_(nilaiTanggal) {
+            if (!nilaiTanggal) return '-';
+            let tanggal = parseSafeDate(nilaiTanggal);
+            if (!tanggal || isNaN(tanggal.getTime())) return '-';
+            return tanggal.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function renderKlien() {
+            const container = document.getElementById('klien-container');
+            if (!container) return;
+
+            if (!punyaAksesCRM_()) {
+                container.innerHTML = '<div class="crm-empty-state"><span class="icon">🔒</span>Akses Data Klien dibatasi untuk Admin dan Manajemen.</div>';
+                return;
+            }
+
+            const seluruhKlien = (globalKlien || []).filter(klien => klien && (klien['ID Klien'] || klien['No WA']));
+            const totalTransaksiSemua = seluruhKlien.reduce((total, klien) => total + jumlahTransaksiKlien_(klien['Total Transaksi']), 0);
+            const totalVIP = seluruhKlien.filter(klien => jumlahTransaksiKlien_(klien['Total Transaksi']) > 3).length;
+            const elTotalKlien = document.getElementById('crm-total-klien');
+            const elTotalVIP = document.getElementById('crm-total-vip');
+            const elTotalTransaksi = document.getElementById('crm-total-transaksi');
+            if (elTotalKlien) elTotalKlien.textContent = seluruhKlien.length.toLocaleString('id-ID');
+            if (elTotalVIP) elTotalVIP.textContent = totalVIP.toLocaleString('id-ID');
+            if (elTotalTransaksi) elTotalTransaksi.textContent = totalTransaksiSemua.toLocaleString('id-ID');
+
+            const inputPencarian = document.getElementById('search-klien-input');
+            const keyword = String((inputPencarian && inputPencarian.value) || '').trim().toLowerCase();
+            const klienDitampilkan = seluruhKlien.filter(klien => {
+                const radar = [klien['Nama Klien'], klien['No WA'], klien['Kategori'], klien['ID Klien']]
+                    .map(nilai => String(nilai || '').toLowerCase()).join(' ');
+                return !keyword || radar.includes(keyword);
+            }).sort((a, b) => {
+                const waktuA = parseSafeDate(a['Transaksi Terakhir']);
+                const waktuB = parseSafeDate(b['Transaksi Terakhir']);
+                return (isNaN(waktuB.getTime()) ? 0 : waktuB.getTime()) - (isNaN(waktuA.getTime()) ? 0 : waktuA.getTime());
+            });
+
+            if (klienDitampilkan.length === 0) {
+                container.innerHTML = `<div class="crm-empty-state"><span class="icon">${keyword ? '🔎' : '👥'}</span>${keyword ? 'Tidak ada pelanggan yang cocok dengan pencarian.' : 'Database Klien belum memiliki data transaksi.'}</div>`;
+                return;
+            }
+
+            let barisTabel = klienDitampilkan.map(klien => {
+                const namaKlien = String(klien['Nama Klien'] || 'Tanpa Nama').trim();
+                const inisial = namaKlien.split(/\s+/).filter(Boolean).slice(0, 2).map(kata => kata.charAt(0).toUpperCase()).join('') || 'K';
+                const noWA = String(klien['No WA'] || '-').trim();
+                const kategori = String(klien['Kategori'] || 'Perorangan').trim();
+                const totalTransaksi = jumlahTransaksiKlien_(klien['Total Transaksi']);
+                const statusPelanggan = totalTransaksi > 3
+                    ? '<span class="crm-badge crm-badge-vip">⭐ VIP</span>'
+                    : '<span class="crm-badge crm-badge-regular">Aktif</span>';
+
+                return `<tr>
+                    <td><div class="crm-client-name"><span class="crm-avatar">${amanTeksCRM_(inisial)}</span><span>${amanTeksCRM_(namaKlien)}</span></div></td>
+                    <td><span class="code-badge">${amanTeksCRM_(noWA)}</span></td>
+                    <td><span class="crm-badge crm-badge-category">${amanTeksCRM_(kategori)}</span></td>
+                    <td><div style="display:flex; align-items:center; gap:8px;"><strong>${totalTransaksi.toLocaleString('id-ID')}</strong>${statusPelanggan}</div></td>
+                    <td>${amanTeksCRM_(formatTanggalKlien_(klien['Transaksi Terakhir']))}</td>
+                </tr>`;
+            }).join('');
+
+            container.innerHTML = `<table class="crm-table">
+                <thead><tr><th>Nama Klien</th><th>No WA</th><th>Kategori</th><th>Total Transaksi</th><th>Transaksi Terakhir</th></tr></thead>
+                <tbody>${barisTabel}</tbody>
+            </table>`;
         }
 
         function renderDashboard() {
@@ -3270,6 +3407,7 @@
             let waKey = keys.find(k => k && k.toLowerCase().includes('wa klien'));
             if(document.getElementById('input-wa-klien')) {
                 document.getElementById('input-wa-klien').value = waKey ? (t[waKey] || '') : '';
+                tampilkanInfoKlienCRM_(document.getElementById('input-wa-klien').value);
             }
             
             const sArr = String(t['Sales'] || '').split(',').map(n => n.trim()); 
@@ -3334,6 +3472,7 @@
             document.getElementById('btn-tambah-pekerjaan').style.display = 'block';
 
             if(document.getElementById('input-wa-klien')) document.getElementById('input-wa-klien').value = '';
+            tampilkanInfoKlienCRM_('');
             ttdTiketEditTersimpan = '';
 
             // Kembalikan kanvas saat form dipakai untuk membuat tiket baru.
@@ -4076,9 +4215,33 @@
         // === FITUR SENSOR AUTO-FILL SALES DARI PROSPEK ===
         function normalisasiWASementara_(nomorWA) {
             let waBersih = String(nomorWA || '').replace(/\D/g, '');
+            if (waBersih.startsWith('0062')) waBersih = waBersih.substring(2);
+            if (waBersih.startsWith('620')) waBersih = '62' + waBersih.substring(3);
             if (waBersih.startsWith('0')) waBersih = '62' + waBersih.substring(1);
             else if (waBersih.startsWith('8')) waBersih = '62' + waBersih;
             return waBersih;
+        }
+
+        function tampilkanInfoKlienCRM_(nomorWA) {
+            const badgeInfo = document.getElementById('info-klien-badge');
+            if (!badgeInfo) return null;
+
+            const waDicari = normalisasiWASementara_(nomorWA);
+            const klienMatch = waDicari.length >= 8
+                ? (globalKlien || []).find(klien => klien && normalisasiWASementara_(klien['No WA']) === waDicari)
+                : null;
+
+            if (!klienMatch) {
+                badgeInfo.textContent = '';
+                badgeInfo.classList.remove('crm-context-active');
+                return null;
+            }
+
+            const totalTransaksi = jumlahTransaksiKlien_(klienMatch['Total Transaksi']);
+            const transaksiTerakhir = formatTanggalKlien_(klienMatch['Transaksi Terakhir']);
+            badgeInfo.textContent = `✅ Pelanggan Terdaftar | Total Transaksi: ${totalTransaksi.toLocaleString('id-ID')} | Terakhir: ${transaksiTerakhir}`;
+            badgeInfo.classList.add('crm-context-active');
+            return klienMatch;
         }
 
         function bukaKunciSalesProspek_(targetInputSales) {
@@ -4171,8 +4334,11 @@
                 ? normalisasiWASementara_(elemenInputKlien.value)
                 : '';
 
-            // Lepaskan hasil autofill lama selama nomor sedang diubah atau tidak lagi cocok.
-            if (cariDenganWA) bukaKunciSalesProspek_(targetInputSales);
+            // Lepaskan hasil autofill lama dan tampilkan konteks CRM selama nomor WA berubah.
+            if (cariDenganWA) {
+                bukaKunciSalesProspek_(targetInputSales);
+                tampilkanInfoKlienCRM_(waDiketik);
+            }
 
             // Nama minimal 3 karakter; nomor WA minimal 8 digit agar tidak salah mencocokkan.
             let namaLayakDicari = namaDiketik.length >= 3;
