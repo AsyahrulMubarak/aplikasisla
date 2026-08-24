@@ -2507,7 +2507,7 @@
                 let idGrs = String(g['ID Garansi'] || '');
                 if (!idGrs) return;
                 let noTransGrs = g['No Transaksi'] || g[Object.keys(g)[8]] || '';
-                
+
                 if (keywordPencarian !== '') {
                     let strCari = [
                         g['ID Garansi'],
@@ -2711,7 +2711,7 @@
                 if (!idPrp) return;
                 let waKey = Object.keys(p).find(k => k && k.toLowerCase().includes('no wa'));
                 let noWaPrp = waKey && p[waKey] ? p[waKey] : (p['Telepon'] || '');
-                
+
                 if (keywordPencarian !== '') {
                     let strCari = [
                         p['ID Prospek'],
@@ -3336,6 +3336,7 @@
             clearSignatureInput();
             setTimeout(resizeCanvasInput, 50);
             
+            bukaKunciSalesProspek_(document.getElementById('sales-group'));
             document.querySelectorAll('#sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
 
             const divGantiTeknisi = document.getElementById('div-ganti-teknisi');
@@ -4070,16 +4071,98 @@
             return waBersih;
         }
 
+        function bukaKunciSalesProspek_(targetInputSales) {
+            if (!targetInputSales || !targetInputSales.dataset || targetInputSales.dataset.prospekTerkunci !== 'true') return;
+
+            if (targetInputSales.matches('input, select, textarea')) {
+                if (targetInputSales.dataset.prospekNilaiOtomatis === 'true') targetInputSales.value = '';
+                targetInputSales.readOnly = false;
+                targetInputSales.disabled = false;
+                delete targetInputSales.dataset.prospekNilaiOtomatis;
+            } else {
+                Array.from(targetInputSales.querySelectorAll('input[type="checkbox"]')).forEach(checkbox => {
+                    if (checkbox.dataset.prospekDinamis === 'true') {
+                        let labelDinamis = checkbox.closest('label');
+                        if (labelDinamis) labelDinamis.remove();
+                        return;
+                    }
+                    if (checkbox.dataset.prospekDipilihOtomatis === 'true') checkbox.checked = false;
+                    if (checkbox.dataset.prospekTerkunci === 'true') checkbox.disabled = false;
+                    delete checkbox.dataset.prospekDipilihOtomatis;
+                    delete checkbox.dataset.prospekTerkunci;
+                });
+            }
+
+            delete targetInputSales.dataset.prospekTerkunci;
+            targetInputSales.style.opacity = '';
+            targetInputSales.removeAttribute('title');
+            if (targetInputSales.id === 'sales-group' && typeof togglePenjualanInput === 'function') togglePenjualanInput();
+        }
+
+        function kunciDanIsiSalesProspek_(targetInputSales, namaSales) {
+            let daftarNamaSales = String(namaSales || '').split(',').map(nama => nama.trim()).filter(Boolean);
+            if (!targetInputSales || daftarNamaSales.length === 0) return false;
+
+            if (targetInputSales.matches('input, select, textarea')) {
+                targetInputSales.value = daftarNamaSales.join(', ');
+                targetInputSales.readOnly = true;
+                if (targetInputSales.matches('select')) targetInputSales.disabled = true;
+                targetInputSales.dataset.prospekNilaiOtomatis = 'true';
+                targetInputSales.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+                let checkboxSales = Array.from(targetInputSales.querySelectorAll('input[type="checkbox"]'));
+
+                // Tetap tampilkan Sales dari Prospek meski akunnya sedang tidak aktif di daftar user.
+                daftarNamaSales.forEach(nama => {
+                    let sudahAda = checkboxSales.some(checkbox =>
+                        String(checkbox.value || '').trim().toLowerCase() === nama.toLowerCase()
+                    );
+                    if (sudahAda) return;
+
+                    let labelSales = document.createElement('label');
+                    let checkboxSalesBaru = document.createElement('input');
+                    checkboxSalesBaru.type = 'checkbox';
+                    checkboxSalesBaru.value = nama;
+                    checkboxSalesBaru.dataset.prospekDinamis = 'true';
+                    labelSales.appendChild(checkboxSalesBaru);
+                    labelSales.appendChild(document.createTextNode(' ' + nama + ' (dari Prospek)'));
+                    targetInputSales.appendChild(labelSales);
+                    checkboxSales.push(checkboxSalesBaru);
+                });
+
+                checkboxSales.forEach(checkbox => {
+                    let cocok = daftarNamaSales.some(nama =>
+                        String(checkbox.value || '').trim().toLowerCase() === nama.toLowerCase()
+                    );
+                    checkbox.checked = cocok;
+                    checkbox.disabled = true;
+                    checkbox.dataset.prospekTerkunci = 'true';
+                    if (cocok) checkbox.dataset.prospekDipilihOtomatis = 'true';
+                });
+            }
+
+            targetInputSales.dataset.prospekTerkunci = 'true';
+            targetInputSales.style.opacity = '0.75';
+            targetInputSales.title = 'Sales dikunci otomatis berdasarkan data Prospek yang cocok dengan No WA.';
+            if (targetInputSales.id === 'sales-group' && typeof togglePenjualanInput === 'function') togglePenjualanInput();
+            return true;
+        }
+
         function deteksiSalesDariProspek(elemenInputKlien, idTargetKolomSales, modePencarian) {
             if (!elemenInputKlien) return;
 
             let cariDenganWA = modePencarian === 'wa' || elemenInputKlien.id === 'input-wa-klien';
+            let inputNamaKlien = document.getElementById('input-klien');
+            let targetInputSales = document.getElementById(idTargetKolomSales);
             let namaDiketik = cariDenganWA
-                ? String((document.getElementById('input-klien') || {}).value || '').toLowerCase().trim()
+                ? String((inputNamaKlien || {}).value || '').toLowerCase().trim()
                 : String(elemenInputKlien.value || '').toLowerCase().trim();
             let waDiketik = cariDenganWA
                 ? normalisasiWASementara_(elemenInputKlien.value)
-                : normalisasiWASementara_((document.getElementById('input-wa-klien') || {}).value);
+                : '';
+
+            // Lepaskan hasil autofill lama selama nomor sedang diubah atau tidak lagi cocok.
+            if (cariDenganWA) bukaKunciSalesProspek_(targetInputSales);
 
             // Nama minimal 3 karakter; nomor WA minimal 8 digit agar tidak salah mencocokkan.
             let namaLayakDicari = namaDiketik.length >= 3;
@@ -4094,7 +4177,7 @@
                 return waPrp === waDiketik;
             }) : null;
 
-            if (!prospekMatch && namaLayakDicari) {
+            if (!prospekMatch && !cariDenganWA && namaLayakDicari) {
                 prospekMatch = daftarProspek.find(prp => {
                     if (!prp) return false;
                     let namaPrp = String(prp['Nama Calon Customer'] || prp['Calon Customer'] || prp['Nama Klien'] || prp['Nama Customer'] || '').toLowerCase().trim();
@@ -4104,42 +4187,51 @@
 
             if (!prospekMatch) return;
 
+            let namaAsliKlien = String(prospekMatch['Nama Calon Customer'] || prospekMatch['Calon Customer'] || prospekMatch['Nama Klien'] || prospekMatch['Nama Customer'] || '').trim();
             let namaSales = prospekMatch['Sales Penanggung Jawab'] || prospekMatch['Sales'] || '';
-            let targetInputSales = document.getElementById(idTargetKolomSales);
-            if (!namaSales || !targetInputSales) return;
+            let namaBerhasilDiisi = false;
+
+            if (cariDenganWA && namaAsliKlien && inputNamaKlien) {
+                inputNamaKlien.value = namaAsliKlien;
+                namaBerhasilDiisi = true;
+            }
 
             let salesBerhasilDiisi = false;
+            if (cariDenganWA) {
+                salesBerhasilDiisi = kunciDanIsiSalesProspek_(targetInputSales, namaSales);
+            } else if (namaSales && targetInputSales) {
+                // Pencarian berdasarkan nama tetap tidak mengunci agar form Penjualan kompatibel.
+                if (targetInputSales.matches('input, select, textarea')) {
+                    if (String(targetInputSales.value || '').trim() === '') {
+                        targetInputSales.value = namaSales;
+                        targetInputSales.dispatchEvent(new Event('change', { bubbles: true }));
+                        salesBerhasilDiisi = true;
+                    }
+                } else {
+                    let checkboxSales = Array.from(targetInputSales.querySelectorAll('input[type="checkbox"]'));
+                    let sudahAdaPilihan = checkboxSales.some(checkbox => checkbox.checked);
 
-            // Kompatibel dengan input/select biasa jika struktur form berubah kelak.
-            if (targetInputSales.matches('input, select, textarea')) {
-                if (String(targetInputSales.value || '').trim() === '') {
-                    targetInputSales.value = namaSales;
-                    targetInputSales.dispatchEvent(new Event('change', { bubbles: true }));
-                    salesBerhasilDiisi = true;
-                }
-            } else {
-                // Struktur saat ini menggunakan grup checkbox Sales.
-                let checkboxSales = Array.from(targetInputSales.querySelectorAll('input[type="checkbox"]'));
-                let sudahAdaPilihan = checkboxSales.some(checkbox => checkbox.checked);
-
-                if (!sudahAdaPilihan) {
-                    let daftarNamaSales = String(namaSales).split(',').map(nama => nama.trim()).filter(Boolean);
-                    daftarNamaSales.forEach(nama => {
-                        let checkboxCocok = checkboxSales.find(checkbox =>
-                            String(checkbox.value || '').trim().toLowerCase() === nama.toLowerCase()
-                        );
-
-                        if (checkboxCocok) {
-                            checkboxCocok.checked = true;
-                            checkboxCocok.dispatchEvent(new Event('change', { bubbles: true }));
-                            salesBerhasilDiisi = true;
-                        }
-                    });
+                    if (!sudahAdaPilihan) {
+                        let daftarNamaSales = String(namaSales).split(',').map(nama => nama.trim()).filter(Boolean);
+                        daftarNamaSales.forEach(nama => {
+                            let checkboxCocok = checkboxSales.find(checkbox =>
+                                String(checkbox.value || '').trim().toLowerCase() === nama.toLowerCase()
+                            );
+                            if (checkboxCocok) {
+                                checkboxCocok.checked = true;
+                                checkboxCocok.dispatchEvent(new Event('change', { bubbles: true }));
+                                salesBerhasilDiisi = true;
+                            }
+                        });
+                    }
                 }
             }
 
-            if (salesBerhasilDiisi && typeof showToast === 'function') {
-                showToast("🤖 Sinkronisasi Prospek: Sales otomatis terisi!", "info");
+            if ((namaBerhasilDiisi || salesBerhasilDiisi) && typeof showToast === 'function') {
+                let pesanAutofill = cariDenganWA
+                    ? "🤖 Data Prospek ditemukan: Nama Klien diperbarui dan Sales dikunci otomatis."
+                    : "🤖 Sinkronisasi Prospek: Sales otomatis terisi!";
+                showToast(pesanAutofill, "info");
             }
         }
 
