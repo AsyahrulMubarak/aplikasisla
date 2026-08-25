@@ -116,19 +116,149 @@
             transform: translateY(-1px);
             box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.3);
         }
+
+        .mobile-payroll-bar, .mobile-swipe-hint { display: none; }
         
         @media print {
-            .control-panel, .btn-print, .segment-control { display: none !important; }
+            .control-panel, .btn-print, .segment-control, .mobile-payroll-bar, .mobile-swipe-hint { display: none !important; }
             body { background: white; padding: 0; }
             .card { box-shadow: none; border: none; padding: 0; }
+            .attendance-scroll { overflow: visible !important; white-space: normal !important; }
+            .attendance-table th:first-child, .attendance-table td:first-child { position: static !important; box-shadow: none !important; }
         }
 
         @media (max-width: 768px) {
-            .container { padding: 15px; }
+            body { padding: 0 0 calc(86px + env(safe-area-inset-bottom)); }
+            .container { padding: 10px; }
+            .card { padding: 14px; border-radius: 14px; margin-bottom: 8px; }
+            .card:hover { transform: none; }
             .form-row { flex-direction: column; align-items: stretch; gap: 10px; }
             .header { flex-direction: column; text-align: center; align-items: center; gap: 15px; }
             .header > div { align-items: center !important; }
-            .summary-box { flex-direction: column; }
+            .header-actions .desktop-print-btn { display: none; }
+
+            /* Alur mobile: filter -> total -> ringkasan/variabel -> absensi -> aturan. */
+            #payroll-workspace { display: flex; flex-direction: column; }
+            #payroll-workspace > .control-panel { display: contents; }
+            .payroll-filter-row {
+                order: 10;
+                background: #eff6ff;
+                border: 1px solid #bfdbfe;
+                border-radius: 12px;
+                padding: 14px;
+                margin-bottom: 12px;
+            }
+            #loading { order: 15; }
+            #area-slip[style*="display: block"] { display: contents !important; }
+            .slip-total { order: 20; }
+            .slip-profile { order: 21; }
+            .slip-summary { order: 30; }
+            #div-komponen-variabel { order: 31; }
+            .slip-bonus-details { order: 32; }
+            #dynamic-bonus-section { order: 33; }
+            .slip-attendance { order: 40; }
+            .slip-rules { order: 50; }
+            #area-dashboard { order: 20; }
+
+            #div-komponen-variabel, #dynamic-bonus-section {
+                background: #eff6ff;
+                border: 1px solid #bfdbfe !important;
+                border-radius: 12px;
+                padding: 14px !important;
+                margin: 0 0 12px !important;
+                box-sizing: border-box;
+            }
+            .slip-profile {
+                gap: 12px;
+                padding: 12px;
+                margin-bottom: 0 !important;
+                background: #f8fafc;
+                border: 1px solid var(--border) !important;
+                border-radius: 10px;
+            }
+            .slip-profile > div:last-child { text-align: right !important; }
+
+            .summary-box {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+                margin-top: 12px;
+            }
+            .sum-card { min-width: 0; padding: 12px; }
+            .sum-card .sum-val { font-size: clamp(14px, 4.2vw, 18px); overflow-wrap: anywhere; }
+            #row-denda-disiplin { grid-column: 1 / -1; }
+
+            .total-bersih.slip-total {
+                margin: 0 0 12px;
+                padding: 24px 14px;
+                border-radius: 16px;
+                background: linear-gradient(145deg, #ecfdf5 0%, #d1fae5 100%);
+                box-shadow: 0 10px 24px rgba(5, 150, 105, 0.14);
+            }
+            .total-bersih.slip-total .sum-title { font-size: 13px; letter-spacing: .04em; }
+            .total-bersih.slip-total .sum-val { font-size: clamp(30px, 9vw, 40px); }
+
+            .slip-attendance { margin-top: 14px; }
+            .attendance-scroll {
+                width: 100%;
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-inline: contain;
+            }
+            .attendance-table { min-width: 1080px; }
+            .attendance-table th:first-child, .attendance-table td:first-child {
+                position: sticky;
+                left: 0;
+                z-index: 2;
+                min-width: 118px;
+                background-color: #fff;
+                box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            }
+            .attendance-table th:first-child { color: var(--primary); }
+            .mobile-swipe-hint {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin: 0 0 8px;
+                color: var(--text-muted);
+                font-size: 11px;
+                font-weight: 600;
+            }
+            .slip-rules { margin-top: 18px !important; }
+
+            .mobile-payroll-bar.is-visible {
+                position: fixed;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                z-index: 9998;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+                background: rgba(255,255,255,0.97);
+                border-top: 1px solid #cbd5e1;
+                box-shadow: 0 -8px 24px rgba(15,23,42,0.14);
+                backdrop-filter: blur(12px);
+            }
+            .mobile-payroll-total { min-width: 0; }
+            .mobile-payroll-total span { display: block; color: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+            .mobile-payroll-total strong { display: block; color: #047857; font-size: clamp(16px, 5vw, 21px); line-height: 1.25; white-space: nowrap; }
+            .mobile-print-btn {
+                min-height: 46px;
+                flex: 0 0 auto;
+                padding: 11px 16px;
+                border: none;
+                border-radius: 12px;
+                background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+                color: #fff;
+                font-family: inherit;
+                font-size: 13px;
+                font-weight: 800;
+                box-shadow: 0 5px 12px rgba(37,99,235,.25);
+            }
         }
 
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
@@ -149,9 +279,9 @@
                     <img src="depan_001.png" alt="Logo Alfacom" style="max-height: 65px; width: auto; object-fit: contain; margin-bottom: 5px;">
                     <p style="margin: 3px 0 0 0; color: var(--text-muted); font-size: 13px; font-weight: 600;">Sistem Payroll & Slip Gaji Digital</p>
                 </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
+                <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
                     <button type="button" class="btn-print" onclick="window.location.href='index.html'" style="background:#fefce8; color:#a16207; border:1px solid #fde047; font-weight:bold;">🔙 Kembali ke Lobi</button>
-                    <button type="button" class="btn-print" onclick="window.print()" style="background:#475569; font-weight:bold;">🖨️ Cetak PDF</button>
+                    <button type="button" class="btn-print desktop-print-btn" onclick="window.print()" style="background:#475569; font-weight:bold;">🖨️ Cetak PDF</button>
                 </div>
             </div>
 
@@ -161,9 +291,10 @@
                 <button class="segment-btn" id="btn-tab-dash" onclick="switchTab('dash')">Dashboard Rekapitulasi</button>
             </div>
 
+            <div id="payroll-workspace">
             <!-- PANEL KONTROL BERSAMA -->
             <div class="control-panel">
-                <div class="form-row">
+                <div class="form-row payroll-filter-row">
                     <div class="form-group" id="div-pilih-pegawai">
                         <label>Pilih Pegawai</label>
                         <select id="pilih-pegawai" onchange="handleFilterPayrollChange()"></select>
@@ -215,7 +346,7 @@
 
             <!-- AREA 1: SLIP GAJI INDIVIDU -->
             <div id="area-slip" style="display: none;">
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 15px; margin-bottom: 15px;">
+                <div class="slip-profile" style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 15px; margin-bottom: 15px;">
                     <div>
                         <strong style="font-size:16px;" id="res-nama">Nama Pegawai</strong><br>
                         <span style="color:var(--text-muted);" id="res-role">Role</span>
@@ -226,8 +357,10 @@
                     </div>
                 </div>
 
-                <div style="overflow-x: auto; width: 100%; border: 1px solid var(--border); border-radius: 8px;">
-                    <table style="margin-top:0; border:none;">
+                <div class="slip-attendance">
+                    <div class="mobile-swipe-hint" aria-hidden="true">↔ Geser tabel untuk melihat rincian jam dan potongan</div>
+                    <div class="attendance-scroll" style="overflow-x: auto; white-space: nowrap; width: 100%; border: 1px solid var(--border); border-radius: 8px;">
+                    <table class="attendance-table" style="margin-top:0; border:none;">
                         <thead>
                             <tr>
                                 <th>Hari, Tanggal</th>
@@ -246,15 +379,16 @@
                             <!-- Otomatis dari JS -->
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 <!-- KOTAK RINCIAN TUNJANGAN -->
-                <div id="rincian-bonus-manual" style="margin-top:20px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border); display:none;">
+                <div id="rincian-bonus-manual" class="slip-bonus-details" style="margin-top:20px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border); display:none;">
                     <h4 style="margin:0 0 10px 0; color:#065f46; font-size:13px; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">Rincian Tunjangan & Honor Permanen</h4>
                     <div id="isi-rincian-bonus"></div>
                 </div>
 
-                <div class="summary-box">
+                <div class="summary-box slip-summary">
                     <div class="sum-card">
                         <div class="sum-title">Upah Kehadiran (Prasarat)</div>
                         <div class="sum-val" id="sum-hadir">Rp 0</div>
@@ -291,13 +425,13 @@
                     </div>
                 </div>
 
-                <div class="total-bersih">
+                <div class="total-bersih slip-total">
                     <div class="sum-title">TOTAL UPAH BERSIH DITERIMA</div>
                     <div class="sum-val" id="sum-total">Rp 0</div>
                 </div>
 
                 <!-- PAPAN INFORMASI & LEGENDA -->
-                <div style="margin-top:25px; display:flex; gap:20px; flex-wrap:wrap; border-top:2px solid var(--border); padding-top:20px;">
+                <div class="slip-rules" style="margin-top:25px; display:flex; gap:20px; flex-wrap:wrap; border-top:2px solid var(--border); padding-top:20px;">
                     <!-- Card 1: Arti Warna -->
                     <div style="flex:1; min-width:250px; background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                         <h4 style="margin:0 0 10px 0; color:var(--primary); border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">🎨 Legenda Warna</h4>
@@ -368,7 +502,16 @@
                     </table>
                 </div>
             </div>
+            </div>
         </div>
+    </div>
+
+    <div class="mobile-payroll-bar" id="mobile-payroll-bar" role="region" aria-label="Aksi slip gaji">
+        <div class="mobile-payroll-total">
+            <span>Gaji Bersih</span>
+            <strong id="mobile-sum-total">Rp 0</strong>
+        </div>
+        <button type="button" class="mobile-print-btn" onclick="window.print()">🖨️ Cetak PDF</button>
     </div>
 
     <script>
@@ -677,6 +820,7 @@
             currentTab = tabId;
             document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-tab-' + tabId).classList.add('active');
+            document.getElementById('mobile-payroll-bar').classList.remove('is-visible');
             
             document.getElementById('area-slip').style.display = 'none';
             document.getElementById('area-dashboard').style.display = 'none';
@@ -1191,10 +1335,13 @@
                 }
             }
 
-            document.getElementById('sum-total').innerText = formatRp(data.totalBersih);
+            let totalBersihFormatted = formatRp(data.totalBersih);
+            document.getElementById('sum-total').innerText = totalBersihFormatted;
+            document.getElementById('mobile-sum-total').innerText = totalBersihFormatted;
 
             document.getElementById('loading').style.display = 'none';
             document.getElementById('area-slip').style.display = 'block';
+            document.getElementById('mobile-payroll-bar').classList.add('is-visible');
         }
 
         function generateDashboardRekap() {
