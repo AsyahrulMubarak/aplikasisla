@@ -49,19 +49,22 @@
         .biometric-profile-card { margin-top: 20px; padding: 18px; border: 1px solid #a7f3d0; border-radius: 12px; background: linear-gradient(145deg, #ecfdf5 0%, #f0f9ff 100%); }
         .biometric-profile-card h4 { margin: 0 0 6px; color: #065f46; font-size: 15px; }
         .biometric-profile-card p { margin: 0 0 12px; color: #475569; font-size: 11px; line-height: 1.55; }
-        #branch-selector-wrapper { display: none; min-height: 80vh; padding: 20px; box-sizing: border-box; align-items: center; justify-content: center; }
-        .branch-lobby-card { width: 100%; max-width: 560px; padding: 34px; border: 1px solid #dbeafe; border-radius: 22px; background: rgba(255,255,255,.96); box-shadow: 0 24px 60px rgba(30,58,138,.14); text-align: center; }
-        .branch-lobby-icon { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 18px; background: linear-gradient(135deg, #dbeafe, #ccfbf1); font-size: 32px; }
-        .branch-lobby-card h2 { margin: 0; color: #172554; font-size: 24px; }
-        .branch-lobby-card > p { margin: 8px auto 24px; max-width: 430px; color: var(--text-muted); font-size: 13px; }
-        .branch-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-        .branch-option { min-height: 118px; padding: 18px; border: 1px solid #bfdbfe; border-radius: 16px; background: linear-gradient(145deg, #eff6ff, #fff); color: #1e3a8a; font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer; transition: .2s ease; }
-        .branch-option span { display: block; margin-bottom: 8px; font-size: 32px; }
-        .branch-option.raha { border-color: #99f6e4; background: linear-gradient(145deg, #ecfdf5, #fff); color: #0f766e; }
-        .branch-option:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(30,58,138,.12); }
-        .branch-option:disabled { opacity: .55; cursor: wait; transform: none; }
-        #branch-lobby-status { min-height: 20px; margin: 16px 0 0; color: var(--text-muted); font-size: 12px; }
-        .branch-logout { margin-top: 12px; border: 0; background: transparent; color: var(--danger); font-family: inherit; font-weight: 700; cursor: pointer; }
+        #main-lobby-wrapper { display: none; min-height: 80vh; padding: 20px; box-sizing: border-box; align-items: center; justify-content: center; }
+        .main-lobby-card { width: 100%; max-width: 680px; padding: 34px; border: 1px solid #dbeafe; border-radius: 22px; background: rgba(255,255,255,.96); box-shadow: 0 24px 60px rgba(30,58,138,.14); text-align: center; }
+        .main-lobby-icon { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 18px; background: linear-gradient(135deg, #dbeafe, #ccfbf1); font-size: 32px; }
+        .main-lobby-card h2 { margin: 0; color: #172554; font-size: 24px; }
+        .main-lobby-card > p { margin: 8px auto 24px; max-width: 520px; color: var(--text-muted); font-size: 13px; }
+        .main-lobby-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .main-lobby-option { min-height: 118px; padding: 18px; border: 1px solid #bfdbfe; border-radius: 16px; background: linear-gradient(145deg, #eff6ff, #fff); color: #1e3a8a; font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer; transition: .2s ease; }
+        .main-lobby-option span { display: block; margin-bottom: 8px; font-size: 32px; }
+        .main-lobby-option.raha { border-color: #99f6e4; background: linear-gradient(145deg, #ecfdf5, #fff); color: #0f766e; }
+        .main-lobby-option.absen { border-color: #a7f3d0; background: linear-gradient(145deg, #ecfdf5, #fff); color: #047857; }
+        .main-lobby-option.gaji { border-color: #fde68a; background: linear-gradient(145deg, #fffbeb, #fff); color: #a16207; }
+        .main-lobby-option:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(30,58,138,.12); }
+        .main-lobby-option:disabled { opacity: .55; cursor: wait; transform: none; }
+        #main-lobby-status { min-height: 20px; margin: 16px 0 0; color: var(--text-muted); font-size: 12px; }
+        .main-lobby-note { margin: 12px 0 0; color: var(--warning); font-size: 11px; font-style: italic; }
+        .main-lobby-logout { margin-top: 12px; border: 0; background: transparent; color: var(--danger); font-family: inherit; font-weight: 700; cursor: pointer; }
         .active-user-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
         #cabang-aktif-badge { display: none; padding: 4px 9px; border: 1px solid #bfdbfe; border-radius: 999px; background: #eff6ff; color: #1e40af; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
         #login-loading { font-style: italic; color: var(--text-muted); margin-bottom: 15px; font-size: 13px; line-height: 1.5; }
@@ -300,7 +303,7 @@
             .container { width: calc(100% - 240px); max-width: 100%; margin-left: 240px; background: transparent; padding: 30px 40px; box-shadow: none; margin-top: 0; box-sizing: border-box; }
             .top-bar { background: var(--surface); border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 25px; padding: 15px 25px; border: 1px solid var(--border); }
             .tab-page { background: var(--surface); padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border); min-height: calc(100vh - 160px); }
-            #login-wrapper, #branch-selector-wrapper, #app-selector-wrapper, #client-tracking-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; margin: 0; justify-content: center; align-items: center; box-sizing: border-box; background: #f8fafc; z-index: 9999; }
+            #login-wrapper, #main-lobby-wrapper, #client-tracking-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; margin: 0; justify-content: center; align-items: center; box-sizing: border-box; background: #f8fafc; z-index: 9999; }
             .login-card { max-width: 400px; padding: 40px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 100%; }
             .charts-container { justify-content: flex-start; gap: 20px; }
             .chart-box { flex: 1; min-width: 300px; max-width: none; }
@@ -308,11 +311,12 @@
             #modal-bug .modal-content, #modal-update .modal-content, #modal-followup .modal-content, #modal-banding .modal-content, #modal-penawaran .modal-content, #modal-export .modal-content, #modal-poin .modal-content { max-width: 600px; }
         }
         @media (max-width: 520px) {
-            #branch-selector-wrapper { min-height: calc(100vh - 30px); padding: 10px; }
-            .branch-lobby-card { padding: 26px 18px; border-radius: 18px; }
-            .branch-lobby-card h2 { font-size: 20px; }
-            .branch-options { grid-template-columns: 1fr; }
-            .branch-option { min-height: 92px; }
+            #main-lobby-wrapper { min-height: calc(100vh - 30px); padding: 10px; }
+            .main-lobby-card { max-height: calc(100vh - 40px); padding: 24px 18px; border-radius: 18px; overflow-y: auto; }
+            .main-lobby-card h2 { font-size: 20px; }
+            .main-lobby-options { grid-template-columns: 1fr; }
+            .main-lobby-option { min-height: 84px; padding: 14px; }
+            .main-lobby-option span { display: inline-block; margin: 0 8px 0 0; font-size: 24px; vertical-align: middle; }
             .crm-stat-grid { grid-template-columns: 1fr; }
             .crm-hero { padding: 18px; }
             .crm-broadcast-toolbar { position: static; align-items: stretch; flex-direction: column; }
@@ -475,47 +479,29 @@
             </form>
         </div>
     </div>
-    <!-- LOBBY PEMILIHAN CABANG (MASTER-NODE SSO) -->
-    <div id="branch-selector-wrapper" aria-hidden="true">
-        <div class="branch-lobby-card" role="dialog" aria-modal="true" aria-labelledby="branch-lobby-title">
-            <div class="branch-lobby-icon" aria-hidden="true">🌐</div>
-            <h2 id="branch-lobby-title">Pilih Workspace Cabang</h2>
-            <p id="branch-lobby-user">Sesi Master berhasil diverifikasi. Pilih cabang yang ingin dibuka.</p>
-            <div class="branch-options">
-                <button type="button" class="branch-option" data-cabang="Kendari" onclick="pilihCabang('Kendari')">
-                    <span aria-hidden="true">🏢</span>Buka Cabang Kendari
+    <!-- LOBI UTAMA DATAR: PILIH CABANG SLA ATAU MODUL PENDUKUNG -->
+    <div id="main-lobby-wrapper" aria-hidden="true">
+        <div class="main-lobby-card" role="dialog" aria-modal="true" aria-labelledby="main-lobby-title">
+            <div class="main-lobby-icon" aria-hidden="true">🌐</div>
+            <h2 id="main-lobby-title">Portal Gateway Alfacom</h2>
+            <p id="main-lobby-user">Pilih cabang SLA atau modul yang ingin dibuka.</p>
+            <div class="main-lobby-options">
+                <button type="button" id="btn-lobby-sla-kendari" class="main-lobby-option" onclick="pilihCabangSLA('Kendari')">
+                    <span aria-hidden="true">🏢</span>Manajemen SLA Kendari
                 </button>
-                <button type="button" class="branch-option raha" data-cabang="Raha" onclick="pilihCabang('Raha')">
-                    <span aria-hidden="true">🏢</span>Buka Cabang Raha
+                <button type="button" id="btn-lobby-sla-raha" class="main-lobby-option raha" onclick="pilihCabangSLA('Raha')">
+                    <span aria-hidden="true">🏢</span>Manajemen SLA Raha
                 </button>
-            </div>
-            <div id="branch-lobby-status" role="status" aria-live="polite"></div>
-            <button type="button" class="branch-logout" onclick="prosesLogout()">Keluar dari Portal</button>
-        </div>
-    </div>
-    <!-- HUB PEMILIHAN APLIKASI (PORTAL GATEWAY) -->
-    <div id="app-selector-wrapper" aria-hidden="true" style="display:none; justify-content:center; align-items:center; min-height:80vh; padding:20px;">
-        <div class="login-card" style="max-width:400px; border-top-color:var(--primary);">
-            <img src="depan_001.png" alt="Logo Alfacom" style="max-width:150px; margin-bottom:15px;">
-            <h3 style="color:var(--text-main); margin-bottom:5px; font-size:18px;">Portal Gateway Alfacom</h3>
-            <p style="font-size:13px; color:var(--text-muted); margin-bottom:25px;">Bismillah, silakan pilih modul aplikasi yang ingin diakses:</p>
-            
-            <div style="display:flex; flex-direction:column; gap:12px;">
-                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#1e3a8a;" onclick="bukaModul('sla')">
-                    <span style="font-size:20px;">📋</span> Manajemen SLA
+                <button type="button" id="btn-lobby-absen" class="main-lobby-option absen" onclick="bukaModulPendukung('absen')">
+                    <span aria-hidden="true">📅</span>Sistem Absensi
                 </button>
-                
-                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#10b981;" onclick="bukaModul('absen')">
-                    <span style="font-size:20px;">📅</span> Sistem Absensi (Beta)
-                </button>
-                <button class="btn-solid-primary" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; background:#eab308; color:#fff;" onclick="bukaModul('gaji')">
-                    <span style="font-size:20px;">🧾</span> Slip Gaji Digital
-                </button>
-                <p style="font-size:11px; color:var(--warning); margin-top:15px; font-style:italic; text-align:center;">*Absensi dan Slip Gaji sementara hanya dapat dibuka oleh Admin, Manager, dan Direktur.</p>
-                <button class="btn-outline-danger" style="padding:15px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:10px; margin-top:20px; width:100%; border:1px solid #ef4444; color:#ef4444; background:transparent; border-radius:10px; cursor:pointer; font-weight:bold;" onclick="prosesLogout()">
-                    🚪 Keluar Aplikasi
+                <button type="button" id="btn-lobby-gaji" class="main-lobby-option gaji" onclick="bukaModulPendukung('gaji')">
+                    <span aria-hidden="true">🧾</span>Slip Gaji Digital
                 </button>
             </div>
+            <p class="main-lobby-note">Absensi dan Slip Gaji hanya tersedia untuk Admin, Manager, dan Direktur.</p>
+            <div id="main-lobby-status" role="status" aria-live="polite"></div>
+            <button type="button" class="main-lobby-logout" onclick="prosesLogout()">🚪 Keluar Aplikasi</button>
         </div>
     </div>
 
@@ -1059,7 +1045,6 @@
         let penggunaAktif = null;
         let cabangAktif = null;
         let waktuLoginAktif = null;
-        let modulTertunda = 'sla';
         let modeEditUser = false; let modeEditTiket = false; let ttdTiketEditTersimpan = ''; let intervalAutoRefresh; let currentTabId = 'dashboard';
         let currentTicketFilter = 'aktif';
         let currentTrackTicket = null;
@@ -1181,11 +1166,12 @@
             return rolePengguna(user) === 'freelance';
         }
 
-        function cabangLangsungFreelance(user = penggunaAktif, cabangSesi = null) {
+        function cabangOtomatisPengguna(user = penggunaAktif, cabangSesi = null) {
             const hakAkses = hakAksesCabangPengguna(user);
             if (API_URL_CABANG[hakAkses]) return hakAkses;
             const cabangProfil = normalisasiCabang(cabangSesi || (user && (user.Cabang || user['Cabang Aktif'] || user['Cabang Kerja'])));
-            return API_URL_CABANG[cabangProfil] && penggunaBolehMengaksesCabang(cabangProfil, user) ? cabangProfil : '';
+            if (API_URL_CABANG[cabangProfil] && penggunaBolehMengaksesCabang(cabangProfil, user)) return cabangProfil;
+            return hakAkses === 'Semua' ? 'Kendari' : '';
         }
 
         function penggunaBolehMengaksesCabang(cabang, user = penggunaAktif) {
@@ -1231,9 +1217,9 @@
             return dataSesi;
         }
 
-        function simpanSesiPortal(loginTime = waktuLoginAktif || new Date().getTime()) {
-            if (!penggunaAktif || !penggunaAktif.SessionToken || penggunaAdalahFreelance()) {
-                throw new Error('Sesi Portal Gateway tidak tersedia untuk akun ini.');
+        function simpanSesiLobby(loginTime = waktuLoginAktif || new Date().getTime()) {
+            if (!penggunaAktif || !penggunaAktif.SessionToken || !punyaAksesLobby()) {
+                throw new Error('Sesi Lobby tidak tersedia untuk akun ini.');
             }
             waktuLoginAktif = Number(loginTime) || new Date().getTime();
             const dataSesi = {
@@ -1241,7 +1227,7 @@
                 loginTime: waktuLoginAktif,
                 cabangAktif: null,
                 apiUrl: null,
-                modulAktif: 'portal'
+                modulAktif: 'lobby'
             };
             sessionStorage.setItem('sesiLoginSLA', JSON.stringify(dataSesi));
             return dataSesi;
@@ -1256,48 +1242,29 @@
             globalGaransi = [];
         }
 
-        function tampilkanPortalGateway() {
-            if (penggunaAdalahFreelance()) throw new Error('Akun freelance tidak memiliki akses ke Portal Gateway.');
+        function tampilkanLobbyUtama() {
+            if (!punyaAksesLobby()) throw new Error('Akun ini tidak memiliki akses ke Lobby utama.');
             if (intervalAutoRefresh) { clearInterval(intervalAutoRefresh); intervalAutoRefresh = null; }
-            cabangAktif = null;
-            apiUrl = API_URL_KENDARI;
-            modulTertunda = 'sla';
-            perbaruiIdentitasCabang();
-            bersihkanDataCabangDiMemori();
-            simpanSesiPortal(waktuLoginAktif);
-            document.getElementById('login-wrapper').style.display = 'none';
-            const lobbyCabang = document.getElementById('branch-selector-wrapper');
-            lobbyCabang.style.display = 'none';
-            lobbyCabang.setAttribute('aria-hidden', 'true');
-            document.getElementById('app-wrapper').style.display = 'none';
-            const portal = document.getElementById('app-selector-wrapper');
-            portal.style.display = 'flex';
-            portal.setAttribute('aria-hidden', 'false');
-        }
-
-        function tampilkanLobbyCabang(modulTujuan = 'sla') {
-            if (penggunaAdalahFreelance()) throw new Error('Akun freelance tidak boleh membuka Lobby Cabang.');
-            if (hakAksesCabangPengguna() !== 'Semua') throw new Error('Lobby cabang hanya tersedia untuk akun multi-cabang.');
-            if (!['sla', 'absen', 'gaji'].includes(modulTujuan)) throw new Error('Modul tujuan tidak valid.');
-            if (intervalAutoRefresh) { clearInterval(intervalAutoRefresh); intervalAutoRefresh = null; }
-            modulTertunda = modulTujuan;
             cabangAktif = null;
             apiUrl = API_URL_KENDARI;
             perbaruiIdentitasCabang();
             bersihkanDataCabangDiMemori();
-            simpanSesiPortal(waktuLoginAktif);
+            simpanSesiLobby(waktuLoginAktif);
             document.getElementById('login-wrapper').style.display = 'none';
-            const portal = document.getElementById('app-selector-wrapper');
-            portal.style.display = 'none';
-            portal.setAttribute('aria-hidden', 'true');
             document.getElementById('app-wrapper').style.display = 'none';
-            const lobby = document.getElementById('branch-selector-wrapper');
+            const lobby = document.getElementById('main-lobby-wrapper');
             lobby.style.display = 'flex';
             lobby.setAttribute('aria-hidden', 'false');
             const nama = String(penggunaAktif && (penggunaAktif['Nama Asli'] || penggunaAktif.Username) || 'User');
-            const namaModul = modulTujuan === 'sla' ? 'Manajemen SLA' : (modulTujuan === 'absen' ? 'Absensi' : 'Slip Gaji');
-            document.getElementById('branch-lobby-user').innerText = `Selamat datang, ${nama}. Pilih workspace cabang untuk membuka ${namaModul}.`;
-            document.getElementById('branch-lobby-status').innerText = '';
+            document.getElementById('main-lobby-user').innerText = `Selamat datang, ${nama}. Pilih cabang SLA atau modul yang ingin dibuka.`;
+            document.getElementById('main-lobby-status').innerText = '';
+
+            const hakAkses = hakAksesCabangPengguna();
+            const isManajemen = ['admin', 'manager', 'direktur'].includes(rolePengguna());
+            document.getElementById('btn-lobby-sla-kendari').style.display = hakAkses === 'Semua' || hakAkses === 'Kendari' ? 'block' : 'none';
+            document.getElementById('btn-lobby-sla-raha').style.display = hakAkses === 'Semua' || hakAkses === 'Raha' ? 'block' : 'none';
+            document.getElementById('btn-lobby-absen').style.display = isManajemen ? 'block' : 'none';
+            document.getElementById('btn-lobby-gaji').style.display = isManajemen ? 'block' : 'none';
         }
 
         async function aktifkanCabangDanMuat(cabang, loginTime, modulTujuan = 'sla') {
@@ -1305,12 +1272,9 @@
             terapkanCabangAktif(cabang);
             simpanSesiAktif(loginTime, modulTujuan);
             bersihkanDataCabangDiMemori();
-            const lobby = document.getElementById('branch-selector-wrapper');
+            const lobby = document.getElementById('main-lobby-wrapper');
             lobby.style.display = 'none';
             lobby.setAttribute('aria-hidden', 'true');
-            const portal = document.getElementById('app-selector-wrapper');
-            portal.style.display = 'none';
-            portal.setAttribute('aria-hidden', 'true');
 
             if (modulTujuan === 'absen' || modulTujuan === 'gaji') {
                 window.location.href = modulTujuan === 'absen' ? 'absen.html' : 'slipgaji.html';
@@ -1329,22 +1293,22 @@
             }
         }
 
-        async function pilihCabang(cabang) {
-            const modulTujuan = modulTertunda;
-            const tombolCabang = Array.from(document.querySelectorAll('.branch-option'));
-            const status = document.getElementById('branch-lobby-status');
-            tombolCabang.forEach(tombol => { tombol.disabled = true; });
-            status.innerText = `Menghubungkan ke Cabang ${normalisasiCabang(cabang)}...`;
+        async function pilihCabangSLA(cabang) {
+            const cabangTujuan = normalisasiCabang(cabang);
+            const tombolCabang = [document.getElementById('btn-lobby-sla-kendari'), document.getElementById('btn-lobby-sla-raha')];
+            const status = document.getElementById('main-lobby-status');
+            tombolCabang.forEach(tombol => { if (tombol) tombol.disabled = true; });
+            status.innerText = `Menghubungkan ke SLA Cabang ${cabangTujuan}...`;
             try {
-                await aktifkanCabangDanMuat(cabang, waktuLoginAktif, modulTujuan);
-                modulTertunda = 'sla';
+                if (!punyaAksesLobby()) throw new Error('Akun ini wajib langsung menggunakan Dashboard SLA.');
+                await aktifkanCabangDanMuat(cabangTujuan, waktuLoginAktif, 'sla');
                 showToast(`Workspace Cabang ${cabangAktif} aktif.`, 'success');
             } catch (error) {
                 console.error('Pemilihan cabang:', error);
                 status.innerText = error && error.message ? error.message : 'Gagal membuka workspace cabang.';
                 showToast(status.innerText, 'error');
             } finally {
-                tombolCabang.forEach(tombol => { tombol.disabled = false; });
+                tombolCabang.forEach(tombol => { if (tombol) tombol.disabled = false; });
             }
         }
 
@@ -1428,16 +1392,15 @@
             localStorage.removeItem('kredensialSLA');
             localStorage.setItem('webauthnUsernameSLA', String(penggunaAktif.Username || '').trim().toLowerCase());
 
-            if (penggunaAdalahFreelance()) {
-                const cabangFreelance = cabangLangsungFreelance();
-                if (!cabangFreelance) {
-                    throw new Error('Akun freelance wajib memiliki satu cabang kerja yang spesifik. Hubungi administrator.');
-                }
-                await aktifkanCabangDanMuat(cabangFreelance, waktuLoginAktif, 'sla');
+            let hasGaji = parseFloat(penggunaAktif['Gaji Pokok']) > 0;
+            if (!hasGaji || penggunaAdalahFreelance()) {
+                const cabangTujuan = cabangOtomatisPengguna();
+                if (!cabangTujuan) throw new Error('Cabang kerja akun belum valid. Hubungi administrator.');
+                await aktifkanCabangDanMuat(cabangTujuan, waktuLoginAktif, 'sla');
                 return;
             }
 
-            tampilkanPortalGateway();
+            tampilkanLobbyUtama();
         }
 
         async function daftarkanBiometrik() {
@@ -2154,70 +2117,74 @@
         }
 
         // ==========================================
-        // FITUR PORTAL GATEWAY (SSO ALFACOM)
+        // FITUR LOBBY UTAMA DATAR (SSO ALFACOM)
         // ==========================================
         function punyaAksesLobby() {
-            return !!penggunaAktif && !penggunaAdalahFreelance();
+            if (!penggunaAktif || penggunaAdalahFreelance()) return false;
+            let hasGaji = parseFloat(penggunaAktif['Gaji Pokok']) > 0;
+            return hasGaji;
         }
 
         function masukKeAplikasi() {
             document.getElementById('login-wrapper').style.display = 'none';
-            if (penggunaAdalahFreelance()) {
+            if (!punyaAksesLobby()) {
                 if (!cabangAktif) {
-                    const cabangFreelance = cabangLangsungFreelance();
-                    if (!cabangFreelance) throw new Error('Cabang kerja freelance belum valid.');
-                    terapkanCabangAktif(cabangFreelance);
+                    const cabangTujuan = cabangOtomatisPengguna();
+                    if (!cabangTujuan) throw new Error('Cabang kerja akun belum valid.');
+                    terapkanCabangAktif(cabangTujuan);
                     simpanSesiAktif(waktuLoginAktif, 'sla');
                 }
                 bukaAplikasiSLA();
                 return;
             }
 
-            tampilkanPortalGateway();
+            tampilkanLobbyUtama();
         }
 
-        async function bukaModul(namaModul) {
+        async function bukaModulPendukung(namaModul) {
             const role = rolePengguna();
             const isManajemen = role === 'admin' || role === 'manager' || role === 'direktur';
 
-            if (!['sla', 'absen', 'gaji'].includes(namaModul)) {
+            if (!['absen', 'gaji'].includes(namaModul)) {
                 showToast('Modul yang dipilih tidak valid.', 'error');
                 return;
             }
-            if (penggunaAdalahFreelance()) {
-                showToast('Akun freelance hanya dapat menggunakan Dashboard SLA.', 'warning');
+            if (!punyaAksesLobby()) {
+                showToast('Akun ini hanya dapat menggunakan Dashboard SLA.', 'warning');
+                return;
+            }
+            if (!isManajemen) {
+                showToast('Afwan, modul ini hanya tersedia untuk Admin, Manager, dan Direktur.', 'warning');
                 return;
             }
 
-            if (namaModul === 'absen' || namaModul === 'gaji') {
-                if (!isManajemen) {
-                    showToast('Afwan, menu ini masih dalam tahap pengembangan untuk posisi Anda.', 'warning');
-                    return;
-                }
-            }
-
+            const tombol = document.getElementById(namaModul === 'absen' ? 'btn-lobby-absen' : 'btn-lobby-gaji');
+            const status = document.getElementById('main-lobby-status');
+            if (tombol) tombol.disabled = true;
+            status.innerText = `Membuka ${namaModul === 'absen' ? 'Sistem Absensi' : 'Slip Gaji Digital'}...`;
             try {
-                const hakAksesCabang = hakAksesCabangPengguna();
-                if (hakAksesCabang === 'Semua') {
-                    tampilkanLobbyCabang(namaModul);
-                    return;
-                }
-                await aktifkanCabangDanMuat(hakAksesCabang, waktuLoginAktif, namaModul);
+                const cabangTujuan = cabangOtomatisPengguna();
+                if (!cabangTujuan) throw new Error('Cabang kerja akun belum valid.');
+                await aktifkanCabangDanMuat(cabangTujuan, waktuLoginAktif, namaModul);
             } catch (error) {
                 console.error('Routing modul:', error);
-                showToast(error && error.message ? error.message : 'Gagal membuka modul.', 'error');
-                tampilkanPortalGateway();
+                status.innerText = error && error.message ? error.message : 'Gagal membuka modul.';
+                showToast(status.innerText, 'error');
+                if (tombol) tombol.disabled = false;
             }
         }
 
         // Alias kompatibilitas untuk pemanggilan lama yang mungkin masih tersimpan di browser.
+        function bukaModul(jenis) {
+            if (jenis === 'sla') {
+                const cabangTujuan = cabangOtomatisPengguna();
+                return pilihCabangSLA(cabangTujuan);
+            }
+            return bukaModulPendukung(jenis);
+        }
         function pilihAplikasi(jenis) { return bukaModul(jenis); }
 
         function kembaliKeLobby() {
-            if (penggunaAdalahFreelance()) {
-                document.getElementById('btn-kembali-lobby').style.display = 'none';
-                return;
-            }
             if (!punyaAksesLobby()) {
                 document.getElementById('btn-kembali-lobby').style.display = 'none';
                 return;
@@ -2227,22 +2194,19 @@
                 intervalAutoRefresh = null;
             }
             document.getElementById('app-wrapper').style.display = 'none';
-            tampilkanPortalGateway();
+            tampilkanLobbyUtama();
         }
 
         // Ini adalah fungsi asli antum, HANYA diubah namanya saja menjadi bukaAplikasiSLA()
         function bukaAplikasiSLA() {
             try {
                 document.getElementById('login-wrapper').style.display = 'none';
-                document.getElementById('branch-selector-wrapper').style.display = 'none';
-                document.getElementById('branch-selector-wrapper').setAttribute('aria-hidden', 'true');
-                document.getElementById('app-selector-wrapper').style.display = 'none';
-                document.getElementById('app-selector-wrapper').setAttribute('aria-hidden', 'true');
+                document.getElementById('main-lobby-wrapper').style.display = 'none';
+                document.getElementById('main-lobby-wrapper').setAttribute('aria-hidden', 'true');
                 document.getElementById('app-wrapper').style.display = 'block';
                 perbaruiIdentitasCabang();
                 const roleAktif = rolePengguna();
-                const isFreelance = roleAktif === 'freelance';
-                document.getElementById('btn-kembali-lobby').style.display = !isFreelance && punyaAksesLobby() ? 'inline-block' : 'none';
+                document.getElementById('btn-kembali-lobby').style.display = punyaAksesLobby() ? 'inline-block' : 'none';
                 
                 let namaTampil = penggunaAktif['Nama Asli'] || 'User';
                 let roleTampil = String(penggunaAktif.Role || '').toUpperCase();
@@ -2314,7 +2278,7 @@
                 if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('modal-followup').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
             } catch(e) { showToast("Afwan, Error merender aplikasi", "error"); }
         }
-        function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; cabangAktif = null; waktuLoginAktif = null; modulTertunda = 'sla'; apiUrl = API_URL_KENDARI; window.location.reload(); }
+        function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; cabangAktif = null; waktuLoginAktif = null; apiUrl = API_URL_KENDARI; window.location.reload(); }
 
         function toggleTargetSales() { 
             const role = document.getElementById('new-role').value; 
@@ -4877,18 +4841,19 @@
                     waktuLoginAktif = loginTimeAwal;
                     if (!hakAksesCabangPengguna()) throw new Error('Hak akses cabang tidak valid.');
 
-                    if (penggunaAdalahFreelance()) {
-                        const cabangFreelance = cabangLangsungFreelance(penggunaAktif, parsedSessionAwal.cabangAktif);
-                        if (!cabangFreelance) throw new Error('Cabang kerja freelance belum valid.');
-                        terapkanCabangAktif(cabangFreelance);
+                    let hasGaji = parseFloat(penggunaAktif['Gaji Pokok']) > 0;
+                    if (!hasGaji || penggunaAdalahFreelance()) {
+                        const cabangTujuan = cabangOtomatisPengguna(penggunaAktif, parsedSessionAwal.cabangAktif);
+                        if (!cabangTujuan) throw new Error('Cabang kerja akun belum valid.');
+                        terapkanCabangAktif(cabangTujuan);
                         simpanSesiAktif(waktuLoginAktif, 'sla');
                         tujuanSesiAwal = 'sla';
                     } else {
                         cabangAktif = null;
                         apiUrl = API_URL_KENDARI;
                         perbaruiIdentitasCabang();
-                        simpanSesiPortal(waktuLoginAktif);
-                        tujuanSesiAwal = 'portal';
+                        simpanSesiLobby(waktuLoginAktif);
+                        tujuanSesiAwal = 'lobby';
                     }
                 } catch (error) {
                     sessionStorage.removeItem('sesiLoginSLA');
@@ -4901,16 +4866,14 @@
             }
             if (tujuanSesiAwal === 'sla') {
                 ambilSemuaData(false);
-            } else if (tujuanSesiAwal === 'portal') {
+            } else if (tujuanSesiAwal === 'lobby') {
                 masukKeAplikasi();
             } else {
                 document.getElementById('login-loading').style.display = 'none';
                 document.getElementById('login-form').style.display = 'block';
                 document.getElementById('login-wrapper').style.display = 'flex';
-                document.getElementById('branch-selector-wrapper').style.display = 'none';
-                document.getElementById('branch-selector-wrapper').setAttribute('aria-hidden', 'true');
-                document.getElementById('app-selector-wrapper').style.display = 'none';
-                document.getElementById('app-selector-wrapper').setAttribute('aria-hidden', 'true');
+                document.getElementById('main-lobby-wrapper').style.display = 'none';
+                document.getElementById('main-lobby-wrapper').setAttribute('aria-hidden', 'true');
                 document.getElementById('app-wrapper').style.display = 'none';
 
             }
