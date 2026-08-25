@@ -1033,6 +1033,8 @@
 
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
+            <div class="nav-btn" id="nav-absen" onclick="bukaModul('absen')" style="display:none;"><div class="icon">📅</div><div class="text">Absensi</div></div>
+            <div class="nav-btn" id="nav-gaji" onclick="bukaModul('gaji')" style="display:none;"><div class="icon">🧾</div><div class="text">Slip Gaji</div></div>
             <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket</div></div>
             <div class="nav-btn" id="nav-penjualan" onclick="switchTab('penjualan')" style="display:none;"><div class="icon">🛒</div><div class="text">Penjualan</div></div>
             <div class="nav-btn" id="nav-prospek" onclick="switchTab('prospek')" style="display:none;"><div class="icon">🤝</div><div class="text">Prospek</div></div>
@@ -1044,6 +1046,7 @@
     </div>
 
     <script>
+        // Endpoint kanonis Master Kendari untuk seluruh proses autentikasi SSO.
         const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
         const API_URL_RAHA = 'https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec';
         const API_AUTH_URL = API_URL_KENDARI;
@@ -2098,6 +2101,7 @@
                 terapkanCabangAktif(hakAksesCabang);
             }
             document.getElementById('branch-selector-wrapper').style.display = 'none';
+            document.getElementById('branch-selector-wrapper').setAttribute('aria-hidden', 'true');
             document.getElementById('app-selector-wrapper').style.display = 'none';
             bukaAplikasiSLA();
         }
@@ -2141,6 +2145,8 @@
         // Ini adalah fungsi asli antum, HANYA diubah namanya saja menjadi bukaAplikasiSLA()
         function bukaAplikasiSLA() {
             try {
+                document.getElementById('branch-selector-wrapper').style.display = 'none';
+                document.getElementById('branch-selector-wrapper').setAttribute('aria-hidden', 'true');
                 document.getElementById('app-selector-wrapper').style.display = 'none';
                 document.getElementById('app-wrapper').style.display = 'block';
                 perbaruiIdentitasCabang();
@@ -2153,6 +2159,10 @@
                 document.getElementById('nav-user').style.display = 'flex';
                 document.getElementById('nav-garansi').style.display = 'flex';
                 document.getElementById('nav-klien').style.display = punyaAksesCRM_() ? 'flex' : 'none';
+                const roleAktif = String(penggunaAktif.Role || '').trim().toLowerCase();
+                const isManajemen = ['admin', 'manager', 'direktur'].includes(roleAktif);
+                document.getElementById('nav-absen').style.display = isManajemen ? 'flex' : 'none';
+                document.getElementById('nav-gaji').style.display = isManajemen ? 'flex' : 'none';
 
                 if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
                     document.getElementById('btn-tambah-garansi').style.display = 'block';

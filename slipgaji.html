@@ -518,9 +518,12 @@
         // ==========================================
         // KONFIGURASI API (WAJIB DIISI)
         // ==========================================
-        const API_SLA = "https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec";
+        const API_URL_KENDARI = "https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec";
+        const API_URL_RAHA = "https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec";
+        const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
         const API_ABSEN = "https://script.google.com/macros/s/AKfycbzWjDbDmP8HTkFhnr4i_-HDN4Gozsfa8tuSKnwIszLIphJdtfuUk9R0YdgZyotncqgyfg/exec";
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
+        let apiUrl = API_URL_KENDARI;
 
         let penggunaAktif = null;
         let globalUsers = []; let globalTickets = []; let globalAbsen = [];
@@ -528,6 +531,42 @@
         let periodePayrollTermuat = '';
         let urutanLoadPayroll = 0;
         let currentTab = 'slip';
+
+        function normalisasiCabangSesi(nilai) {
+            const cabang = String(nilai || '').trim().toLowerCase();
+            if (cabang === 'kendari') return 'Kendari';
+            if (cabang === 'raha') return 'Raha';
+            if (cabang === 'semua') return 'Semua';
+            return '';
+        }
+
+        function bacaSesiCabangAktif() {
+            const savedSession = sessionStorage.getItem('sesiLoginSLA');
+            if (!savedSession) throw new Error('Sesi portal tidak ditemukan.');
+
+            const session = JSON.parse(savedSession);
+            if (!session || !session.user || !session.user.SessionToken || !session.loginTime) {
+                throw new Error('Sesi portal tidak lengkap.');
+            }
+            const loginTime = Number(session.loginTime);
+            if (!Number.isFinite(loginTime) || loginTime <= 0 || (Date.now() - loginTime) > 86400000) {
+                throw new Error('Sesi portal telah kedaluwarsa.');
+            }
+
+            const cabangAktif = normalisasiCabangSesi(session.cabangAktif);
+            const hakAkses = normalisasiCabangSesi(session.user.Hak_Akses_Cabang);
+            const apiCabang = API_URL_CABANG[cabangAktif];
+            if (!apiCabang || (hakAkses !== 'Semua' && hakAkses !== cabangAktif)) {
+                throw new Error('Cabang aktif tidak sesuai dengan hak akses user.');
+            }
+            if (session.apiUrl && session.apiUrl !== apiCabang) {
+                throw new Error('URL API sesi tidak valid.');
+            }
+
+            apiUrl = apiCabang;
+            document.documentElement.dataset.cabangAktif = cabangAktif;
+            return session;
+        }
 
         function showToast(message, type = 'success') {
             let container = document.getElementById('toast-container');
@@ -552,13 +591,10 @@
             let m = String(now.getMonth() + 1).padStart(2, '0');
             document.getElementById('pilih-bulan').value = `${now.getFullYear()}-${m}`;
 
-            let savedSession = localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA');
-            if (savedSession) {
-                try {
-                    penggunaAktif = JSON.parse(savedSession).user;
-                    if(!penggunaAktif) throw new Error();
-                } catch(e) { window.location.href = "index.html"; return; }
-            } else { window.location.href = "index.html"; return; }
+            try {
+                const session = bacaSesiCabangAktif();
+                penggunaAktif = session.user;
+            } catch(e) { window.location.href = "index.html"; return; }
 
             // Logika Hak Akses Master
             if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role.toLowerCase())) {
@@ -635,7 +671,7 @@
                 document.getElementById('input-luar-kota').value = '';
             }
             try {
-                const res = await fetch(API_SLA, {
+                const res = await fetch(apiUrl, {
                     method: 'POST',
                     body: JSON.stringify({ apiKey: API_KEY, action: 'getVariabelPayroll', periode: periode })
                 });
@@ -700,7 +736,7 @@
             btn.disabled = true;
             btn.innerText = 'Menyimpan...';
             try {
-                const res = await fetch(API_SLA, {
+                const res = await fetch(apiUrl, {
                     method: 'POST',
                     body: JSON.stringify({
                         apiKey: API_KEY,
@@ -790,7 +826,7 @@
             btn.innerText = 'Menyimpan ke Database...'; btn.disabled = true;
             
             try {
-                const res = await fetch(API_SLA, {
+                const res = await fetch(apiUrl, {
                     method: 'POST',
                     body: JSON.stringify({
                         apiKey: API_KEY,
@@ -842,7 +878,7 @@
         async function tarikSemuaData() {
             document.getElementById('loading').style.display = 'block';
             try {
-                let resSLA = await fetch(API_SLA + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: 'follow' });
+                let resSLA = await fetch(apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: 'follow' });
                 let dataSLA = await resSLA.json();
                 globalUsers = dataSLA.users || [];
                 globalTickets = dataSLA.tickets || [];
