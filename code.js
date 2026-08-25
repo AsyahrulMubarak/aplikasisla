@@ -596,6 +596,13 @@ var SECRET_API_KEY = "ALFACOM_SECURE_KEY_2026";
 // Secret HMAC disimpan di Apps Script Script Properties agar tidak masuk repositori publik.
 var SESSION_TOKEN_SECRET = PropertiesService.getScriptProperties().getProperty("SESSION_TOKEN_SECRET");
 var SESSION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+var WEBAUTHN_CREDENTIAL_ID_HEADER = "WebAuthn_CredentialID";
+var WEBAUTHN_PUBLIC_KEY_HEADER = "WebAuthn_PublicKey";
+var WEBAUTHN_CHALLENGE_TTL_MS = 5 * 60 * 1000;
+var WEBAUTHN_RP_NAME = "Alfacom SLA";
+// Tambahkan origin development secara eksplisit di Script Properties bila perlu,
+// contoh: https://aplikasisla.vercel.app,http://127.0.0.1:8765
+var WEBAUTHN_ALLOWED_ORIGINS = PropertiesService.getScriptProperties().getProperty("WEBAUTHN_ALLOWED_ORIGINS") || "https://aplikasisla.vercel.app";
 
 function byteArrayToHex_(bytes) {
   return bytes.map(function(b) {
@@ -650,6 +657,491 @@ function verifikasiSessionToken_(dataUser) {
   } catch (error) {
     return false;
   }
+}
+
+// =======================================================
+// WEBAUTHN / PASSKEY (ES256 / P-256)
+// Challenge ditandatangani HMAC di server; assertion diverifikasi penuh di GAS.
+// =======================================================
+function normalisasiBase64Url_(nilai) {
+  return String(nilai || '').trim().replace(/=+$/g, '');
+}
+
+function base64UrlEncodeBytes_(bytes) {
+  return normalisasiBase64Url_(Utilities.base64EncodeWebSafe(bytes));
+}
+
+function base64UrlEncodeUtf8_(teks) {
+  return normalisasiBase64Url_(Utilities.base64EncodeWebSafe(String(teks || ''), Utilities.Charset.UTF_8));
+}
+
+function base64UrlDecodeBytes_(nilai, batasPanjang) {
+  var bersih = normalisasiBase64Url_(nilai);
+  if (!bersih || !/^[A-Za-z0-9_-]+$/.test(bersih)) throw new Error('Data Base64URL tidak valid.');
+  if (batasPanjang && bersih.length > batasPanjang) throw new Error('Data WebAuthn terlalu panjang.');
+  while (bersih.length % 4) bersih += '=';
+  return Utilities.base64DecodeWebSafe(bersih);
+}
+
+function bytesUnsigned_(bytes) {
+  return (bytes || []).map(function(b) { return b & 0xFF; });
+}
+
+function bytesAppsScript_(bytes) {
+  return bytesUnsigned_(bytes).map(function(b) { return b > 127 ? b - 256 : b; });
+}
+
+function bandingkanBytesKonstan_(a, b) {
+  var kiri = bytesUnsigned_(a);
+  var kanan = bytesUnsigned_(b);
+  if (kiri.length !== kanan.length) return false;
+  var beda = 0;
+  for (var i = 0; i < kiri.length; i++) beda |= kiri[i] ^ kanan[i];
+  return beda === 0;
+}
+
+function pastikanKolomWebAuthnUsers_(sheetUsers) {
+  if (!sheetUsers) throw new Error('Sheet Users tidak ditemukan.');
+  var jumlahKolom = Math.max(sheetUsers.getLastColumn(), 1);
+  var headers = sheetUsers.getRange(1, 1, 1, jumlahKolom).getValues()[0] || [];
+  while (headers.length > 0 && String(headers[headers.length - 1] || '').trim() === '') headers.pop();
+  if (headers.indexOf('Username') === -1) throw new Error('Header Username tidak ditemukan pada Sheet Users.');
+
+  [WEBAUTHN_CREDENTIAL_ID_HEADER, WEBAUTHN_PUBLIC_KEY_HEADER].forEach(function(header) {
+    if (headers.indexOf(header) === -1) {
+      headers.push(header);
+      sheetUsers.getRange(1, headers.length).setValue(header).setFontWeight('bold');
+    }
+  });
+  return headers;
+}
+
+function cariUserWebAuthn_(sheetUsers, username) {
+  var headers = pastikanKolomWebAuthnUsers_(sheetUsers);
+  var dataUsers = sheetUsers.getDataRange().getValues();
+  var colUsername = headers.indexOf('Username');
+  var usernameBersih = String(username || '').trim().toLowerCase();
+  for (var i = 1; i < dataUsers.length; i++) {
+    if (String(dataUsers[i][colUsername] || '').trim().toLowerCase() === usernameBersih) {
+      return {
+        headers: headers,
+        row: dataUsers[i],
+        rowNumber: i + 1,
+        credentialColumn: headers.indexOf(WEBAUTHN_CREDENTIAL_ID_HEADER),
+        publicKeyColumn: headers.indexOf(WEBAUTHN_PUBLIC_KEY_HEADER)
+      };
+    }
+  }
+  return null;
+}
+
+function buatRecordUserAman_(headers, row) {
+  var record = {};
+  for (var i = 0; i < headers.length; i++) {
+    if (headers[i] === 'Password' || headers[i] === WEBAUTHN_CREDENTIAL_ID_HEADER || headers[i] === WEBAUTHN_PUBLIC_KEY_HEADER) continue;
+    record[headers[i]] = row[i];
+  }
+  return record;
+}
+
+function originWebAuthnDiizinkan_(origin) {
+  var target = String(origin || '').trim().replace(/\/$/, '');
+  var daftar = String(WEBAUTHN_ALLOWED_ORIGINS || '').split(',').map(function(item) {
+    return String(item || '').trim().replace(/\/$/, '');
+  }).filter(function(item) { return item !== ''; });
+  return daftar.indexOf(target) !== -1;
+}
+
+function rpIdDariOrigin_(origin) {
+  var target = String(origin || '').trim().replace(/\/$/, '');
+  if (!originWebAuthnDiizinkan_(target)) throw new Error('Origin WebAuthn tidak diizinkan.');
+  var cocok = target.match(/^https:\/\/([a-z0-9.-]+)(?::\d+)?$/i);
+  if (!cocok) cocok = target.match(/^http:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/i);
+  if (!cocok) throw new Error('WebAuthn wajib berjalan pada secure origin.');
+  return String(cocok[1]).toLowerCase();
+}
+
+function buatWebAuthnChallenge_(username, tujuan, origin) {
+  if (!SESSION_TOKEN_SECRET) throw new Error('SESSION_TOKEN_SECRET belum tersedia.');
+  var sekarang = Date.now();
+  var payload = {
+    v: 1,
+    u: String(username || '').trim().toLowerCase(),
+    p: String(tujuan || ''),
+    o: String(origin || '').trim().replace(/\/$/, ''),
+    r: rpIdDariOrigin_(origin),
+    i: sekarang,
+    e: sekarang + WEBAUTHN_CHALLENGE_TTL_MS,
+    n: Utilities.getUuid() + Utilities.getUuid()
+  };
+  var payloadEncoded = base64UrlEncodeUtf8_(JSON.stringify(payload));
+  var signature = byteArrayToHex_(Utilities.computeHmacSha256Signature(
+    'webauthn-v1.' + payloadEncoded,
+    SESSION_TOKEN_SECRET,
+    Utilities.Charset.UTF_8
+  ));
+  return payloadEncoded + '.' + signature;
+}
+
+function validasiWebAuthnChallenge_(challengeToken, tujuan, username) {
+  if (!SESSION_TOKEN_SECRET) throw new Error('SESSION_TOKEN_SECRET belum tersedia.');
+  var bagian = String(challengeToken || '').split('.');
+  if (bagian.length !== 2 || !/^[0-9a-f]{64}$/i.test(bagian[1])) throw new Error('Challenge WebAuthn tidak sah.');
+  var signature = byteArrayToHex_(Utilities.computeHmacSha256Signature(
+    'webauthn-v1.' + bagian[0],
+    SESSION_TOKEN_SECRET,
+    Utilities.Charset.UTF_8
+  ));
+  if (!bandingkanStringKonstan_(signature, bagian[1].toLowerCase())) throw new Error('Challenge WebAuthn tidak sah.');
+
+  var payload = JSON.parse(Utilities.newBlob(base64UrlDecodeBytes_(bagian[0], 4096)).getDataAsString());
+  var sekarang = Date.now();
+  var usernameBersih = String(username || '').trim().toLowerCase();
+  if (payload.v !== 1 || payload.p !== tujuan || payload.u !== usernameBersih) throw new Error('Challenge WebAuthn tidak sesuai.');
+  if (!payload.i || !payload.e || payload.i > sekarang + 60000 || payload.e < sekarang || payload.e - payload.i > WEBAUTHN_CHALLENGE_TTL_MS + 1000) throw new Error('Challenge WebAuthn telah kedaluwarsa.');
+  if (rpIdDariOrigin_(payload.o) !== payload.r) throw new Error('RP ID WebAuthn tidak sesuai.');
+  return payload;
+}
+
+function validasiClientDataWebAuthn_(clientDataEncoded, tipe, challengeToken, originHarapan) {
+  var clientDataBytes = base64UrlDecodeBytes_(clientDataEncoded, 8192);
+  var clientData = JSON.parse(Utilities.newBlob(clientDataBytes).getDataAsString());
+  if (clientData.type !== tipe) throw new Error('Tipe clientData WebAuthn tidak sesuai.');
+  if (!bandingkanStringKonstan_(String(clientData.challenge || ''), base64UrlEncodeUtf8_(challengeToken))) throw new Error('Challenge browser tidak sesuai.');
+  if (!bandingkanStringKonstan_(String(clientData.origin || '').replace(/\/$/, ''), String(originHarapan || '').replace(/\/$/, ''))) throw new Error('Origin browser tidak sesuai.');
+  if (clientData.crossOrigin === true) throw new Error('WebAuthn lintas origin ditolak.');
+  return { json: clientData, bytes: clientDataBytes };
+}
+
+function cariUrutanBytes_(sumber, target) {
+  var data = bytesUnsigned_(sumber);
+  var pola = bytesUnsigned_(target);
+  for (var i = 0; i <= data.length - pola.length; i++) {
+    var cocok = true;
+    for (var j = 0; j < pola.length; j++) {
+      if (data[i + j] !== pola[j]) { cocok = false; break; }
+    }
+    if (cocok) return i;
+  }
+  return -1;
+}
+
+function ekstrakTitikP256DariSpki_(spkiEncoded) {
+  var spki = bytesUnsigned_(base64UrlDecodeBytes_(spkiEncoded, 2048));
+  var oidEcPublicKey = [0x06,0x07,0x2A,0x86,0x48,0xCE,0x3D,0x02,0x01];
+  var oidPrime256v1 = [0x06,0x08,0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x07];
+  if (cariUrutanBytes_(spki, oidEcPublicKey) === -1 || cariUrutanBytes_(spki, oidPrime256v1) === -1) throw new Error('Public key bukan ES256/P-256.');
+  if (spki.length < 65 || spki[spki.length - 65] !== 0x04) throw new Error('Format public key P-256 tidak valid.');
+  return spki.slice(spki.length - 65);
+}
+
+function bacaPanjangCbor_(bytes, index, additional) {
+  if (additional < 24) return { length: additional, next: index };
+  if (additional === 24) return { length: bytes[index], next: index + 1 };
+  if (additional === 25) return { length: bytes[index] * 256 + bytes[index + 1], next: index + 2 };
+  if (additional === 26) return { length: bytes[index] * 16777216 + bytes[index + 1] * 65536 + bytes[index + 2] * 256 + bytes[index + 3], next: index + 4 };
+  throw new Error('CBOR WebAuthn tidak didukung.');
+}
+
+function bacaNilaiCbor_(inputBytes, startIndex) {
+  var bytes = bytesUnsigned_(inputBytes);
+  if (startIndex >= bytes.length) throw new Error('CBOR WebAuthn terpotong.');
+  var awal = bytes[startIndex++];
+  var major = awal >> 5;
+  var panjangInfo = bacaPanjangCbor_(bytes, startIndex, awal & 31);
+  var nilaiPanjang = panjangInfo.length;
+  var index = panjangInfo.next;
+  if (major === 0) return { value: nilaiPanjang, next: index };
+  if (major === 1) return { value: -1 - nilaiPanjang, next: index };
+  if (major === 2) {
+    if (index + nilaiPanjang > bytes.length) throw new Error('CBOR byte string terpotong.');
+    return { value: bytes.slice(index, index + nilaiPanjang), next: index + nilaiPanjang };
+  }
+  if (major === 5) {
+    var map = {};
+    for (var i = 0; i < nilaiPanjang; i++) {
+      var hasilKunci = bacaNilaiCbor_(bytes, index);
+      var hasilNilai = bacaNilaiCbor_(bytes, hasilKunci.next);
+      map[String(hasilKunci.value)] = hasilNilai.value;
+      index = hasilNilai.next;
+    }
+    return { value: map, next: index };
+  }
+  throw new Error('Tipe CBOR WebAuthn tidak didukung.');
+}
+
+function validasiAuthenticatorDataWebAuthn_(authenticatorDataEncoded, rpId, wajibAttested) {
+  var bytes = bytesUnsigned_(base64UrlDecodeBytes_(authenticatorDataEncoded, 16384));
+  if (bytes.length < 37) throw new Error('Authenticator data terlalu pendek.');
+  var rpIdHash = bytesUnsigned_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(rpId), Utilities.Charset.UTF_8));
+  if (!bandingkanBytesKonstan_(bytes.slice(0, 32), rpIdHash)) throw new Error('RP ID hash tidak sesuai.');
+
+  var flags = bytes[32];
+  if ((flags & 0x01) === 0 || (flags & 0x04) === 0) throw new Error('Verifikasi pengguna pada authenticator tidak terpenuhi.');
+  var signCount = bytes[33] * 16777216 + bytes[34] * 65536 + bytes[35] * 256 + bytes[36];
+  var hasil = { bytes: bytes, flags: flags, signCount: signCount };
+
+  if (wajibAttested) {
+    if ((flags & 0x40) === 0 || bytes.length < 56) throw new Error('Attested credential data tidak tersedia.');
+    var credentialLength = bytes[53] * 256 + bytes[54];
+    var credentialStart = 55;
+    var coseStart = credentialStart + credentialLength;
+    if (!credentialLength || coseStart >= bytes.length) throw new Error('Credential ID pada authenticator tidak valid.');
+    var cose = bacaNilaiCbor_(bytes, coseStart).value;
+    if (cose['1'] !== 2 || cose['3'] !== -7 || cose['-1'] !== 1 || !Array.isArray(cose['-2']) || !Array.isArray(cose['-3']) || cose['-2'].length !== 32 || cose['-3'].length !== 32) {
+      throw new Error('Credential WebAuthn wajib menggunakan ES256/P-256.');
+    }
+    hasil.credentialId = bytes.slice(credentialStart, coseStart);
+    hasil.publicPoint = [0x04].concat(cose['-2'], cose['-3']);
+  } else if ((flags & 0x40) !== 0) {
+    throw new Error('Assertion memuat attested data yang tidak semestinya.');
+  }
+  return hasil;
+}
+
+function kurvaP256_() {
+  if (typeof BigInt !== 'function') throw new Error('Runtime Apps Script belum mendukung BigInt/V8.');
+  var p = BigInt('0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff');
+  return {
+    p: p,
+    a: p - BigInt(3),
+    b: BigInt('0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b'),
+    n: BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551'),
+    gx: BigInt('0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296'),
+    gy: BigInt('0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5')
+  };
+}
+
+function moduloBigInt_(nilai, modulus) {
+  var hasil = nilai % modulus;
+  return hasil >= BigInt(0) ? hasil : hasil + modulus;
+}
+
+function inverseBigInt_(nilai, modulus) {
+  var t = BigInt(0), tBaru = BigInt(1);
+  var r = modulus, rBaru = moduloBigInt_(nilai, modulus);
+  while (rBaru !== BigInt(0)) {
+    var q = r / rBaru;
+    var tmpT = t - q * tBaru; t = tBaru; tBaru = tmpT;
+    var tmpR = r - q * rBaru; r = rBaru; rBaru = tmpR;
+  }
+  if (r !== BigInt(1)) throw new Error('Nilai tidak memiliki inverse modular.');
+  return moduloBigInt_(t, modulus);
+}
+
+function bytesKeBigInt_(bytes) {
+  var hex = bytesUnsigned_(bytes).map(function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+  return BigInt('0x' + (hex || '0'));
+}
+
+function tambahTitikP256_(p1, p2, kurva) {
+  if (!p1) return p2;
+  if (!p2) return p1;
+  var p = kurva.p;
+  if (p1.x === p2.x && moduloBigInt_(p1.y + p2.y, p) === BigInt(0)) return null;
+  var lambda;
+  if (p1.x === p2.x && p1.y === p2.y) {
+    if (p1.y === BigInt(0)) return null;
+    lambda = moduloBigInt_((BigInt(3) * p1.x * p1.x + kurva.a) * inverseBigInt_(BigInt(2) * p1.y, p), p);
+  } else {
+    lambda = moduloBigInt_((p2.y - p1.y) * inverseBigInt_(p2.x - p1.x, p), p);
+  }
+  var x3 = moduloBigInt_(lambda * lambda - p1.x - p2.x, p);
+  var y3 = moduloBigInt_(lambda * (p1.x - x3) - p1.y, p);
+  return { x: x3, y: y3 };
+}
+
+function kaliTitikP256_(titik, skalar, kurva) {
+  var hasil = null;
+  var tambah = titik;
+  var k = skalar;
+  while (k > BigInt(0)) {
+    if ((k & BigInt(1)) === BigInt(1)) hasil = tambahTitikP256_(hasil, tambah, kurva);
+    tambah = tambahTitikP256_(tambah, tambah, kurva);
+    k >>= BigInt(1);
+  }
+  return hasil;
+}
+
+function bacaPanjangDer_(bytes, index) {
+  if (index >= bytes.length) throw new Error('Signature DER terpotong.');
+  var awal = bytes[index++];
+  if ((awal & 0x80) === 0) return { length: awal, next: index };
+  var jumlah = awal & 0x7F;
+  if (jumlah < 1 || jumlah > 2 || index + jumlah > bytes.length) throw new Error('Panjang DER tidak didukung.');
+  var panjang = 0;
+  for (var i = 0; i < jumlah; i++) panjang = panjang * 256 + bytes[index++];
+  return { length: panjang, next: index };
+}
+
+function parseSignatureDerP256_(signatureEncoded) {
+  var bytes = bytesUnsigned_(base64UrlDecodeBytes_(signatureEncoded, 512));
+  var index = 0;
+  if (bytes[index++] !== 0x30) throw new Error('Signature ECDSA bukan DER sequence.');
+  var seq = bacaPanjangDer_(bytes, index); index = seq.next;
+  var akhir = index + seq.length;
+  if (akhir !== bytes.length || bytes[index++] !== 0x02) throw new Error('Signature DER tidak valid.');
+  var panjangR = bacaPanjangDer_(bytes, index); index = panjangR.next;
+  var rBytes = bytes.slice(index, index + panjangR.length); index += panjangR.length;
+  if (bytes[index++] !== 0x02) throw new Error('Signature DER tidak valid.');
+  var panjangS = bacaPanjangDer_(bytes, index); index = panjangS.next;
+  var sBytes = bytes.slice(index, index + panjangS.length); index += panjangS.length;
+  if (index !== akhir || !rBytes.length || !sBytes.length || (rBytes[0] & 0x80) || (sBytes[0] & 0x80)) throw new Error('Integer signature DER tidak valid.');
+  while (rBytes.length > 1 && rBytes[0] === 0) rBytes.shift();
+  while (sBytes.length > 1 && sBytes[0] === 0) sBytes.shift();
+  return { r: bytesKeBigInt_(rBytes), s: bytesKeBigInt_(sBytes) };
+}
+
+function verifikasiSignatureEcdsaP256_(spkiEncoded, signatureEncoded, signedBytes) {
+  var kurva = kurvaP256_();
+  var titikBytes = ekstrakTitikP256DariSpki_(spkiEncoded);
+  var q = { x: bytesKeBigInt_(titikBytes.slice(1, 33)), y: bytesKeBigInt_(titikBytes.slice(33, 65)) };
+  if (q.x <= BigInt(0) || q.x >= kurva.p || q.y <= BigInt(0) || q.y >= kurva.p) return false;
+  if (moduloBigInt_(q.y * q.y - (q.x * q.x * q.x + kurva.a * q.x + kurva.b), kurva.p) !== BigInt(0)) return false;
+
+  var sig = parseSignatureDerP256_(signatureEncoded);
+  if (sig.r <= BigInt(0) || sig.r >= kurva.n || sig.s <= BigInt(0) || sig.s >= kurva.n) return false;
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytesAppsScript_(signedBytes));
+  var z = bytesKeBigInt_(digest);
+  var w = inverseBigInt_(sig.s, kurva.n);
+  var u1 = moduloBigInt_(z * w, kurva.n);
+  var u2 = moduloBigInt_(sig.r * w, kurva.n);
+  var g = { x: kurva.gx, y: kurva.gy };
+  var titik = tambahTitikP256_(kaliTitikP256_(g, u1, kurva), kaliTitikP256_(q, u2, kurva), kurva);
+  return !!titik && moduloBigInt_(titik.x, kurva.n) === sig.r;
+}
+
+function bacaCredentialWebAuthnTersimpan_(nilai) {
+  var hasil = JSON.parse(String(nilai || '{}'));
+  if (hasil.v !== 1 || hasil.alg !== -7 || !hasil.spki || !hasil.rpId) throw new Error('Data public key WebAuthn tidak valid.');
+  ekstrakTitikP256DariSpki_(hasil.spki);
+  hasil.signCount = Number(hasil.signCount) || 0;
+  return hasil;
+}
+
+function konsumsiChallengeWebAuthn_(challengeToken) {
+  var cache = CacheService.getScriptCache();
+  var digest = byteArrayToHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(challengeToken), Utilities.Charset.UTF_8));
+  var key = 'webauthn-used-' + digest;
+  if (cache.get(key)) throw new Error('Challenge WebAuthn sudah pernah digunakan.');
+  cache.put(key, '1', Math.ceil(WEBAUTHN_CHALLENGE_TTL_MS / 1000));
+}
+
+function mulaiRegistrasiBiometrik_(data, ss) {
+  if (!verifikasiSessionToken_(data.user)) return { status: 'gagal', pesan: 'Sesi login tidak sah atau telah kedaluwarsa.' };
+  var username = String(data.user.Username || '').trim().toLowerCase();
+  var sheetUsers = ss.getSheetByName('Users');
+  var user = cariUserWebAuthn_(sheetUsers, username);
+  if (!user) return { status: 'gagal', pesan: 'Akun tidak ditemukan.' };
+  var origin = String(data.origin || '').trim().replace(/\/$/, '');
+  var rpId = rpIdDariOrigin_(origin);
+  return {
+    status: 'sukses',
+    challengeToken: buatWebAuthnChallenge_(username, 'register', origin),
+    rpId: rpId,
+    rpName: WEBAUTHN_RP_NAME,
+    userId: base64UrlEncodeBytes_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, username, Utilities.Charset.UTF_8))
+  };
+}
+
+function registerBiometric_(data, ss) {
+  if (!verifikasiSessionToken_(data.user)) return { status: 'gagal', pesan: 'Sesi login tidak sah atau telah kedaluwarsa.' };
+  var username = String(data.user.Username || '').trim().toLowerCase();
+  var challenge = validasiWebAuthnChallenge_(data.challengeToken, 'register', username);
+  var clientData = validasiClientDataWebAuthn_(data.clientDataJSON, 'webauthn.create', data.challengeToken, challenge.o);
+  var authData = validasiAuthenticatorDataWebAuthn_(data.authenticatorData, challenge.r, true);
+  var credentialId = normalisasiBase64Url_(data.credentialId);
+  var credentialBytes = bytesUnsigned_(base64UrlDecodeBytes_(credentialId, 2048));
+  if (!bandingkanBytesKonstan_(credentialBytes, authData.credentialId)) throw new Error('Credential ID tidak sesuai dengan authenticator data.');
+  if (Number(data.publicKeyAlgorithm) !== -7) throw new Error('Hanya credential ES256 yang didukung.');
+  var titikSpki = ekstrakTitikP256DariSpki_(data.publicKey);
+  if (!bandingkanBytesKonstan_(titikSpki, authData.publicPoint)) throw new Error('Public key tidak sesuai dengan authenticator data.');
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheetUsers = ss.getSheetByName('Users');
+    var user = cariUserWebAuthn_(sheetUsers, username);
+    if (!user) throw new Error('Akun tidak ditemukan.');
+    konsumsiChallengeWebAuthn_(data.challengeToken);
+    var publicKeyRecord = JSON.stringify({
+      v: 1,
+      alg: -7,
+      spki: normalisasiBase64Url_(data.publicKey),
+      rpId: challenge.r,
+      signCount: authData.signCount,
+      createdAt: new Date().toISOString()
+    });
+    sheetUsers.getRange(user.rowNumber, user.credentialColumn + 1).setValue(credentialId);
+    sheetUsers.getRange(user.rowNumber, user.publicKeyColumn + 1).setValue(publicKeyRecord);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  return { status: 'sukses', pesan: 'Passkey berhasil didaftarkan.' };
+}
+
+function mulaiLoginBiometrik_(data, ss) {
+  var username = String(data.username || '').trim().toLowerCase();
+  if (!username) return { status: 'gagal', pesan: 'Masukkan username terlebih dahulu.' };
+  var origin = String(data.origin || '').trim().replace(/\/$/, '');
+  var rpId = rpIdDariOrigin_(origin);
+  var sheetUsers = ss.getSheetByName('Users');
+  var user = cariUserWebAuthn_(sheetUsers, username);
+  if (!user) return { status: 'gagal', pesan: 'Passkey belum tersedia untuk akun ini.' };
+  var credentialId = normalisasiBase64Url_(user.row[user.credentialColumn]);
+  var keyRecord;
+  try { keyRecord = bacaCredentialWebAuthnTersimpan_(user.row[user.publicKeyColumn]); }
+  catch (error) { return { status: 'gagal', pesan: 'Passkey belum tersedia untuk akun ini.' }; }
+  if (!credentialId || keyRecord.rpId !== rpId) return { status: 'gagal', pesan: 'Passkey belum tersedia untuk akun ini.' };
+  return {
+    status: 'sukses',
+    challengeToken: buatWebAuthnChallenge_(username, 'login', origin),
+    rpId: rpId,
+    credentialId: credentialId
+  };
+}
+
+function verifyBiometric_(data, ss) {
+  var username = String(data.username || '').trim().toLowerCase();
+  var challenge = validasiWebAuthnChallenge_(data.challengeToken, 'login', username);
+  var clientData = validasiClientDataWebAuthn_(data.clientDataJSON, 'webauthn.get', data.challengeToken, challenge.o);
+  var authData = validasiAuthenticatorDataWebAuthn_(data.authenticatorData, challenge.r, false);
+  var sheetUsers = ss.getSheetByName('Users');
+  var user = cariUserWebAuthn_(sheetUsers, username);
+  if (!user) throw new Error('Kredensial biometrik tidak valid.');
+  var credentialId = normalisasiBase64Url_(data.credentialId);
+  var credentialTersimpan = normalisasiBase64Url_(user.row[user.credentialColumn]);
+  if (!bandingkanStringKonstan_(credentialId, credentialTersimpan)) throw new Error('Kredensial biometrik tidak valid.');
+  var keyRecord = bacaCredentialWebAuthnTersimpan_(user.row[user.publicKeyColumn]);
+  if (keyRecord.rpId !== challenge.r) throw new Error('RP ID credential tidak sesuai.');
+
+  var clientDataHash = bytesUnsigned_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, clientData.bytes));
+  var signedBytes = authData.bytes.concat(clientDataHash);
+  if (!verifikasiSignatureEcdsaP256_(keyRecord.spki, data.signature, signedBytes)) throw new Error('Signature biometrik tidak valid.');
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var userTerbaru = cariUserWebAuthn_(sheetUsers, username);
+    if (!userTerbaru || !bandingkanStringKonstan_(normalisasiBase64Url_(userTerbaru.row[userTerbaru.credentialColumn]), credentialTersimpan)) throw new Error('Credential telah berubah.');
+    var keyTerbaru = bacaCredentialWebAuthnTersimpan_(userTerbaru.row[userTerbaru.publicKeyColumn]);
+    if (keyTerbaru.signCount > 0 && authData.signCount > 0 && authData.signCount <= keyTerbaru.signCount) throw new Error('Counter authenticator tidak meningkat.');
+    konsumsiChallengeWebAuthn_(data.challengeToken);
+    if (authData.signCount > keyTerbaru.signCount) {
+      keyTerbaru.signCount = authData.signCount;
+      keyTerbaru.lastUsedAt = new Date().toISOString();
+      sheetUsers.getRange(userTerbaru.rowNumber, userTerbaru.publicKeyColumn + 1).setValue(JSON.stringify(keyTerbaru));
+      SpreadsheetApp.flush();
+    }
+    user = userTerbaru;
+  } finally {
+    lock.releaseLock();
+  }
+
+  var record = buatRecordUserAman_(user.headers, user.row);
+  record.SessionToken = buatSessionToken_(record.Username);
+  return { status: 'sukses', user: record };
 }
 
 function otorisasiAdminBroadcastCRM_(dataUser, usersData) {
@@ -813,11 +1305,13 @@ function doGet(e) {
     if (!reqTrackId && sheetUsers) {
       var dataUsers = sheetUsers.getDataRange().getValues();
       var headersUsers = dataUsers[0];
-      var passIndex = headersUsers.indexOf("Password"); // Kunci Keamanan: Cegah kirim password!
+      var kolomRahasiaUsers = {"Password": true};
+      kolomRahasiaUsers[WEBAUTHN_CREDENTIAL_ID_HEADER] = true;
+      kolomRahasiaUsers[WEBAUTHN_PUBLIC_KEY_HEADER] = true;
       for (var i = 1; i < dataUsers.length; i++) {
         var row = dataUsers[i]; var record = {};
         for (var j = 0; j < headersUsers.length; j++) {
-          if (j !== passIndex) record[headersUsers[j]] = row[j];
+          if (!kolomRahasiaUsers[headersUsers[j]]) record[headersUsers[j]] = row[j];
         }
         resultUsers.push(record);
       }
@@ -882,6 +1376,42 @@ function doPost(e) {
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
+    if (data.action === 'beginBiometricRegistration') {
+      try {
+        return ContentService.createTextOutput(JSON.stringify(mulaiRegistrasiBiometrik_(data, ss))).setMimeType(ContentService.MimeType.JSON);
+      } catch (error) {
+        console.error('beginBiometricRegistration: ' + error.toString());
+        return ContentService.createTextOutput(JSON.stringify({"status": "gagal", "pesan": "Pendaftaran Passkey tidak dapat dimulai."})).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    if (data.action === 'registerBiometric') {
+      try {
+        return ContentService.createTextOutput(JSON.stringify(registerBiometric_(data, ss))).setMimeType(ContentService.MimeType.JSON);
+      } catch (error) {
+        console.error('registerBiometric: ' + error.toString());
+        return ContentService.createTextOutput(JSON.stringify({"status": "gagal", "pesan": "Pendaftaran Passkey ditolak oleh verifikasi keamanan."})).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    if (data.action === 'beginBiometricLogin') {
+      try {
+        return ContentService.createTextOutput(JSON.stringify(mulaiLoginBiometrik_(data, ss))).setMimeType(ContentService.MimeType.JSON);
+      } catch (error) {
+        console.error('beginBiometricLogin: ' + error.toString());
+        return ContentService.createTextOutput(JSON.stringify({"status": "gagal", "pesan": "Passkey belum tersedia atau permintaan tidak sah."})).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    if (data.action === 'verifyBiometric') {
+      try {
+        return ContentService.createTextOutput(JSON.stringify(verifyBiometric_(data, ss))).setMimeType(ContentService.MimeType.JSON);
+      } catch (error) {
+        console.error('verifyBiometric: ' + error.toString());
+        return ContentService.createTextOutput(JSON.stringify({"status": "gagal", "pesan": "Verifikasi Passkey gagal. Gunakan password sebagai fallback."})).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     if (data.action === 'login') {
       var sheetUsers = ss.getSheetByName("Users");
       var dataUsersLogin = sheetUsers ? sheetUsers.getDataRange().getValues() : [];
@@ -896,10 +1426,7 @@ function doPost(e) {
             if (String(dataUsersLogin[i][colUsernameLogin] || '').trim().toLowerCase() === String(data.username || '').trim().toLowerCase()) {
               var passwordDB = dataUsersLogin[i][colPasswordLogin];
               if (passwordDB === data.passwordHash || passwordDB == data.passwordRaw) {
-                var record = {};
-                for (var j = 0; j < headerUsersLogin.length; j++) {
-                  if (j !== colPasswordLogin) record[headerUsersLogin[j]] = dataUsersLogin[i][j];
-                }
+                var record = buatRecordUserAman_(headerUsersLogin, dataUsersLogin[i]);
                 // --- GENERATOR SESSION TOKEN (KEAMANAN QA POIN 10) ---
                 // Token berlaku 24 jam, ditandatangani HMAC SHA-256, dan tidak memuat password.
                 record["SessionToken"] = buatSessionToken_(record["Username"]);
@@ -1251,7 +1778,8 @@ function doPost(e) {
           }
 
           if (statusBaru === 'Selesai' && statusLama !== 'Selesai') {
-              sinkronkanDatabaseKlien_(namaKlienInfo, waKlienDB, 'Tiket Selesai');
+              var produkTiketCRM = tiketData[i][6] || data.baDeskripsi || data.keterangan || '';
+              sinkronkanDatabaseKlien_(namaKlienInfo, waKlienDB, 'Tiket Selesai', produkTiketCRM);
 
               // Notif Ke Admin
               var teksAdminNotaWA = "✅ *PEKERJAAN SELESAI (MENUNGGU NOTA)* ✅\n\nAssalamu'alaikum Admin,\nTeknisi telah menyelesaikan pekerjaan:\n\n🎫 *ID Tiket:* " + data.idTiket + "\n🏢 *Klien:* " + namaKlienInfo + "\n\nSLA Admin (9 Jam Kerja) untuk membuat Nota & mendaftarkan Garansi mulai berjalan. Mohon segera diproses!\n🌐 https://aplikasisla.vercel.app/";
@@ -1469,7 +1997,7 @@ function doPost(e) {
             // Penjualan belum memiliki kolom No WA, sehingga Nama Pembeli menjadi kriteria pencarian Prospek.
             updateStatusProspekOtomatis_(data.pembeli, 'Closing');
             var noWaPenjualanCRM = data.noWaKlien || data.noWa || data.waKlien || cariNoWAProspekBerdasarkanNama_(data.pembeli);
-            sinkronkanDatabaseKlien_(data.pembeli, noWaPenjualanCRM, 'Penjualan');
+            sinkronkanDatabaseKlien_(data.pembeli, noWaPenjualanCRM, 'Penjualan', data.barang || '');
         }
         SpreadsheetApp.flush(); return ContentService.createTextOutput(JSON.stringify({"status": "sukses"})).setMimeType(ContentService.MimeType.JSON);
 
@@ -2366,7 +2894,87 @@ function cariNoWAProspekBerdasarkanNama_(namaKlien) {
   }
 }
 
-function sinkronkanDatabaseKlien_(namaKlien, noWaKlien, sumberTransaksi) {
+function ekstrakTagProduk_(deskripsiProduk) {
+  var teksAsli = String(deskripsiProduk || '').replace(/[\r\t]+/g, ' ').trim();
+  if (!teksAsli) return [];
+
+  var aturanTag = [
+    { tag: 'CCTV', pola: /\b(cctv|dvr|nvr|ip camera|kamera pengawas)\b/i },
+    { tag: 'Printer', pola: /\b(printer|printhead|inkjet|laserjet|dot matrix|plotter)\b/i },
+    { tag: 'Laptop', pola: /\b(laptop|notebook|macbook|chromebook)\b/i },
+    { tag: 'Komputer', pola: /\b(komputer|desktop|pc rakitan|all[ -]?in[ -]?one)\b/i },
+    { tag: 'Jaringan', pola: /\b(jaringan|network|lan|kabel utp|switch hub)\b/i },
+    { tag: 'WiFi', pola: /\b(wi[ -]?fi|wireless|access point|router)\b/i },
+    { tag: 'Mikrotik', pola: /\b(mikrotik|routerboard)\b/i },
+    { tag: 'Server', pola: /\b(server|nas|data center)\b/i },
+    { tag: 'Scanner', pola: /\b(scanner|scanjet)\b/i },
+    { tag: 'Proyektor', pola: /\b(proyektor|projector)\b/i },
+    { tag: 'Monitor', pola: /\b(monitor|lcd|led display)\b/i },
+    { tag: 'UPS', pola: /\b(ups|stabilizer)\b/i },
+    { tag: 'POS/Kasir', pola: /\b(pos|mesin kasir|barcode|thermal printer)\b/i },
+    { tag: 'Fingerprint', pola: /\b(fingerprint|mesin absensi|attendance)\b/i },
+    { tag: 'Access Control', pola: /\b(access control|akses kontrol|door lock)\b/i },
+    { tag: 'PABX', pola: /\b(pabx|telepon kantor)\b/i },
+    { tag: 'Smartphone', pola: /\b(smartphone|handphone|ponsel|android|iphone)\b/i },
+    { tag: 'Tablet', pola: /\b(tablet|ipad)\b/i },
+    { tag: 'Storage', pola: /\b(hard ?disk|ssd|flashdisk|storage)\b/i },
+    { tag: 'Software', pola: /\b(software|aplikasi|windows|office|antivirus)\b/i }
+  ];
+
+  var hasil = [];
+  for (var i = 0; i < aturanTag.length; i++) {
+    if (aturanTag[i].pola.test(teksAsli)) hasil.push(aturanTag[i].tag);
+  }
+  if (hasil.length > 0) return hasil;
+
+  // Fallback untuk produk yang belum ada di kamus: simpan nama pendek yang tetap berguna untuk pencarian.
+  var stopword = {
+    servis: true, service: true, perbaikan: true, repair: true, pasang: true,
+    pemasangan: true, instalasi: true, install: true, maintenance: true,
+    pengecekan: true, cek: true, ganti: true, penggantian: true, dan: true,
+    untuk: true, dengan: true, baru: true, unit: true, buah: true
+  };
+  var bagian = teksAsli.split(/\n|,|;|\|/);
+  for (var b = 0; b < bagian.length && hasil.length < 6; b++) {
+    var bersih = String(bagian[b] || '')
+      .replace(/^\s*\d+[.)-]?\s*/, '')
+      .replace(/\([^)]*(?:rp|\d)[^)]*\)/ig, ' ')
+      .replace(/[^A-Za-z0-9-]+/g, ' ')
+      .trim();
+    if (!bersih) continue;
+
+    var token = bersih.split(/\s+/).filter(function(kata) {
+      return kata && !stopword[String(kata).toLowerCase()];
+    }).slice(0, 3);
+    if (token.length === 0) continue;
+
+    var tagFallback = token.map(function(kata) {
+      return /^[A-Z0-9-]{2,}$/.test(kata) ? kata : kata.charAt(0).toUpperCase() + kata.slice(1).toLowerCase();
+    }).join(' ').substring(0, 40);
+    if (tagFallback) hasil.push(tagFallback);
+  }
+
+  return hasil;
+}
+
+function gabungkanTagProduk_(tagLama, tagBaru) {
+  var hasil = [];
+  var kunciTerpakai = {};
+
+  function tambahTag_(nilai) {
+    var tag = String(nilai || '').trim();
+    var kunci = tag.toLowerCase();
+    if (!tag || kunciTerpakai[kunci]) return;
+    kunciTerpakai[kunci] = true;
+    hasil.push(tag.substring(0, 40));
+  }
+
+  String(tagLama || '').split(/[,\n|;]+/).forEach(tambahTag_);
+  (Array.isArray(tagBaru) ? tagBaru : [tagBaru]).forEach(tambahTag_);
+  return hasil.slice(0, 24).join(', ');
+}
+
+function sinkronkanDatabaseKlien_(namaKlien, noWaKlien, sumberTransaksi, deskripsiProduk) {
   var lock = null;
   var lockDidapat = false;
 
@@ -2376,8 +2984,9 @@ function sinkronkanDatabaseKlien_(namaKlien, noWaKlien, sumberTransaksi) {
 
     var namaBaru = String(namaKlien || '').trim();
     var sumberBaru = String(sumberTransaksi || '').trim() || '-';
+    var tagProdukBaru = ekstrakTagProduk_(deskripsiProduk);
     var waktuSekarang = new Date();
-    var headerWajib = ['ID Klien', 'Nama Klien', 'No WA', 'Kategori', 'Total Transaksi', 'Transaksi Terakhir', 'Sumber'];
+    var headerWajib = ['ID Klien', 'Nama Klien', 'No WA', 'Kategori', 'Total Transaksi', 'Transaksi Terakhir', 'Sumber', 'Tag Produk'];
 
     lock = LockService.getScriptLock();
     lockDidapat = lock.tryLock(10000);
@@ -2394,8 +3003,11 @@ function sinkronkanDatabaseKlien_(namaKlien, noWaKlien, sumberTransaksi) {
       sheetKlien.setFrozenRows(1);
     }
 
-    var jumlahKolom = Math.max(sheetKlien.getLastColumn(), headerWajib.length);
+    var jumlahKolom = Math.max(sheetKlien.getLastColumn(), 1);
     var headerAktual = sheetKlien.getRange(1, 1, 1, jumlahKolom).getValues()[0];
+    while (headerAktual.length > 0 && String(headerAktual[headerAktual.length - 1] || '').trim() === '') {
+      headerAktual.pop();
+    }
     for (var h = 0; h < headerWajib.length; h++) {
       if (headerAktual.indexOf(headerWajib[h]) === -1) {
         headerAktual.push(headerWajib[h]);
@@ -2410,6 +3022,7 @@ function sinkronkanDatabaseKlien_(namaKlien, noWaKlien, sumberTransaksi) {
     var colTotal = headerAktual.indexOf('Total Transaksi');
     var colTerakhir = headerAktual.indexOf('Transaksi Terakhir');
     var colSumber = headerAktual.indexOf('Sumber');
+    var colTagProduk = headerAktual.indexOf('Tag Produk');
     var dataKlien = sheetKlien.getDataRange().getValues();
     var barisCocok = -1;
 
@@ -2443,6 +3056,7 @@ function sinkronkanDatabaseKlien_(namaKlien, noWaKlien, sumberTransaksi) {
       barisBaru[colTotal] = 1;
       barisBaru[colTerakhir] = waktuSekarang;
       barisBaru[colSumber] = amankanTeksSheet_(sumberBaru);
+      barisBaru[colTagProduk] = amankanTeksSheet_(gabungkanTagProduk_('', tagProdukBaru));
       sheetKlien.appendRow(barisBaru);
       return true;
     }
@@ -2457,6 +3071,8 @@ function sinkronkanDatabaseKlien_(namaKlien, noWaKlien, sumberTransaksi) {
     sheetKlien.getRange(nomorBarisSheet, colTotal + 1).setValue(totalLama + 1);
     sheetKlien.getRange(nomorBarisSheet, colTerakhir + 1).setValue(waktuSekarang);
     sheetKlien.getRange(nomorBarisSheet, colSumber + 1).setValue(amankanTeksSheet_(sumberBaru));
+    var tagGabungan = gabungkanTagProduk_(dataKlien[barisCocok][colTagProduk], tagProdukBaru);
+    sheetKlien.getRange(nomorBarisSheet, colTagProduk + 1).setValue(amankanTeksSheet_(tagGabungan));
     return true;
   } catch (error) {
     // Best-effort: kegagalan CRM tidak boleh membatalkan penyelesaian tiket/penjualan utama.
