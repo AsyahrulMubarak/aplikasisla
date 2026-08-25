@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Sistem Manajemen SLA</title>
-    
+
     <meta name="theme-color" content="#1e3a8a">
     <link rel="apple-touch-icon" href="depan_001.png">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -49,6 +49,21 @@
         .biometric-profile-card { margin-top: 20px; padding: 18px; border: 1px solid #a7f3d0; border-radius: 12px; background: linear-gradient(145deg, #ecfdf5 0%, #f0f9ff 100%); }
         .biometric-profile-card h4 { margin: 0 0 6px; color: #065f46; font-size: 15px; }
         .biometric-profile-card p { margin: 0 0 12px; color: #475569; font-size: 11px; line-height: 1.55; }
+        #branch-selector-wrapper { display: none; min-height: 80vh; padding: 20px; box-sizing: border-box; align-items: center; justify-content: center; }
+        .branch-lobby-card { width: 100%; max-width: 560px; padding: 34px; border: 1px solid #dbeafe; border-radius: 22px; background: rgba(255,255,255,.96); box-shadow: 0 24px 60px rgba(30,58,138,.14); text-align: center; }
+        .branch-lobby-icon { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 18px; background: linear-gradient(135deg, #dbeafe, #ccfbf1); font-size: 32px; }
+        .branch-lobby-card h2 { margin: 0; color: #172554; font-size: 24px; }
+        .branch-lobby-card > p { margin: 8px auto 24px; max-width: 430px; color: var(--text-muted); font-size: 13px; }
+        .branch-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .branch-option { min-height: 118px; padding: 18px; border: 1px solid #bfdbfe; border-radius: 16px; background: linear-gradient(145deg, #eff6ff, #fff); color: #1e3a8a; font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer; transition: .2s ease; }
+        .branch-option span { display: block; margin-bottom: 8px; font-size: 32px; }
+        .branch-option.raha { border-color: #99f6e4; background: linear-gradient(145deg, #ecfdf5, #fff); color: #0f766e; }
+        .branch-option:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(30,58,138,.12); }
+        .branch-option:disabled { opacity: .55; cursor: wait; transform: none; }
+        #branch-lobby-status { min-height: 20px; margin: 16px 0 0; color: var(--text-muted); font-size: 12px; }
+        .branch-logout { margin-top: 12px; border: 0; background: transparent; color: var(--danger); font-family: inherit; font-weight: 700; cursor: pointer; }
+        .active-user-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+        #cabang-aktif-badge { display: none; padding: 4px 9px; border: 1px solid #bfdbfe; border-radius: 999px; background: #eff6ff; color: #1e40af; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
         #login-loading { font-style: italic; color: var(--text-muted); margin-bottom: 15px; font-size: 13px; line-height: 1.5; }
         #app-wrapper { display: none; }
         .header-branding { text-align: center; margin-bottom: 20px; }
@@ -285,7 +300,7 @@
             .container { width: calc(100% - 240px); max-width: 100%; margin-left: 240px; background: transparent; padding: 30px 40px; box-shadow: none; margin-top: 0; box-sizing: border-box; }
             .top-bar { background: var(--surface); border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 25px; padding: 15px 25px; border: 1px solid var(--border); }
             .tab-page { background: var(--surface); padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid var(--border); min-height: calc(100vh - 160px); }
-            #login-wrapper, #app-selector-wrapper, #client-tracking-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; margin: 0; justify-content: center; align-items: center; box-sizing: border-box; background: #f8fafc; z-index: 9999; }
+            #login-wrapper, #branch-selector-wrapper, #app-selector-wrapper, #client-tracking-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; margin: 0; justify-content: center; align-items: center; box-sizing: border-box; background: #f8fafc; z-index: 9999; }
             .login-card { max-width: 400px; padding: 40px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 100%; }
             .charts-container { justify-content: flex-start; gap: 20px; }
             .chart-box { flex: 1; min-width: 300px; max-width: none; }
@@ -293,6 +308,11 @@
             #modal-bug .modal-content, #modal-update .modal-content, #modal-followup .modal-content, #modal-banding .modal-content, #modal-penawaran .modal-content, #modal-export .modal-content, #modal-poin .modal-content { max-width: 600px; }
         }
         @media (max-width: 520px) {
+            #branch-selector-wrapper { min-height: calc(100vh - 30px); padding: 10px; }
+            .branch-lobby-card { padding: 26px 18px; border-radius: 18px; }
+            .branch-lobby-card h2 { font-size: 20px; }
+            .branch-options { grid-template-columns: 1fr; }
+            .branch-option { min-height: 92px; }
             .crm-stat-grid { grid-template-columns: 1fr; }
             .crm-hero { padding: 18px; }
             .crm-broadcast-toolbar { position: static; align-items: stretch; flex-direction: column; }
@@ -455,6 +475,24 @@
             </form>
         </div>
     </div>
+    <!-- LOBBY PEMILIHAN CABANG (MASTER-NODE SSO) -->
+    <div id="branch-selector-wrapper" aria-hidden="true">
+        <div class="branch-lobby-card" role="dialog" aria-modal="true" aria-labelledby="branch-lobby-title">
+            <div class="branch-lobby-icon" aria-hidden="true">🌐</div>
+            <h2 id="branch-lobby-title">Pilih Workspace Cabang</h2>
+            <p id="branch-lobby-user">Sesi Master berhasil diverifikasi. Pilih cabang yang ingin dibuka.</p>
+            <div class="branch-options">
+                <button type="button" class="branch-option" data-cabang="Kendari" onclick="pilihCabang('Kendari')">
+                    <span aria-hidden="true">🏢</span>Buka Cabang Kendari
+                </button>
+                <button type="button" class="branch-option raha" data-cabang="Raha" onclick="pilihCabang('Raha')">
+                    <span aria-hidden="true">🏢</span>Buka Cabang Raha
+                </button>
+            </div>
+            <div id="branch-lobby-status" role="status" aria-live="polite"></div>
+            <button type="button" class="branch-logout" onclick="prosesLogout()">Keluar dari Portal</button>
+        </div>
+    </div>
     <!-- HUB PEMILIHAN APLIKASI (PORTAL GATEWAY) -->
     <div id="app-selector-wrapper" style="display:none; justify-content:center; align-items:center; min-height:80vh; padding:20px;">
         <div class="login-card" style="max-width:400px; border-top-color:var(--primary);">
@@ -588,7 +626,10 @@
     <div class="container" id="app-wrapper">
         <div class="header-branding"><img src="depan_001.png" alt="Logo Alfacom" class="logo"></div>
         <div class="top-bar">
-            <span id="nama-login">User</span>
+            <div class="active-user-summary">
+                <span id="nama-login">User</span>
+                <span id="cabang-aktif-badge" aria-label="Cabang aktif"></span>
+            </div>
             <div class="top-bar-buttons" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; margin-top: 15px;">
                 <button id="btn-kembali-lobby" onclick="kembaliKeLobby()" class="btn-outline-lobby" style="display:none; padding: 10px; font-size: 13px;">🏠 Kembali ke Lobby</button>
                 <button onclick="bukaModalBug()" class="btn-outline-danger" style="padding: 10px; font-size: 13px;">🐞 Lapor Bug</button>
@@ -1003,7 +1044,11 @@
     </div>
 
     <script>
-        const apiUrl = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
+        const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
+        const API_URL_RAHA = 'https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec';
+        const API_AUTH_URL = API_URL_KENDARI;
+        const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
+        let apiUrl = API_URL_KENDARI;
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
 
         let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let globalProspek = []; let globalKlien = []; let globalGaransi = [];
@@ -1011,6 +1056,8 @@
         let pilihanBroadcastCRM = new Map();
         let broadcastCRMSedangDikirim = false;
         let penggunaAktif = null;
+        let cabangAktif = null;
+        let waktuLoginAktif = null;
         let modeEditUser = false; let modeEditTiket = false; let ttdTiketEditTersimpan = ''; let intervalAutoRefresh; let currentTabId = 'dashboard';
         let currentTicketFilter = 'aktif';
         let currentTrackTicket = null;
@@ -1112,6 +1159,124 @@
             const hashArray = Array.from(new Uint8Array(hashBuffer)); return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
+        function normalisasiCabang(nilai) {
+            const cabang = String(nilai || '').trim().toLowerCase();
+            if (cabang === 'kendari') return 'Kendari';
+            if (cabang === 'raha') return 'Raha';
+            if (cabang === 'semua') return 'Semua';
+            return '';
+        }
+
+        function hakAksesCabangPengguna(user = penggunaAktif) {
+            return normalisasiCabang(user && user.Hak_Akses_Cabang);
+        }
+
+        function penggunaBolehMengaksesCabang(cabang, user = penggunaAktif) {
+            const cabangTarget = normalisasiCabang(cabang);
+            const hakAkses = hakAksesCabangPengguna(user);
+            return !!API_URL_CABANG[cabangTarget] && (hakAkses === 'Semua' || hakAkses === cabangTarget);
+        }
+
+        function perbaruiIdentitasCabang() {
+            const badge = document.getElementById('cabang-aktif-badge');
+            if (badge) {
+                badge.innerText = cabangAktif ? `Cabang ${cabangAktif}` : '';
+                badge.style.display = cabangAktif ? 'inline-flex' : 'none';
+            }
+            if (cabangAktif) document.documentElement.dataset.cabangAktif = cabangAktif;
+            else delete document.documentElement.dataset.cabangAktif;
+        }
+
+        function terapkanCabangAktif(cabang) {
+            const cabangTarget = normalisasiCabang(cabang);
+            if (!penggunaBolehMengaksesCabang(cabangTarget)) {
+                throw new Error('Akun tidak memiliki hak akses ke cabang yang dipilih.');
+            }
+            cabangAktif = cabangTarget;
+            apiUrl = API_URL_CABANG[cabangTarget];
+            perbaruiIdentitasCabang();
+            return apiUrl;
+        }
+
+        function simpanSesiAktif(loginTime = waktuLoginAktif || new Date().getTime()) {
+            if (!penggunaAktif || !penggunaAktif.SessionToken || !cabangAktif || !API_URL_CABANG[cabangAktif]) {
+                throw new Error('Sesi cabang belum lengkap.');
+            }
+            waktuLoginAktif = Number(loginTime) || new Date().getTime();
+            const dataSesi = {
+                user: penggunaAktif,
+                loginTime: waktuLoginAktif,
+                cabangAktif: cabangAktif,
+                apiUrl: API_URL_CABANG[cabangAktif]
+            };
+            sessionStorage.setItem('sesiLoginSLA', JSON.stringify(dataSesi));
+            return dataSesi;
+        }
+
+        function bersihkanDataCabangDiMemori() {
+            globalTickets = [];
+            globalUsers = [];
+            globalPenjualan = [];
+            globalProspek = [];
+            globalKlien = [];
+            globalGaransi = [];
+        }
+
+        function tampilkanLobbyCabang() {
+            if (hakAksesCabangPengguna() !== 'Semua') throw new Error('Lobby cabang hanya tersedia untuk akun multi-cabang.');
+            if (intervalAutoRefresh) { clearInterval(intervalAutoRefresh); intervalAutoRefresh = null; }
+            sessionStorage.removeItem('sesiLoginSLA');
+            cabangAktif = null;
+            apiUrl = API_URL_KENDARI;
+            perbaruiIdentitasCabang();
+            bersihkanDataCabangDiMemori();
+            document.getElementById('login-wrapper').style.display = 'none';
+            document.getElementById('app-selector-wrapper').style.display = 'none';
+            document.getElementById('app-wrapper').style.display = 'none';
+            const lobby = document.getElementById('branch-selector-wrapper');
+            lobby.style.display = 'flex';
+            lobby.setAttribute('aria-hidden', 'false');
+            const nama = String(penggunaAktif && (penggunaAktif['Nama Asli'] || penggunaAktif.Username) || 'User');
+            document.getElementById('branch-lobby-user').innerText = `Selamat datang, ${nama}. Pilih workspace cabang yang ingin dibuka.`;
+            document.getElementById('branch-lobby-status').innerText = '';
+        }
+
+        async function aktifkanCabangDanMuat(cabang, loginTime) {
+            terapkanCabangAktif(cabang);
+            simpanSesiAktif(loginTime);
+            bersihkanDataCabangDiMemori();
+            const lobby = document.getElementById('branch-selector-wrapper');
+            lobby.style.display = 'none';
+            lobby.setAttribute('aria-hidden', 'true');
+            masukKeAplikasi();
+            const loading = document.getElementById('loading');
+            loading.style.display = 'block';
+            loading.innerText = `Mengunduh database Cabang ${cabangAktif}...`;
+            try {
+                await ambilSemuaData(true);
+            } finally {
+                loading.style.display = 'none';
+                loading.innerText = 'Sinkronisasi data sistem...';
+            }
+        }
+
+        async function pilihCabang(cabang) {
+            const tombolCabang = Array.from(document.querySelectorAll('.branch-option'));
+            const status = document.getElementById('branch-lobby-status');
+            tombolCabang.forEach(tombol => { tombol.disabled = true; });
+            status.innerText = `Menghubungkan ke Cabang ${normalisasiCabang(cabang)}...`;
+            try {
+                await aktifkanCabangDanMuat(cabang, waktuLoginAktif);
+                showToast(`Workspace Cabang ${cabangAktif} aktif.`, 'success');
+            } catch (error) {
+                console.error('Pemilihan cabang:', error);
+                status.innerText = error && error.message ? error.message : 'Gagal membuka workspace cabang.';
+                showToast(status.innerText, 'error');
+            } finally {
+                tombolCabang.forEach(tombol => { tombol.disabled = false; });
+            }
+        }
+
         function webAuthnDidukung() {
             return !!(window.isSecureContext && window.PublicKeyCredential && navigator.credentials && navigator.credentials.create && navigator.credentials.get);
         }
@@ -1133,7 +1298,7 @@
         }
 
         async function kirimWebAuthn(action, payload) {
-            const response = await fetch(apiUrl, {
+            const response = await fetch(API_AUTH_URL, {
                 method: 'POST',
                 body: JSON.stringify(Object.assign({ apiKey: API_KEY, action: action }, payload || {})),
                 redirect: 'follow'
@@ -1178,27 +1343,24 @@
             }
         }
 
-        async function selesaikanLoginBerhasil(user) {
-            penggunaAktif = user;
+        async function selesaikanLoginBerhasil(user, hakAksesResponse) {
+            penggunaAktif = Object.assign({}, user);
+            if (!penggunaAktif.Hak_Akses_Cabang && hakAksesResponse) penggunaAktif.Hak_Akses_Cabang = hakAksesResponse;
             ['Password', 'WebAuthn_CredentialID', 'WebAuthn_PublicKey'].forEach(kunci => {
                 if (Object.prototype.hasOwnProperty.call(penggunaAktif, kunci)) delete penggunaAktif[kunci];
             });
             if (!penggunaAktif.SessionToken) throw new Error('Token sesi tidak diterima dari server.');
-            const loginTime = new Date().getTime();
-            sessionStorage.setItem('sesiLoginSLA', JSON.stringify({ user: penggunaAktif, loginTime: loginTime }));
+            const hakAksesCabang = hakAksesCabangPengguna();
+            if (!hakAksesCabang) throw new Error('Hak_Akses_Cabang belum valid. Hubungi administrator Master Kendari.');
+            waktuLoginAktif = new Date().getTime();
             localStorage.removeItem('sesiLoginSLA');
             localStorage.removeItem('kredensialSLA');
             localStorage.setItem('webauthnUsernameSLA', String(penggunaAktif.Username || '').trim().toLowerCase());
-            masukKeAplikasi();
-            if (penggunaAktif.Role !== 'admin') {
-                document.getElementById('loading').style.display = 'block';
-                document.getElementById('loading').innerText = 'Mengunduh database SLA...';
+            if (hakAksesCabang === 'Semua') {
+                tampilkanLobbyCabang();
+                return;
             }
-            await ambilSemuaData(true);
-            if (penggunaAktif.Role !== 'admin') {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('loading').innerText = 'Sinkronisasi data sistem...';
-            }
+            await aktifkanCabangDanMuat(hakAksesCabang, waktuLoginAktif);
         }
 
         async function daftarkanBiometrik() {
@@ -1325,7 +1487,7 @@
                 });
                 if (hasil.status !== 'sukses' || !hasil.user) throw new Error(hasil.pesan || 'Verifikasi Passkey gagal.');
                 if (status) status.innerText = 'Verifikasi berhasil. Membuka dashboard...';
-                await selesaikanLoginBerhasil(hasil.user);
+                await selesaikanLoginBerhasil(hasil.user, hasil.Hak_Akses_Cabang);
             } catch (error) {
                 console.error('Login WebAuthn:', error);
                 const pesan = pesanWebAuthn(error, error && error.message ? error.message : 'Login Passkey gagal. Gunakan password sebagai fallback.');
@@ -1355,7 +1517,7 @@
             if(!un || un.trim() === "") return;
             document.getElementById('login-loading').innerHTML = 'Mengirim permintaan...'; document.getElementById('login-form').style.display = 'none';
             try {
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'lupaSandi', username: un }) }); const json = await res.json();
+                const res = await fetch(API_AUTH_URL, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'lupaSandi', username: un }) }); const json = await res.json();
                 if(json.status === 'sukses') { showToast('Alhamdulillah! Permintaan reset terkirim.', 'success'); } else { showToast('Afwan, '+json.pesan, 'error'); }
             } catch(e) { showToast('Afwan, Gagal mengirim permintaan.', 'error'); }
             document.getElementById('login-loading').innerHTML = 'Memeriksa koneksi aman...'; document.getElementById('login-form').style.display = 'block';
@@ -1838,21 +2000,26 @@
                 let savedSession = sessionStorage.getItem('sesiLoginSLA');
                 if (savedSession) {
                     const parsedSession = JSON.parse(savedSession);
-                    if (!parsedSession || !parsedSession.user || !parsedSession.user.SessionToken || !parsedSession.loginTime) throw new Error("Sesi tidak valid");
+                    if (!parsedSession || !parsedSession.user || !parsedSession.user.SessionToken || !parsedSession.loginTime || !parsedSession.cabangAktif) throw new Error("Sesi tidak valid");
                     if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { 
-                        localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; showToast('Afwan, sesi login telah berakhir.', 'warning'); 
+                        throw new Error('Sesi login telah berakhir.');
                     } else { 
+                        penggunaAktif = Object.assign({}, parsedSession.user);
+                        waktuLoginAktif = Number(parsedSession.loginTime);
+                        terapkanCabangAktif(parsedSession.cabangAktif);
                         const cekDB = globalUsers.find(u => u && u.Username === parsedSession.user.Username); 
-                        if(cekDB) {
-                            penggunaAktif = Object.assign({}, cekDB, { SessionToken: parsedSession.user.SessionToken });
-                            const sesiBersih = JSON.stringify({ user: penggunaAktif, loginTime: parsedSession.loginTime });
-                            sessionStorage.setItem('sesiLoginSLA', sesiBersih);
-                        } else { localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; } 
+                        if (cekDB) penggunaAktif = Object.assign({}, cekDB, parsedSession.user);
+                        simpanSesiAktif(waktuLoginAktif);
                     }
                 }
             } catch(e) {
                 localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA');
                 penggunaAktif = null;
+                cabangAktif = null;
+                waktuLoginAktif = null;
+                apiUrl = API_URL_KENDARI;
+                perbaruiIdentitasCabang();
+                if (e && e.message === 'Sesi login telah berakhir.') showToast('Afwan, sesi login telah berakhir.', 'warning');
             }
 
             try {
@@ -1884,12 +2051,12 @@
             try {
                 const pwHashed = await hashPassword(pwRaw);
                 const payload = { apiKey: API_KEY, action: 'login', username: un, passwordHash: pwHashed, passwordRaw: pwRaw };
-                const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' });
+                const response = await fetch(API_AUTH_URL, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' });
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
                 const hasil = await response.json();
                 if (hasil.status === 'sukses' && hasil.user) {
-                    await selesaikanLoginBerhasil(hasil.user);
+                    await selesaikanLoginBerhasil(hasil.user, hasil.Hak_Akses_Cabang);
                     return;
                 }
 
@@ -1901,7 +2068,7 @@
                 }
             } catch (error) {
                 console.error('Error saat login:', error);
-                showToast('Afwan, terjadi kesalahan jaringan atau server tidak merespons.', 'error');
+                showToast(error && error.message ? error.message : 'Afwan, terjadi kesalahan jaringan atau server tidak merespons.', 'error');
                 if (btnLogin) {
                     btnLogin.innerText = teksTombolAwal;
                     btnLogin.disabled = false;
@@ -1914,6 +2081,7 @@
         // ==========================================
         function punyaAksesLobby() {
             if (!penggunaAktif) return false;
+            if (hakAksesCabangPengguna() === 'Semua') return true;
             let role = String(penggunaAktif.Role || '').toLowerCase();
             let hasGaji = parseFloat(penggunaAktif['Gaji Pokok'] || penggunaAktif['Gaji Pokok (Rp)']) > 0;
             return hasGaji || role === 'direktur';
@@ -1921,16 +2089,17 @@
 
         function masukKeAplikasi() {
             document.getElementById('login-wrapper').style.display = 'none';
-
-            let role = String((penggunaAktif && penggunaAktif.Role) || '').toLowerCase();
-            let hasGaji = parseFloat(penggunaAktif && (penggunaAktif['Gaji Pokok'] || penggunaAktif['Gaji Pokok (Rp)'])) > 0;
-            if (hasGaji || role === 'direktur') {
-                document.getElementById('app-wrapper').style.display = 'none';
-                document.getElementById('app-selector-wrapper').style.display = 'flex';
-            } else {
-                document.getElementById('app-selector-wrapper').style.display = 'none';
-                bukaAplikasiSLA();
+            const hakAksesCabang = hakAksesCabangPengguna();
+            if (!cabangAktif) {
+                if (hakAksesCabang === 'Semua') {
+                    tampilkanLobbyCabang();
+                    return;
+                }
+                terapkanCabangAktif(hakAksesCabang);
             }
+            document.getElementById('branch-selector-wrapper').style.display = 'none';
+            document.getElementById('app-selector-wrapper').style.display = 'none';
+            bukaAplikasiSLA();
         }
 
         function bukaModul(namaModul) {
@@ -1962,6 +2131,10 @@
                 intervalAutoRefresh = null;
             }
             document.getElementById('app-wrapper').style.display = 'none';
+            if (hakAksesCabangPengguna() === 'Semua') {
+                tampilkanLobbyCabang();
+                return;
+            }
             document.getElementById('app-selector-wrapper').style.display = 'flex';
         }
 
@@ -1970,6 +2143,7 @@
             try {
                 document.getElementById('app-selector-wrapper').style.display = 'none';
                 document.getElementById('app-wrapper').style.display = 'block';
+                perbaruiIdentitasCabang();
                 document.getElementById('btn-kembali-lobby').style.display = punyaAksesLobby() ? 'inline-block' : 'none';
                 
                 let namaTampil = penggunaAktif['Nama Asli'] || 'User';
@@ -2042,7 +2216,7 @@
                 if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('modal-followup').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
             } catch(e) { showToast("Afwan, Error merender aplikasi", "error"); }
         }
-        function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; window.location.reload(); }
+        function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; cabangAktif = null; waktuLoginAktif = null; apiUrl = API_URL_KENDARI; window.location.reload(); }
 
         function toggleTargetSales() { 
             const role = document.getElementById('new-role').value; 
@@ -4515,8 +4689,7 @@
                     showToast('Alhamdulillah! Profil tersimpan.', 'success'); 
                     
                     if (penggunaAktif && penggunaAktif.Username === payload.username) {
-                        let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
-                        sessionStorage.setItem('sesiLoginSLA', dataSesi);
+                        simpanSesiAktif(waktuLoginAktif);
                     }
 
                     if (penggunaAktif && penggunaAktif.Role === 'admin') {
@@ -4530,9 +4703,9 @@
                         const uUpdated = (globalUsers || []).find(x => x && x.Username === penggunaAktif.Username);
                         if (uUpdated) {
                             const sessionTokenAktif = penggunaAktif.SessionToken;
-                            penggunaAktif = Object.assign({}, uUpdated, { SessionToken: sessionTokenAktif });
-                            let dataSesi = JSON.stringify({ user: penggunaAktif, loginTime: new Date().getTime() });
-                            sessionStorage.setItem('sesiLoginSLA', dataSesi);
+                            const hakAksesCabangAktif = penggunaAktif.Hak_Akses_Cabang;
+                            penggunaAktif = Object.assign({}, penggunaAktif, uUpdated, { SessionToken: sessionTokenAktif, Hak_Akses_Cabang: hakAksesCabangAktif });
+                            simpanSesiAktif(waktuLoginAktif);
                         }
                         siapkanProfilPribadi();
                     }
@@ -4595,12 +4768,33 @@
         } else {
             localStorage.removeItem('sesiLoginSLA');
             const savedSessionAwal = sessionStorage.getItem('sesiLoginSLA');
+            let sesiAwalValid = false;
             if (savedSessionAwal) {
+                try {
+                    const parsedSessionAwal = JSON.parse(savedSessionAwal);
+                    if (!parsedSessionAwal || !parsedSessionAwal.user || !parsedSessionAwal.user.SessionToken || !parsedSessionAwal.loginTime || !parsedSessionAwal.cabangAktif) throw new Error('Sesi tidak lengkap.');
+                    if ((new Date().getTime() - Number(parsedSessionAwal.loginTime)) > 86400000) throw new Error('Sesi kedaluwarsa.');
+                    penggunaAktif = Object.assign({}, parsedSessionAwal.user);
+                    waktuLoginAktif = Number(parsedSessionAwal.loginTime);
+                    terapkanCabangAktif(parsedSessionAwal.cabangAktif);
+                    simpanSesiAktif(waktuLoginAktif);
+                    sesiAwalValid = true;
+                } catch (error) {
+                    sessionStorage.removeItem('sesiLoginSLA');
+                    penggunaAktif = null;
+                    cabangAktif = null;
+                    waktuLoginAktif = null;
+                    apiUrl = API_URL_KENDARI;
+                    perbaruiIdentitasCabang();
+                }
+            }
+            if (sesiAwalValid) {
                 ambilSemuaData(false);
             } else {
                 document.getElementById('login-loading').style.display = 'none';
                 document.getElementById('login-form').style.display = 'block';
                 document.getElementById('login-wrapper').style.display = 'flex';
+                document.getElementById('branch-selector-wrapper').style.display = 'none';
                 document.getElementById('app-wrapper').style.display = 'none';
 
             }
