@@ -39,12 +39,17 @@
         .login-card input:focus { outline: none; border-color: var(--primary); }
         .btn-login { background-color: var(--primary); color: white; border: none; padding: 12px; width: 100%; font-size: 15px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
         .btn-login:hover { background-color: var(--primary-hover); }
-        .login-divider { display: flex; align-items: center; gap: 10px; margin: 18px 0 12px; color: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-        .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .login-action-row { display: flex; align-items: stretch; gap: 10px; }
+        .login-action-row .btn-login { flex: 1 1 auto; width: auto; }
         .btn-biometric { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 50px; padding: 12px 16px; border: 1px solid #99f6e4; border-radius: 10px; background: linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%); color: #0f766e; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 5px 14px rgba(15,118,110,.10); transition: .2s; }
         .btn-biometric:hover { transform: translateY(-1px); border-color: #5eead4; box-shadow: 0 8px 18px rgba(15,118,110,.16); }
         .btn-biometric:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
         .biometric-icon { font-size: 24px; line-height: 1; }
+        #btn-login-biometric { flex: 0 0 46px; width: 46px; min-height: 0; aspect-ratio: 1 / 1; padding: 0; gap: 0; border-radius: 10px; }
+        #btn-login-biometric .biometric-icon { display: grid; place-items: center; width: 25px; height: 25px; }
+        #btn-login-biometric .biometric-icon svg { display: block; width: 100%; height: 100%; }
+        #btn-login-biometric.is-loading .biometric-icon { animation: biometricPulse 1s ease-in-out infinite; }
+        @keyframes biometricPulse { 50% { opacity: .45; transform: scale(.9); } }
         .biometric-note { margin: 9px 0 0; color: var(--text-muted); font-size: 10px; line-height: 1.5; }
         .biometric-profile-card { margin-top: 20px; padding: 18px; border: 1px solid #a7f3d0; border-radius: 12px; background: linear-gradient(145deg, #ecfdf5 0%, #f0f9ff 100%); }
         .biometric-profile-card h4 { margin: 0 0 6px; color: #065f46; font-size: 15px; }
@@ -62,6 +67,10 @@
         .main-lobby-option.gaji { border-color: #fde68a; background: linear-gradient(145deg, #fffbeb, #fff); color: #a16207; }
         .main-lobby-option:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(30,58,138,.12); }
         .main-lobby-option:disabled { opacity: .55; cursor: wait; transform: none; }
+        .main-lobby-option.is-locked { border-color: #cbd5e1; background: linear-gradient(145deg, #f1f5f9, #e2e8f0); color: #64748b; opacity: .68; filter: grayscale(1); }
+        .main-lobby-option.is-locked:hover { transform: none; box-shadow: 0 5px 12px rgba(71,85,105,.08); }
+        .lobby-lock-indicator { display: none; margin-top: 8px; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
+        .main-lobby-option.is-locked .lobby-lock-indicator { display: block; }
         #main-lobby-status { min-height: 20px; margin: 16px 0 0; color: var(--text-muted); font-size: 12px; }
         .main-lobby-note { margin: 12px 0 0; color: var(--warning); font-size: 11px; font-style: italic; }
         .main-lobby-logout { margin-top: 12px; border: 0; background: transparent; color: var(--danger); font-family: inherit; font-weight: 700; cursor: pointer; }
@@ -469,12 +478,22 @@
                 <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:20px; text-align:right;">
                     <a href="#" onclick="mintaResetSandi()" style="font-size:12px; color:var(--primary); text-decoration:none; font-weight:600;">Lupa Sandi?</a>
                 </div>
-                <button type="submit" class="btn-login">Masuk Workspace</button>
-                <div class="login-divider"><span>Login VIP</span></div>
-                <button type="button" id="btn-login-biometric" class="btn-biometric" onclick="prosesLoginBiometrik()">
-                    <span class="biometric-icon" aria-hidden="true">👆</span>
-                    <span>Login dengan Sidik Jari</span>
-                </button>
+                <div class="login-action-row">
+                    <button type="submit" class="btn-login">Masuk Workspace</button>
+                    <button type="button" id="btn-login-biometric" class="btn-biometric" onclick="prosesLoginBiometrik()" aria-label="Login dengan Sidik Jari" title="Login dengan Sidik Jari">
+                        <span class="biometric-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                                <path d="M12 10a2 2 0 0 0-2 2c0 1.75-.18 3.43-.68 5"></path>
+                                <path d="M14 13.25c0 2.85-.18 5.72-1.05 8.25"></path>
+                                <path d="M17.4 20.3c.38-1.7.6-3.85.6-6.3a6 6 0 0 0-12 0c0 2.47-.45 4.45-1.2 6"></path>
+                                <path d="M9 6.8A6 6 0 0 1 18 12"></path>
+                                <path d="M3.3 16.5A10 10 0 0 1 20.5 6"></path>
+                                <path d="M21.8 12c.08 1.35.04 2.7-.12 4"></path>
+                                <path d="M8.15 21.5c.6-1.55.85-3.55.85-5.5"></path>
+                            </svg>
+                        </span>
+                    </button>
+                </div>
                 <p id="biometric-login-status" class="biometric-note">Gunakan Sidik Jari, Face ID, atau kunci layar perangkat. Password tetap tersedia sebagai fallback.</p>
             </form>
         </div>
@@ -494,9 +513,11 @@
                 </button>
                 <button type="button" id="btn-lobby-absen" class="main-lobby-option absen" onclick="bukaModulPendukung('absen')">
                     <span aria-hidden="true">📅</span>Sistem Absensi
+                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Manajemen</strong>
                 </button>
                 <button type="button" id="btn-lobby-gaji" class="main-lobby-option gaji" onclick="bukaModulPendukung('gaji')">
                     <span aria-hidden="true">🧾</span>Slip Gaji Digital
+                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Manajemen</strong>
                 </button>
             </div>
             <p class="main-lobby-note">Absensi dan Slip Gaji hanya tersedia untuk Admin, Manager, dan Direktur.</p>
@@ -1178,8 +1199,10 @@
         }
 
         function dataSesuaiCabangAktif_(record) {
-            const cabangRecord = normalisasiCabang(record && record.Cabang);
-            if (cabangAktif && cabangRecord && cabangRecord !== cabangAktif) return false;
+            const cabangRecord = normalisasiCabang(record && (
+                record.Cabang || record['Cabang Aktif'] || record['Cabang Kerja'] || record.Hak_Akses_Cabang
+            ));
+            if (cabangAktif && cabangRecord && cabangRecord !== 'Semua' && cabangRecord !== cabangAktif) return false;
             const adminSLA = String(record && record['Admin SLA'] || '').trim().toLowerCase();
             const adminTarget = (cabangRecord || cabangAktif) === 'Raha' ? 'admin_raha' : 'admin';
             return !adminSLA || adminSLA === adminTarget;
@@ -1286,8 +1309,13 @@
             const isManajemen = roleAdalahManajemen_();
             document.getElementById('btn-lobby-sla-kendari').style.display = hakAkses === 'Semua' || hakAkses === 'Kendari' ? 'block' : 'none';
             document.getElementById('btn-lobby-sla-raha').style.display = hakAkses === 'Semua' || hakAkses === 'Raha' ? 'block' : 'none';
-            document.getElementById('btn-lobby-absen').style.display = isManajemen ? 'block' : 'none';
-            document.getElementById('btn-lobby-gaji').style.display = isManajemen ? 'block' : 'none';
+            ['btn-lobby-absen', 'btn-lobby-gaji'].forEach(idTombol => {
+                const tombol = document.getElementById(idTombol);
+                tombol.style.display = 'block';
+                tombol.classList.toggle('is-locked', !isManajemen);
+                tombol.setAttribute('aria-disabled', String(!isManajemen));
+                tombol.title = isManajemen ? '' : 'Fitur ini hanya untuk level Manajemen';
+            });
         }
 
         async function aktifkanCabangDanMuat(cabang, loginTime, modulTujuan = 'sla') {
@@ -1415,8 +1443,7 @@
             localStorage.removeItem('kredensialSLA');
             localStorage.setItem('webauthnUsernameSLA', String(penggunaAktif.Username || '').trim().toLowerCase());
 
-            let hasGaji = parseFloat(penggunaAktif['Gaji Pokok']) > 0;
-            if (!hasGaji || penggunaAdalahFreelance()) {
+            if (!punyaAksesLobby()) {
                 const cabangTujuan = cabangOtomatisPengguna();
                 if (!cabangTujuan) throw new Error('Cabang kerja akun belum valid. Hubungi administrator.');
                 await aktifkanCabangDanMuat(cabangTujuan, waktuLoginAktif, 'sla');
@@ -1517,9 +1544,12 @@
             if (!username) return;
             document.getElementById('username').value = username;
 
-            const teksAwal = btn.innerHTML;
+            const labelAwal = btn.getAttribute('aria-label') || 'Login dengan Sidik Jari';
+            const titleAwal = btn.getAttribute('title') || labelAwal;
             btn.disabled = true;
-            btn.innerHTML = '<span class="biometric-icon">⏳</span><span>Memanggil sensor...</span>';
+            btn.classList.add('is-loading');
+            btn.setAttribute('aria-label', 'Memanggil sensor biometrik');
+            btn.setAttribute('title', 'Memanggil sensor biometrik...');
             if (status) status.innerText = 'Menunggu verifikasi Sidik Jari / Face ID...';
             try {
                 const mulai = await kirimWebAuthn('beginBiometricLogin', { username: username, origin: location.origin });
@@ -1558,7 +1588,9 @@
                 showToast(pesan, 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = teksAwal;
+                btn.classList.remove('is-loading');
+                btn.setAttribute('aria-label', labelAwal);
+                btn.setAttribute('title', titleAwal);
             }
         }
 
@@ -2048,7 +2080,7 @@
             if (!berhasil || !data) return;
             
             globalTickets = data.tickets || []; 
-            globalUsers = data.users || []; 
+            globalUsers = (data.users || []).filter(dataSesuaiCabangAktif_);
             globalPenjualan = data.penjualan || [];
             globalProspek = data.prospek || [];
             globalKlien = data.dataKlien || [];
@@ -2145,6 +2177,7 @@
         // ==========================================
         function punyaAksesLobby() {
             if (!penggunaAktif || penggunaAdalahFreelance()) return false;
+            if (rolePengguna() === 'direktur') return true;
             let hasGaji = parseFloat(penggunaAktif['Gaji Pokok']) > 0;
             return hasGaji;
         }
@@ -2178,7 +2211,7 @@
                 return;
             }
             if (!isManajemen) {
-                showToast('Afwan, modul ini hanya tersedia untuk Admin, Manager, dan Direktur.', 'warning');
+                showToast('Afwan, fitur ini hanya untuk level Manajemen.', 'warning');
                 return;
             }
 
@@ -2335,7 +2368,7 @@
         function renderDynamicInputs() {
             try {
                 const group = document.getElementById('teknisi-group'); group.innerHTML = ''; 
-                (globalUsers || []).filter(u => u && u.Role === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
+                (globalUsers || []).filter(dataSesuaiCabangAktif_).filter(u => u && u.Role === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
                 
                 const salesGroup = document.getElementById('sales-group'); if(salesGroup) salesGroup.innerHTML = '';
                 const prospekSalesGroup = document.getElementById('prospek-sales-group'); if(prospekSalesGroup) prospekSalesGroup.innerHTML = '';
@@ -2344,7 +2377,7 @@
                 const garansiSalesGroup = document.getElementById('garansi-sales-group'); 
                 if(garansiSalesGroup) garansiSalesGroup.innerHTML = '';
 
-                let salesList = (globalUsers || []).filter(u => u && u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
+                let salesList = (globalUsers || []).filter(dataSesuaiCabangAktif_).filter(u => u && u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
                 salesList.forEach(s => { 
                     if(salesGroup) salesGroup.innerHTML += `<label><input type="checkbox" value="${s}" onchange="togglePenjualanInput()"> ${s}</label>`;
                     if(prospekSalesGroup) prospekSalesGroup.innerHTML += `<label><input type="checkbox" value="${s}"> ${s}</label>`;
@@ -2820,7 +2853,7 @@
                 document.getElementById('exec-pipeline').innerText = 'Rp ' + totalPipeline.toLocaleString('id-ID');
             }
 
-            (globalUsers || []).forEach(u => { 
+            (globalUsers || []).filter(dataSesuaiCabangAktif_).forEach(u => {
                 if (u && u.Role === 'teknisi' && u['Nama Asli']) { 
                     let namaAsli = u['Nama Asli']; if (namaAsli.toLowerCase() === 'syawal') namaAsli = 'Muhammad Syawal'; 
                     if (!statsTeknisi[namaAsli]) { statsTeknisi[namaAsli] = { nama: namaAsli, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0, tiket_selesai: 0, pending_count: 0, garansi_bocor: 0, poin_terkumpul: 0 }; } 
@@ -4678,7 +4711,7 @@
             }
         }
         
-        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).forEach(u => { if(!u || !u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['No WA'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
+        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).filter(dataSesuaiCabangAktif_).forEach(u => { if(!u || !u.Username) return; tbody.innerHTML += `<tr><td><strong>${u.Username}</strong></td><td>${u['Nama Asli']}</td><td>${u['No WA'] || '-'}</td><td><span class="badge badge-aman">${u.Role}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${u.Username}')">Edit</button><button class="btn-del" onclick="hapusUser('${u.Username}')">Del</button></div></td></tr>`; }); }
         
         function siapkanProfilPribadi() {
             modeEditUser = true; 
@@ -4882,8 +4915,7 @@
                     waktuLoginAktif = loginTimeAwal;
                     if (!hakAksesCabangPengguna()) throw new Error('Hak akses cabang tidak valid.');
 
-                    let hasGaji = parseFloat(penggunaAktif['Gaji Pokok']) > 0;
-                    if (!hasGaji || penggunaAdalahFreelance()) {
+                    if (!punyaAksesLobby()) {
                         const cabangTujuan = cabangOtomatisPengguna(penggunaAktif, parsedSessionAwal.cabangAktif);
                         if (!cabangTujuan) throw new Error('Cabang kerja akun belum valid.');
                         terapkanCabangAktif(cabangTujuan);
