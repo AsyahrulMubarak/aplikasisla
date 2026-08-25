@@ -494,7 +494,7 @@
         </div>
     </div>
     <!-- HUB PEMILIHAN APLIKASI (PORTAL GATEWAY) -->
-    <div id="app-selector-wrapper" style="display:none; justify-content:center; align-items:center; min-height:80vh; padding:20px;">
+    <div id="app-selector-wrapper" aria-hidden="true" style="display:none; justify-content:center; align-items:center; min-height:80vh; padding:20px;">
         <div class="login-card" style="max-width:400px; border-top-color:var(--primary);">
             <img src="depan_001.png" alt="Logo Alfacom" style="max-width:150px; margin-bottom:15px;">
             <h3 style="color:var(--text-main); margin-bottom:5px; font-size:18px;">Portal Gateway Alfacom</h3>
@@ -1033,8 +1033,6 @@
 
         <div class="bottom-nav">
             <div class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard')"><div class="icon">📊</div><div class="text">Dasbor</div></div>
-            <div class="nav-btn" id="nav-absen" onclick="bukaModul('absen')" style="display:none;"><div class="icon">📅</div><div class="text">Absensi</div></div>
-            <div class="nav-btn" id="nav-gaji" onclick="bukaModul('gaji')" style="display:none;"><div class="icon">🧾</div><div class="text">Slip Gaji</div></div>
             <div class="nav-btn" id="nav-tiket" onclick="switchTab('tiket')" style="display:none;"><div class="icon">📋</div><div class="text">Tiket</div></div>
             <div class="nav-btn" id="nav-penjualan" onclick="switchTab('penjualan')" style="display:none;"><div class="icon">🛒</div><div class="text">Penjualan</div></div>
             <div class="nav-btn" id="nav-prospek" onclick="switchTab('prospek')" style="display:none;"><div class="icon">🤝</div><div class="text">Prospek</div></div>
@@ -1061,6 +1059,7 @@
         let penggunaAktif = null;
         let cabangAktif = null;
         let waktuLoginAktif = null;
+        let modulTertunda = 'sla';
         let modeEditUser = false; let modeEditTiket = false; let ttdTiketEditTersimpan = ''; let intervalAutoRefresh; let currentTabId = 'dashboard';
         let currentTicketFilter = 'aktif';
         let currentTrackTicket = null;
@@ -1174,6 +1173,21 @@
             return normalisasiCabang(user && user.Hak_Akses_Cabang);
         }
 
+        function rolePengguna(user = penggunaAktif) {
+            return String(user && user.Role || '').trim().toLowerCase();
+        }
+
+        function penggunaAdalahFreelance(user = penggunaAktif) {
+            return rolePengguna(user) === 'freelance';
+        }
+
+        function cabangLangsungFreelance(user = penggunaAktif, cabangSesi = null) {
+            const hakAkses = hakAksesCabangPengguna(user);
+            if (API_URL_CABANG[hakAkses]) return hakAkses;
+            const cabangProfil = normalisasiCabang(cabangSesi || (user && (user.Cabang || user['Cabang Aktif'] || user['Cabang Kerja'])));
+            return API_URL_CABANG[cabangProfil] && penggunaBolehMengaksesCabang(cabangProfil, user) ? cabangProfil : '';
+        }
+
         function penggunaBolehMengaksesCabang(cabang, user = penggunaAktif) {
             const cabangTarget = normalisasiCabang(cabang);
             const hakAkses = hakAksesCabangPengguna(user);
@@ -1201,7 +1215,7 @@
             return apiUrl;
         }
 
-        function simpanSesiAktif(loginTime = waktuLoginAktif || new Date().getTime()) {
+        function simpanSesiAktif(loginTime = waktuLoginAktif || new Date().getTime(), modulAktif = 'sla') {
             if (!penggunaAktif || !penggunaAktif.SessionToken || !cabangAktif || !API_URL_CABANG[cabangAktif]) {
                 throw new Error('Sesi cabang belum lengkap.');
             }
@@ -1210,7 +1224,24 @@
                 user: penggunaAktif,
                 loginTime: waktuLoginAktif,
                 cabangAktif: cabangAktif,
-                apiUrl: API_URL_CABANG[cabangAktif]
+                apiUrl: API_URL_CABANG[cabangAktif],
+                modulAktif: modulAktif
+            };
+            sessionStorage.setItem('sesiLoginSLA', JSON.stringify(dataSesi));
+            return dataSesi;
+        }
+
+        function simpanSesiPortal(loginTime = waktuLoginAktif || new Date().getTime()) {
+            if (!penggunaAktif || !penggunaAktif.SessionToken || penggunaAdalahFreelance()) {
+                throw new Error('Sesi Portal Gateway tidak tersedia untuk akun ini.');
+            }
+            waktuLoginAktif = Number(loginTime) || new Date().getTime();
+            const dataSesi = {
+                user: penggunaAktif,
+                loginTime: waktuLoginAktif,
+                cabangAktif: null,
+                apiUrl: null,
+                modulAktif: 'portal'
             };
             sessionStorage.setItem('sesiLoginSLA', JSON.stringify(dataSesi));
             return dataSesi;
@@ -1225,33 +1256,68 @@
             globalGaransi = [];
         }
 
-        function tampilkanLobbyCabang() {
-            if (hakAksesCabangPengguna() !== 'Semua') throw new Error('Lobby cabang hanya tersedia untuk akun multi-cabang.');
+        function tampilkanPortalGateway() {
+            if (penggunaAdalahFreelance()) throw new Error('Akun freelance tidak memiliki akses ke Portal Gateway.');
             if (intervalAutoRefresh) { clearInterval(intervalAutoRefresh); intervalAutoRefresh = null; }
-            sessionStorage.removeItem('sesiLoginSLA');
+            cabangAktif = null;
+            apiUrl = API_URL_KENDARI;
+            modulTertunda = 'sla';
+            perbaruiIdentitasCabang();
+            bersihkanDataCabangDiMemori();
+            simpanSesiPortal(waktuLoginAktif);
+            document.getElementById('login-wrapper').style.display = 'none';
+            const lobbyCabang = document.getElementById('branch-selector-wrapper');
+            lobbyCabang.style.display = 'none';
+            lobbyCabang.setAttribute('aria-hidden', 'true');
+            document.getElementById('app-wrapper').style.display = 'none';
+            const portal = document.getElementById('app-selector-wrapper');
+            portal.style.display = 'flex';
+            portal.setAttribute('aria-hidden', 'false');
+        }
+
+        function tampilkanLobbyCabang(modulTujuan = 'sla') {
+            if (penggunaAdalahFreelance()) throw new Error('Akun freelance tidak boleh membuka Lobby Cabang.');
+            if (hakAksesCabangPengguna() !== 'Semua') throw new Error('Lobby cabang hanya tersedia untuk akun multi-cabang.');
+            if (!['sla', 'absen', 'gaji'].includes(modulTujuan)) throw new Error('Modul tujuan tidak valid.');
+            if (intervalAutoRefresh) { clearInterval(intervalAutoRefresh); intervalAutoRefresh = null; }
+            modulTertunda = modulTujuan;
             cabangAktif = null;
             apiUrl = API_URL_KENDARI;
             perbaruiIdentitasCabang();
             bersihkanDataCabangDiMemori();
+            simpanSesiPortal(waktuLoginAktif);
             document.getElementById('login-wrapper').style.display = 'none';
-            document.getElementById('app-selector-wrapper').style.display = 'none';
+            const portal = document.getElementById('app-selector-wrapper');
+            portal.style.display = 'none';
+            portal.setAttribute('aria-hidden', 'true');
             document.getElementById('app-wrapper').style.display = 'none';
             const lobby = document.getElementById('branch-selector-wrapper');
             lobby.style.display = 'flex';
             lobby.setAttribute('aria-hidden', 'false');
             const nama = String(penggunaAktif && (penggunaAktif['Nama Asli'] || penggunaAktif.Username) || 'User');
-            document.getElementById('branch-lobby-user').innerText = `Selamat datang, ${nama}. Pilih workspace cabang yang ingin dibuka.`;
+            const namaModul = modulTujuan === 'sla' ? 'Manajemen SLA' : (modulTujuan === 'absen' ? 'Absensi' : 'Slip Gaji');
+            document.getElementById('branch-lobby-user').innerText = `Selamat datang, ${nama}. Pilih workspace cabang untuk membuka ${namaModul}.`;
             document.getElementById('branch-lobby-status').innerText = '';
         }
 
-        async function aktifkanCabangDanMuat(cabang, loginTime) {
+        async function aktifkanCabangDanMuat(cabang, loginTime, modulTujuan = 'sla') {
+            if (!['sla', 'absen', 'gaji'].includes(modulTujuan)) throw new Error('Modul tujuan tidak valid.');
             terapkanCabangAktif(cabang);
-            simpanSesiAktif(loginTime);
+            simpanSesiAktif(loginTime, modulTujuan);
             bersihkanDataCabangDiMemori();
             const lobby = document.getElementById('branch-selector-wrapper');
             lobby.style.display = 'none';
             lobby.setAttribute('aria-hidden', 'true');
-            masukKeAplikasi();
+            const portal = document.getElementById('app-selector-wrapper');
+            portal.style.display = 'none';
+            portal.setAttribute('aria-hidden', 'true');
+
+            if (modulTujuan === 'absen' || modulTujuan === 'gaji') {
+                window.location.href = modulTujuan === 'absen' ? 'absen.html' : 'slipgaji.html';
+                return;
+            }
+
+            bukaAplikasiSLA();
             const loading = document.getElementById('loading');
             loading.style.display = 'block';
             loading.innerText = `Mengunduh database Cabang ${cabangAktif}...`;
@@ -1264,12 +1330,14 @@
         }
 
         async function pilihCabang(cabang) {
+            const modulTujuan = modulTertunda;
             const tombolCabang = Array.from(document.querySelectorAll('.branch-option'));
             const status = document.getElementById('branch-lobby-status');
             tombolCabang.forEach(tombol => { tombol.disabled = true; });
             status.innerText = `Menghubungkan ke Cabang ${normalisasiCabang(cabang)}...`;
             try {
-                await aktifkanCabangDanMuat(cabang, waktuLoginAktif);
+                await aktifkanCabangDanMuat(cabang, waktuLoginAktif, modulTujuan);
+                modulTertunda = 'sla';
                 showToast(`Workspace Cabang ${cabangAktif} aktif.`, 'success');
             } catch (error) {
                 console.error('Pemilihan cabang:', error);
@@ -1359,11 +1427,17 @@
             localStorage.removeItem('sesiLoginSLA');
             localStorage.removeItem('kredensialSLA');
             localStorage.setItem('webauthnUsernameSLA', String(penggunaAktif.Username || '').trim().toLowerCase());
-            if (hakAksesCabang === 'Semua') {
-                tampilkanLobbyCabang();
+
+            if (penggunaAdalahFreelance()) {
+                const cabangFreelance = cabangLangsungFreelance();
+                if (!cabangFreelance) {
+                    throw new Error('Akun freelance wajib memiliki satu cabang kerja yang spesifik. Hubungi administrator.');
+                }
+                await aktifkanCabangDanMuat(cabangFreelance, waktuLoginAktif, 'sla');
                 return;
             }
-            await aktifkanCabangDanMuat(hakAksesCabang, waktuLoginAktif);
+
+            tampilkanPortalGateway();
         }
 
         async function daftarkanBiometrik() {
@@ -2083,49 +2157,67 @@
         // FITUR PORTAL GATEWAY (SSO ALFACOM)
         // ==========================================
         function punyaAksesLobby() {
-            if (!penggunaAktif) return false;
-            if (hakAksesCabangPengguna() === 'Semua') return true;
-            let role = String(penggunaAktif.Role || '').toLowerCase();
-            let hasGaji = parseFloat(penggunaAktif['Gaji Pokok'] || penggunaAktif['Gaji Pokok (Rp)']) > 0;
-            return hasGaji || role === 'direktur';
+            return !!penggunaAktif && !penggunaAdalahFreelance();
         }
 
         function masukKeAplikasi() {
             document.getElementById('login-wrapper').style.display = 'none';
-            const hakAksesCabang = hakAksesCabangPengguna();
-            if (!cabangAktif) {
-                if (hakAksesCabang === 'Semua') {
-                    tampilkanLobbyCabang();
-                    return;
+            if (penggunaAdalahFreelance()) {
+                if (!cabangAktif) {
+                    const cabangFreelance = cabangLangsungFreelance();
+                    if (!cabangFreelance) throw new Error('Cabang kerja freelance belum valid.');
+                    terapkanCabangAktif(cabangFreelance);
+                    simpanSesiAktif(waktuLoginAktif, 'sla');
                 }
-                terapkanCabangAktif(hakAksesCabang);
+                bukaAplikasiSLA();
+                return;
             }
-            document.getElementById('branch-selector-wrapper').style.display = 'none';
-            document.getElementById('branch-selector-wrapper').setAttribute('aria-hidden', 'true');
-            document.getElementById('app-selector-wrapper').style.display = 'none';
-            bukaAplikasiSLA();
+
+            tampilkanPortalGateway();
         }
 
-        function bukaModul(namaModul) {
-            let role = String((penggunaAktif && penggunaAktif.Role) || '').toLowerCase();
-            let isManajemen = role === 'admin' || role === 'manager' || role === 'direktur';
+        async function bukaModul(namaModul) {
+            const role = rolePengguna();
+            const isManajemen = role === 'admin' || role === 'manager' || role === 'direktur';
+
+            if (!['sla', 'absen', 'gaji'].includes(namaModul)) {
+                showToast('Modul yang dipilih tidak valid.', 'error');
+                return;
+            }
+            if (penggunaAdalahFreelance()) {
+                showToast('Akun freelance hanya dapat menggunakan Dashboard SLA.', 'warning');
+                return;
+            }
 
             if (namaModul === 'absen' || namaModul === 'gaji') {
                 if (!isManajemen) {
                     showToast('Afwan, menu ini masih dalam tahap pengembangan untuk posisi Anda.', 'warning');
                     return;
                 }
-                window.location.href = namaModul === 'absen' ? 'absen.html' : 'slipgaji.html';
-            } else if (namaModul === 'sla') {
-                document.getElementById('app-selector-wrapper').style.display = 'none';
-                bukaAplikasiSLA();
+            }
+
+            try {
+                const hakAksesCabang = hakAksesCabangPengguna();
+                if (hakAksesCabang === 'Semua') {
+                    tampilkanLobbyCabang(namaModul);
+                    return;
+                }
+                await aktifkanCabangDanMuat(hakAksesCabang, waktuLoginAktif, namaModul);
+            } catch (error) {
+                console.error('Routing modul:', error);
+                showToast(error && error.message ? error.message : 'Gagal membuka modul.', 'error');
+                tampilkanPortalGateway();
             }
         }
 
         // Alias kompatibilitas untuk pemanggilan lama yang mungkin masih tersimpan di browser.
-        function pilihAplikasi(jenis) { bukaModul(jenis); }
+        function pilihAplikasi(jenis) { return bukaModul(jenis); }
 
         function kembaliKeLobby() {
+            if (penggunaAdalahFreelance()) {
+                document.getElementById('btn-kembali-lobby').style.display = 'none';
+                return;
+            }
             if (!punyaAksesLobby()) {
                 document.getElementById('btn-kembali-lobby').style.display = 'none';
                 return;
@@ -2135,22 +2227,22 @@
                 intervalAutoRefresh = null;
             }
             document.getElementById('app-wrapper').style.display = 'none';
-            if (hakAksesCabangPengguna() === 'Semua') {
-                tampilkanLobbyCabang();
-                return;
-            }
-            document.getElementById('app-selector-wrapper').style.display = 'flex';
+            tampilkanPortalGateway();
         }
 
         // Ini adalah fungsi asli antum, HANYA diubah namanya saja menjadi bukaAplikasiSLA()
         function bukaAplikasiSLA() {
             try {
+                document.getElementById('login-wrapper').style.display = 'none';
                 document.getElementById('branch-selector-wrapper').style.display = 'none';
                 document.getElementById('branch-selector-wrapper').setAttribute('aria-hidden', 'true');
                 document.getElementById('app-selector-wrapper').style.display = 'none';
+                document.getElementById('app-selector-wrapper').setAttribute('aria-hidden', 'true');
                 document.getElementById('app-wrapper').style.display = 'block';
                 perbaruiIdentitasCabang();
-                document.getElementById('btn-kembali-lobby').style.display = punyaAksesLobby() ? 'inline-block' : 'none';
+                const roleAktif = rolePengguna();
+                const isFreelance = roleAktif === 'freelance';
+                document.getElementById('btn-kembali-lobby').style.display = !isFreelance && punyaAksesLobby() ? 'inline-block' : 'none';
                 
                 let namaTampil = penggunaAktif['Nama Asli'] || 'User';
                 let roleTampil = String(penggunaAktif.Role || '').toUpperCase();
@@ -2159,16 +2251,12 @@
                 document.getElementById('nav-user').style.display = 'flex';
                 document.getElementById('nav-garansi').style.display = 'flex';
                 document.getElementById('nav-klien').style.display = punyaAksesCRM_() ? 'flex' : 'none';
-                const roleAktif = String(penggunaAktif.Role || '').trim().toLowerCase();
-                const isManajemen = ['admin', 'manager', 'direktur'].includes(roleAktif);
-                document.getElementById('nav-absen').style.display = isManajemen ? 'flex' : 'none';
-                document.getElementById('nav-gaji').style.display = isManajemen ? 'flex' : 'none';
 
-                if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
+                if (roleAktif === 'admin' || roleAktif === 'manager') {
                     document.getElementById('btn-tambah-garansi').style.display = 'block';
                 }
 
-                if (penggunaAktif.Role === 'admin') { 
+                if (roleAktif === 'admin') {
                     document.getElementById('btn-cetak-laporan').style.display = 'block';
                     document.getElementById('nav-tiket').style.display = 'flex';
                     document.getElementById('nav-penjualan').style.display = 'flex';
@@ -2178,7 +2266,7 @@
                     document.getElementById('div-prospek-sales').style.display = 'block'; 
                     document.getElementById('btn-tambah-prospek').style.display = 'block';
                 } 
-                else if (penggunaAktif.Role === 'direktur') { 
+                else if (roleAktif === 'direktur') {
                     document.getElementById('btn-cetak-laporan').style.display = 'block';
                     document.getElementById('nav-tiket').style.display = 'flex';
                     document.getElementById('nav-penjualan').style.display = 'flex';
@@ -2188,7 +2276,7 @@
                     document.getElementById('div-prospek-sales').style.display = 'none'; 
                     document.getElementById('btn-tambah-prospek').style.display = 'none'; 
                 }
-                else if (penggunaAktif.Role === 'manager') { 
+                else if (roleAktif === 'manager') {
                     document.getElementById('btn-cetak-laporan').style.display = 'block';
                     document.getElementById('nav-tiket').style.display = 'flex';
                     document.getElementById('nav-penjualan').style.display = 'flex';
@@ -2198,7 +2286,7 @@
                     document.getElementById('div-prospek-sales').style.display = 'block'; 
                     document.getElementById('btn-tambah-prospek').style.display = 'block';
                 }
-                else if (penggunaAktif.Role === 'sales') { 
+                else if (roleAktif === 'sales') {
                     document.getElementById('btn-cetak-laporan').style.display = 'none';
                     document.getElementById('nav-garansi').style.display = 'none';
                     document.getElementById('nav-tiket').style.display = 'flex';
@@ -2226,7 +2314,7 @@
                 if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('modal-followup').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
             } catch(e) { showToast("Afwan, Error merender aplikasi", "error"); }
         }
-        function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; cabangAktif = null; waktuLoginAktif = null; apiUrl = API_URL_KENDARI; window.location.reload(); }
+        function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; cabangAktif = null; waktuLoginAktif = null; modulTertunda = 'sla'; apiUrl = API_URL_KENDARI; window.location.reload(); }
 
         function toggleTargetSales() { 
             const role = document.getElementById('new-role').value; 
@@ -4778,17 +4866,30 @@
         } else {
             localStorage.removeItem('sesiLoginSLA');
             const savedSessionAwal = sessionStorage.getItem('sesiLoginSLA');
-            let sesiAwalValid = false;
+            let tujuanSesiAwal = '';
             if (savedSessionAwal) {
                 try {
                     const parsedSessionAwal = JSON.parse(savedSessionAwal);
-                    if (!parsedSessionAwal || !parsedSessionAwal.user || !parsedSessionAwal.user.SessionToken || !parsedSessionAwal.loginTime || !parsedSessionAwal.cabangAktif) throw new Error('Sesi tidak lengkap.');
-                    if ((new Date().getTime() - Number(parsedSessionAwal.loginTime)) > 86400000) throw new Error('Sesi kedaluwarsa.');
+                    if (!parsedSessionAwal || !parsedSessionAwal.user || !parsedSessionAwal.user.SessionToken || !parsedSessionAwal.loginTime) throw new Error('Sesi tidak lengkap.');
+                    const loginTimeAwal = Number(parsedSessionAwal.loginTime);
+                    if (!Number.isFinite(loginTimeAwal) || loginTimeAwal <= 0 || (new Date().getTime() - loginTimeAwal) > 86400000) throw new Error('Sesi kedaluwarsa.');
                     penggunaAktif = Object.assign({}, parsedSessionAwal.user);
-                    waktuLoginAktif = Number(parsedSessionAwal.loginTime);
-                    terapkanCabangAktif(parsedSessionAwal.cabangAktif);
-                    simpanSesiAktif(waktuLoginAktif);
-                    sesiAwalValid = true;
+                    waktuLoginAktif = loginTimeAwal;
+                    if (!hakAksesCabangPengguna()) throw new Error('Hak akses cabang tidak valid.');
+
+                    if (penggunaAdalahFreelance()) {
+                        const cabangFreelance = cabangLangsungFreelance(penggunaAktif, parsedSessionAwal.cabangAktif);
+                        if (!cabangFreelance) throw new Error('Cabang kerja freelance belum valid.');
+                        terapkanCabangAktif(cabangFreelance);
+                        simpanSesiAktif(waktuLoginAktif, 'sla');
+                        tujuanSesiAwal = 'sla';
+                    } else {
+                        cabangAktif = null;
+                        apiUrl = API_URL_KENDARI;
+                        perbaruiIdentitasCabang();
+                        simpanSesiPortal(waktuLoginAktif);
+                        tujuanSesiAwal = 'portal';
+                    }
                 } catch (error) {
                     sessionStorage.removeItem('sesiLoginSLA');
                     penggunaAktif = null;
@@ -4798,13 +4899,18 @@
                     perbaruiIdentitasCabang();
                 }
             }
-            if (sesiAwalValid) {
+            if (tujuanSesiAwal === 'sla') {
                 ambilSemuaData(false);
+            } else if (tujuanSesiAwal === 'portal') {
+                masukKeAplikasi();
             } else {
                 document.getElementById('login-loading').style.display = 'none';
                 document.getElementById('login-form').style.display = 'block';
                 document.getElementById('login-wrapper').style.display = 'flex';
                 document.getElementById('branch-selector-wrapper').style.display = 'none';
+                document.getElementById('branch-selector-wrapper').setAttribute('aria-hidden', 'true');
+                document.getElementById('app-selector-wrapper').style.display = 'none';
+                document.getElementById('app-selector-wrapper').setAttribute('aria-hidden', 'true');
                 document.getElementById('app-wrapper').style.display = 'none';
 
             }
