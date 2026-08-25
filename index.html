@@ -979,6 +979,7 @@
                         <select id="new-role" required onchange="toggleTargetSales()">
                             <option value="" disabled selected>-- Pilih --</option>
                             <option value="admin">Admin</option>
+                            <option value="admin_raha">Admin Raha</option>
                             <option value="direktur">Direktur</option>
                             <option value="manager">Manager</option>
                             <option value="teknisi">Teknisi</option>
@@ -1049,16 +1050,21 @@
         let currentTicketFilter = 'aktif';
         let currentTrackTicket = null;
 
-        function hitungTenggatJamKerja(waktuMulai, durasiJam) {
+        function jamSelesaiOperasional_(cabang = cabangAktif) {
+            return String(cabang || '').trim().toLowerCase() === 'raha' ? 20 : 17;
+        }
+
+        function hitungTenggatJamKerja(waktuMulai, durasiJam, cabang = cabangAktif) {
+            var jamSelesai = jamSelesaiOperasional_(cabang);
             var dt = new Date(waktuMulai.getTime()); var msSisa = durasiJam * 3600 * 1000;
             while (msSisa > 0) {
                 var hari = dt.getDay(); var jam = dt.getHours();
                 if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
                 if (jam < 8) { dt.setHours(8, 0, 0, 0); continue; }
-                if (jam >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
-                var batasSore = new Date(dt.getTime()); batasSore.setHours(17, 0, 0, 0);
+                if (jam >= jamSelesai) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                var batasSore = new Date(dt.getTime()); batasSore.setHours(jamSelesai, 0, 0, 0);
                 var msTersedia = batasSore.getTime() - dt.getTime();
-                if (msSisa <= msTersedia) { dt = new Date(dt.getTime() + msSisa); msSisa = 0; } 
+                if (msSisa <= msTersedia) { dt = new Date(dt.getTime() + msSisa); msSisa = 0; }
                 else { msSisa -= msTersedia; dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); }
             } return dt;
         }
@@ -1078,18 +1084,19 @@
             wadah.appendChild(div);
         }
 
-        function hitungDurasiJamKerjaMs(awal, akhir) {
+        function hitungDurasiJamKerjaMs(awal, akhir, cabang = cabangAktif) {
+            var jamSelesai = jamSelesaiOperasional_(cabang);
             if (awal >= akhir) return 0; var msTotal = 0; var dt = new Date(awal.getTime());
             while (dt < akhir) {
                 var hari = dt.getDay(); var jam = dt.getHours();
                 if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
                 if (jam < 8) { dt.setHours(8, 0, 0, 0); continue; }
-                if (jam >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
-                var batasSore = new Date(dt.getTime()); batasSore.setHours(17, 0, 0, 0);
+                if (jam >= jamSelesai) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                var batasSore = new Date(dt.getTime()); batasSore.setHours(jamSelesai, 0, 0, 0);
                 var targetAkhir = (akhir < batasSore) ? akhir : batasSore;
                 msTotal += targetAkhir.getTime() - dt.getTime();
                 dt = new Date(targetAkhir.getTime());
-                if (dt.getHours() >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); }
+                if (dt.getHours() >= jamSelesai) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); }
             } return msTotal;
         }
 
@@ -1160,6 +1167,22 @@
 
         function rolePengguna(user = penggunaAktif) {
             return String(user && user.Role || '').trim().toLowerCase();
+        }
+
+        function roleAdalahAdminOperasional_(role = rolePengguna()) {
+            return role === 'admin' || role === 'admin_raha';
+        }
+
+        function roleAdalahManajemen_(role = rolePengguna()) {
+            return roleAdalahAdminOperasional_(role) || role === 'manager' || role === 'direktur';
+        }
+
+        function dataSesuaiCabangAktif_(record) {
+            const cabangRecord = normalisasiCabang(record && record.Cabang);
+            if (cabangAktif && cabangRecord && cabangRecord !== cabangAktif) return false;
+            const adminSLA = String(record && record['Admin SLA'] || '').trim().toLowerCase();
+            const adminTarget = (cabangRecord || cabangAktif) === 'Raha' ? 'admin_raha' : 'admin';
+            return !adminSLA || adminSLA === adminTarget;
         }
 
         function penggunaAdalahFreelance(user = penggunaAktif) {
@@ -1260,7 +1283,7 @@
             document.getElementById('main-lobby-status').innerText = '';
 
             const hakAkses = hakAksesCabangPengguna();
-            const isManajemen = ['admin', 'manager', 'direktur'].includes(rolePengguna());
+            const isManajemen = roleAdalahManajemen_();
             document.getElementById('btn-lobby-sla-kendari').style.display = hakAkses === 'Semua' || hakAkses === 'Kendari' ? 'block' : 'none';
             document.getElementById('btn-lobby-sla-raha').style.display = hakAkses === 'Semua' || hakAkses === 'Raha' ? 'block' : 'none';
             document.getElementById('btn-lobby-absen').style.display = isManajemen ? 'block' : 'none';
@@ -1998,6 +2021,7 @@
                     }
                     
                     let urlTarget = apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY;
+                    if (cabangAktif) urlTarget += "&cabang=" + encodeURIComponent(cabangAktif);
                     if (trackId) urlTarget += "&trackId=" + encodeURIComponent(trackId);
                     
                     const response = await fetch(urlTarget, { redirect: "follow", cache: "no-store" }); 
@@ -2143,7 +2167,7 @@
 
         async function bukaModulPendukung(namaModul) {
             const role = rolePengguna();
-            const isManajemen = role === 'admin' || role === 'manager' || role === 'direktur';
+            const isManajemen = roleAdalahManajemen_(role);
 
             if (!['absen', 'gaji'].includes(namaModul)) {
                 showToast('Modul yang dipilih tidak valid.', 'error');
@@ -2216,7 +2240,7 @@
                 document.getElementById('nav-garansi').style.display = 'flex';
                 document.getElementById('nav-klien').style.display = punyaAksesCRM_() ? 'flex' : 'none';
 
-                if (roleAktif === 'admin' || roleAktif === 'manager') {
+                if (roleAdalahAdminOperasional_(roleAktif) || roleAktif === 'manager') {
                     document.getElementById('btn-tambah-garansi').style.display = 'block';
                 }
 
@@ -2227,9 +2251,22 @@
                     document.getElementById('nav-prospek').style.display = 'flex';
                     document.getElementById('nav-input').style.display = 'flex'; 
                     document.getElementById('dash-segment').style.display = 'flex'; switchDashTab('sales');
-                    document.getElementById('div-prospek-sales').style.display = 'block'; 
+                    document.getElementById('div-prospek-sales').style.display = 'block';
                     document.getElementById('btn-tambah-prospek').style.display = 'block';
-                } 
+                }
+                else if (roleAktif === 'admin_raha') {
+                    document.getElementById('btn-cetak-laporan').style.display = 'block';
+                    document.getElementById('nav-tiket').style.display = 'flex';
+                    document.getElementById('nav-penjualan').style.display = 'flex';
+                    document.getElementById('nav-garansi').style.display = 'flex';
+                    document.getElementById('nav-user').style.display = 'flex';
+                    document.getElementById('nav-prospek').style.display = 'none';
+                    document.getElementById('nav-input').style.display = 'flex';
+                    document.getElementById('dash-segment').style.display = 'flex';
+                    document.getElementById('div-prospek-sales').style.display = 'none';
+                    document.getElementById('btn-tambah-prospek').style.display = 'none';
+                    switchDashTab('tek');
+                }
                 else if (roleAktif === 'direktur') {
                     document.getElementById('btn-cetak-laporan').style.display = 'block';
                     document.getElementById('nav-tiket').style.display = 'flex';
@@ -2737,7 +2774,7 @@
 
             // RINGKASAN EKSEKUTIF KHUSUS MANAJEMEN
             let roleDash = String((penggunaAktif && penggunaAktif.Role) || '').toLowerCase();
-            let isEksekutif = roleDash === 'admin' || roleDash === 'manager' || roleDash === 'direktur';
+            let isEksekutif = roleAdalahManajemen_(roleDash);
             let execSection = document.getElementById('executive-summary');
             if (execSection) execSection.style.display = isEksekutif ? 'grid' : 'none';
 
@@ -2758,7 +2795,7 @@
                 });
 
                 // REAL REVENUE STREAM 2: omzet jasa yang sudah dicatat Admin di tab Garansi.
-                (globalGaransi || []).forEach(g => {
+                (globalGaransi || []).filter(dataSesuaiCabangAktif_).forEach(g => {
                     if (!g || !inPeriode(tanggalOmzetGaransiDashboard_(g))) return;
                     totalOmzetAll += nilaiOmzetGaransiDashboard_(g);
                 });
@@ -2794,7 +2831,7 @@
                 }
             });
 
-            (globalTickets || []).forEach(t => {
+            (globalTickets || []).filter(dataSesuaiCabangAktif_).forEach(t => {
                 if(!t) return;
                 let idTkt = String(t['ID Tiket'] || ''); if(!idTkt || idTkt.startsWith('SLS-')) return;
 
@@ -2835,7 +2872,7 @@
                 if (isInPeriodeSLA) {
                     let isPendingEver = Object.values(t).some(v => String(v).toLowerCase().includes('pending'));
                     let isBocor = false;
-                    let refsDiGaransi = (globalGaransi || []).filter(g => g && String(g['Referensi (Tiket/Nota)']).trim() === idTkt);
+                    let refsDiGaransi = (globalGaransi || []).filter(dataSesuaiCabangAktif_).filter(g => g && String(g['Referensi (Tiket/Nota)']).trim() === idTkt);
                     if (refsDiGaransi.length > 0) {
                         let statGrs = String(refsDiGaransi[0]['Status']).toLowerCase();
                         if (statGrs.includes('klaim') || statGrs.includes('hangus') || statGrs.includes('diklaim')) isBocor = true;
@@ -2847,7 +2884,7 @@
                     if (isSlaAdminFail) { statsAdmin.telat++; } else if (isUnassigned) {
                         let dtLaporStr = parseSafeDate(tLapor);
                         if (!isNaN(dtLaporStr.getTime())) {
-                            let jamKerjaUnassigned = hitungDurasiJamKerjaMs(dtLaporStr, now) / (1000 * 60 * 60);
+                            let jamKerjaUnassigned = hitungDurasiJamKerjaMs(dtLaporStr, now, t.Cabang) / (1000 * 60 * 60);
                             if (jamKerjaUnassigned >= 27) { statsAdmin.telat++; } else { statsAdmin.proses++; }
                         } else { statsAdmin.proses++; }
                     } else { statsAdmin.tepat++; }
@@ -2856,7 +2893,7 @@
                         if (isNotaAdminFail) { statsAdminNota.telat++; } else if (refsDiGaransi.length === 0) {
                             let dtSelesai = new Date(tSelesai);
                             if (!isNaN(dtSelesai.getTime())) {
-                                let jamKerja = hitungDurasiJamKerjaMs(dtSelesai, now) / 3600000;
+                                let jamKerja = hitungDurasiJamKerjaMs(dtSelesai, now, t.Cabang) / 3600000;
                                 if (jamKerja >= 9) { statsAdminNota.telat++; } else { statsAdminNota.aman++; }
                             }
                         } else { statsAdminNota.aman++; }
@@ -2930,7 +2967,7 @@
                     }
                 }
             });
-            (globalGaransi || []).forEach(g => {
+            (globalGaransi || []).filter(dataSesuaiCabangAktif_).forEach(g => {
                 if(!g) return;
                 let ref = String(g['Referensi (Tiket/Nota)'] || ''); let tglBuatStr = null;
                 if (ref.startsWith('TKT-')) {
@@ -3018,7 +3055,7 @@
             });
 
             // REAL REVENUE JASA: nominal aktual hanya bersumber dari kolom Omzet di tab Garansi.
-            (globalGaransi || []).forEach(g => {
+            (globalGaransi || []).filter(dataSesuaiCabangAktif_).forEach(g => {
                 if (!g || !inPeriode(tanggalOmzetGaransiDashboard_(g))) return;
 
                 let nominalGaransi = nilaiOmzetGaransiDashboard_(g);
@@ -3042,7 +3079,8 @@
 
             let aTotal = statsAdmin.tepat + statsAdmin.telat + statsAdmin.proses; let aRate = aTotal > 0 ? Math.round((statsAdmin.tepat / aTotal) * 100) : 0; let aP1 = aTotal === 0 ? 0 : (statsAdmin.tepat / aTotal) * 100; let aP2 = aTotal === 0 ? 0 : aP1 + (statsAdmin.telat / aTotal) * 100; let aBg = aTotal === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${aP1}%, var(--danger) ${aP1}% ${aP2}%, var(--warning) ${aP2}% 100%)`;
 
-            let htmlAdmin = `<h3 class="section-title">Performa Admin (SLA Internal)</h3><div class="card" style="border-left-color:#3b82f6;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:#3b82f6; font-size:16px;">SLA 1: Distribusi Tugas Teknisi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 3 Hari (27 Jam Kerja).</p><div class="charts-container"><div class="chart-box" style="flex:1;"><div class="chart-title">DISTRIBUSI TUGAS</div><div class="donut" style="background: ${aBg};"><div class="donut-inner"><span class="donut-val" style="color:${aRate>=80?'var(--success)':(aRate>=50?'var(--warning)':'var(--danger)')}">${aTotal>0?aRate+'%':'-'}</span><span class="donut-label">Sukses</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Cepat</span> <b>${statsAdmin.tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat (>3 Hari)</span> <b>${statsAdmin.telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${statsAdmin.proses}</b></div></div></div></div></div>`;
+            let labelAdminSLA = cabangAktif === 'Raha' ? 'Admin Raha' : 'Admin Kendari';
+            let htmlAdmin = `<h3 class="section-title">Performa ${labelAdminSLA} (SLA Internal)</h3><div class="card" style="border-left-color:#3b82f6;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:#3b82f6; font-size:16px;">SLA 1: Distribusi Tugas Teknisi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 3 Hari (27 Jam Kerja).</p><div class="charts-container"><div class="chart-box" style="flex:1;"><div class="chart-title">DISTRIBUSI TUGAS</div><div class="donut" style="background: ${aBg};"><div class="donut-inner"><span class="donut-val" style="color:${aRate>=80?'var(--success)':(aRate>=50?'var(--warning)':'var(--danger)')}">${aTotal>0?aRate+'%':'-'}</span><span class="donut-label">Sukses</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Cepat</span> <b>${statsAdmin.tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat (>3 Hari)</span> <b>${statsAdmin.telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${statsAdmin.proses}</b></div></div></div></div></div>`;
             htmlAdmin += `<div class="card" style="border-left-color:var(--purple); margin-top:15px;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--purple); font-size:16px;">SLA 2: Pembuatan Nota & Garansi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 9 Jam Kerja setelah teknisi menyelesaikan tiket.</p><div style="display:flex; justify-content:space-around; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);"><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--success);">${statsAdminNota.aman}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Tiket Aman</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--danger);">${statsAdminNota.telat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">SLA GAGAL</div></div></div></div>`;
             htmlAdmin += `<div class="card" style="border-left-color:var(--warning); margin-top:15px;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--warning); font-size:16px;">SLA 3: Serah Terima Barang (Follow-Up)</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Klien mengambil barang maksimal 3 hari sejak selesai dikerjakan.</p><div style="display:flex; justify-content:space-around; background:#fffbeb; padding:15px; border-radius:8px; border:1px solid #fde68a;"><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--success);">${statsAdminFollowUp.cepat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Diserahkan</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--warning);">${statsAdminFollowUp.proses}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Masa Tunggu</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--danger);">${statsAdminFollowUp.telat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Mengendap >3 Hari</div></div></div></div>`;
 
@@ -3118,14 +3156,14 @@
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let tiketDitampilkan = [];
             
-            if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
-                tiketDitampilkan = [...(globalTickets || [])]; 
-            } else { 
-                tiketDitampilkan = (globalTickets || []).filter(t => t && String(t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase())); 
+            if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna())) {
+                tiketDitampilkan = (globalTickets || []).filter(dataSesuaiCabangAktif_);
+            } else {
+                tiketDitampilkan = (globalTickets || []).filter(dataSesuaiCabangAktif_).filter(t => t && String(t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase()));
             }
             
-            let refsDiGaransi = (globalGaransi || []).map(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim());
-            
+            let refsDiGaransi = (globalGaransi || []).filter(dataSesuaiCabangAktif_).map(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim());
+
             tiketDitampilkan.sort((a, b) => {
                 function getPriority(t) {
                     if(!t) return 99;
@@ -3192,12 +3230,12 @@
                     let dtLapor = new Date(dtLaporStr);
                     
                     if (!isNaN(dtLapor.getTime())) {
-                        let jamKerjaNganggur = hitungDurasiJamKerjaMs(dtLapor, new Date()) / 3600000;
+                        let jamKerjaNganggur = hitungDurasiJamKerjaMs(dtLapor, new Date(), ticket.Cabang) / 3600000;
                         if (jamKerjaNganggur >= 27) {
                             sc = 'status-terlambat'; 
                             infoSlaTeks = `<div style="background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">🚨 SLA ADMIN GAGAL (>3 HARI KERJA)</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Waktu Lapor: ${formatWaktu(dtLapor)}</p></div>`;
                         } else {
-                            let batasAdmin = hitungTenggatJamKerja(dtLapor, 27);
+                            let batasAdmin = hitungTenggatJamKerja(dtLapor, 27, ticket.Cabang);
                             infoSlaTeks = `<div style="background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ SLA Admin Berjalan...</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Batas 3 Hari Kerja: ${formatWaktu(batasAdmin)}</p></div>`;
                         }
                     } else {
@@ -3229,8 +3267,8 @@
                         if (!refsDiGaransi.includes(String(ticket['ID Tiket']).trim())) {
                             let tSelesai = new Date(ticket[Object.keys(ticket)[9]]);
                             if (!isNaN(tSelesai.getTime())) {
-                                let batasAdminNota = hitungTenggatJamKerja(tSelesai, 9);
-                                let jamKerjaTelat = hitungDurasiJamKerjaMs(tSelesai, new Date()) / 3600000;
+                                let batasAdminNota = hitungTenggatJamKerja(tSelesai, 9, ticket.Cabang);
+                                let jamKerjaTelat = hitungDurasiJamKerjaMs(tSelesai, new Date(), ticket.Cabang) / 3600000;
                                 
                                 if (jamKerjaTelat >= 9) {
                                     infoSlaTeks += `<div style="margin-top:10px; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;"><p style="margin:0; text-align:center; color:var(--danger); font-weight:bold;">🚨 SLA ADMIN (NOTA) GAGAL</p><p style="text-align:center; color:var(--text-muted); font-size:11px; margin:5px 0 0 0;">Belum input Garansi (>9 Jam Kerja)</p></div>`;
@@ -3256,7 +3294,7 @@
 
                 let htmlBanding = ''; let btnHtml = '';
                 
-                let delBtn = penggunaAktif.Role === 'admin' ? `<button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button>` : '';
+                let delBtn = roleAdalahAdminOperasional_() ? `<button class="btn-del" onclick="hapusTiket('${ticket['ID Tiket']}')">Hapus</button>` : '';
 
                 if (penggunaAktif.Role === 'sales') {
                     if (!ticket['Sales'] || ticket['Sales'].trim() === '-' || ticket['Sales'].trim() === '') {
@@ -3265,7 +3303,7 @@
                         else if (ticket['Status Banding'] === 'Ditolak') { htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; font-weight:600; color:#991b1b; text-align:center;">Klaim Ditolak (${ticket['Alasan Admin'] || 'Tanpa Alasan'})</div>`; }
                     } else { btnHtml = `<div style="margin-top:10px; padding:10px; text-align:center; font-size:12px; color:var(--text-muted); border-top:1px dashed var(--border);">Hanya dapat diedit oleh Teknisi/Admin</div>`; }
                 }
-                else if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') {
+                else if (roleAdalahAdminOperasional_() || rolePengguna() === 'manager') {
                     if (ticket['Status Banding'] === 'Diajukan') {
                         let imgs = String(ticket['Bukti Banding']||'').split('|#|'); let imgHtml = '';
                         imgs.forEach((imgSrc, idx) => { if(imgSrc && imgSrc.length > 10) { imgHtml += `<div style="display:flex; flex-direction:column; align-items:center;"><img src="${imgSrc}"><a href="${imgSrc}" download="Bukti_${ticket['ID Tiket']}_${idx+1}.jpg" class="dl-btn">Unduh Foto ${idx+1}</a></div>`; } });
@@ -3284,7 +3322,7 @@
                 }
 
                 let linkTrackBtn = '';
-                if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) {
+                if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna())) {
                     let linkURL = window.location.origin + window.location.pathname + '?track=' + ticket['ID Tiket'];
                     linkTrackBtn = `<button class="btn-action-primary" style="background:#f0fdf4; color:#166534; border-color:#bbf7d0; margin-top:5px;" onclick="navigator.clipboard.writeText('${linkURL}'); showToast('Alhamdulillah! Link Tracking disalin.', 'success');">🔗 Copy Link Tracking Klien</button>`;
                 }
@@ -3297,7 +3335,7 @@
                     </div>` : '';
 
                 let nilaiPenjualanCek = ticket['Nilai Penjualan (Rp)'] || ticket['Nilai Penjualan'] || 0; let infoPenjualanHtml = '';
-                if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role) && parseInt(nilaiPenjualanCek) > 0) { 
+                if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna()) && parseInt(nilaiPenjualanCek) > 0) {
                     infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`; 
                 }
 
@@ -3310,7 +3348,7 @@
                 // FITUR TRANSPARANSI POIN TEKNISI (HANYA JIKA SELESAI)
                 // ==========================================
                 let htmlPoinTeknisi = '';
-                if (['admin', 'manager', 'direktur', 'teknisi'].includes(penggunaAktif.Role) && textStatus === 'Selesai') {
+                if (['admin', 'admin_raha', 'manager', 'direktur', 'teknisi'].includes(rolePengguna()) && textStatus === 'Selesai') {
                     let nilaiPoin = parseFloat(ticket['Bobot Poin']) || 0;
                     let isVeto = String(ticket['Veto Admin'] || '').trim().toLowerCase() === 'ya';
                     let statusSlaKerja = ticket['Status SLA'];
@@ -3323,7 +3361,7 @@
                         htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fefce8; border:1px solid #fde047; border-radius:6px; display:inline-block; font-size:12px; color:#a16207; font-weight:bold;">⏳ Poin Beku: Menunggu Verifikasi/Lunas (Bobot: ${nilaiPoin})</div>`;
                         
                         // MUNCULKAN TOMBOL VERIFIKASI KHUSUS UNTUK ADMIN/DIREKSI/MANAGER
-                        if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role)) {
+                        if (['admin', 'admin_raha', 'manager', 'direktur'].includes(rolePengguna())) {
                             btnHtml += `<button class="btn-action-primary" style="background:#ecfdf5; color:#065f46; border-color:#a7f3d0; margin-top:10px;" onclick="tandaiLunas('${ticket['ID Tiket']}')">✅ Verifikasi Pekerjaan & Cairkan Poin</button>`;
                         }
                     } else {
@@ -3366,7 +3404,7 @@
             let searchInput = document.getElementById('search-sls'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
             let penDitampilkan = [];
             
-            if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
+            if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna())) {
                 penDitampilkan = [...(globalPenjualan || [])]; 
             }
             
@@ -3383,7 +3421,7 @@
                 htmlAda = true;
                 
                 let btnHtml = ''; 
-                if (penggunaAktif.Role === 'admin') { 
+                if (roleAdalahAdminOperasional_()) {
                     btnHtml = `<div class="btn-grid"><button class="btn-del" onclick="hapusPenjualan('${p['ID Penjualan']}')">Hapus Data Penjualan</button></div>`; 
                 }
                 
@@ -3419,7 +3457,7 @@
                 const selRef = document.getElementById('garansi-referensi');
                 selRef.innerHTML = '<option value="">-- Bismillah, Tanpa Referensi (Input Manual) --</option>';
                 
-                let existingRefs = (globalGaransi || []).map(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim());
+                let existingRefs = (globalGaransi || []).filter(dataSesuaiCabangAktif_).map(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim());
 
                 if(Array.isArray(globalTickets)) {
                     globalTickets.slice().reverse().forEach(t => { 
@@ -3537,7 +3575,7 @@
             let keywordPencarian = searchInput ? searchInput.value.trim().toLowerCase() : '';
             
             let htmlAda = false;
-            let garansiDitampilkan = [...(globalGaransi || [])];
+            let garansiDitampilkan = (globalGaransi || []).filter(dataSesuaiCabangAktif_);
             
             garansiDitampilkan.sort((a, b) => {
                 function getPrio(g) {
@@ -3603,13 +3641,13 @@
                 let ketGrsHtml = ketGrs ? `<p style="margin:8px 0 0 0; font-size:12px; color:var(--text-muted);"><i>Catatan: ${ketGrs}</i></p>` : '';
 
                 let btnHtml = '';
-                if (penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
+                if (roleAdalahAdminOperasional_() || rolePengguna() === 'manager') {
                     if (textStatus === 'Masa Tunggu') {
                         btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#2563eb; border-color:#bfdbfe;" onclick="aktifkanGaransi('${idGrs}')">🚀 Aktifkan Garansi (Barang Diambil)</button>`;
                     } else if (textStatus === 'Aktif') {
                         btnHtml += `<button class="btn-action-primary" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;" onclick="prosesKlaimGaransi('${idGrs}')">⚠️ Proses Klaim (Hanguskan)</button>`;
                     }
-                    if (penggunaAktif.Role === 'admin') {
+                    if (roleAdalahAdminOperasional_()) {
                         btnHtml += `<div class="btn-grid"><button class="btn-del" onclick="hapusGaransi('${idGrs}')">Hapus Data</button></div>`;
                     }
                 }
@@ -3640,8 +3678,9 @@
                 let idGrs = document.getElementById('garansi-id').value;
                 if(!idGrs || idGrs === "") { setAutoIDs(); idGrs = document.getElementById('garansi-id').value; }
 
-                const payload = { 
-                    apiKey: API_KEY, action: 'addGaransi', idGaransi: idGrs, 
+                const payload = {
+                    apiKey: API_KEY, action: 'addGaransi', idGaransi: idGrs,
+                    cabang: cabangAktif,
                     referensi: document.getElementById('garansi-referensi').value, 
                     noTransaksi: document.getElementById('garansi-notrans').value,
                     pelanggan: document.getElementById('garansi-pelanggan').value, 
@@ -3671,7 +3710,7 @@
             if(!acc) return; 
             document.getElementById('loading').style.display = 'block'; 
             try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'aktifkanGaransi', idGaransi: id }) }); 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'aktifkanGaransi', idGaransi: id, cabang: cabangAktif }) });
                 if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi Aktif.', 'success'); await ambilSemuaData(true); } 
             } catch(err) {} 
             document.getElementById('loading').style.display = 'none'; 
@@ -3682,7 +3721,7 @@
             if(!acc) return; 
             document.getElementById('loading').style.display = 'block'; 
             try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'klaimGaransi', idGaransi: id }) }); 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'klaimGaransi', idGaransi: id, cabang: cabangAktif }) });
                 if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi berhasil diklaim (Hangus).', 'success'); await ambilSemuaData(true); } 
             } catch(err) {} 
             document.getElementById('loading').style.display = 'none'; 
@@ -3696,7 +3735,7 @@
                 
                 const res = await fetch(apiUrl, { 
                     method: 'POST', 
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteGaransi', idGaransi: String(id).trim() }) 
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteGaransi', idGaransi: String(id).trim(), cabang: cabangAktif })
                 }); 
                 
                 const jsonRes = await res.json();
@@ -3808,7 +3847,7 @@
 
                 if (canSeeUpdateForm) {
                     let adminOptions = '';
-                    if (penggunaAktif.Role === 'admin') {
+                    if (roleAdalahAdminOperasional_()) {
                         adminOptions = `<option value="Batal" ${textStatus.includes('Batal')?'selected':''}>❌ Batal</option><option value="Tanpa Keterangan" ${textStatus.includes('Tanpa Keterangan')?'selected':''}>❓ Tanpa Keterangan</option>`;
                     }
 
@@ -4209,7 +4248,7 @@
 
         async function submitData(e, type) { 
             e.preventDefault(); 
-            const payload = { apiKey: API_KEY };
+            const payload = { apiKey: API_KEY, cabang: cabangAktif };
             let btnID = type === 'sla' ? 'btn-submit-edit' : 'btn-submit-sls';
             let btn = document.getElementById(btnID);
             
@@ -4233,8 +4272,9 @@
                         btn.innerText = `Menyimpan (${i+1}/${listPekerjaan.length})...`;
                         
                         let loopPayload = { 
-                            apiKey: API_KEY, 
+                            apiKey: API_KEY,
                             action: modeEditTiket ? 'editTicket' : 'addTicket',
+                            cabang: cabangAktif,
                             idTiket: currentId,
                             noTransaksi: document.getElementById('input-notrans-sla').value,
                             targetSLA: document.getElementById('input-sla').value,
@@ -4497,7 +4537,7 @@
         if (t['Status'] === 'Selesai') { 
         document.getElementById('update-title').innerText = 'Revisi BAT / Re-Open: ' + id; 
     // KHUSUS ADMIN/MANAGER BISA UBAH STATUS TIKET SELESAI (RE-OPEN)
-    if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role)) {
+    if (['admin', 'admin_raha', 'manager', 'direktur'].includes(rolePengguna())) {
         statusElement.disabled = false;
         statusElement.classList.remove('input-terkunci');
     } else {
@@ -4554,8 +4594,9 @@
                 keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru; 
             } 
             
-            const payload = { 
-                apiKey: API_KEY, action: 'updateTicket', idTiket: idTiket, status: status, 
+            const payload = {
+                apiKey: API_KEY, action: 'updateTicket', idTiket: idTiket, status: status,
+                cabang: cabangAktif,
                 keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, 
                 baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, 
                 baTTD: ttdBase64 

@@ -2,7 +2,84 @@
 // MESIN MATEMATIKA SLA JAM KERJA (REVISI V2)
 // 100% Sinkron dengan Sensor Jeda Ibadah
 // ==========================================
-function hitungTenggatJamKerja(waktuMulai, durasiJam) {
+function normalisasiCabangOperasional_(nilai) {
+  var cabang = String(nilai || '').trim().toLowerCase();
+  if (cabang === 'raha') return 'Raha';
+  if (cabang === 'kendari') return 'Kendari';
+  return '';
+}
+
+function cabangOperasional_(nilai) {
+  var cabang = normalisasiCabangOperasional_(nilai);
+  if (cabang) return cabang;
+  var properties = PropertiesService.getScriptProperties();
+  cabang = normalisasiCabangOperasional_(properties.getProperty('CABANG_AKTIF') || properties.getProperty('CABANG_DEFAULT'));
+  if (!cabang) {
+    try {
+      var namaSpreadsheet = String(SpreadsheetApp.getActiveSpreadsheet().getName() || '').toLowerCase();
+      if (namaSpreadsheet.indexOf('raha') !== -1) cabang = 'Raha';
+      else if (namaSpreadsheet.indexOf('kendari') !== -1) cabang = 'Kendari';
+    } catch (errorCabang) {
+      // Konteks tanpa spreadsheet (misalnya unit test) tetap aman memakai Kendari.
+    }
+  }
+  return cabang || 'Kendari';
+}
+
+function jamOperasionalCabang_(cabang) {
+  return { mulai: 8, selesai: cabangOperasional_(cabang) === 'Raha' ? 20 : 17 };
+}
+
+function roleAdminUntukCabang_(cabang) {
+  return cabangOperasional_(cabang) === 'Raha' ? 'admin_raha' : 'admin';
+}
+
+function pastikanKolomAkhir_(sheet, headers, namaKolom) {
+  var indexKolom = headers.indexOf(namaKolom);
+  if (indexKolom === -1) {
+    indexKolom = headers.length;
+    sheet.getRange(1, indexKolom + 1).setValue(namaKolom);
+    headers.push(namaKolom);
+  }
+  return indexKolom;
+}
+
+function cabangDariBaris_(row, headers, fallbackCabang) {
+  var colCabang = headers.indexOf('Cabang');
+  var cabangBaris = colCabang !== -1 ? normalisasiCabangOperasional_(row[colCabang]) : '';
+  return cabangOperasional_(cabangBaris || fallbackCabang);
+}
+
+function cariCabangTiketById_(sheetTiket, idTiket, fallbackCabang) {
+  if (!sheetTiket || !idTiket) return cabangOperasional_(fallbackCabang);
+  var dataTiket = sheetTiket.getDataRange().getValues();
+  var headers = dataTiket[0] || [];
+  for (var i = 1; i < dataTiket.length; i++) {
+    if (String(dataTiket[i][0] || '').trim() === String(idTiket).trim()) {
+      return cabangDariBaris_(dataTiket[i], headers, fallbackCabang);
+    }
+  }
+  return cabangOperasional_(fallbackCabang);
+}
+
+function kirimNotifKeAdminCabang_(usersData, cabang, pesan) {
+  if (!usersData || usersData.length < 2) return 0;
+  var headers = usersData[0] || [];
+  var colRole = headers.indexOf('Role');
+  var colWA = headers.indexOf('No WA');
+  if (colRole === -1 || colWA === -1) return 0;
+  var roleTarget = roleAdminUntukCabang_(cabang);
+  var terkirim = 0;
+  for (var i = 1; i < usersData.length; i++) {
+    var role = String(usersData[i][colRole] || '').trim().toLowerCase();
+    var nomor = String(usersData[i][colWA] || '').trim();
+    if (role === roleTarget && nomor && kirimNotifWA(nomor, pesan)) terkirim++;
+  }
+  return terkirim;
+}
+
+function hitungTenggatJamKerja(waktuMulai, durasiJam, cabang) {
+  var jamOperasional = jamOperasionalCabang_(cabang);
   var dt = new Date(waktuMulai.getTime());
   var msSisa = durasiJam * 3600 * 1000;
 
@@ -20,15 +97,15 @@ function hitungTenggatJamKerja(waktuMulai, durasiJam) {
     }
 
     // 2. Lewati waktu sebelum jam kerja (00.00 - 07.59)
-    if (jam < 8) {
-      dt.setHours(8, 0, 0, 0);
+    if (jam < jamOperasional.mulai) {
+      dt.setHours(jamOperasional.mulai, 0, 0, 0);
       continue;
     }
 
-    // 3. Lewati waktu setelah jam kerja (17.00 ke atas)
-    if (jam >= 17) {
+    // 3. Lewati waktu setelah jam kerja cabang (Raha 20.00, Kendari 17.00)
+    if (jam >= jamOperasional.selesai) {
       dt.setDate(dt.getDate() + 1);
-      dt.setHours(8, 0, 0, 0);
+      dt.setHours(jamOperasional.mulai, 0, 0, 0);
       continue;
     }
 
@@ -63,7 +140,8 @@ function hitungTenggatJamKerja(waktuMulai, durasiJam) {
   return dt;
 }
 
-function hitungDurasiJamKerjaMs(waktuMulai, waktuSelesai) {
+function hitungDurasiJamKerjaMs(waktuMulai, waktuSelesai, cabang) {
+  var jamOperasional = jamOperasionalCabang_(cabang);
   var start = new Date(waktuMulai).getTime();
   var end = new Date(waktuSelesai).getTime();
   
@@ -81,8 +159,8 @@ function hitungDurasiJamKerjaMs(waktuMulai, waktuSelesai) {
     // 1. Lewati hari Ahad (0 = Ahad)
     if (hari !== 0) {
       
-      // 2. Pastikan jam kerja umum aktif (08.00 pagi - 17.00 sore)
-      if (jam >= 8 && jam < 17) {
+      // 2. Jam aktif mengikuti cabang tiket.
+      if (jam >= jamOperasional.mulai && jam < jamOperasional.selesai) {
         
         var waktuIstirahat = false;
         
@@ -744,6 +822,19 @@ function buatRecordUserAman_(headers, row) {
   return record;
 }
 
+function normalisasiHakAksesCabang_(nilai) {
+  var hakAkses = String(nilai || '').trim().toLowerCase();
+  if (hakAkses === 'kendari') return 'Kendari';
+  if (hakAkses === 'raha') return 'Raha';
+  if (hakAkses === 'semua') return 'Semua';
+  return '';
+}
+
+function sertakanHakAksesCabang_(record) {
+  record.Hak_Akses_Cabang = normalisasiHakAksesCabang_(record.Hak_Akses_Cabang);
+  return record;
+}
+
 function originWebAuthnDiizinkan_(origin) {
   var target = String(origin || '').trim().replace(/\/$/, '');
   var daftar = String(WEBAUTHN_ALLOWED_ORIGINS || '').split(',').map(function(item) {
@@ -1139,9 +1230,9 @@ function verifyBiometric_(data, ss) {
     lock.releaseLock();
   }
 
-  var record = buatRecordUserAman_(user.headers, user.row);
+  var record = sertakanHakAksesCabang_(buatRecordUserAman_(user.headers, user.row));
   record.SessionToken = buatSessionToken_(record.Username);
-  return { status: 'sukses', user: record };
+  return { status: 'sukses', user: record, Hak_Akses_Cabang: record.Hak_Akses_Cabang };
 }
 
 function otorisasiAdminBroadcastCRM_(dataUser, usersData) {
@@ -1252,12 +1343,16 @@ function doGet(e) {
     }
 
     var reqTrackId = e.parameter.trackId ? String(e.parameter.trackId).trim().toLowerCase() : null;
+    var cabangRequest = cabangOperasional_(e.parameter.cabang);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var perluFlush = false;
 
     var sheetTiket = ss.getSheetByName("Tiket") || ss.getSheets()[0];
     var dataTiket = sheetTiket.getDataRange().getValues();
     var headersTiket = dataTiket[0]; var resultTiket = [];
+    var colCabangTiket = pastikanKolomAkhir_(sheetTiket, headersTiket, 'Cabang');
+    var colAdminSLATiket = pastikanKolomAkhir_(sheetTiket, headersTiket, 'Admin SLA');
+    var cabangByIdTiket = {};
 
     for (var i = 1; i < dataTiket.length; i++) {
       var row = dataTiket[i]; var record = {}; var idTiket = row[0];
@@ -1265,20 +1360,34 @@ function doGet(e) {
       // Jika mode tracking publik, tolak semua tiket selain yang dicari
       if (reqTrackId && String(idTiket).toLowerCase() !== reqTrackId) continue;
 
+      var cabangTiket = cabangDariBaris_(row, headersTiket, cabangRequest);
+      var roleAdminTiket = roleAdminUntukCabang_(cabangTiket);
+      cabangByIdTiket[String(idTiket).trim()] = cabangTiket;
+      if (normalisasiCabangOperasional_(row[colCabangTiket]) !== cabangTiket) {
+        row[colCabangTiket] = cabangTiket;
+        sheetTiket.getRange(i + 1, colCabangTiket + 1).setValue(cabangTiket);
+        perluFlush = true;
+      }
+      if (String(row[colAdminSLATiket] || '').trim().toLowerCase() !== roleAdminTiket) {
+        row[colAdminSLATiket] = roleAdminTiket;
+        sheetTiket.getRange(i + 1, colAdminSLATiket + 1).setValue(roleAdminTiket);
+        perluFlush = true;
+      }
+
       var waktuLaporVal = row[2]; var targetSLA = parseFloat(row[3]) || 24; var targetRespon = parseFloat(row[14]) || 1;
       var dtLapor = null;
       if (waktuLaporVal instanceof Date) { dtLapor = waktuLaporVal; } else if (waktuLaporVal && String(waktuLaporVal) !== "#VALUE!") { dtLapor = new Date(String(waktuLaporVal).replace(/-/g, "/")); }
       if (!dtLapor || isNaN(dtLapor.getTime())) dtLapor = new Date();
 
       // ---------------- MULAI PERBAIKAN doGet ----------------
-      if (!row[4] || String(row[4]).indexOf("#VALUE") > -1) { var fixedE = hitungTenggatJamKerja(dtLapor, targetSLA); row[4] = fixedE; sheetTiket.getRange(i + 1, 5).setValue(fixedE); perluFlush = true; }
+      if (!row[4] || String(row[4]).indexOf("#VALUE") > -1) { var fixedE = hitungTenggatJamKerja(dtLapor, targetSLA, cabangTiket); row[4] = fixedE; sheetTiket.getRange(i + 1, 5).setValue(fixedE); perluFlush = true; }
       
       var teknisiCek = String(row[7]).trim();
       var statusTiketCek = String(row[8]).trim();
 
       // [FIX BUG 1] Cegah sistem mengisi target respon diam-diam jika teknisi belum ada!
       if (teknisiCek !== "Belum Ditugaskan" && teknisiCek !== "") {
-          if (!row[15] || String(row[15]).indexOf("#VALUE") > -1) { var fixedP = hitungTenggatJamKerja(dtLapor, targetRespon); row[15] = fixedP; sheetTiket.getRange(i + 1, 16).setValue(fixedP); perluFlush = true; }
+          if (!row[15] || String(row[15]).indexOf("#VALUE") > -1) { var fixedP = hitungTenggatJamKerja(dtLapor, targetRespon, cabangTiket); row[15] = fixedP; sheetTiket.getRange(i + 1, 16).setValue(fixedP); perluFlush = true; }
       } else {
           row[15] = ""; // Paksa kosong agar aman
       }
@@ -1342,11 +1451,25 @@ function doGet(e) {
       var dataGaransi = sheetGaransi.getDataRange().getValues();
       var headersGaransi = dataGaransi[0];
       if (headersGaransi && headersGaransi.length > 0) {
+        var colCabangGaransi = pastikanKolomAkhir_(sheetGaransi, headersGaransi, 'Cabang');
+        var colAdminSLAGaransi = pastikanKolomAkhir_(sheetGaransi, headersGaransi, 'Admin SLA');
         for (var i = 1; i < dataGaransi.length; i++) {
             var row = dataGaransi[i]; var record = {};
             if (!row[0]) continue;
             // Jika mode tracking publik, hanya muat garansi milik tiket tersebut
             if (reqTrackId && String(row[1]).toLowerCase() !== reqTrackId) continue;
+            var cabangGaransi = cabangDariBaris_(row, headersGaransi, cabangByIdTiket[String(row[1] || '').trim()] || cabangRequest);
+            var roleAdminGaransi = roleAdminUntukCabang_(cabangGaransi);
+            if (normalisasiCabangOperasional_(row[colCabangGaransi]) !== cabangGaransi) {
+                row[colCabangGaransi] = cabangGaransi;
+                sheetGaransi.getRange(i + 1, colCabangGaransi + 1).setValue(cabangGaransi);
+                perluFlush = true;
+            }
+            if (String(row[colAdminSLAGaransi] || '').trim().toLowerCase() !== roleAdminGaransi) {
+                row[colAdminSLAGaransi] = roleAdminGaransi;
+                sheetGaransi.getRange(i + 1, colAdminSLAGaransi + 1).setValue(roleAdminGaransi);
+                perluFlush = true;
+            }
             if (String(row[5]).trim() === 'Aktif' && row[7]) {
                 var tglHabis = row[7] instanceof Date ? row[7] : new Date(row[7]);
                 if (!isNaN(tglHabis.getTime()) && new Date() > tglHabis) {
@@ -1426,12 +1549,12 @@ function doPost(e) {
             if (String(dataUsersLogin[i][colUsernameLogin] || '').trim().toLowerCase() === String(data.username || '').trim().toLowerCase()) {
               var passwordDB = dataUsersLogin[i][colPasswordLogin];
               if (passwordDB === data.passwordHash || passwordDB == data.passwordRaw) {
-                var record = buatRecordUserAman_(headerUsersLogin, dataUsersLogin[i]);
+                var record = sertakanHakAksesCabang_(buatRecordUserAman_(headerUsersLogin, dataUsersLogin[i]));
                 // --- GENERATOR SESSION TOKEN (KEAMANAN QA POIN 10) ---
                 // Token berlaku 24 jam, ditandatangani HMAC SHA-256, dan tidak memuat password.
                 record["SessionToken"] = buatSessionToken_(record["Username"]);
                 // ------------------------------------------------------
-                return ContentService.createTextOutput(JSON.stringify({"status": "sukses", "user": record})).setMimeType(ContentService.MimeType.JSON);
+                return ContentService.createTextOutput(JSON.stringify({"status": "sukses", "user": record, "Hak_Akses_Cabang": record.Hak_Akses_Cabang})).setMimeType(ContentService.MimeType.JSON);
               }
               break;
             }
@@ -1474,6 +1597,10 @@ function doPost(e) {
             if (seluruhHeader.indexOf("Keterangan") === -1) sheetGaransi.getRange(1, 12).setValue("Keterangan");
         }
       }
+
+      var headerGaransiAdd = sheetGaransi.getRange(1, 1, 1, sheetGaransi.getLastColumn()).getValues()[0];
+      var colCabangGaransiAdd = pastikanKolomAkhir_(sheetGaransi, headerGaransiAdd, 'Cabang');
+      var colAdminSLAGaransiAdd = pastikanKolomAkhir_(sheetGaransi, headerGaransiAdd, 'Admin SLA');
       
       // Jaring pengaman: semua properti Garansi wajib memiliki nilai aman.
       var idGaransi = data.idGaransi || "";
@@ -1485,6 +1612,10 @@ function doPost(e) {
       var salesGaransi = data.sales || "";
       var omzetGaransi = data.omzet || "";
       var keteranganGaransi = data.keteranganGaransi || "";
+      var cabangGaransiAdd = String(referensiGaransi).indexOf('TKT-') === 0
+        ? cariCabangTiketById_(sheetTiket, referensiGaransi, data.cabang)
+        : cabangOperasional_(data.cabang);
+      var roleAdminGaransiAdd = roleAdminUntukCabang_(cabangGaransiAdd);
       var tglMulai = ""; var tglHabis = ""; var durasiInt = parseInt(data.durasi, 10);
       if (isNaN(durasiInt)) durasiInt = 0;
       if (statusGaransi === "Aktif" && durasiInt > 0) { 
@@ -1492,7 +1623,12 @@ function doPost(e) {
           var habis = new Date(now.getTime() + (durasiInt * 24 * 3600 * 1000)); tglHabis = Utilities.formatDate(habis, "Asia/Makassar", "yyyy-MM-dd HH:mm:ss"); 
       } else if (durasiInt === 0) { statusGaransi = "Habis (Tanpa Garansi)"; }
       
-      sheetGaransi.appendRow([idGaransi, referensiGaransi, namaPelanggan, barangGaransi, durasiInt, statusGaransi, tglMulai, tglHabis, noTransaksiGaransi, salesGaransi, omzetGaransi, keteranganGaransi]); 
+      var barisGaransiBaru = [idGaransi, referensiGaransi, namaPelanggan, barangGaransi, durasiInt, statusGaransi, tglMulai, tglHabis, noTransaksiGaransi, salesGaransi, omzetGaransi, keteranganGaransi];
+      var maxIndexGaransi = Math.max(colCabangGaransiAdd, colAdminSLAGaransiAdd);
+      while (barisGaransiBaru.length <= maxIndexGaransi) barisGaransiBaru.push('');
+      barisGaransiBaru[colCabangGaransiAdd] = cabangGaransiAdd;
+      barisGaransiBaru[colAdminSLAGaransiAdd] = roleAdminGaransiAdd;
+      sheetGaransi.appendRow(barisGaransiBaru);
       
       if (String(referensiGaransi).trim() !== "") {
          if (String(referensiGaransi).indexOf("TKT-") === 0) {
@@ -1568,9 +1704,11 @@ function doPost(e) {
     // ===============================================
     } else if (data.action === 'addTicket') {
       var nextRow = sheetTiket.getLastRow() + 1; var sekarang = new Date(); var targetSLA = parseFloat(data.targetSLA) || 24; var targetRespon = parseFloat(data.targetRespon) || 1;
-      var tenggatPengerjaan = hitungTenggatJamKerja(sekarang, targetSLA);
+      var cabangTiketBaru = cabangOperasional_(data.cabang);
+      var roleAdminTiketBaru = roleAdminUntukCabang_(cabangTiketBaru);
+      var tenggatPengerjaan = hitungTenggatJamKerja(sekarang, targetSLA, cabangTiketBaru);
       var teknisiFinal = (!data.teknisi || data.teknisi === "") ? "Belum Ditugaskan" : data.teknisi;
-      var tenggatRespon = (teknisiFinal !== "Belum Ditugaskan") ? hitungTenggatJamKerja(sekarang, targetRespon) : "";
+      var tenggatRespon = (teknisiFinal !== "Belum Ditugaskan") ? hitungTenggatJamKerja(sekarang, targetRespon, cabangTiketBaru) : "";
 
       // [FIX BUG 3] Rumus Database yang kebal terhadap status Pending, Outsource, dan Teknisi Kosong
       var rumusSLA = '=IF(I' + nextRow + '="Pending"; "DIPENDING"; IF(I' + nextRow + '="Outsource"; "DIOPOR"; IF(J' + nextRow + '=""; IF(NOW()>E' + nextRow + '; "TERLAMBAT"; "AMAN"); IF(J' + nextRow + '<=E' + nextRow + '; "TERPENUHI"; "TERLAMBAT"))))';
@@ -1589,15 +1727,20 @@ function doPost(e) {
       var colVeto = seluruhHeader.indexOf("Veto Admin");
       if(colVeto === -1) { colVeto = seluruhHeader.length; sheetTiket.getRange(1, colVeto + 1).setValue("Veto Admin"); seluruhHeader.push("Veto Admin"); }
 
+      var colCabangTiketBaru = pastikanKolomAkhir_(sheetTiket, seluruhHeader, 'Cabang');
+      var colAdminSLATiketBaru = pastikanKolomAkhir_(sheetTiket, seluruhHeader, 'Admin SLA');
+
       var barisBaru = [ data.idTiket, data.noTransaksi || "", sekarang, targetSLA, tenggatPengerjaan, data.klien, data.pekerjaan, teknisiFinal, "Menunggu", "", rumusSLA, rumusPoin, data.sales, "", targetRespon, tenggatRespon, "", rumusSLARespon, "", "", "", "", data.ttdKlienAwal || "", "", "", "", "", "", "", data.nilaiPenjualan, "", "" ];
       
       // Push ke index yang paling ujung
-      var maxIndex = Math.max(colWA, colBobot, colVeto);
+      var maxIndex = Math.max(colWA, colBobot, colVeto, colCabangTiketBaru, colAdminSLATiketBaru);
       while(barisBaru.length <= maxIndex) barisBaru.push("");
       
       barisBaru[colWA] = data.waKlien || "";
       barisBaru[colBobot] = data.bobotPoin || "";
       barisBaru[colVeto] = data.vetoPoin || "Tidak";
+      barisBaru[colCabangTiketBaru] = cabangTiketBaru;
+      barisBaru[colAdminSLATiketBaru] = roleAdminTiketBaru;
       
       sheetTiket.appendRow(barisBaru);
 
@@ -1609,6 +1752,10 @@ function doPost(e) {
         var teknisiArray = teknisiFinal.split(','); var namaSalesTeks = data.sales ? data.sales : "Tidak Ada";
         var teksWA = "⚠️ *TUGAS SLA BARU ALFACOM* ⚠️\n\nAssalamu'alaikum, Anda ditugaskan pada tiket baru:\n\n🎫 *ID Tiket:* " + data.idTiket + "\n🏢 *Klien:* " + data.klien + "\n🛠️ *Pekerjaan:* " + data.pekerjaan + "\n💼 *Sales:* " + namaSalesTeks + "\n⏳ *Batas Respon:* " + targetRespon + " Jam\n⌛ *Batas Selesai:* " + targetSLA + " Jam\n\nMohon segera *Login* ke aplikasi untuk merespon.\n🌐 https://aplikasisla.vercel.app/";
         for (var t = 0; t < teknisiArray.length; t++) { var namaTeknisi = String(teknisiArray[t]).trim().toLowerCase(); for (var idx = 1; idx < usersData.length; idx++) { var namaDiDB = String(usersData[idx][3] || '').trim().toLowerCase(); var noWA = String(usersData[idx][6] || '').trim(); if (namaDiDB === namaTeknisi) { if (noWA !== "") kirimNotifWA(noWA, teksWA); break; } } }
+      } else {
+        var labelAdminTiketBaru = cabangTiketBaru === 'Raha' ? 'Admin Raha' : 'Admin Kendari';
+        var teksAdminTiketBaru = "⚠️ *TIKET BARU MENUNGGU PENUGASAN* ⚠️\n\nAssalamu'alaikum " + labelAdminTiketBaru + ",\nTiket baru Cabang " + cabangTiketBaru + " belum memiliki teknisi:\n\n🎫 *ID Tiket:* " + data.idTiket + "\n🏢 *Klien:* " + data.klien + "\n🛠️ *Pekerjaan:* " + data.pekerjaan + "\n\nSLA distribusi Admin mulai berjalan. Mohon segera tugaskan teknisi.\n🌐 https://aplikasisla.vercel.app/";
+        kirimNotifKeAdminCabang_(usersData, cabangTiketBaru, teksAdminTiketBaru);
       }
 
       // Notif WA Klien (Tiket Baru) atau Fallback ke Sales
@@ -1654,22 +1801,28 @@ function doPost(e) {
       var colTenggatPengganti = headerTiket.indexOf("Tenggat Pengganti");
       if (colTenggatPengganti === -1) { colTenggatPengganti = headerTiket.length; sheetTiket.getRange(1, colTenggatPengganti + 1).setValue("Tenggat Pengganti"); headerTiket.push("Tenggat Pengganti"); }
 
+      var colCabangTiketEdit = pastikanKolomAkhir_(sheetTiket, headerTiket, 'Cabang');
+      var colAdminSLATiketEdit = pastikanKolomAkhir_(sheetTiket, headerTiket, 'Admin SLA');
+
       for (var i = 1; i < tiketData.length; i++) {
         if (String(tiketData[i][0]).trim() === String(data.idTiket).trim()) {
           var colKeterangan = headerTiket.indexOf("Keterangan");
           var teknisiLama = tiketData[i][7]; var teknisiBaru = (!data.teknisi || data.teknisi === "") ? "Belum Ditugaskan" : data.teknisi;
           var targetSLA = parseFloat(data.targetSLA) || 24; var targetRespon = parseFloat(data.targetRespon) || 1;
           var dtLapor = tiketData[i][2] instanceof Date ? tiketData[i][2] : new Date();
+          // Cabang yang sudah tersimpan adalah sumber kebenaran; request hanya fallback untuk data lama.
+          var cabangTiketEdit = cabangDariBaris_(tiketData[i], headerTiket, data.cabang);
+          var roleAdminTiketEdit = roleAdminUntukCabang_(cabangTiketEdit);
           
-          var tenggatPengerjaan = hitungTenggatJamKerja(dtLapor, targetSLA);
+          var tenggatPengerjaan = hitungTenggatJamKerja(dtLapor, targetSLA, cabangTiketEdit);
           var sekarang = new Date();
           
           if ((!teknisiLama || teknisiLama === "Belum Ditugaskan" || teknisiLama === "") && teknisiBaru !== "Belum Ditugaskan") { 
-            var tenggatResponBaru = hitungTenggatJamKerja(sekarang, targetRespon);
+            var tenggatResponBaru = hitungTenggatJamKerja(sekarang, targetRespon, cabangTiketEdit);
             sheetTiket.getRange(i + 1, 16).setValue(tenggatResponBaru); 
             
             // CEK KETERLAMBATAN ADMIN SECARA PERMANEN
-            var jamKerjaNganggur = hitungDurasiJamKerjaMs(dtLapor, sekarang) / (1000 * 60 * 60);
+            var jamKerjaNganggur = hitungDurasiJamKerjaMs(dtLapor, sekarang, cabangTiketEdit) / (1000 * 60 * 60);
             if (jamKerjaNganggur >= 27) {
                 var statusPeringatan = String(tiketData[i][18] || "");
                 if (statusPeringatan.indexOf("ADMIN_SLA_FAILED") === -1) {
@@ -1689,11 +1842,11 @@ function doPost(e) {
             sheetTiket.getRange(i + 1, colTeknisiSebelumnya + 1).setValue(teknisiLama);
             sheetTiket.getRange(i + 1, colPenaltiTeknisiLama + 1).setValue(teknisiLama + " | Respon: " + (statusResponSaatIni || "AMAN") + " | Kerja: " + (statusPengerjaanSaatIni || "AMAN"));
 
-            var tenggatPenggantiBaru = hitungTenggatJamKerja(sekarang, targetSLA);
+            var tenggatPenggantiBaru = hitungTenggatJamKerja(sekarang, targetSLA, cabangTiketEdit);
             sheetTiket.getRange(i + 1, colTenggatPengganti + 1).setValue(tenggatPenggantiBaru);
 
             if (colWaktuRespon !== -1) sheetTiket.getRange(i + 1, colWaktuRespon + 1).setValue("");
-            var tenggatResponBaru = hitungTenggatJamKerja(sekarang, targetRespon);
+            var tenggatResponBaru = hitungTenggatJamKerja(sekarang, targetRespon, cabangTiketEdit);
             sheetTiket.getRange(i + 1, colTenggatRespon !== -1 ? colTenggatRespon + 1 : 16).setValue(tenggatResponBaru);
 
             if (colKeterangan !== -1) {
@@ -1717,6 +1870,8 @@ function doPost(e) {
           if(data.bobotPoin !== undefined) sheetTiket.getRange(i + 1, colBobot + 1).setValue(data.bobotPoin);
           if(data.vetoPoin !== undefined) sheetTiket.getRange(i + 1, colVeto + 1).setValue(data.vetoPoin);
           if(data.ttdKlienAwal && data.ttdKlienAwal !== "") sheetTiket.getRange(i + 1, 23).setValue(data.ttdKlienAwal);
+          sheetTiket.getRange(i + 1, colCabangTiketEdit + 1).setValue(cabangTiketEdit);
+          sheetTiket.getRange(i + 1, colAdminSLATiketEdit + 1).setValue(roleAdminTiketEdit);
           
           var arrLama = (teknisiLama && teknisiLama !== "Belum Ditugaskan") ? String(teknisiLama).split(',').map(function(s){return s.trim().toLowerCase();}) : []; 
           var arrBaru = (teknisiBaru && teknisiBaru !== "Belum Ditugaskan") ? String(teknisiBaru).split(',').map(function(s){return s.trim().toLowerCase();}) : []; 
@@ -1739,11 +1894,16 @@ function doPost(e) {
       var waktuSekarang = new Date(); var waktuSekarangStr = Utilities.formatDate(waktuSekarang, "Asia/Makassar", "yyyy-MM-dd HH:mm:ss");
       var headerTiket = tiketData[0];
       var colWA_Upd = headerTiket.indexOf("No WA Klien");
+      var colCabangTiketUpdate = pastikanKolomAkhir_(sheetTiket, headerTiket, 'Cabang');
+      var colAdminSLATiketUpdate = pastikanKolomAkhir_(sheetTiket, headerTiket, 'Admin SLA');
       
       for (var i = 1; i < tiketData.length; i++) {
         if (String(tiketData[i][0]).trim() === String(data.idTiket).trim()) {
           var statusLama = String(tiketData[i][8] || "").trim(); var waktuResponLama = tiketData[i][16]; 
           var namaKlienInfo = tiketData[i][5] || "-"; var namaTeknisiInfo = tiketData[i][7] || "-"; var statusBaru = String(data.status || "-").trim();
+          // Cegah update status memindahkan beban SLA tiket ke cabang lain.
+          var cabangTiketUpdate = cabangDariBaris_(tiketData[i], headerTiket, data.cabang);
+          var roleAdminTiketUpdate = roleAdminUntukCabang_(cabangTiketUpdate);
           var waKlienDB = (colWA_Upd !== -1 && tiketData[i].length > colWA_Upd) ? tiketData[i][colWA_Upd] : "";
           var kriteriaProspekTiket = String(waKlienDB || '').trim() || String(namaKlienInfo || '').trim();
           var catatanBaru = data.keterangan ? String(data.keterangan).trim() : "";
@@ -1757,14 +1917,16 @@ function doPost(e) {
                 var dtMulaiPending = (waktuMulaiPending instanceof Date) ? waktuMulaiPending : new Date(String(waktuMulaiPending).replace(/-/g, "/"));
                 var dtTenggatLama = (tenggatLama instanceof Date) ? tenggatLama : new Date(tenggatLama);
                 if (!isNaN(dtMulaiPending.getTime()) && !isNaN(dtTenggatLama.getTime())) {
-                    var durasiHilangMs = hitungDurasiJamKerjaMs(dtMulaiPending, waktuSekarang);
-                    if (durasiHilangMs > 0) { var tenggatBaru = hitungTenggatJamKerja(dtTenggatLama, durasiHilangMs / (3600 * 1000)); sheetTiket.getRange(i + 1, 5).setValue(tenggatBaru); }
+                    var durasiHilangMs = hitungDurasiJamKerjaMs(dtMulaiPending, waktuSekarang, cabangTiketUpdate);
+                    if (durasiHilangMs > 0) { var tenggatBaru = hitungTenggatJamKerja(dtTenggatLama, durasiHilangMs / (3600 * 1000), cabangTiketUpdate); sheetTiket.getRange(i + 1, 5).setValue(tenggatBaru); }
                 }
             }
             sheetTiket.getRange(i + 1, 32).setValue(""); 
           }
 
           sheetTiket.getRange(i + 1, 9).setValue(statusBaru); sheetTiket.getRange(i + 1, 14).setValue(catatanBaru || "-"); 
+          sheetTiket.getRange(i + 1, colCabangTiketUpdate + 1).setValue(cabangTiketUpdate);
+          sheetTiket.getRange(i + 1, colAdminSLATiketUpdate + 1).setValue(roleAdminTiketUpdate);
           if (statusLama === 'Menunggu' && statusBaru !== 'Menunggu' && !waktuResponLama) { sheetTiket.getRange(i + 1, 17).setValue(waktuSekarangStr); }
           if (statusBaru === 'Selesai') { if (statusLama !== 'Selesai') { sheetTiket.getRange(i + 1, 10).setValue(waktuSekarangStr); } } else { sheetTiket.getRange(i + 1, 10).setValue(""); }
           if (data.baDeskripsi !== undefined) { sheetTiket.getRange(i + 1, 20).setValue(data.baDeskripsi); sheetTiket.getRange(i + 1, 21).setValue(data.baNamaCustomer); sheetTiket.getRange(i + 1, 22).setValue(data.baKritik); if (data.baTTD && data.baTTD !== "") { sheetTiket.getRange(i + 1, 23).setValue(data.baTTD); } }
@@ -1782,14 +1944,9 @@ function doPost(e) {
               sinkronkanDatabaseKlien_(namaKlienInfo, waKlienDB, 'Tiket Selesai', produkTiketCRM);
 
               // Notif Ke Admin
-              var teksAdminNotaWA = "✅ *PEKERJAAN SELESAI (MENUNGGU NOTA)* ✅\n\nAssalamu'alaikum Admin,\nTeknisi telah menyelesaikan pekerjaan:\n\n🎫 *ID Tiket:* " + data.idTiket + "\n🏢 *Klien:* " + namaKlienInfo + "\n\nSLA Admin (9 Jam Kerja) untuk membuat Nota & mendaftarkan Garansi mulai berjalan. Mohon segera diproses!\n🌐 https://aplikasisla.vercel.app/";
-              for (var u = 1; u < usersData.length; u++) { 
-                  var rU = String(usersData[u][2]).toLowerCase().trim();
-                  if (rU === 'admin') { 
-                      var noWAAdm = String(usersData[u][6] || '').trim();
-                      if (noWAAdm !== "") kirimNotifWA(noWAAdm, teksAdminNotaWA);
-                  }
-              }
+              var labelAdminTiketUpdate = cabangTiketUpdate === 'Raha' ? 'Admin Raha' : 'Admin Kendari';
+              var teksAdminNotaWA = "✅ *PEKERJAAN SELESAI (MENUNGGU NOTA)* ✅\n\nAssalamu'alaikum " + labelAdminTiketUpdate + ",\nTeknisi telah menyelesaikan pekerjaan Cabang " + cabangTiketUpdate + ":\n\n🎫 *ID Tiket:* " + data.idTiket + "\n🏢 *Klien:* " + namaKlienInfo + "\n\nSLA Admin (9 Jam Kerja) untuk membuat Nota & mendaftarkan Garansi mulai berjalan. Mohon segera diproses!\n🌐 https://aplikasisla.vercel.app/";
+              kirimNotifKeAdminCabang_(usersData, cabangTiketUpdate, teksAdminNotaWA);
 
               // FITUR BARU: Notif WA Klien (Tiket Selesai) atau Fallback ke Sales
               var linkT = "https://aplikasisla.vercel.app/?track=" + data.idTiket;
@@ -2550,11 +2707,14 @@ function cekPeringatanSLA() {
 
   var tiketData = sheetTiket.getDataRange().getValues();
   var usersData = sheetUsers.getDataRange().getValues();
+  var headersTiketScanner = tiketData[0] || [];
+  var colCabangTiketScanner = pastikanKolomAkhir_(sheetTiket, headersTiketScanner, 'Cabang');
+  var colAdminSLATiketScanner = pastikanKolomAkhir_(sheetTiket, headersTiketScanner, 'Admin SLA');
   var now = new Date();
 
   var hariIni = now.getDay();
   var jamIni = now.getHours();
-  if (hariIni === 0 || jamIni < 8 || jamIni >= 17) return; 
+  if (hariIni === 0 || jamIni < 8 || jamIni >= 20) return;
 
   var waMap = {}; 
   for (var u = 1; u < usersData.length; u++) {
@@ -2563,36 +2723,59 @@ function cekPeringatanSLA() {
     if (namaAsli && noWA !== "") { waMap[namaAsli] = noWA; }
   }
 
-  var listRefGaransi = [];
+  var cabangTiketByIdScanner = {};
+  for (var tkt = 1; tkt < tiketData.length; tkt++) {
+    if (!tiketData[tkt][0]) continue;
+    cabangTiketByIdScanner[String(tiketData[tkt][0]).trim()] = cabangDariBaris_(tiketData[tkt], headersTiketScanner, null);
+  }
+
+  var listRefGaransi = {};
   if (sheetGaransi) {
     var dataG = sheetGaransi.getDataRange().getValues();
-    for (var g = 1; g < dataG.length; g++) { if (dataG[g][1]) listRefGaransi.push(String(dataG[g][1]).trim()); }
+    var headersGaransiScanner = dataG[0] || [];
+    var colCabangGaransiScanner = pastikanKolomAkhir_(sheetGaransi, headersGaransiScanner, 'Cabang');
+    for (var g = 1; g < dataG.length; g++) {
+      if (!dataG[g][1]) continue;
+      var refGaransiScanner = String(dataG[g][1]).trim();
+      var cabangGaransiScanner = cabangDariBaris_(dataG[g], headersGaransiScanner, cabangTiketByIdScanner[refGaransiScanner]);
+      listRefGaransi[cabangGaransiScanner + '|' + refGaransiScanner] = true;
+    }
   }
 
   for (var i = 1; i < tiketData.length; i++) {
     var row = tiketData[i]; var idTiket = row[0]; var statusTiket = String(row[8] || '').trim();
     if (statusTiket === "Cancel" || !idTiket) continue;
 
+    var cabangTiketScanner = cabangDariBaris_(row, headersTiketScanner, null);
+    var roleAdminTiketScanner = roleAdminUntukCabang_(cabangTiketScanner);
+    var jamOperasionalTiketScanner = jamOperasionalCabang_(cabangTiketScanner);
+    if (jamIni >= jamOperasionalTiketScanner.selesai) continue;
+    if (normalisasiCabangOperasional_(row[colCabangTiketScanner]) !== cabangTiketScanner) {
+      sheetTiket.getRange(i + 1, colCabangTiketScanner + 1).setValue(cabangTiketScanner);
+    }
+    if (String(row[colAdminSLATiketScanner] || '').trim().toLowerCase() !== roleAdminTiketScanner) {
+      sheetTiket.getRange(i + 1, colAdminSLATiketScanner + 1).setValue(roleAdminTiketScanner);
+    }
+
     var klien = row[5] || "-"; var pekerjaan = row[6] || "-"; var teknisiStr = String(row[7] || '').trim();
+    var labelAdminTiketScanner = cabangTiketScanner === 'Raha' ? 'Admin Raha' : 'Admin Kendari';
     var statusPeringatanLama = String(row[18] || '');
     var statusPeringatanBaru = statusPeringatanLama;
 
     if (statusTiket === "Selesai") {
-        if (listRefGaransi.indexOf(idTiket) === -1) {
+        if (!listRefGaransi[cabangTiketScanner + '|' + idTiket]) {
             var waktuSelesaiTiket = row[9] instanceof Date ? row[9] : new Date(String(row[9]).replace(/-/g, "/"));
             if (!isNaN(waktuSelesaiTiket.getTime())) {
-                var jamKerjaNganggurNota = hitungDurasiJamKerjaMs(waktuSelesaiTiket, now) / (1000 * 60 * 60);
+                var jamKerjaNganggurNota = hitungDurasiJamKerjaMs(waktuSelesaiTiket, now, cabangTiketScanner) / (1000 * 60 * 60);
                 if (jamKerjaNganggurNota >= 9 && statusPeringatanLama.indexOf("ADMIN_NOTA_FAILED") === -1) {
-                    var teksAdminNota_Admin = "🚨 *SLA ADMIN GAGAL (BUAT NOTA)* 🚨\n\nAssalamu'alaikum Admin,\nTiket Selesai berikut sudah lebih dari 9 Jam Kerja belum dibuatkan Nota & Garansi!\n\n🎫 *ID Tiket:* " + idTiket + "\n🏢 *Klien:* " + klien + "\n\nSegera buatkan Nota agar SLA Anda tidak semakin merah!\n🌐 https://aplikasisla.vercel.app/";
-                    var teksAdminNota_Manager = "⚠️ *LAPORAN KELALAIAN ADMIN (SLA NOTA)* ⚠️\n\nAssalamu'alaikum Manager,\nSistem mencatat Admin belum membuat Nota/Garansi melebihi batas 9 Jam Kerja untuk tiket selesai berikut:\n\n🎫 *ID Tiket:* " + idTiket + "\n🏢 *Klien:* " + klien + "\n\nMohon untuk menegur dan mengingatkan Admin terkait kelalaian ini agar dokumen Klien segera diproses.\n🌐 https://aplikasisla.vercel.app/";
+                    var teksAdminNota_Admin = "🚨 *SLA ADMIN GAGAL (BUAT NOTA)* 🚨\n\nAssalamu'alaikum " + labelAdminTiketScanner + ",\nTiket Selesai Cabang " + cabangTiketScanner + " berikut sudah lebih dari 9 Jam Kerja belum dibuatkan Nota & Garansi!\n\n🎫 *ID Tiket:* " + idTiket + "\n🏢 *Klien:* " + klien + "\n\nSegera buatkan Nota agar SLA Anda tidak semakin merah!\n🌐 https://aplikasisla.vercel.app/";
+                    var teksAdminNota_Manager = "⚠️ *LAPORAN KELALAIAN ADMIN (SLA NOTA)* ⚠️\n\nAssalamu'alaikum Manager,\nSistem mencatat " + labelAdminTiketScanner + " belum membuat Nota/Garansi melebihi batas 9 Jam Kerja untuk tiket selesai berikut:\n\n🎫 *ID Tiket:* " + idTiket + "\n🏢 *Klien:* " + klien + "\n\nMohon untuk menegur dan mengingatkan Admin terkait kelalaian ini agar dokumen Klien segera diproses.\n🌐 https://aplikasisla.vercel.app/";
                     
+                    kirimNotifKeAdminCabang_(usersData, cabangTiketScanner, teksAdminNota_Admin);
                     for (var u = 1; u < usersData.length; u++) {
                         var roleUser = String(usersData[u][2]).toLowerCase().trim();
                         var noWABos = String(usersData[u][6] || '').trim();
-                        if (noWABos !== "") {
-                            if (roleUser === 'admin') kirimNotifWA(noWABos, teksAdminNota_Admin);
-                            else if (roleUser === 'manager' || roleUser === 'direktur') kirimNotifWA(noWABos, teksAdminNota_Manager);
-                        }
+                        if (noWABos !== "" && (roleUser === 'manager' || roleUser === 'direktur')) kirimNotifWA(noWABos, teksAdminNota_Manager);
                     }
                     statusPeringatanBaru += " [ADMIN_NOTA_FAILED]";
                 }
@@ -2611,18 +2794,16 @@ function cekPeringatanSLA() {
     if (teknisiStr === "Belum Ditugaskan" || !teknisiStr || teknisiStr === "-") {
       var waktuLaporTiket = row[2] instanceof Date ? row[2] : new Date(String(row[2]).replace(/-/g, "/"));
       if (!isNaN(waktuLaporTiket.getTime())) {
-        var jamKerjaNganggur = hitungDurasiJamKerjaMs(waktuLaporTiket, now) / (1000 * 60 * 60);
+        var jamKerjaNganggur = hitungDurasiJamKerjaMs(waktuLaporTiket, now, cabangTiketScanner) / (1000 * 60 * 60);
         if (jamKerjaNganggur >= 27 && statusPeringatanLama.indexOf("ADMIN_SLA_FAILED") === -1) {
-          var teksAdminTech_Admin = "⚠️ *SLA ADMIN GAGAL (BUTUH TEKNISI)* ⚠️\n\nAssalamu'alaikum Admin,\nTiket berikut sudah melewati batas 3 Hari Kerja tanpa ditugaskan kepada teknisi manapun!\n\n🎫 *ID Tiket:* " + idTiket + "\n🏢 *Klien:* " + klien + "\n\nMohon segera tugaskan teknisi!\n🌐 https://aplikasisla.vercel.app/";
-          var teksAdminTech_Manager = "⚠️ *LAPORAN KELALAIAN ADMIN (PENUGASAN TEKNISI)* ⚠️\n\nAssalamu'alaikum Manager,\nSistem mencatat Admin belum menugaskan Teknisi melebihi batas 3 Hari Kerja untuk tiket berikut:\n\n🎫 *ID Tiket:* " + idTiket + "\n🏢 *Klien:* " + klien + "\n\nMohon tegur dan ingatkan Admin atas kelalaian distribusi tugas ini, atau evaluasi penambahan SDM Teknisi jika beban kerja saat ini terlalu tinggi.\n🌐 https://aplikasisla.vercel.app/";
+          var teksAdminTech_Admin = "⚠️ *SLA ADMIN GAGAL (BUTUH TEKNISI)* ⚠️\n\nAssalamu'alaikum " + labelAdminTiketScanner + ",\nTiket Cabang " + cabangTiketScanner + " berikut sudah melewati batas 3 Hari Kerja tanpa ditugaskan kepada teknisi manapun!\n\n🎫 *ID Tiket:* " + idTiket + "\n🏢 *Klien:* " + klien + "\n\nMohon segera tugaskan teknisi!\n🌐 https://aplikasisla.vercel.app/";
+          var teksAdminTech_Manager = "⚠️ *LAPORAN KELALAIAN ADMIN (PENUGASAN TEKNISI)* ⚠️\n\nAssalamu'alaikum Manager,\nSistem mencatat " + labelAdminTiketScanner + " belum menugaskan Teknisi melebihi batas 3 Hari Kerja untuk tiket berikut:\n\n🎫 *ID Tiket:* " + idTiket + "\n🏢 *Klien:* " + klien + "\n\nMohon tegur dan ingatkan Admin atas kelalaian distribusi tugas ini, atau evaluasi penambahan SDM Teknisi jika beban kerja saat ini terlalu tinggi.\n🌐 https://aplikasisla.vercel.app/";
           
+          kirimNotifKeAdminCabang_(usersData, cabangTiketScanner, teksAdminTech_Admin);
           for (var u = 1; u < usersData.length; u++) {
             var roleUser = String(usersData[u][2]).toLowerCase().trim();
             var noWABos = String(usersData[u][6] || '').trim();
-            if (noWABos !== "") {
-                if (roleUser === 'admin') kirimNotifWA(noWABos, teksAdminTech_Admin);
-                else if (roleUser === 'manager' || roleUser === 'direktur') kirimNotifWA(noWABos, teksAdminTech_Manager);
-            }
+            if (noWABos !== "" && (roleUser === 'manager' || roleUser === 'direktur')) kirimNotifWA(noWABos, teksAdminTech_Manager);
           }
           statusPeringatanBaru += " [ADMIN_SLA_FAILED]";
         }
@@ -2639,7 +2820,7 @@ function cekPeringatanSLA() {
     if (listWaAkanDikirim.length === 0) continue;
 
     if (!waktuRespon && tenggatRespon && !isNaN(tenggatRespon.getTime())) {
-      var sisaJamRespon = hitungDurasiJamKerjaMs(now, tenggatRespon) / (1000 * 60 * 60);
+      var sisaJamRespon = hitungDurasiJamKerjaMs(now, tenggatRespon, cabangTiketScanner) / (1000 * 60 * 60);
       if (sisaJamRespon <= 0.25 && statusPeringatanLama.indexOf("RESPON_WARNED") === -1) {
         var teksRespon = "🚨 *DARURAT: SLA RESPON TIKET " + idTiket + "* 🚨\n\nAssalamu'alaikum, waktu untuk *Respon Pertama* tiket ini hampir habis!\n\n🏢 *Klien:* " + klien + "\n⏳ *Batas:* " + Utilities.formatDate(tenggatRespon, "Asia/Makassar", "dd/MM/yyyy HH:mm") + "\n\nSegera tekan tombol *On Progress* di Aplikasi agar tidak dihitung Gagal!\n🌐 https://aplikasisla.vercel.app/";
         for (var m = 0; m < listWaAkanDikirim.length; m++) { kirimNotifWA(listWaAkanDikirim[m], teksRespon); }
@@ -2648,7 +2829,7 @@ function cekPeringatanSLA() {
     }
 
     if (tenggatPengerjaan && !isNaN(tenggatPengerjaan.getTime())) {
-      var sisaJamPengerjaan = hitungDurasiJamKerjaMs(now, tenggatPengerjaan) / (1000 * 60 * 60);
+      var sisaJamPengerjaan = hitungDurasiJamKerjaMs(now, tenggatPengerjaan, cabangTiketScanner) / (1000 * 60 * 60);
       if (sisaJamPengerjaan <= 2.0 && statusPeringatanLama.indexOf("PENGERJAAN_WARNED") === -1) {
         var teksPengerjaan = "⏰ *PERINGATAN: SLA PENGERJAAN TIKET " + idTiket + "* ⏰\n\nAssalamu'alaikum, waktu pengerjaan tiket ini tersisa kurang dari 2 jam / telah melewati batas!\n\n🏢 *Klien:* " + klien + "\n⌛ *Batas Selesai:* " + Utilities.formatDate(tenggatPengerjaan, "Asia/Makassar", "dd/MM/yyyy HH:mm") + "\n\nSegera selesaikan (Closed) atau ajukan *Pending* jika ada kendala di lapangan.\n🌐 https://aplikasisla.vercel.app/";
         for (var m = 0; m < listWaAkanDikirim.length; m++) { kirimNotifWA(listWaAkanDikirim[m], teksPengerjaan); }
