@@ -1295,29 +1295,14 @@ function verifyBiometric_(data, ss) {
   var signedBytes = authData.bytes.concat(clientDataHash);
   if (!verifikasiSignatureEcdsaP256_(keyRecord.spki, data.signature, signedBytes)) throw new Error('Signature biometrik tidak valid.');
 
+  if (keyRecord.signCount > 0 && authData.signCount > 0 && authData.signCount <= keyRecord.signCount) throw new Error('Counter authenticator tidak meningkat.');
+
+  // Challenge tetap dikonsumsi secara serial, tetapi jalur login ini read-only:
+  // tidak membaca ulang baris dan tidak menulis counter/last login ke Sheets.
   var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  if (!lock.tryLock(1000)) throw new Error('Verifikasi biometrik sedang sibuk. Silakan ulangi.');
   try {
-    var rowTerbaru = sheetUsers.getRange(user.rowNumber, 1, 1, user.headers.length).getValues()[0];
-    var userTerbaru = {
-      headers: user.headers,
-      row: rowTerbaru,
-      rowNumber: user.rowNumber,
-      credentialColumn: user.credentialColumn,
-      publicKeyColumn: user.publicKeyColumn
-    };
-    var colUsernameTerbaru = user.headers.indexOf('Username');
-    if (String(rowTerbaru[colUsernameTerbaru] || '').trim().toLowerCase() !== username || !bandingkanStringKonstan_(normalisasiBase64Url_(rowTerbaru[userTerbaru.credentialColumn]), credentialTersimpan)) throw new Error('Credential telah berubah.');
-    var keyTerbaru = bacaCredentialWebAuthnTersimpan_(userTerbaru.row[userTerbaru.publicKeyColumn]);
-    if (keyTerbaru.signCount > 0 && authData.signCount > 0 && authData.signCount <= keyTerbaru.signCount) throw new Error('Counter authenticator tidak meningkat.');
     konsumsiChallengeWebAuthn_(data.challengeToken);
-    if (authData.signCount > keyTerbaru.signCount) {
-      keyTerbaru.signCount = authData.signCount;
-      keyTerbaru.lastUsedAt = new Date().toISOString();
-      sheetUsers.getRange(userTerbaru.rowNumber, userTerbaru.publicKeyColumn + 1).setValue(JSON.stringify(keyTerbaru));
-      SpreadsheetApp.flush();
-    }
-    user = userTerbaru;
   } finally {
     lock.releaseLock();
   }

@@ -468,7 +468,7 @@
             <h3 style="margin-top:0; color:var(--text-main);">Manajemen SLA Alfacom</h3>
             <div id="login-loading">Memeriksa koneksi aman...</div>
             <form id="login-form" onsubmit="prosesLogin(event)" style="display:none;">
-                <input type="text" id="username" placeholder="Username" required>
+                <input type="text" id="username" placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
                 <div style="position:relative; margin-bottom:5px;">
                     <input type="password" id="password" placeholder="Password" required style="margin-bottom:0; padding-right:40px; width:100%; box-sizing:border-box;">
                     <span class="icon-btn-pwd" onclick="togglePasswordVisibility('password', this)">
@@ -480,7 +480,7 @@
                 </div>
                 <div class="login-action-row">
                     <button type="submit" class="btn-login">Masuk Workspace</button>
-                    <button type="button" id="btn-login-biometric" class="btn-biometric" onclick="prosesLoginBiometrik()" aria-label="Login dengan Sidik Jari" title="Login dengan Sidik Jari">
+                    <button type="button" id="btn-login-biometric" class="btn-biometric" onclick="prosesLoginBiometrik()" aria-label="Login dengan Sidik Jari" title="Login dengan Sidik Jari" disabled>
                         <span class="biometric-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
                                 <path d="M12 10a2 2 0 0 0-2 2c0 1.75-.18 3.43-.68 5"></path>
@@ -1397,6 +1397,152 @@
             return response.json();
         }
 
+        // Challenge server berlaku 5 menit. Cache frontend dibuat lebih singkat agar
+        // selalu ada margin waktu saat prompt biometrik dan verifikasi berlangsung.
+        const BIOMETRIC_CHALLENGE_MAX_AGE_MS = 4 * 60 * 1000;
+        const BIOMETRIC_USERNAME_DEBOUNCE_MS = 350;
+        let challengeLoginBiometrikCache = null;
+        let promiseChallengeLoginBiometrik = null;
+        let timerPrefetchLoginBiometrik = null;
+        let timerPenyegaranChallengeBiometrik = null;
+        let versiUsernameBiometrik = 0;
+
+        function usernameLoginBiometrik_() {
+            const input = document.getElementById('username');
+            return String(input && input.value || '').trim().toLowerCase();
+        }
+
+        function challengeLoginBiometrikValid_(username) {
+            const cache = challengeLoginBiometrikCache;
+            return !!(cache &&
+                cache.username === username &&
+                cache.origin === location.origin &&
+                Date.now() - cache.diterimaPada < BIOMETRIC_CHALLENGE_MAX_AGE_MS &&
+                cache.data && cache.data.challengeToken && cache.data.rpId && cache.data.credentialId);
+        }
+
+        function invalidasiChallengeLoginBiometrik_() {
+            versiUsernameBiometrik += 1;
+            challengeLoginBiometrikCache = null;
+            if (timerPrefetchLoginBiometrik) clearTimeout(timerPrefetchLoginBiometrik);
+            if (timerPenyegaranChallengeBiometrik) clearTimeout(timerPenyegaranChallengeBiometrik);
+            timerPrefetchLoginBiometrik = null;
+            timerPenyegaranChallengeBiometrik = null;
+            const btn = document.getElementById('btn-login-biometric');
+            if (btn) btn.disabled = true;
+        }
+
+        function jadwalkanPenyegaranChallengeLoginBiometrik_(cacheSaatIni) {
+            if (timerPenyegaranChallengeBiometrik) clearTimeout(timerPenyegaranChallengeBiometrik);
+            timerPenyegaranChallengeBiometrik = setTimeout(() => {
+                timerPenyegaranChallengeBiometrik = null;
+                if (challengeLoginBiometrikCache !== cacheSaatIni) return;
+                invalidasiChallengeLoginBiometrik_();
+                const loginWrapper = document.getElementById('login-wrapper');
+                if (loginWrapper && loginWrapper.style.display !== 'none') jadwalkanPrefetchLoginBiometrik_(true);
+            }, Math.max(1000, BIOMETRIC_CHALLENGE_MAX_AGE_MS - 10000));
+        }
+
+        async function siapkanChallengeLoginBiometrik_(usernameInput, diamDiam) {
+            const username = String(usernameInput || '').trim().toLowerCase();
+            if (!username || !webAuthnDidukung()) return null;
+            if (challengeLoginBiometrikValid_(username)) return challengeLoginBiometrikCache.data;
+
+            if (promiseChallengeLoginBiometrik &&
+                promiseChallengeLoginBiometrik.username === username &&
+                promiseChallengeLoginBiometrik.origin === location.origin &&
+                promiseChallengeLoginBiometrik.versi === versiUsernameBiometrik) {
+                try {
+                    return await promiseChallengeLoginBiometrik.promise;
+                } catch (error) {
+                    if (diamDiam) return null;
+                    throw error;
+                }
+            }
+
+            const versiPermintaan = versiUsernameBiometrik;
+            const originPermintaan = location.origin;
+            const permintaan = {
+                username: username,
+                origin: originPermintaan,
+                versi: versiPermintaan,
+                promise: null
+            };
+            permintaan.promise = (async () => {
+                const mulai = await kirimWebAuthn('beginBiometricLogin', {
+                    username: username,
+                    origin: originPermintaan
+                });
+                if (!mulai || mulai.status !== 'sukses') throw new Error(mulai && mulai.pesan || 'Passkey belum tersedia untuk akun ini.');
+                if (versiPermintaan !== versiUsernameBiometrik ||
+                    usernameLoginBiometrik_() !== username ||
+                    location.origin !== originPermintaan) return null;
+
+                challengeLoginBiometrikCache = {
+                    username: username,
+                    origin: originPermintaan,
+                    diterimaPada: Date.now(),
+                    data: mulai
+                };
+                jadwalkanPenyegaranChallengeLoginBiometrik_(challengeLoginBiometrikCache);
+                const status = document.getElementById('biometric-login-status');
+                const btn = document.getElementById('btn-login-biometric');
+                if (btn) btn.disabled = false;
+                if (status && (!btn || !btn.classList.contains('is-loading'))) {
+                    status.innerText = 'Sidik jari siap digunakan.';
+                }
+                return mulai;
+            })();
+            promiseChallengeLoginBiometrik = permintaan;
+
+            try {
+                return await permintaan.promise;
+            } catch (error) {
+                if (!diamDiam) throw error;
+                if (versiPermintaan === versiUsernameBiometrik && usernameLoginBiometrik_() === username) {
+                    const status = document.getElementById('biometric-login-status');
+                    if (status) status.innerText = 'Passkey belum siap. Periksa username atau koneksi, lalu coba lagi.';
+                }
+                return null;
+            } finally {
+                if (promiseChallengeLoginBiometrik === permintaan) promiseChallengeLoginBiometrik = null;
+            }
+        }
+
+        function jadwalkanPrefetchLoginBiometrik_(segera) {
+            if (timerPrefetchLoginBiometrik) clearTimeout(timerPrefetchLoginBiometrik);
+            timerPrefetchLoginBiometrik = null;
+            const username = usernameLoginBiometrik_();
+            const btn = document.getElementById('btn-login-biometric');
+            if (btn && webAuthnDidukung()) btn.disabled = !challengeLoginBiometrikValid_(username);
+            if (!username || !webAuthnDidukung() || challengeLoginBiometrikValid_(username)) return;
+            if (promiseChallengeLoginBiometrik &&
+                promiseChallengeLoginBiometrik.username === username &&
+                promiseChallengeLoginBiometrik.versi === versiUsernameBiometrik) return;
+
+            const versiTerjadwal = versiUsernameBiometrik;
+            timerPrefetchLoginBiometrik = setTimeout(() => {
+                timerPrefetchLoginBiometrik = null;
+                if (versiTerjadwal !== versiUsernameBiometrik || usernameLoginBiometrik_() !== username) return;
+                void siapkanChallengeLoginBiometrik_(username, true);
+            }, segera ? 0 : BIOMETRIC_USERNAME_DEBOUNCE_MS);
+        }
+
+        function inisialisasiPrefetchLoginBiometrik_() {
+            const input = document.getElementById('username');
+            if (!input || input.dataset.biometricPrefetch === 'aktif') return;
+            input.dataset.biometricPrefetch = 'aktif';
+
+            const usernameTersimpan = String(localStorage.getItem('webauthnUsernameSLA') || '').trim().toLowerCase();
+            if (!input.value.trim() && usernameTersimpan) input.value = usernameTersimpan;
+            input.addEventListener('input', () => {
+                invalidasiChallengeLoginBiometrik_();
+                jadwalkanPrefetchLoginBiometrik_(false);
+            });
+            input.addEventListener('blur', () => jadwalkanPrefetchLoginBiometrik_(true));
+            jadwalkanPrefetchLoginBiometrik_(true);
+        }
+
         function pesanWebAuthn(error, fallback) {
             if (error && error.name === 'NotAllowedError') return 'Permintaan biometrik dibatalkan atau melewati batas waktu.';
             if (error && error.name === 'InvalidStateError') return 'Passkey ini sudah terdaftar pada perangkat.';
@@ -1542,11 +1688,15 @@
                 return;
             }
 
-            let username = document.getElementById('username').value.trim().toLowerCase();
+            const inputUsername = document.getElementById('username');
+            let username = inputUsername.value.trim().toLowerCase();
             if (!username) username = String(localStorage.getItem('webauthnUsernameSLA') || '').trim().toLowerCase();
             if (!username) username = String(await showPrompt('Masukkan Username untuk Login Sidik Jari:') || '').trim().toLowerCase();
             if (!username) return;
-            document.getElementById('username').value = username;
+            if (usernameLoginBiometrik_() !== username) {
+                inputUsername.value = username;
+                invalidasiChallengeLoginBiometrik_();
+            }
 
             const labelAwal = btn.getAttribute('aria-label') || 'Login dengan Sidik Jari';
             const titleAwal = btn.getAttribute('title') || labelAwal;
@@ -1556,8 +1706,16 @@
             btn.setAttribute('title', 'Memanggil sensor biometrik...');
             if (status) status.innerText = 'Menunggu verifikasi Sidik Jari / Face ID...';
             try {
-                const mulai = await kirimWebAuthn('beginBiometricLogin', { username: username, origin: location.origin });
-                if (mulai.status !== 'sukses') throw new Error(mulai.pesan || 'Passkey belum tersedia untuk akun ini.');
+                // Cache-hit langsung membuka prompt authenticator; bila prefetch masih
+                // berjalan, klik ini memakai promise yang sama tanpa request ganda.
+                let mulai = challengeLoginBiometrikValid_(username) ? challengeLoginBiometrikCache.data : null;
+                if (!mulai && promiseChallengeLoginBiometrik &&
+                    promiseChallengeLoginBiometrik.username === username &&
+                    promiseChallengeLoginBiometrik.origin === location.origin &&
+                    promiseChallengeLoginBiometrik.versi === versiUsernameBiometrik) {
+                    mulai = await promiseChallengeLoginBiometrik.promise;
+                }
+                if (!mulai) throw new Error('Challenge biometrik tidak lagi valid. Silakan ulangi.');
 
                 const assertion = await navigator.credentials.get({
                     publicKey: {
@@ -1572,6 +1730,9 @@
                         timeout: 60000
                     }
                 });
+                // Assertion sudah terikat ke challenge ini. Buang segera agar tidak
+                // pernah dipakai ulang, termasuk ketika request verifikasi terputus.
+                if (assertion) invalidasiChallengeLoginBiometrik_();
                 const response = assertion && assertion.response;
                 if (!response) throw new Error('Authenticator tidak mengembalikan assertion.');
                 const hasil = await kirimWebAuthn('verifyBiometric', {
@@ -1595,6 +1756,8 @@
                 btn.classList.remove('is-loading');
                 btn.setAttribute('aria-label', labelAwal);
                 btn.setAttribute('title', titleAwal);
+                const loginWrapper = document.getElementById('login-wrapper');
+                if (loginWrapper && loginWrapper.style.display !== 'none') jadwalkanPrefetchLoginBiometrik_(false);
             }
         }
 
@@ -4956,6 +5119,7 @@
                 document.getElementById('main-lobby-wrapper').style.display = 'none';
                 document.getElementById('main-lobby-wrapper').setAttribute('aria-hidden', 'true');
                 document.getElementById('app-wrapper').style.display = 'none';
+                inisialisasiPrefetchLoginBiometrik_();
 
             }
         }
