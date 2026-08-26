@@ -2916,13 +2916,29 @@
 
             // DATA STREAM SEPARATION: nominal aktual dan potensi tidak boleh saling menggantikan.
             function nilaiDashboard_(rawValue) {
-                if (typeof rawValue === 'number') return isNaN(rawValue) ? 0 : rawValue;
+                if (typeof rawValue === 'number') return Number.isFinite(rawValue) ? rawValue : 0;
                 let teksNilai = String(rawValue || '').trim();
                 if (!teksNilai) return 0;
+
                 let angkaBersih = teksNilai.replace(/[^0-9,.-]/g, '');
-                if (angkaBersih.indexOf(',') !== -1) angkaBersih = angkaBersih.replace(/\./g, '').replace(',', '.');
-                else if (/^-?\d{1,3}(\.\d{3})+$/.test(angkaBersih)) angkaBersih = angkaBersih.replace(/\./g, '');
-                return parseFloat(angkaBersih) || 0;
+                if (!angkaBersih || angkaBersih === '-') return 0;
+
+                let posisiKoma = angkaBersih.lastIndexOf(',');
+                let posisiTitik = angkaBersih.lastIndexOf('.');
+                if (posisiKoma !== -1 && posisiTitik !== -1) {
+                    // Pemisah paling kanan dianggap desimal; pemisah lainnya adalah ribuan.
+                    if (posisiKoma > posisiTitik) angkaBersih = angkaBersih.replace(/\./g, '').replace(',', '.');
+                    else angkaBersih = angkaBersih.replace(/,/g, '');
+                } else if (/^-?\d{1,3}(\.\d{3})+$/.test(angkaBersih)) {
+                    angkaBersih = angkaBersih.replace(/\./g, '');
+                } else if (/^-?\d{1,3}(,\d{3})+$/.test(angkaBersih)) {
+                    angkaBersih = angkaBersih.replace(/,/g, '');
+                } else if (posisiKoma !== -1) {
+                    angkaBersih = angkaBersih.replace(',', '.');
+                }
+
+                let hasilParsing = parseFloat(angkaBersih);
+                return Number.isFinite(hasilParsing) ? hasilParsing : 0;
             }
 
             function nilaiOmzetGaransiDashboard_(garansi) {
@@ -2959,6 +2975,103 @@
                 return '';
             }
 
+            function normalisasiKunciTransaksiDashboard_(rawValue) {
+                let kunci = String(rawValue == null ? '' : rawValue).trim().toUpperCase();
+                return ['', '-', 'N/A', 'NA', 'NULL', 'UNDEFINED'].includes(kunci) ? '' : kunci;
+            }
+
+            function noTransaksiDashboard_(data) {
+                if (!data) return '';
+                return normalisasiKunciTransaksiDashboard_(
+                    data['No Transaksi'] || data['No. Transaksi'] ||
+                    data['Nomor Transaksi'] || data['No Transaksi / SO'] || ''
+                );
+            }
+
+            function bangunRekapOmzetCanonicalDashboard_() {
+                let transaksiTercatat = new Set();
+                let daftarTransaksi = [];
+                let total = 0;
+                let penjualanById = new Map();
+                let penjualanByNoTransaksi = new Map();
+                let tiketById = new Map();
+
+                (globalPenjualan || []).forEach(p => {
+                    if (!p) return;
+                    let idPenjualan = normalisasiKunciTransaksiDashboard_(p['ID Penjualan']);
+                    let noTransaksi = noTransaksiDashboard_(p);
+                    if (idPenjualan) penjualanById.set(idPenjualan, p);
+                    if (noTransaksi) penjualanByNoTransaksi.set(noTransaksi, p);
+                });
+
+                (globalTickets || []).filter(dataSesuaiCabangAktif_).forEach(t => {
+                    if (!t) return;
+                    let idTiket = normalisasiKunciTransaksiDashboard_(t['ID Tiket']);
+                    if (idTiket) tiketById.set(idTiket, t);
+                });
+
+                // SLS adalah sumber utama omzet penjualan langsung.
+                (globalPenjualan || []).forEach(p => {
+                    if (!p || !inPeriode(p['Tanggal'] || p['Waktu Lapor'] || p['Tanggal Input'])) return;
+
+                    let idPenjualan = normalisasiKunciTransaksiDashboard_(p['ID Penjualan']);
+                    let noTransaksi = noTransaksiDashboard_(p);
+                    let kunciId = idPenjualan ? 'SLS:' + idPenjualan : '';
+                    let kunciNoTransaksi = noTransaksi ? 'TRX:' + noTransaksi : '';
+
+                    if ((kunciId && transaksiTercatat.has(kunciId)) ||
+                        (kunciNoTransaksi && transaksiTercatat.has(kunciNoTransaksi))) return;
+
+                    let nominal = nilaiDashboard_(
+                        p['Nominal (Rp)'] || p['Nominal Omzet'] ||
+                        p['Total Transaksi'] || p['Nominal'] || 0
+                    );
+                    total += nominal;
+                    daftarTransaksi.push({ nominal: nominal, sales: String(p['Sales'] || ''), sumber: 'SLS' });
+
+                    if (kunciId) transaksiTercatat.add(kunciId);
+                    if (kunciNoTransaksi) transaksiTercatat.add(kunciNoTransaksi);
+                });
+
+                // GRS hanya menjadi sumber omzet jika bukan turunan SLS dan belum mewakili transaksi TKT yang sama.
+                (globalGaransi || []).filter(dataSesuaiCabangAktif_).forEach(g => {
+                    if (!g) return;
+
+                    let referensi = normalisasiKunciTransaksiDashboard_(g['Referensi (Tiket/Nota)']);
+                    let referensiAdalahSls = referensi.startsWith('SLS') ||
+                        penjualanById.has(referensi) || penjualanByNoTransaksi.has(referensi);
+                    if (referensiAdalahSls || !inPeriode(tanggalOmzetGaransiDashboard_(g))) return;
+
+                    let tiketReferensi = null;
+                    let kunciTiket = '';
+                    let kunciNoTransaksi = '';
+                    if (referensi.startsWith('TKT')) {
+                        tiketReferensi = tiketById.get(referensi) || null;
+                        let noTransaksiTiket = noTransaksiDashboard_(tiketReferensi) || noTransaksiDashboard_(g);
+                        kunciTiket = 'TKT:' + referensi;
+                        kunciNoTransaksi = noTransaksiTiket ? 'TRX:' + noTransaksiTiket : '';
+
+                        if ((kunciNoTransaksi && transaksiTercatat.has(kunciNoTransaksi)) ||
+                            (!kunciNoTransaksi && transaksiTercatat.has(kunciTiket))) return;
+                    }
+
+                    let nominal = nilaiOmzetGaransiDashboard_(g);
+                    total += nominal;
+                    daftarTransaksi.push({
+                        nominal: nominal,
+                        sales: String(g['Sales'] || (tiketReferensi && tiketReferensi['Sales']) || ''),
+                        sumber: referensi.startsWith('TKT') ? 'TKT' : 'MANUAL'
+                    });
+
+                    if (kunciTiket) transaksiTercatat.add(kunciTiket);
+                    if (kunciNoTransaksi) transaksiTercatat.add(kunciNoTransaksi);
+                });
+
+                return { total: total, transaksi: daftarTransaksi };
+            }
+
+            let rekapOmzetCanonical = bangunRekapOmzetCanonicalDashboard_();
+
             function statusProspekDashboard_(prospek) {
                 return String((prospek && (prospek['Status Prospek'] || prospek['Status'])) || '').trim().toLowerCase();
             }
@@ -2980,26 +3093,10 @@
             if (execSection) execSection.style.display = isEksekutif ? 'grid' : 'none';
 
             if (isEksekutif) {
-                let totalOmzetAll = 0;
+                let totalOmzetAll = rekapOmzetCanonical.total;
                 let totalPipeline = 0;
                 let prospekTotal = 0;
                 let prospekDeal = 0;
-
-                // REAL REVENUE STREAM 1: transaksi yang sudah dibukukan di tab Penjualan.
-                (globalPenjualan || []).forEach(p => {
-                    if (!p) return;
-                    let tanggalPenjualan = p['Tanggal'] || p['Waktu Lapor'] || p['Tanggal Input'];
-                    if (!inPeriode(tanggalPenjualan)) return;
-                    totalOmzetAll += nilaiDashboard_(
-                        p['Nominal (Rp)'] || p['Nominal Omzet'] || p['Total Transaksi'] || p['Nominal'] || 0
-                    );
-                });
-
-                // REAL REVENUE STREAM 2: omzet jasa yang sudah dicatat Admin di tab Garansi.
-                (globalGaransi || []).filter(dataSesuaiCabangAktif_).forEach(g => {
-                    if (!g || !inPeriode(tanggalOmzetGaransiDashboard_(g))) return;
-                    totalOmzetAll += nilaiOmzetGaransiDashboard_(g);
-                });
 
                 // PIPELINE STREAM: Prospek Closing/Deal dan Batal tidak menyumbang rupiah potensi.
                 (globalProspek || []).forEach(p => {
@@ -3026,9 +3123,9 @@
                     let namaAsli = u['Nama Asli']; if (namaAsli.toLowerCase() === 'syawal') namaAsli = 'Muhammad Syawal'; 
                     if (!statsTeknisi[namaAsli]) { statsTeknisi[namaAsli] = { nama: namaAsli, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0, tiket_selesai: 0, pending_count: 0, garansi_bocor: 0, poin_terkumpul: 0 }; } 
                 }
-                if (u && u.Role === 'sales' && u['Nama Asli']) { 
+                if (u && u.Role === 'sales' && u['Nama Asli']) {
                     let namaSales = u['Nama Asli']; let rawTarget = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || 0;
-                    if (!statsSales[namaSales]) { statsSales[namaSales] = { nama: namaSales, target: parseInt(rawTarget) || 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; } 
+                    if (!statsSales[namaSales]) { statsSales[namaSales] = { nama: namaSales, target: nilaiDashboard_(rawTarget), revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; }
                 }
             });
 
@@ -3235,46 +3332,33 @@
 
                 let sNames = String(p['Sales'] || '').split(',').map(s => s.trim()).filter(s => s !== "" && s !== "-");
 
-                // REAL REVENUE: Prospek tidak pernah menjadi sumber nominal aktual.
-                let nominalJual = nilaiDashboard_(
-                    p['Nominal (Rp)'] || p['Nominal Omzet'] || p['Total Transaksi'] || p['Nominal'] || 0
-                );
-
-                let revPerSalesSls = sNames.length > 0 ? (nominalJual / sNames.length) : 0;
-
                 sNames.forEach(sName => {
                     let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === sName.toLowerCase());
                     if (!sKey) { statsSales[sName] = { nama: sName, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; sKey = sName; }
                     if (sKey) {
                         statsSales[sKey].total++;
                         statsSales[sKey].selesai++;
-
-                        // Dibagi per Sales agar total tim tidak menggandakan satu transaksi multi-sales.
-                        statsSales[sKey].revenue += revPerSalesSls;
                     }
                 });
             });
 
-            // REAL REVENUE JASA: nominal aktual hanya bersumber dari kolom Omzet di tab Garansi.
-            (globalGaransi || []).filter(dataSesuaiCabangAktif_).forEach(g => {
-                if (!g || !inPeriode(tanggalOmzetGaransiDashboard_(g))) return;
-
-                let nominalGaransi = nilaiOmzetGaransiDashboard_(g);
-                let salesGaransi = String(g['Sales'] || '')
+            // Alokasi omzet Sales memakai daftar transaksi kanonis yang sama dengan Ringkasan Eksekutif.
+            rekapOmzetCanonical.transaksi.forEach(transaksi => {
+                let salesTransaksi = String(transaksi.sales || '')
                     .split(',')
                     .map(s => s.trim())
                     .filter(s => s !== '' && s !== '-');
-                let omzetGaransiPerSales = salesGaransi.length > 0 ? (nominalGaransi / salesGaransi.length) : 0;
+                let omzetPerSales = salesTransaksi.length > 0 ? (transaksi.nominal / salesTransaksi.length) : 0;
 
-                salesGaransi.forEach(namaSales => {
+                salesTransaksi.forEach(namaSales => {
                     let sKey = Object.keys(statsSales).find(k => k.toLowerCase() === namaSales.toLowerCase());
                     if (!sKey) {
                         statsSales[namaSales] = { nama: namaSales, target: 0, revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 };
                         sKey = namaSales;
                     }
 
-                    // Hanya menambah omzet; jumlah transaksi tetap berasal dari Tiket/Penjualan agar tidak berlipat.
-                    statsSales[sKey].revenue += omzetGaransiPerSales;
+                    // Dibagi rata agar satu transaksi multi-sales tidak menggandakan total tim.
+                    statsSales[sKey].revenue += omzetPerSales;
                 });
             });
 
