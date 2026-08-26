@@ -1900,7 +1900,7 @@ function doPost(e) {
       for (var i = 1; i < tiketData.length; i++) {
         if (String(tiketData[i][0]).trim() === String(data.idTiket).trim()) {
           var statusLama = String(tiketData[i][8] || "").trim(); var waktuResponLama = tiketData[i][16]; 
-          var namaKlienInfo = tiketData[i][5] || "-"; var namaTeknisiInfo = tiketData[i][7] || "-"; var statusBaru = String(data.status || "-").trim();
+          var namaKlienInfo = tiketData[i][5] || "-"; var pekerjaanAwal = tiketData[i][6] || "-"; var namaTeknisiInfo = tiketData[i][7] || "-"; var statusBaru = String(data.status || "-").trim();
           // Cegah update status memindahkan beban SLA tiket ke cabang lain.
           var cabangTiketUpdate = cabangDariBaris_(tiketData[i], headerTiket, data.cabang);
           var roleAdminTiketUpdate = roleAdminUntukCabang_(cabangTiketUpdate);
@@ -1950,8 +1950,7 @@ function doPost(e) {
 
               // FITUR BARU: Notif WA Klien (Tiket Selesai) atau Fallback ke Sales
               var linkT = "https://aplikasisla.vercel.app/?track=" + data.idTiket;
-              var detailKerja = data.baDeskripsi || tiketData[i][6] || data.keterangan || "Pekerjaan teknis";
-              var pesanK = "✅ *PEKERJAAN SELESAI*\n\nBismillah. Pelanggan Yth. (Bpk/Ibu " + namaKlienInfo + "),\n\nKami informasikan bahwa pekerjaan untuk tiket *" + data.idTiket + "* dengan rincian:\n*\"" + detailKerja + "\"*\n\nTelah SELESAI dikerjakan oleh tim kami. Terima kasih atas kepercayaannya kepada Alfacom!\n\nSilakan cek Berita Acara dan Status Garansi Anda pada tautan berikut:\n🌐 " + linkT;
+              var pesanK = "✅ *PEKERJAAN SELESAI*\n\nBismillah. Pelanggan Yth. (Bpk/Ibu " + namaKlienInfo + "),\n\nKami informasikan bahwa pekerjaan untuk tiket *" + data.idTiket + "* dengan rincian:\n*\"" + pekerjaanAwal + "\"*\n\nTelah SELESAI dikerjakan oleh tim kami. Terima kasih atas kepercayaannya kepada Alfacom!\n\nSilakan cek Berita Acara dan Status Garansi Anda pada tautan berikut:\n🌐 " + linkT;
 
               if (waKlienDB && String(waKlienDB).trim() !== "") {
                   kirimNotifWA(String(waKlienDB).trim(), pesanK);
