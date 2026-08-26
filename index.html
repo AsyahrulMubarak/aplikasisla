@@ -1768,7 +1768,7 @@
             try {
                 const deskripsi = document.getElementById('bug-deskripsi').value; const fileInput = document.getElementById('bug-bukti'); let base64Bukti = '';
                 if (fileInput.files.length > 0) { base64Bukti = await prosesUploadBebas(fileInput.files[0]); }
-                const payload = { apiKey: API_KEY, action: 'laporBug', pelapor: penggunaAktif ? penggunaAktif['Nama Asli'] : 'Unknown', deskripsi: deskripsi, buktiBug: base64Bukti };
+                const payload = { apiKey: API_KEY, action: 'laporBug', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, pelapor: penggunaAktif ? penggunaAktif['Nama Asli'] : 'Unknown', deskripsi: deskripsi, buktiBug: base64Bukti };
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); const jsonRes = await res.json();
                 if (jsonRes.status === 'sukses') { showToast('Alhamdulillah! Laporan bug terkirim.', 'success'); document.getElementById('modal-bug').style.display = 'none'; } else { showToast('Afwan, Gagal: ' + jsonRes.pesan, 'error'); }
             } catch (err) { showToast('Afwan, Gagal mengirim laporan.', 'error'); } finally { btn.innerText = 'Kirim Laporan'; btn.disabled = false; }
@@ -2722,10 +2722,7 @@
                 const payload = {
                     apiKey: API_KEY,
                     action: 'broadcastCRM',
-                    user: {
-                        Username: penggunaAktif && penggunaAktif.Username,
-                        SessionToken: penggunaAktif && penggunaAktif.SessionToken
-                    },
+                    user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
                     klien: penerima,
                     pesan: pesan,
                     requestId: `BROADCAST-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
@@ -3883,7 +3880,7 @@
                 if(!idGrs || idGrs === "") { setAutoIDs(); idGrs = document.getElementById('garansi-id').value; }
 
                 const payload = {
-                    apiKey: API_KEY, action: 'addGaransi', idGaransi: idGrs,
+                    apiKey: API_KEY, action: 'addGaransi', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idGaransi: idGrs,
                     cabang: cabangAktif,
                     referensi: document.getElementById('garansi-referensi').value, 
                     noTransaksi: document.getElementById('garansi-notrans').value,
@@ -3914,7 +3911,7 @@
             if(!acc) return; 
             document.getElementById('loading').style.display = 'block'; 
             try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'aktifkanGaransi', idGaransi: id, cabang: cabangAktif }) });
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'aktifkanGaransi', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idGaransi: id, cabang: cabangAktif }) });
                 if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi Aktif.', 'success'); await ambilSemuaData(true); } 
             } catch(err) {} 
             document.getElementById('loading').style.display = 'none'; 
@@ -3925,7 +3922,7 @@
             if(!acc) return; 
             document.getElementById('loading').style.display = 'block'; 
             try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'klaimGaransi', idGaransi: id, cabang: cabangAktif }) });
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'klaimGaransi', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idGaransi: id, cabang: cabangAktif }) });
                 if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi berhasil diklaim (Hangus).', 'success'); await ambilSemuaData(true); } 
             } catch(err) {} 
             document.getElementById('loading').style.display = 'none'; 
@@ -3939,7 +3936,7 @@
                 
                 const res = await fetch(apiUrl, { 
                     method: 'POST', 
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteGaransi', idGaransi: String(id).trim(), cabang: cabangAktif })
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteGaransi', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idGaransi: String(id).trim(), cabang: cabangAktif })
                 }); 
                 
                 const jsonRes = await res.json();
@@ -4202,6 +4199,7 @@
                 const payload = {
                     apiKey: API_KEY,
                     action: 'addFollowUpProspek',
+                    user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
                     idProspek: idProspek,
                     namaSales: penggunaAktif ? penggunaAktif['Nama Asli'] : '',
                     keterangan: keterangan,
@@ -4271,9 +4269,10 @@
                 let finalKebutuhan = stringKebutuhan.join('\n'); // Pisahkan tiap barang dengan Enter (Baris Baru)
 
                 const payload = { 
-                    apiKey: API_KEY, 
-                    action: 'addProspek', 
-                    idProspek: idPrp, 
+                    apiKey: API_KEY,
+                    action: 'addProspek',
+                    user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
+                    idProspek: idPrp,
                     customer: document.getElementById('prospek-nama').value, 
                     waCustomer: document.getElementById('prospek-wa') ? document.getElementById('prospek-wa').value : '',
                     kebutuhan: finalKebutuhan, 
@@ -4326,7 +4325,7 @@
 
             document.getElementById('loading').style.display = 'block'; 
             try { 
-                const payload = { apiKey: API_KEY, action: 'updateProspekStatus', idProspek: id, statusBaru: newVal };
+                const payload = { apiKey: API_KEY, action: 'updateProspekStatus', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idProspek: id, statusBaru: newVal };
                 if (nominalUpdate !== undefined) {
                     payload.estimasi = nominalUpdate;
                 }
@@ -4351,6 +4350,7 @@
                 const payload = {
                     apiKey: API_KEY,
                     action: 'ajukanPemulihanProspek',
+                    user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
                     idProspek: id,
                     namaSales: penggunaAktif['Nama Asli'],
                     alasan: alasan.trim()
@@ -4373,7 +4373,7 @@
         async function responPemulihan(id, keputusan) {
             document.getElementById('loading').style.display = 'block';
             try {
-                const payload = { apiKey: API_KEY, action: 'responPemulihanProspek', idProspek: id, keputusan: keputusan };
+                const payload = { apiKey: API_KEY, action: 'responPemulihanProspek', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idProspek: id, keputusan: keputusan };
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
                 const hasil = await res.json();
                 if (hasil.status === 'sukses') {
@@ -4394,7 +4394,7 @@
             if(!acc) return;
             document.getElementById('loading').style.display = 'block';
             try {
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'mintaPenawaran', idProspek: idProspek }) });
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'mintaPenawaran', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idProspek: idProspek }) });
                 if ((await res.json()).status === 'sukses') {
                     showToast('Alhamdulillah! Permintaan Penawaran terkirim ke Admin.', 'success');
                     await ambilSemuaData(true);
@@ -4411,7 +4411,7 @@
                 
                 const res = await fetch(apiUrl, { 
                     method: 'POST', 
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteProspek', idProspek: String(id).trim() }) 
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteProspek', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idProspek: String(id).trim() })
                 }); 
                 
                 const jsonRes = await res.json();
@@ -4439,7 +4439,7 @@
                 let base64Doc = await prosesUploadBebas(fileInput.files[0]);
                 const idPrp = document.getElementById('penawaran-id').value;
                 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'updateProspekStatus', idProspek: idPrp, statusBaru: "Tahap Penawaran", suratPenawaran: base64Doc }) });
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'updateProspekStatus', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idProspek: idPrp, statusBaru: "Tahap Penawaran", suratPenawaran: base64Doc }) });
                 const jsonRes = await res.json();
                 if (jsonRes.status === 'sukses') { 
                     showToast('Alhamdulillah! Surat Penawaran tersimpan & terkirim.', 'success'); 
@@ -4452,7 +4452,7 @@
 
         async function submitData(e, type) { 
             e.preventDefault(); 
-            const payload = { apiKey: API_KEY, cabang: cabangAktif };
+            const payload = { apiKey: API_KEY, user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, cabang: cabangAktif };
             let btnID = type === 'sla' ? 'btn-submit-edit' : 'btn-submit-sls';
             let btn = document.getElementById(btnID);
             
@@ -4478,6 +4478,7 @@
                         let loopPayload = { 
                             apiKey: API_KEY,
                             action: modeEditTiket ? 'editTicket' : 'addTicket',
+                            user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
                             cabang: cabangAktif,
                             idTiket: currentId,
                             noTransaksi: document.getElementById('input-notrans-sla').value,
@@ -4688,7 +4689,7 @@
                 const ketSales = document.getElementById('banding-keterangan').value; 
                 const idTiket = document.getElementById('banding-id').value; 
                 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'ajukanBanding', idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) }); 
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'ajukanBanding', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) });
                 if ((await res.json()).status === 'sukses') { 
                     showToast('Alhamdulillah! Klaim terkirim, menunggu persetujuan Admin.', 'success'); 
                     document.getElementById('modal-banding').style.display = 'none'; 
@@ -4704,7 +4705,7 @@
             document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti'; 
         }
         
-        async function responBanding(idTiket, keputusan, namaSales) { let alasan = ''; if (keputusan === 'Ditolak') { alasan = await showPrompt("Bismillah, Tuliskan alasan penolakan untuk Sales:"); if(alasan === null) return; if(alasan.trim() === "") { showToast("Afwan, Alasan penolakan wajib diisi!", "warning"); return; } } else { let acc = await showConfirm(`Bismillah, yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`, false); if(!acc) return; } document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'responBanding', idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); if ((await res.json()).status === 'sukses') { showToast(`Alhamdulillah! Klaim berhasil diproses (${keputusan}).`, 'success'); await ambilSemuaData(true); } } catch (err) {} document.getElementById('loading').style.display = 'none'; }
+        async function responBanding(idTiket, keputusan, namaSales) { let alasan = ''; if (keputusan === 'Ditolak') { alasan = await showPrompt("Bismillah, Tuliskan alasan penolakan untuk Sales:"); if(alasan === null) return; if(alasan.trim() === "") { showToast("Afwan, Alasan penolakan wajib diisi!", "warning"); return; } } else { let acc = await showConfirm(`Bismillah, yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`, false); if(!acc) return; } document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'responBanding', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); if ((await res.json()).status === 'sukses') { showToast(`Alhamdulillah! Klaim berhasil diproses (${keputusan}).`, 'success'); await ambilSemuaData(true); } } catch (err) {} document.getElementById('loading').style.display = 'none'; }
         
         function toggleKanvasByStatus(statusVal) {
             const wadah = document.getElementById('wadah-ttd-klien');
@@ -4799,7 +4800,7 @@
             } 
             
             const payload = {
-                apiKey: API_KEY, action: 'updateTicket', idTiket: idTiket, status: status,
+                apiKey: API_KEY, action: 'updateTicket', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idTiket: idTiket, status: status,
                 cabang: cabangAktif,
                 keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, 
                 baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, 
@@ -4832,7 +4833,7 @@
 
                 const res = await fetch(apiUrl, { 
                     method: 'POST', 
-                    body: JSON.stringify({apiKey: API_KEY, action: 'deleteTicket', idTiket: String(idTiket).trim()}),
+                    body: JSON.stringify({apiKey: API_KEY, action: 'deleteTicket', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idTiket: String(idTiket).trim()}),
                     signal: controller.signal
                 }); 
                 
@@ -4865,7 +4866,7 @@
                 
                 const res = await fetch(apiUrl, { 
                     method: 'POST', 
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'deletePenjualan', idPenjualan: String(idPenjualan).trim() }) 
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'deletePenjualan', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idPenjualan: String(idPenjualan).trim() })
                 }); 
                 
                 const jsonRes = await res.json();
@@ -4971,9 +4972,10 @@
             } else { finalPw = await hashPassword(inputPw); }
 
             const payload = { 
-                apiKey: API_KEY, 
-                action: modeEditUser ? 'editUser' : 'addUser', 
-                namaAsli: document.getElementById('new-nama').value, 
+                apiKey: API_KEY,
+                action: modeEditUser ? 'editUser' : 'addUser',
+                user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
+                namaAsli: document.getElementById('new-nama').value,
                 email: document.getElementById('new-email').value, 
                 username: document.getElementById('new-username').value, 
                 password: finalPw, 
@@ -5047,7 +5049,7 @@
                 
                 const res = await fetch(apiUrl, { 
                     method: 'POST', 
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteUser', username: String(un).trim() }) 
+                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteUser', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, username: String(un).trim() })
                 }); 
                 
                 const jsonRes = await res.json();
@@ -5267,7 +5269,7 @@
             
             try {
                 // C. Tembak data ke Google Sheets secara diam-diam
-                let payload = { apiKey: API_KEY, action: 'catatFollowUp', ref: ref, admin: penggunaAktif['Nama Asli'] || 'Admin' };
+                let payload = { apiKey: API_KEY, action: 'catatFollowUp', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, ref: ref, admin: penggunaAktif['Nama Asli'] || 'Admin' };
                 
                 const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
                 const jsonRes = await res.json();
@@ -5329,7 +5331,7 @@
             const btn = document.getElementById('btn-submit-poin'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             try {
                 const payload = {
-                    apiKey: API_KEY, action: 'updatePoinTiket',
+                    apiKey: API_KEY, action: 'updatePoinTiket', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
                     idTiket: document.getElementById('poin-id-tiket').value,
                     bobotPoin: document.getElementById('poin-nilai-input').value,
                     vetoPoin: document.getElementById('poin-veto-input').checked ? 'Ya' : 'Tidak'
@@ -5349,7 +5351,7 @@
             // ... [lanjutan kodenya tetap sama]
             document.getElementById('loading').style.display = 'block';
             try {
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'tandaiLunas', idTiket: idTiket }) });
+                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'tandaiLunas', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idTiket: idTiket }) });
                 if ((await res.json()).status === 'sukses') {
                     showToast('Alhamdulillah! Nota Lunas, Poin dicairkan.', 'success');
                     await ambilSemuaData(true);
@@ -5401,6 +5403,7 @@
                     body: JSON.stringify({
                         apiKey: API_KEY,
                         action: 'prosesRevisiSP',
+                        user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
                         idProspek: id,
                         catatan: catatan.trim(),
                         namaSales: sales
