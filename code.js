@@ -794,23 +794,39 @@ function pastikanKolomWebAuthnUsers_(sheetUsers) {
   return headers;
 }
 
-function cariUserWebAuthn_(sheetUsers, username) {
-  var headers = pastikanKolomWebAuthnUsers_(sheetUsers);
-  var dataUsers = sheetUsers.getDataRange().getValues();
+function cariBarisUserCepat_(sheetUsers, headers, username) {
+  if (!sheetUsers || !headers || headers.length === 0) return null;
   var colUsername = headers.indexOf('Username');
   var usernameBersih = String(username || '').trim().toLowerCase();
-  for (var i = 1; i < dataUsers.length; i++) {
-    if (String(dataUsers[i][colUsername] || '').trim().toLowerCase() === usernameBersih) {
-      return {
-        headers: headers,
-        row: dataUsers[i],
-        rowNumber: i + 1,
-        credentialColumn: headers.indexOf(WEBAUTHN_CREDENTIAL_ID_HEADER),
-        publicKeyColumn: headers.indexOf(WEBAUTHN_PUBLIC_KEY_HEADER)
-      };
-    }
-  }
-  return null;
+  var lastRow = sheetUsers.getLastRow();
+  if (colUsername === -1 || !usernameBersih || lastRow < 2) return null;
+
+  var rangeUsername = sheetUsers.getRange(2, colUsername + 1, lastRow - 1, 1);
+  var hasil = rangeUsername.createTextFinder(usernameBersih)
+    .matchCase(false)
+    .matchEntireCell(true)
+    .useRegularExpression(false)
+    .findNext();
+  if (!hasil) return null;
+
+  var rowNumber = hasil.getRow();
+  return {
+    row: sheetUsers.getRange(rowNumber, 1, 1, headers.length).getValues()[0],
+    rowNumber: rowNumber
+  };
+}
+
+function cariUserWebAuthn_(sheetUsers, username) {
+  var headers = pastikanKolomWebAuthnUsers_(sheetUsers);
+  var hasil = cariBarisUserCepat_(sheetUsers, headers, username);
+  if (!hasil) return null;
+  return {
+    headers: headers,
+    row: hasil.row,
+    rowNumber: hasil.rowNumber,
+    credentialColumn: headers.indexOf(WEBAUTHN_CREDENTIAL_ID_HEADER),
+    publicKeyColumn: headers.indexOf(WEBAUTHN_PUBLIC_KEY_HEADER)
+  };
 }
 
 function buatRecordUserAman_(headers, row) {
@@ -1054,6 +1070,69 @@ function kaliTitikP256_(titik, skalar, kurva) {
   return hasil;
 }
 
+// Perkalian titik untuk verifikasi login memakai koordinat Jacobian agar tidak
+// menjalankan inversi modular pada setiap operasi kurva.
+function gandakanTitikJacobianP256_(titik, kurva) {
+  if (!titik || titik.z === BigInt(0) || titik.y === BigInt(0)) return null;
+  var p = kurva.p;
+  var a = moduloBigInt_(titik.x * titik.x, p);
+  var b = moduloBigInt_(titik.y * titik.y, p);
+  var c = moduloBigInt_(b * b, p);
+  var d = moduloBigInt_(BigInt(2) * (moduloBigInt_((titik.x + b) * (titik.x + b), p) - a - c), p);
+  var z2 = moduloBigInt_(titik.z * titik.z, p);
+  var e = moduloBigInt_(BigInt(3) * a + kurva.a * moduloBigInt_(z2 * z2, p), p);
+  var f = moduloBigInt_(e * e, p);
+  var x3 = moduloBigInt_(f - BigInt(2) * d, p);
+  var y3 = moduloBigInt_(e * (d - x3) - BigInt(8) * c, p);
+  var z3 = moduloBigInt_(BigInt(2) * titik.y * titik.z, p);
+  return { x: x3, y: y3, z: z3 };
+}
+
+function tambahTitikJacobianP256_(p1, p2, kurva) {
+  if (!p1 || p1.z === BigInt(0)) return p2;
+  if (!p2 || p2.z === BigInt(0)) return p1;
+  var p = kurva.p;
+  var z1z1 = moduloBigInt_(p1.z * p1.z, p);
+  var z2z2 = moduloBigInt_(p2.z * p2.z, p);
+  var u1 = moduloBigInt_(p1.x * z2z2, p);
+  var u2 = moduloBigInt_(p2.x * z1z1, p);
+  var s1 = moduloBigInt_(p1.y * p2.z * z2z2, p);
+  var s2 = moduloBigInt_(p2.y * p1.z * z1z1, p);
+  if (u1 === u2) return s1 === s2 ? gandakanTitikJacobianP256_(p1, kurva) : null;
+
+  var h = moduloBigInt_(u2 - u1, p);
+  var i = moduloBigInt_(BigInt(4) * h * h, p);
+  var j = moduloBigInt_(h * i, p);
+  var r = moduloBigInt_(BigInt(2) * (s2 - s1), p);
+  var v = moduloBigInt_(u1 * i, p);
+  var x3 = moduloBigInt_(r * r - j - BigInt(2) * v, p);
+  var y3 = moduloBigInt_(r * (v - x3) - BigInt(2) * s1 * j, p);
+  var z3 = moduloBigInt_((moduloBigInt_((p1.z + p2.z) * (p1.z + p2.z), p) - z1z1 - z2z2) * h, p);
+  return { x: x3, y: y3, z: z3 };
+}
+
+function kaliTitikJacobianP256_(titik, skalar, kurva) {
+  var hasil = null;
+  var tambah = titik ? { x: titik.x, y: titik.y, z: BigInt(1) } : null;
+  var k = skalar;
+  while (k > BigInt(0)) {
+    if ((k & BigInt(1)) === BigInt(1)) hasil = tambahTitikJacobianP256_(hasil, tambah, kurva);
+    tambah = gandakanTitikJacobianP256_(tambah, kurva);
+    k >>= BigInt(1);
+  }
+  return hasil;
+}
+
+function jacobianKeAffineP256_(titik, kurva) {
+  if (!titik || titik.z === BigInt(0)) return null;
+  var zInv = inverseBigInt_(titik.z, kurva.p);
+  var zInv2 = moduloBigInt_(zInv * zInv, kurva.p);
+  return {
+    x: moduloBigInt_(titik.x * zInv2, kurva.p),
+    y: moduloBigInt_(titik.y * zInv2 * zInv, kurva.p)
+  };
+}
+
 function bacaPanjangDer_(bytes, index) {
   if (index >= bytes.length) throw new Error('Signature DER terpotong.');
   var awal = bytes[index++];
@@ -1098,7 +1177,12 @@ function verifikasiSignatureEcdsaP256_(spkiEncoded, signatureEncoded, signedByte
   var u1 = moduloBigInt_(z * w, kurva.n);
   var u2 = moduloBigInt_(sig.r * w, kurva.n);
   var g = { x: kurva.gx, y: kurva.gy };
-  var titik = tambahTitikP256_(kaliTitikP256_(g, u1, kurva), kaliTitikP256_(q, u2, kurva), kurva);
+  var titikJacobian = tambahTitikJacobianP256_(
+    kaliTitikJacobianP256_(g, u1, kurva),
+    kaliTitikJacobianP256_(q, u2, kurva),
+    kurva
+  );
+  var titik = jacobianKeAffineP256_(titikJacobian, kurva);
   return !!titik && moduloBigInt_(titik.x, kurva.n) === sig.r;
 }
 
@@ -1214,8 +1298,16 @@ function verifyBiometric_(data, ss) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    var userTerbaru = cariUserWebAuthn_(sheetUsers, username);
-    if (!userTerbaru || !bandingkanStringKonstan_(normalisasiBase64Url_(userTerbaru.row[userTerbaru.credentialColumn]), credentialTersimpan)) throw new Error('Credential telah berubah.');
+    var rowTerbaru = sheetUsers.getRange(user.rowNumber, 1, 1, user.headers.length).getValues()[0];
+    var userTerbaru = {
+      headers: user.headers,
+      row: rowTerbaru,
+      rowNumber: user.rowNumber,
+      credentialColumn: user.credentialColumn,
+      publicKeyColumn: user.publicKeyColumn
+    };
+    var colUsernameTerbaru = user.headers.indexOf('Username');
+    if (String(rowTerbaru[colUsernameTerbaru] || '').trim().toLowerCase() !== username || !bandingkanStringKonstan_(normalisasiBase64Url_(rowTerbaru[userTerbaru.credentialColumn]), credentialTersimpan)) throw new Error('Credential telah berubah.');
     var keyTerbaru = bacaCredentialWebAuthnTersimpan_(userTerbaru.row[userTerbaru.publicKeyColumn]);
     if (keyTerbaru.signCount > 0 && authData.signCount > 0 && authData.signCount <= keyTerbaru.signCount) throw new Error('Counter authenticator tidak meningkat.');
     konsumsiChallengeWebAuthn_(data.challengeToken);
@@ -1231,8 +1323,8 @@ function verifyBiometric_(data, ss) {
   }
 
   var record = sertakanHakAksesCabang_(buatRecordUserAman_(user.headers, user.row));
-  record.SessionToken = buatSessionToken_(record.Username);
-  return { status: 'sukses', user: record, Hak_Akses_Cabang: record.Hak_Akses_Cabang };
+  var sessionToken = buatSessionToken_(record.Username);
+  return { status: 'sukses', user: record, sessionToken: sessionToken };
 }
 
 function otorisasiAdminBroadcastCRM_(dataUser, usersData) {
@@ -1537,26 +1629,22 @@ function doPost(e) {
 
     if (data.action === 'login') {
       var sheetUsers = ss.getSheetByName("Users");
-      var dataUsersLogin = sheetUsers ? sheetUsers.getDataRange().getValues() : [];
+      var jumlahKolomUsersLogin = sheetUsers ? sheetUsers.getLastColumn() : 0;
 
-      if (dataUsersLogin.length > 0) {
-        var headerUsersLogin = dataUsersLogin[0];
+      if (sheetUsers && jumlahKolomUsersLogin > 0) {
+        var headerUsersLogin = sheetUsers.getRange(1, 1, 1, jumlahKolomUsersLogin).getValues()[0] || [];
+        while (headerUsersLogin.length > 0 && String(headerUsersLogin[headerUsersLogin.length - 1] || '').trim() === '') headerUsersLogin.pop();
         var colUsernameLogin = headerUsersLogin.indexOf("Username");
         var colPasswordLogin = headerUsersLogin.indexOf("Password");
 
         if (colUsernameLogin !== -1 && colPasswordLogin !== -1) {
-          for (var i = 1; i < dataUsersLogin.length; i++) {
-            if (String(dataUsersLogin[i][colUsernameLogin] || '').trim().toLowerCase() === String(data.username || '').trim().toLowerCase()) {
-              var passwordDB = dataUsersLogin[i][colPasswordLogin];
-              if (passwordDB === data.passwordHash || passwordDB == data.passwordRaw) {
-                var record = sertakanHakAksesCabang_(buatRecordUserAman_(headerUsersLogin, dataUsersLogin[i]));
-                // --- GENERATOR SESSION TOKEN (KEAMANAN QA POIN 10) ---
-                // Token berlaku 24 jam, ditandatangani HMAC SHA-256, dan tidak memuat password.
-                record["SessionToken"] = buatSessionToken_(record["Username"]);
-                // ------------------------------------------------------
-                return ContentService.createTextOutput(JSON.stringify({"status": "sukses", "user": record, "Hak_Akses_Cabang": record.Hak_Akses_Cabang})).setMimeType(ContentService.MimeType.JSON);
-              }
-              break;
+          var hasilUserLogin = cariBarisUserCepat_(sheetUsers, headerUsersLogin, data.username);
+          if (hasilUserLogin) {
+            var passwordDB = hasilUserLogin.row[colPasswordLogin];
+            if (passwordDB === data.passwordHash || passwordDB == data.passwordRaw) {
+              var record = sertakanHakAksesCabang_(buatRecordUserAman_(headerUsersLogin, hasilUserLogin.row));
+              var sessionToken = buatSessionToken_(record.Username);
+              return ContentService.createTextOutput(JSON.stringify({"status": "sukses", "user": record, "sessionToken": sessionToken})).setMimeType(ContentService.MimeType.JSON);
             }
           }
         }

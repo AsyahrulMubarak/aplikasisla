@@ -1433,9 +1433,9 @@
             }
         }
 
-        async function selesaikanLoginBerhasil(user, hakAksesResponse) {
+        async function selesaikanLoginBerhasil(user, sessionToken) {
             penggunaAktif = Object.assign({}, user);
-            if (!penggunaAktif.Hak_Akses_Cabang && hakAksesResponse) penggunaAktif.Hak_Akses_Cabang = hakAksesResponse;
+            if (sessionToken) penggunaAktif.SessionToken = sessionToken;
             ['Password', 'WebAuthn_CredentialID', 'WebAuthn_PublicKey'].forEach(kunci => {
                 if (Object.prototype.hasOwnProperty.call(penggunaAktif, kunci)) delete penggunaAktif[kunci];
             });
@@ -1454,7 +1454,7 @@
                 return;
             }
 
-            tampilkanLobbyUtama();
+            masukKeAplikasi();
         }
 
         async function daftarkanBiometrik() {
@@ -1583,8 +1583,8 @@
                     signature: arrayBufferKeBase64Url(response.signature)
                 });
                 if (hasil.status !== 'sukses' || !hasil.user) throw new Error(hasil.pesan || 'Verifikasi Passkey gagal.');
-                if (status) status.innerText = 'Verifikasi berhasil. Membuka dashboard...';
-                await selesaikanLoginBerhasil(hasil.user, hasil.Hak_Akses_Cabang);
+                if (status) status.innerText = 'Verifikasi berhasil. Membuka Lobi...';
+                await selesaikanLoginBerhasil(hasil.user, hasil.sessionToken);
             } catch (error) {
                 console.error('Login WebAuthn:', error);
                 const pesan = pesanWebAuthn(error, error && error.message ? error.message : 'Login Passkey gagal. Gunakan password sebagai fallback.');
@@ -2156,7 +2156,7 @@
 
                 const hasil = await response.json();
                 if (hasil.status === 'sukses' && hasil.user) {
-                    await selesaikanLoginBerhasil(hasil.user, hasil.Hak_Akses_Cabang);
+                    await selesaikanLoginBerhasil(hasil.user, hasil.sessionToken);
                     return;
                 }
 
