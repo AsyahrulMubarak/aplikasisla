@@ -1129,11 +1129,24 @@
             await promptAktif.userChoice;
         }
 
+        // Service Worker sengaja dinonaktifkan: data operasional dan pre-fetch biometrik harus selalu ke jaringan.
+        // Bersihkan registrasi lama sekali agar perangkat yang pernah memasang PWA tidak tetap dikontrol sw.js.
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js', { scope: './' })
-                    .catch(error => console.error('Registrasi Service Worker gagal:', error));
-            }, { once: true });
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                if (registrations.length === 0) {
+                    try { sessionStorage.removeItem('swCleanupReloaded'); } catch (error) { /* Storage opsional. */ }
+                    return false;
+                }
+                return Promise.all(registrations.map(registration => registration.unregister()))
+                    .then(hasil => hasil.some(Boolean));
+            }).then(registrasiDihapus => {
+                if (!registrasiDihapus || !navigator.serviceWorker.controller) return;
+                let sudahReload = false;
+                try { sudahReload = sessionStorage.getItem('swCleanupReloaded') === 'true'; } catch (error) { /* Storage opsional. */ }
+                if (sudahReload) return;
+                try { sessionStorage.setItem('swCleanupReloaded', 'true'); } catch (error) { /* Storage opsional. */ }
+                window.location.reload();
+            }).catch(error => console.error('Pembersihan Service Worker gagal:', error));
         }
         let currentTrackTicket = null;
 

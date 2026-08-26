@@ -1643,15 +1643,16 @@ function prosesBroadcastCRM_(data, usersData, ss) {
   };
 }
 
-function doGet(e) {
+function prosesGetAllData_(parameter, ss, identitasSesi) {
   try {
-    if (!e || !e.parameter || e.parameter.apiKey !== SECRET_API_KEY) {
-      return ContentService.createTextOutput(JSON.stringify({"status": "gagal", "pesan": "Akses Ditolak: Kunci API tidak valid!"})).setMimeType(ContentService.MimeType.JSON);
+    parameter = parameter || {};
+    var reqTrackId = parameter.trackId ? String(parameter.trackId).trim().toLowerCase() : null;
+    if (!reqTrackId && !identitasSesi) {
+      return ContentService.createTextOutput(JSON.stringify({"status": "gagal", "pesan": "Sesi tidak sah atau telah kedaluwarsa."})).setMimeType(ContentService.MimeType.JSON);
     }
 
-    var reqTrackId = e.parameter.trackId ? String(e.parameter.trackId).trim().toLowerCase() : null;
-    var cabangRequest = cabangOperasional_(e.parameter.cabang);
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var cabangRequest = cabangOperasional_(parameter.cabang);
+    ss = ss || SpreadsheetApp.getActiveSpreadsheet();
     var perluFlush = false;
 
     var sheetTiket = ss.getSheetByName("Tiket") || ss.getSheets()[0];
@@ -1793,6 +1794,19 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify({ tickets: resultTiket, users: resultUsers, penjualan: resultPenjualan, prospek: resultProspek, dataKlien: resultKlien, garansi: resultGaransi })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({"status": "gagal", "pesan": "Error Internal getAllData: " + err.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  try {
+    if (!e || !e.parameter || e.parameter.apiKey !== SECRET_API_KEY) {
+      return ContentService.createTextOutput(JSON.stringify({"status": "gagal", "pesan": "Akses Ditolak: Kunci API tidak valid!"})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // GET dipertahankan hanya untuk tracking tiket publik. Data operasional penuh wajib lewat POST terautentikasi.
+    return prosesGetAllData_(e.parameter, SpreadsheetApp.getActiveSpreadsheet(), null);
+  } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({"status": "gagal", "pesan": "Error Internal doGet: " + err.toString()})).setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -1886,11 +1900,9 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
     if (data.action === 'getAllData') {
-      return doGet({
-        parameter: { apiKey: SECRET_API_KEY },
-        _sessionIdentity: otorisasi.aktor,
-        _cabangDeployment: otorisasi.cabang
-      });
+      // Token sesi, role, dan akses cabang sudah diverifikasi oleh otorisasiAction_.
+      // Jalankan pembacaan database langsung di jalur POST; jangan meneruskan ke handler HTTP doGet.
+      return prosesGetAllData_({ cabang: otorisasi.cabang }, ss, otorisasi.aktor);
     }
 
     if (data.action === 'broadcastCRM') {
@@ -2218,6 +2230,8 @@ function doPost(e) {
       var waktuSekarang = new Date(); var waktuSekarangStr = Utilities.formatDate(waktuSekarang, "Asia/Makassar", "yyyy-MM-dd HH:mm:ss");
       var headerTiket = tiketData[0];
       var colWA_Upd = headerTiket.indexOf("No WA Klien");
+      if (colWA_Upd === -1) colWA_Upd = headerTiket.indexOf("No WA");
+      if (colWA_Upd === -1) colWA_Upd = headerTiket.indexOf("WA Klien");
       var colCabangTiketUpdate = pastikanKolomAkhir_(sheetTiket, headerTiket, 'Cabang');
       var colAdminSLATiketUpdate = pastikanKolomAkhir_(sheetTiket, headerTiket, 'Admin SLA');
       
@@ -2225,11 +2239,15 @@ function doPost(e) {
         if (String(tiketData[i][0]).trim() === String(data.idTiket).trim()) {
           var statusLama = String(tiketData[i][8] || "").trim(); var waktuResponLama = tiketData[i][16]; 
           var namaKlienInfo = tiketData[i][5] || "-"; var pekerjaanAwal = tiketData[i][6] || "-"; var namaTeknisiInfo = tiketData[i][7] || "-"; var statusBaru = String(data.status || "-").trim();
+          var statusLamaFinal = statusLama.toLowerCase();
+          var statusTiketFinal = statusBaru.toLowerCase();
           // Cegah update status memindahkan beban SLA tiket ke cabang lain.
           var cabangTiketUpdate = cabangDariBaris_(tiketData[i], headerTiket, data.cabang);
           var roleAdminTiketUpdate = roleAdminUntukCabang_(cabangTiketUpdate);
-          var waKlienDB = (colWA_Upd !== -1 && tiketData[i].length > colWA_Upd) ? tiketData[i][colWA_Upd] : "";
-          var kriteriaProspekTiket = String(waKlienDB || '').trim() || String(namaKlienInfo || '').trim();
+          var waKlienDB = data.waKlien || ((colWA_Upd !== -1 && tiketData[i].length > colWA_Upd) ? tiketData[i][colWA_Upd] : "");
+          var waKlienCRM = normalisasiNoWA_(waKlienDB);
+          if (!/^628\d{7,12}$/.test(waKlienCRM)) waKlienCRM = cariNoWAProspekBerdasarkanNama_(namaKlienInfo);
+          var kriteriaProspekTiket = String(waKlienCRM || '').trim() || String(namaKlienInfo || '').trim();
           var catatanBaru = data.keterangan ? String(data.keterangan).trim() : "";
           
           if (((statusBaru === 'Pending' || statusBaru === 'Outsource') && (statusLama !== 'Pending' && statusLama !== 'Outsource')) || (statusBaru === 'Outsource' && statusLama === 'Outsource' && catatanBaru !== "")) { 
@@ -2252,20 +2270,20 @@ function doPost(e) {
           sheetTiket.getRange(i + 1, colCabangTiketUpdate + 1).setValue(cabangTiketUpdate);
           sheetTiket.getRange(i + 1, colAdminSLATiketUpdate + 1).setValue(roleAdminTiketUpdate);
           if (statusLama === 'Menunggu' && statusBaru !== 'Menunggu' && !waktuResponLama) { sheetTiket.getRange(i + 1, 17).setValue(waktuSekarangStr); }
-          if (statusBaru === 'Selesai') { if (statusLama !== 'Selesai') { sheetTiket.getRange(i + 1, 10).setValue(waktuSekarangStr); } } else { sheetTiket.getRange(i + 1, 10).setValue(""); }
+          if (statusTiketFinal === 'selesai') { if (statusLamaFinal !== 'selesai') { sheetTiket.getRange(i + 1, 10).setValue(waktuSekarangStr); } } else { sheetTiket.getRange(i + 1, 10).setValue(""); }
           if (data.baDeskripsi !== undefined) { sheetTiket.getRange(i + 1, 20).setValue(data.baDeskripsi); sheetTiket.getRange(i + 1, 21).setValue(data.baNamaCustomer); sheetTiket.getRange(i + 1, 22).setValue(data.baKritik); if (data.baTTD && data.baTTD !== "") { sheetTiket.getRange(i + 1, 23).setValue(data.baTTD); } }
 
           // AUTOMASI CLOSING LEVEL 2: Prospek berubah hanya saat tiket mencapai status final.
-          var statusTiketFinal = statusBaru.toLowerCase();
           if (statusTiketFinal === 'selesai') {
               updateStatusProspekOtomatis_(kriteriaProspekTiket, 'Closing');
           } else if (statusTiketFinal === 'batal' || statusTiketFinal === 'cancel') {
               updateStatusProspekOtomatis_(kriteriaProspekTiket, 'Batal');
           }
 
-          if (statusBaru === 'Selesai' && statusLama !== 'Selesai') {
+          if (statusTiketFinal === 'selesai' && statusLamaFinal !== 'selesai') {
               var produkTiketCRM = tiketData[i][6] || data.baDeskripsi || data.keterangan || '';
-              sinkronkanDatabaseKlien_(namaKlienInfo, waKlienDB, 'Tiket Selesai', produkTiketCRM);
+              var databaseKlienTersinkron = sinkronkanDatabaseKlien_(namaKlienInfo, waKlienCRM, 'Tiket Selesai', produkTiketCRM);
+              if (!databaseKlienTersinkron) console.warn('Database Klien tidak tersinkron untuk tiket ' + String(data.idTiket || '') + ': No WA tidak valid atau sheet sedang terkunci.');
 
               // Notif Ke Admin
               var labelAdminTiketUpdate = cabangTiketUpdate === 'Raha' ? 'Admin Raha' : 'Admin Kendari';
