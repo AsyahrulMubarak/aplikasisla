@@ -8,25 +8,11 @@
     <meta http-equiv="Expires" content="0">
     <title>Sistem Manajemen SLA</title>
 
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#1e3a8a">
     <link rel="apple-touch-icon" href="depan_001.png">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for (let registration of registrations) {
-                    registration.unregister();
-                }
-            });
-        }
-        if ('caches' in window) {
-            caches.keys().then(function(names) {
-                for (let name of names) caches.delete(name);
-            });
-        }
-    </script>
-    
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         :root { --primary: #1e3a8a; --primary-hover: #1e40af; --surface: #ffffff; --bg: #f7fafc; --text-main: #2d3748; --text-muted: #718096; --border: #e2e8f0; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --purple: #8b5cf6; }
@@ -378,6 +364,23 @@
             <div class="custom-modal-actions">
                 <button class="custom-modal-btn btn-cm-cancel" id="btn-confirm-no">Batal</button>
                 <button class="custom-modal-btn btn-cm-danger" id="btn-confirm-yes">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pwa-install-modal" class="custom-modal-backdrop" style="z-index:13000;" role="dialog" aria-modal="true" aria-labelledby="pwa-install-title" aria-hidden="true">
+        <div class="custom-modal-box">
+            <img src="depan_001.png" alt="Logo Alfacom" style="width:70px; margin-bottom:15px; border-radius:12px;">
+            <h3 class="custom-modal-title" id="pwa-install-title" style="color:var(--primary);">Install Aplikasi SLA</h3>
+            <p class="custom-modal-msg">Tambahkan Alfacom SLA ke layar utama HP agar aplikasi lebih cepat dibuka.</p>
+            <div style="background:#f8fafc; padding:10px 15px; border-radius:8px; border:1px solid var(--border); margin-bottom:20px; text-align:left;">
+                <label style="display:flex; align-items:center; font-size:13px; font-weight:600; color:var(--text-main); margin:0; cursor:pointer;">
+                    <input type="checkbox" id="pwa-never-show" style="margin-right:10px; width:16px; height:16px; accent-color:var(--primary);"> Jangan tampilkan lagi
+                </label>
+            </div>
+            <div class="custom-modal-actions">
+                <button class="custom-modal-btn btn-cm-cancel" type="button" onclick="tolakInstall()">Nanti Saja</button>
+                <button class="custom-modal-btn btn-cm-confirm" type="button" onclick="terimaInstall()">Install Sekarang</button>
             </div>
         </div>
     </div>
@@ -1069,6 +1072,69 @@
         let waktuLoginAktif = null;
         let modeEditUser = false; let modeEditTiket = false; let ttdTiketEditTersimpan = ''; let intervalAutoRefresh; let currentTabId = 'dashboard';
         let currentTicketFilter = 'aktif';
+        let deferredPrompt = null;
+        let timerPromptInstall = null;
+
+        window.addEventListener('beforeinstallprompt', event => {
+            event.preventDefault();
+            deferredPrompt = event;
+
+            let promptDinonaktifkan = false;
+            try { promptDinonaktifkan = localStorage.getItem('pwaNeverShow') === 'true'; } catch (error) { /* Storage opsional. */ }
+            if (promptDinonaktifkan) return;
+
+            if (timerPromptInstall) clearTimeout(timerPromptInstall);
+            timerPromptInstall = setTimeout(() => {
+                const loginWrapper = document.getElementById('login-wrapper');
+                const modalInstall = document.getElementById('pwa-install-modal');
+                if (!deferredPrompt || !loginWrapper || !modalInstall || window.getComputedStyle(loginWrapper).display === 'none') return;
+                modalInstall.style.display = 'flex';
+                modalInstall.setAttribute('aria-hidden', 'false');
+            }, 3000);
+        });
+
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null;
+            if (timerPromptInstall) clearTimeout(timerPromptInstall);
+            const modalInstall = document.getElementById('pwa-install-modal');
+            if (modalInstall) {
+                modalInstall.style.display = 'none';
+                modalInstall.setAttribute('aria-hidden', 'true');
+            }
+        });
+
+        function tolakInstall() {
+            const modalInstall = document.getElementById('pwa-install-modal');
+            const janganTampilkan = document.getElementById('pwa-never-show');
+            if (janganTampilkan && janganTampilkan.checked) {
+                try { localStorage.setItem('pwaNeverShow', 'true'); } catch (error) { /* Storage opsional. */ }
+            }
+            if (modalInstall) {
+                modalInstall.style.display = 'none';
+                modalInstall.setAttribute('aria-hidden', 'true');
+            }
+        }
+
+        async function terimaInstall() {
+            const modalInstall = document.getElementById('pwa-install-modal');
+            if (modalInstall) {
+                modalInstall.style.display = 'none';
+                modalInstall.setAttribute('aria-hidden', 'true');
+            }
+            if (!deferredPrompt) return;
+
+            const promptAktif = deferredPrompt;
+            deferredPrompt = null;
+            await promptAktif.prompt();
+            await promptAktif.userChoice;
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js', { scope: './' })
+                    .catch(error => console.error('Registrasi Service Worker gagal:', error));
+            }, { once: true });
+        }
         let currentTrackTicket = null;
 
         function jamSelesaiOperasional_(cabang = cabangAktif) {
@@ -2219,11 +2285,23 @@
                         document.getElementById('login-loading').style.display = 'block'; 
                     }
                     
-                    let urlTarget = apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY;
-                    if (cabangAktif) urlTarget += "&cabang=" + encodeURIComponent(cabangAktif);
-                    if (trackId) urlTarget += "&trackId=" + encodeURIComponent(trackId);
-                    
-                    const response = await fetch(urlTarget, { redirect: "follow", cache: "no-store" }); 
+                    let response;
+                    if (trackId) {
+                        // Tracking tiket tetap merupakan jalur publik read-only.
+                        let urlTarget = apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY;
+                        if (cabangAktif) urlTarget += "&cabang=" + encodeURIComponent(cabangAktif);
+                        urlTarget += "&trackId=" + encodeURIComponent(trackId);
+                        response = await fetch(urlTarget, { redirect: "follow", cache: "no-store" });
+                    } else {
+                        if (!penggunaAktif || !penggunaAktif.Username || !penggunaAktif.SessionToken) throw new Error('Sesi login tidak lengkap.');
+                        const payload = {
+                            apiKey: API_KEY,
+                            action: 'getAllData',
+                            user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
+                            cabang: cabangAktif
+                        };
+                        response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload), redirect: "follow", cache: "no-store" });
+                    }
                     if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                     
                     const rawText = await response.text();
