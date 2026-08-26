@@ -1198,6 +1198,10 @@
             return roleAdalahAdminOperasional_(role) || role === 'manager' || role === 'direktur';
         }
 
+        function roleAdalahManajemenUtama_(role = rolePengguna()) {
+            return ['admin', 'manager', 'direktur'].includes(role);
+        }
+
         function dataSesuaiCabangAktif_(record) {
             const cabangRecord = normalisasiCabang(record && (
                 record.Cabang || record['Cabang Aktif'] || record['Cabang Kerja'] || record.Hak_Akses_Cabang
@@ -1306,15 +1310,15 @@
             document.getElementById('main-lobby-status').innerText = '';
 
             const hakAkses = hakAksesCabangPengguna();
-            const isManajemen = roleAdalahManajemen_();
+            const isManajemenUtama = roleAdalahManajemenUtama_();
             document.getElementById('btn-lobby-sla-kendari').style.display = hakAkses === 'Semua' || hakAkses === 'Kendari' ? 'block' : 'none';
             document.getElementById('btn-lobby-sla-raha').style.display = hakAkses === 'Semua' || hakAkses === 'Raha' ? 'block' : 'none';
             ['btn-lobby-absen', 'btn-lobby-gaji'].forEach(idTombol => {
                 const tombol = document.getElementById(idTombol);
                 tombol.style.display = 'block';
-                tombol.classList.toggle('is-locked', !isManajemen);
-                tombol.setAttribute('aria-disabled', String(!isManajemen));
-                tombol.title = isManajemen ? '' : 'Fitur ini hanya untuk level Manajemen';
+                tombol.classList.toggle('is-locked', !isManajemenUtama);
+                tombol.setAttribute('aria-disabled', String(!isManajemenUtama));
+                tombol.title = isManajemenUtama ? '' : 'Fitur ini hanya untuk level Manajemen Utama';
             });
         }
 
@@ -2080,7 +2084,7 @@
             if (!berhasil || !data) return;
             
             globalTickets = data.tickets || []; 
-            globalUsers = (data.users || []).filter(dataSesuaiCabangAktif_);
+            globalUsers = data.users || [];
             globalPenjualan = data.penjualan || [];
             globalProspek = data.prospek || [];
             globalKlien = data.dataKlien || [];
@@ -2200,7 +2204,7 @@
 
         async function bukaModulPendukung(namaModul) {
             const role = rolePengguna();
-            const isManajemen = roleAdalahManajemen_(role);
+            const isManajemenUtama = roleAdalahManajemenUtama_(role);
 
             if (!['absen', 'gaji'].includes(namaModul)) {
                 showToast('Modul yang dipilih tidak valid.', 'error');
@@ -2210,8 +2214,8 @@
                 showToast('Akun ini hanya dapat menggunakan Dashboard SLA.', 'warning');
                 return;
             }
-            if (!isManajemen) {
-                showToast('Afwan, fitur ini hanya untuk level Manajemen.', 'warning');
+            if (!isManajemenUtama) {
+                showToast('Afwan, fitur ini hanya untuk level Manajemen Utama', 'warning');
                 return;
             }
 
@@ -2367,8 +2371,12 @@
 
         function renderDynamicInputs() {
             try {
-                const group = document.getElementById('teknisi-group'); group.innerHTML = ''; 
-                (globalUsers || []).filter(dataSesuaiCabangAktif_).filter(u => u && u.Role === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
+                const userSesuaiCabangForm = user => {
+                    const hakAksesCabang = normalisasiCabang(user && (user.Cabang || user.Hak_Akses_Cabang));
+                    return hakAksesCabang === 'Semua' || hakAksesCabang === cabangAktif;
+                };
+                const group = document.getElementById('teknisi-group'); group.innerHTML = '';
+                (globalUsers || []).filter(u => userSesuaiCabangForm(u) && rolePengguna(u) === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { group.innerHTML += `<label><input type="checkbox" value="${t['Nama Asli']}"> ${t['Nama Asli']}</label>`; });
                 
                 const salesGroup = document.getElementById('sales-group'); if(salesGroup) salesGroup.innerHTML = '';
                 const prospekSalesGroup = document.getElementById('prospek-sales-group'); if(prospekSalesGroup) prospekSalesGroup.innerHTML = '';
@@ -2377,7 +2385,7 @@
                 const garansiSalesGroup = document.getElementById('garansi-sales-group'); 
                 if(garansiSalesGroup) garansiSalesGroup.innerHTML = '';
 
-                let salesList = (globalUsers || []).filter(dataSesuaiCabangAktif_).filter(u => u && u.Role === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
+                let salesList = (globalUsers || []).filter(u => userSesuaiCabangForm(u) && rolePengguna(u) === 'sales' && u['Nama Asli']).map(u => u['Nama Asli']).sort((a,b) => a.localeCompare(b));
                 salesList.forEach(s => { 
                     if(salesGroup) salesGroup.innerHTML += `<label><input type="checkbox" value="${s}" onchange="togglePenjualanInput()"> ${s}</label>`;
                     if(prospekSalesGroup) prospekSalesGroup.innerHTML += `<label><input type="checkbox" value="${s}"> ${s}</label>`;
