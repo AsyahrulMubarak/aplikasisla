@@ -851,6 +851,233 @@ function sertakanHakAksesCabang_(record) {
   return record;
 }
 
+function cabangDeployment_() {
+  var properties = PropertiesService.getScriptProperties();
+  var cabang = normalisasiCabangOperasional_(properties.getProperty('CABANG_AKTIF') || properties.getProperty('CABANG_DEFAULT'));
+  if (cabang) return cabang;
+  try {
+    var namaSpreadsheet = String(SpreadsheetApp.getActiveSpreadsheet().getName() || '').toLowerCase();
+    if (namaSpreadsheet.indexOf('raha') !== -1) return 'Raha';
+    if (namaSpreadsheet.indexOf('kendari') !== -1) return 'Kendari';
+  } catch (error) { /* Fallback aman untuk deployment utama lama. */ }
+  return 'Kendari';
+}
+
+function cariUserServer_(sheetUsers, username) {
+  if (!sheetUsers || !username) return null;
+  var jumlahKolom = sheetUsers.getLastColumn();
+  if (jumlahKolom < 1) return null;
+  var headers = sheetUsers.getRange(1, 1, 1, jumlahKolom).getValues()[0] || [];
+  while (headers.length > 0 && String(headers[headers.length - 1] || '').trim() === '') headers.pop();
+  var hasil = cariBarisUserCepat_(sheetUsers, headers, username);
+  if (!hasil) return null;
+  return {
+    headers: headers,
+    row: hasil.row,
+    rowNumber: hasil.rowNumber,
+    record: sertakanHakAksesCabang_(buatRecordUserAman_(headers, hasil.row))
+  };
+}
+
+function identitasDariSession_(sheetUsers, dataUser) {
+  if (!verifikasiSessionToken_(dataUser)) return null;
+  var userServer = cariUserServer_(sheetUsers, dataUser.Username);
+  if (!userServer) return null;
+  var role = String(userServer.record.Role || '').trim().toLowerCase();
+  var hakAkses = normalisasiHakAksesCabang_(userServer.record.Hak_Akses_Cabang || userServer.record.Cabang);
+  if (!role || !hakAkses) return null;
+  userServer.role = role;
+  userServer.hakAkses = hakAkses;
+  userServer.username = String(userServer.record.Username || '').trim().toLowerCase();
+  userServer.nama = String(userServer.record['Nama Asli'] || userServer.record.Username || '').trim();
+  return userServer;
+}
+
+function cariResourceServer_(sheet, idHeaders, idValue) {
+  if (!sheet || idValue === undefined || idValue === null || String(idValue).trim() === '') return null;
+  var data = sheet.getDataRange().getValues();
+  if (!data || data.length < 2) return null;
+  var headers = data[0] || [];
+  var daftarHeader = Array.isArray(idHeaders) ? idHeaders : [idHeaders];
+  var colId = -1;
+  for (var h = 0; h < daftarHeader.length; h++) {
+    colId = headers.indexOf(daftarHeader[h]);
+    if (colId !== -1) break;
+  }
+  if (colId === -1) colId = 0;
+  var target = String(idValue).trim().toLowerCase();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][colId] || '').trim().toLowerCase() === target) {
+      return { headers: headers, row: data[i], rowNumber: i + 1 };
+    }
+  }
+  return null;
+}
+
+function cabangResourceServer_(resource, fallbackCabang) {
+  if (!resource) return '';
+  var colCabang = resource.headers.indexOf('Cabang');
+  var cabang = colCabang !== -1 ? normalisasiCabangOperasional_(resource.row[colCabang]) : '';
+  return cabang || cabangOperasional_(fallbackCabang);
+}
+
+function daftarNamaMemuat_(nilai, nama) {
+  var target = String(nama || '').trim().toLowerCase();
+  if (!target) return false;
+  return String(nilai || '').split(',').some(function(item) {
+    return String(item || '').trim().toLowerCase() === target;
+  });
+}
+
+function rolesUntukAction_(action) {
+  var semuaUser = ['admin', 'admin_raha', 'manager', 'direktur', 'sales', 'teknisi', 'freelance'];
+  var adminOperasional = ['admin', 'admin_raha'];
+  var adminDanManager = ['admin', 'admin_raha', 'manager'];
+  var manajemenUtama = ['admin', 'manager', 'direktur'];
+  var matriks = {
+    getAllData: semuaUser,
+    validateSession: semuaUser,
+    broadcastCRM: ['admin'],
+    addGaransi: adminDanManager,
+    aktifkanGaransi: adminDanManager,
+    klaimGaransi: adminDanManager,
+    deleteGaransi: adminOperasional,
+    addTicket: adminDanManager,
+    editTicket: adminDanManager,
+    updateTicket: adminDanManager.concat(['teknisi']),
+    deleteTicket: adminOperasional,
+    tandaiLunas: adminDanManager.concat(['direktur']),
+    addUser: ['admin'],
+    editUser: semuaUser,
+    deleteUser: ['admin'],
+    getVariabelPayroll: manajemenUtama,
+    simpanVariabelPayroll: manajemenUtama,
+    updateTunjangan: manajemenUtama,
+    addPenjualan: adminDanManager,
+    deletePenjualan: adminOperasional,
+    addProspek: ['admin', 'manager', 'sales'],
+    updateProspekStatus: ['admin', 'manager', 'sales'],
+    addFollowUpProspek: ['admin', 'manager', 'sales'],
+    prosesRevisiSP: ['admin', 'manager', 'sales'],
+    mintaPenawaran: ['admin', 'manager', 'sales'],
+    ajukanPemulihanProspek: ['admin', 'manager', 'sales'],
+    responPemulihanProspek: ['admin', 'manager'],
+    deleteProspek: ['admin'],
+    ajukanBanding: ['sales'],
+    responBanding: adminDanManager,
+    laporBug: semuaUser,
+    catatFollowUp: adminDanManager,
+    updatePoinTiket: adminDanManager,
+    getTinjauanAbsen: manajemenUtama
+  };
+  return matriks[action] || null;
+}
+
+function validasiTargetAction_(data, ss, aktor, cabangDeployment) {
+  var action = String(data.action || '');
+  var target = null;
+  var aksiTiket = ['editTicket', 'updateTicket', 'deleteTicket', 'tandaiLunas', 'updatePoinTiket', 'ajukanBanding', 'responBanding'];
+  var aksiGaransi = ['aktifkanGaransi', 'klaimGaransi', 'deleteGaransi'];
+  var aksiProspek = ['updateProspekStatus', 'addFollowUpProspek', 'prosesRevisiSP', 'mintaPenawaran', 'ajukanPemulihanProspek', 'responPemulihanProspek', 'deleteProspek'];
+
+  if (aksiTiket.indexOf(action) !== -1) {
+    target = cariResourceServer_(ss.getSheetByName('Tiket') || ss.getSheets()[0], 'ID Tiket', data.idTiket);
+  } else if (aksiGaransi.indexOf(action) !== -1) {
+    target = cariResourceServer_(ss.getSheetByName('Garansi'), 'ID Garansi', data.idGaransi);
+  } else if (action === 'catatFollowUp') {
+    target = cariResourceServer_(ss.getSheetByName('Garansi'), 'Referensi (Tiket/Nota)', data.ref);
+  } else if (action === 'deletePenjualan') {
+    target = cariResourceServer_(ss.getSheetByName('Penjualan'), 'ID Penjualan', data.idPenjualan);
+  } else if (aksiProspek.indexOf(action) !== -1) {
+    target = cariResourceServer_(ss.getSheetByName('Prospek'), 'ID Prospek', data.idProspek);
+  }
+
+  if (target && cabangResourceServer_(target, cabangDeployment) !== cabangDeployment) {
+    return 'Data target berasal dari cabang lain.';
+  }
+
+  if (action === 'addGaransi') {
+    var referensi = String(data.referensi || '').trim();
+    if (referensi.indexOf('TKT-') === 0) target = cariResourceServer_(ss.getSheetByName('Tiket') || ss.getSheets()[0], 'ID Tiket', referensi);
+    else if (referensi.indexOf('SLS-') === 0) target = cariResourceServer_(ss.getSheetByName('Penjualan'), 'ID Penjualan', referensi);
+    if (target && cabangResourceServer_(target, cabangDeployment) !== cabangDeployment) return 'Referensi Garansi berasal dari cabang lain.';
+  }
+
+  if (action === 'updateTicket') {
+    var statusDiizinkan = ['Menunggu', 'On Progress', 'Pending', 'Outsource', 'Cancel', 'Selesai'];
+    if (statusDiizinkan.indexOf(String(data.status || '').trim()) === -1) return 'Status tiket tidak valid.';
+    if (aktor.role === 'teknisi') {
+      if (!target) return 'Tiket tidak ditemukan.';
+      var colTeknisi = target.headers.indexOf('Teknisi');
+      if (colTeknisi === -1) colTeknisi = 7;
+      if (!daftarNamaMemuat_(target.row[colTeknisi], aktor.nama)) return 'Teknisi tidak ditugaskan pada tiket ini.';
+      var colStatus = target.headers.indexOf('Status');
+      if (colStatus === -1) colStatus = 8;
+      if (String(target.row[colStatus] || '').trim() === 'Selesai' && String(data.status || '').trim() !== 'Selesai') return 'Teknisi tidak dapat membuka ulang tiket selesai.';
+    }
+  }
+
+  if (aksiProspek.indexOf(action) !== -1 && aktor.role === 'sales') {
+    if (!target) return 'Prospek tidak ditemukan.';
+    var colSales = target.headers.indexOf('Sales Penanggung Jawab');
+    if (colSales === -1) colSales = target.headers.indexOf('Sales');
+    if (colSales === -1 || !daftarNamaMemuat_(target.row[colSales], aktor.nama)) return 'Sales bukan penanggung jawab Prospek ini.';
+    if (action === 'updateProspekStatus' && data.suratPenawaran) return 'Sales tidak dapat mengunggah Surat Penawaran.';
+  }
+
+  if (action === 'ajukanBanding') {
+    if (!target) return 'Tiket tidak ditemukan.';
+    var colSalesTiket = target.headers.indexOf('Sales');
+    if (colSalesTiket === -1) colSalesTiket = 12;
+    if (String(target.row[colSalesTiket] || '').trim() && String(target.row[colSalesTiket] || '').trim() !== '-') return 'Tiket sudah memiliki Sales.';
+    data.namaSales = aktor.nama;
+  }
+  if (action === 'responBanding' && ['Diterima', 'Ditolak'].indexOf(String(data.statusBanding || '').trim()) === -1) return 'Keputusan banding tidak valid.';
+
+  return '';
+}
+
+function otorisasiAction_(data, ss) {
+  var action = String(data.action || '').trim();
+  var cabang = cabangDeployment_();
+
+  // --- HOTFIX: DAFTAR PUTIH JALUR PUBLIK ---
+  var publikActions = ['login', 'beginBiometricLogin', 'verifyBiometric', 'lupaSandi'];
+  if (publikActions.indexOf(action) !== -1) {
+    return { ok: true, publik: true, cabang: cabang };
+  }
+  // -----------------------------------------------
+
+  var roles = rolesUntukAction_(action);
+  if (!roles) return { ok: false, pesan: 'Action API tidak dikenal atau belum diizinkan.' };
+
+  var sheetUsers = ss.getSheetByName('Users');
+  var aktor = identitasDariSession_(sheetUsers, data && data.user);
+  if (!aktor) return { ok: false, pesan: 'Sesi tidak sah atau telah kedaluwarsa.' };
+
+  if (roles.indexOf(aktor.role) === -1) return { ok: false, pesan: 'Role tidak memiliki izin untuk action ini.' };
+  if (aktor.hakAkses !== 'Semua' && aktor.hakAkses !== cabang) return { ok: false, pesan: 'Akun tidak memiliki akses ke deployment cabang ini.' };
+
+  data.cabang = cabang;
+  data._aktor = aktor;
+  if (action === 'addProspek' && aktor.role === 'sales') data.sales = aktor.nama;
+  if (['addFollowUpProspek', 'prosesRevisiSP', 'mintaPenawaran', 'ajukanPemulihanProspek'].indexOf(action) !== -1 && aktor.role === 'sales') data.namaSales = aktor.nama;
+  if (action === 'laporBug') data.pelapor = aktor.nama;
+  if (action === 'catatFollowUp') data.admin = aktor.nama;
+  if (action === 'simpanVariabelPayroll') data.diubahOleh = aktor.nama;
+
+  if (action === 'editUser' && aktor.role !== 'admin') {
+    if (String(data.username || '').trim().toLowerCase() !== aktor.username) return { ok: false, pesan: 'User hanya dapat mengubah profilnya sendiri.' };
+    data.role = aktor.role;
+    data.targetSales = aktor.record['Target Sales'] || aktor.record['Target Sales (Rp)'] || aktor.record.Target || '';
+    data.gajiPokok = aktor.record['Gaji Pokok'] || aktor.record['Gaji Pokok (Rp)'] || '';
+  }
+
+  var errorTarget = validasiTargetAction_(data, ss, aktor, cabang);
+  if (errorTarget) return { ok: false, pesan: errorTarget };
+  return { ok: true, aktor: aktor, cabang: cabang };
+}
+
 function originWebAuthnDiizinkan_(origin) {
   var target = String(origin || '').trim().replace(/\/$/, '');
   var daftar = String(WEBAUTHN_ALLOWED_ORIGINS || '').split(',').map(function(item) {
@@ -1203,9 +1430,10 @@ function konsumsiChallengeWebAuthn_(challengeToken) {
 }
 
 function mulaiRegistrasiBiometrik_(data, ss) {
-  if (!verifikasiSessionToken_(data.user)) return { status: 'gagal', pesan: 'Sesi login tidak sah atau telah kedaluwarsa.' };
-  var username = String(data.user.Username || '').trim().toLowerCase();
   var sheetUsers = ss.getSheetByName('Users');
+  var identitas = identitasDariSession_(sheetUsers, data.user);
+  if (!identitas) return { status: 'gagal', pesan: 'Sesi login tidak sah atau telah kedaluwarsa.' };
+  var username = identitas.username;
   var user = cariUserWebAuthn_(sheetUsers, username);
   if (!user) return { status: 'gagal', pesan: 'Akun tidak ditemukan.' };
   var origin = String(data.origin || '').trim().replace(/\/$/, '');
@@ -1220,8 +1448,10 @@ function mulaiRegistrasiBiometrik_(data, ss) {
 }
 
 function registerBiometric_(data, ss) {
-  if (!verifikasiSessionToken_(data.user)) return { status: 'gagal', pesan: 'Sesi login tidak sah atau telah kedaluwarsa.' };
-  var username = String(data.user.Username || '').trim().toLowerCase();
+  var sheetUsersIdentitas = ss.getSheetByName('Users');
+  var identitas = identitasDariSession_(sheetUsersIdentitas, data.user);
+  if (!identitas) return { status: 'gagal', pesan: 'Sesi login tidak sah atau telah kedaluwarsa.' };
+  var username = identitas.username;
   var challenge = validasiWebAuthnChallenge_(data.challengeToken, 'register', username);
   var clientData = validasiClientDataWebAuthn_(data.clientDataJSON, 'webauthn.create', data.challengeToken, challenge.o);
   var authData = validasiAuthenticatorDataWebAuthn_(data.authenticatorData, challenge.r, true);
@@ -1641,6 +1871,27 @@ function doPost(e) {
     sheetUsers = ss.getSheetByName("Users");
     var sheetTiket = ss.getSheetByName("Tiket") || ss.getSheets()[0];
     var usersData = sheetUsers ? sheetUsers.getDataRange().getValues() : [];
+
+    // Seluruh endpoint operasional wajib melewati otorisasi server. Role, cabang,
+    // dan identitas pelaku selalu diambil ulang dari sheet Users; nilai pada
+    // payload browser tidak pernah menjadi sumber otoritas.
+    var otorisasi = otorisasiAction_(data, ss);
+    if (!otorisasi.ok) {
+      return ContentService.createTextOutput(JSON.stringify({"status": "gagal", "pesan": otorisasi.pesan})).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (data.action === 'validateSession') {
+      return ContentService.createTextOutput(JSON.stringify({
+        "status": "sukses",
+        "user": otorisasi.aktor.record
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (data.action === 'getAllData') {
+      return doGet({
+        parameter: { apiKey: SECRET_API_KEY },
+        _sessionIdentity: otorisasi.aktor,
+        _cabangDeployment: otorisasi.cabang
+      });
+    }
 
     if (data.action === 'broadcastCRM') {
       var hasilBroadcastCRM = prosesBroadcastCRM_(data, usersData, ss);
