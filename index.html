@@ -1116,6 +1116,69 @@
         function adminSlaSupabase_(cabang) {
             return normalisasiCabang(cabang) === 'Raha' ? 'admin_raha' : 'admin';
         }
+
+        function normalisasiNamaCustomerProspek_(nama) {
+            return String(nama || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        async function sinkronkanStatusProspekDariTiket_(statusTiket, noWaCustomer, namaCustomer) {
+            const statusTiketNormal = String(statusTiket || '').trim().toLowerCase();
+            const statusProsesServis = ['on progress', 'menunggu', 'pending', 'outsource'];
+            let statusProspekTujuan = '';
+            let hanyaDariTahapAwal = false;
+
+            if (statusProsesServis.includes(statusTiketNormal)) {
+                statusProspekTujuan = 'Proses Servis';
+                hanyaDariTahapAwal = true;
+            } else if (statusTiketNormal === 'selesai' || statusTiketNormal === 'closed') {
+                statusProspekTujuan = 'Closing';
+            } else if (statusTiketNormal === 'cancel' || statusTiketNormal === 'batal') {
+                statusProspekTujuan = 'Batal';
+            } else {
+                return { ditemukan: 0, diperbarui: 0, status: '' };
+            }
+
+            const waTarget = normalisasiWASementara_(noWaCustomer);
+            const namaTarget = normalisasiNamaCustomerProspek_(namaCustomer);
+            const waLayakDicocokkan = waTarget.length >= 8;
+            if (!waLayakDicocokkan && !namaTarget) return { ditemukan: 0, diperbarui: 0, status: statusProspekTujuan };
+
+            const daftarProspek = await callSupabase('prospek?select=id_prospek,no_wa,nama_calon_customer,status_prospek');
+            if (!Array.isArray(daftarProspek)) throw new Error('Respons pencarian Prospek tidak valid.');
+
+            const idSudahDiproses = new Set();
+            const prospekCocok = daftarProspek.filter(prospek => {
+                if (!prospek || !prospek.id_prospek) return false;
+                const cocokWa = waLayakDicocokkan && normalisasiWASementara_(prospek.no_wa) === waTarget;
+                const cocokNama = !!namaTarget && normalisasiNamaCustomerProspek_(prospek.nama_calon_customer) === namaTarget;
+                if (!cocokWa && !cocokNama) return false;
+                const idProspek = String(prospek.id_prospek).trim();
+                if (idSudahDiproses.has(idProspek)) return false;
+                idSudahDiproses.add(idProspek);
+                return true;
+            });
+
+            const tahapAwalDiizinkan = new Set(['tahap penawaran', 'kunjungan toko']);
+            const prospekPerluDiubah = prospekCocok.filter(prospek => {
+                const statusSaatIni = String(prospek.status_prospek || '').trim().toLowerCase();
+                if (statusSaatIni === statusProspekTujuan.toLowerCase()) return false;
+                return !hanyaDariTahapAwal || tahapAwalDiizinkan.has(statusSaatIni);
+            });
+
+            await Promise.all(prospekPerluDiubah.map(async prospek => {
+                const idProspek = String(prospek.id_prospek).trim();
+                const hasil = await callSupabase(
+                    endpointFilterSupabase_('prospek', 'id_prospek', idProspek),
+                    'PATCH',
+                    { status_prospek: statusProspekTujuan }
+                );
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${idProspek}`);
+                const prospekLokal = (globalProspek || []).find(item => item && String(item['ID Prospek']).trim() === idProspek);
+                if (prospekLokal) prospekLokal['Status Prospek'] = statusProspekTujuan;
+            }));
+
+            return { ditemukan: prospekCocok.length, diperbarui: prospekPerluDiubah.length, status: statusProspekTujuan };
+        }
         // =========================================================================
 
         let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let globalProspek = []; let globalKlien = []; let globalGaransi = [];
@@ -4727,15 +4790,19 @@
             
             try { 
                 if (type === 'sla') {
-                    const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
-                    const s = Array.from(document.querySelectorAll('#sales-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '); 
+                    const t = Array.from(document.querySelectorAll('#teknisi-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
+                    const s = Array.from(document.querySelectorAll('#sales-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
                     
                     let listPekerjaan = Array.from(document.querySelectorAll('.input-pekerjaan-multi')).map(ta => ta.value.trim()).filter(v => v !== "");
                     let baseId = document.getElementById('input-id').value;
-                    let idPrefix = baseId.split('-')[0]; 
-                    let idNum = parseInt(baseId.split('-')[1]); 
-                    
+                    let idPrefix = baseId.split('-')[0];
+                    let idNum = parseInt(baseId.split('-')[1]);
+
                     let successCount = 0;
+                    let prospekSudahDisinkronkan = false;
+                    let sinkronProspekGagal = false;
+                    const waKlienUntukProspek = document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '';
+                    const namaCustomerUntukProspek = document.getElementById('input-klien').value;
                     document.getElementById('loading').style.display = 'block';
 
                     for (let i = 0; i < listPekerjaan.length; i++) {
@@ -4750,7 +4817,7 @@
                         const cabangForm = normalisasiCabang(cabangAktif) || 'Kendari';
                         const nilaiPenjualanRaw = document.getElementById('input-nilai-penjualan').value;
                         const nilaiPenjualan = String(nilaiPenjualanRaw || '').trim() === '' ? null : angkaRupiahSupabase_(nilaiPenjualanRaw, 0);
-                        const waKlien = document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '';
+                        const waKlien = waKlienUntukProspek;
                         const tandaTangan = isCanvasInputDrawn ? canvasInput.toDataURL('image/png') : ttdTiketEditTersimpan;
 
                         if (modeEditTiket) {
@@ -4825,13 +4892,28 @@
                             };
                             const hasil = await callSupabase('tiket', 'POST', tiketBaru);
                             pastikanHasilMutasiSupabase_(hasil, `Tiket ${currentId}`);
+                            if (!prospekSudahDisinkronkan) {
+                                try {
+                                    await sinkronkanStatusProspekDariTiket_('Menunggu', waKlienUntukProspek, namaCustomerUntukProspek);
+                                    prospekSudahDisinkronkan = true;
+                                    sinkronProspekGagal = false;
+                                } catch (errorSinkronProspek) {
+                                    console.error('Sinkronisasi Prospek dari tiket baru gagal:', errorSinkronProspek);
+                                    sinkronProspekGagal = true;
+                                }
+                            }
                         }
 
                         successCount++;
                     }
 
-                    if (successCount > 0) { 
-                        showToast(`Alhamdulillah! ${successCount} Pekerjaan berhasil disimpan.`, 'success');
+                    if (successCount > 0) {
+                        showToast(
+                            sinkronProspekGagal
+                                ? `${successCount} pekerjaan tersimpan, tetapi status Prospek gagal disinkronkan.`
+                                : `Alhamdulillah! ${successCount} Pekerjaan berhasil disimpan.`,
+                            sinkronProspekGagal ? 'warning' : 'success'
+                        );
                         batalEditTiket(); switchTab('tiket'); 
                         await ambilSemuaData(true); 
                     } else { 
@@ -5166,10 +5248,24 @@
                 }
             }
 
+            let sinkronProspekGagal = false;
             try {
                 const result = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', payload);
                 pastikanHasilMutasiSupabase_(result, `Tiket ${idTiket}`);
-                showToast('Alhamdulillah! Data berhasil diupdate.', 'success');
+                try {
+                    await sinkronkanStatusProspekDariTiket_(
+                        status,
+                        t['No WA Klien'] || '',
+                        t['Klien & Lokasi'] || t['Nama Customer'] || ''
+                    );
+                } catch (errorSinkronProspek) {
+                    console.error('Sinkronisasi Prospek dari update tiket gagal:', errorSinkronProspek);
+                    sinkronProspekGagal = true;
+                }
+                showToast(
+                    sinkronProspekGagal ? 'Tiket diperbarui, tetapi status Prospek gagal disinkronkan.' : 'Alhamdulillah! Data berhasil diupdate.',
+                    sinkronProspekGagal ? 'warning' : 'success'
+                );
                 tutupModal(); document.getElementById('loading').style.display = 'block';
                 await ambilSemuaData(true); document.getElementById('loading').style.display = 'none';
             } catch(err) {
