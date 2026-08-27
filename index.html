@@ -2573,11 +2573,12 @@
 
             try {
                 const pwHashed = await hashPassword(pwRaw);
-                const dataUsers = await callSupabase("users?username=eq." + encodeURIComponent(un) + "&select=*");
+                const dataUsers = await callSupabase("users?username=ilike." + encodeURIComponent(un) + "&select=*");
 
                 if (dataUsers && dataUsers.length > 0) {
                     const userDB = dataUsers[0];
-                    if (userDB.password === pwHashed || userDB.password === pwRaw) {
+                    const passDB = String(userDB.password || '').trim();
+                    if (passDB === pwHashed || passDB === pwRaw) {
                         let record = {
                             "Username": userDB.username, "Role": userDB.role, "Nama Asli": userDB.nama_asli,
                             "Email": userDB.email, "Target Sales (Rp)": userDB.target_sales_rp, "No WA": userDB.no_wa,
@@ -5553,58 +5554,55 @@
                 else { finalPw = await hashPassword(inputPw); } 
             } else { finalPw = await hashPassword(inputPw); }
 
-            const payload = { 
-                apiKey: API_KEY,
-                action: modeEditUser ? 'editUser' : 'addUser',
-                user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
-                namaAsli: document.getElementById('new-nama').value,
+            const payload = {
+                nama_asli: document.getElementById('new-nama').value,
                 email: document.getElementById('new-email').value, 
                 username: document.getElementById('new-username').value, 
-                password: finalPw, 
                 role: document.getElementById('new-role').value, 
-                targetSales: document.getElementById('new-target-sales').value,
-                noWA: document.getElementById('new-wa').value,
-                gajiPokok: document.getElementById('new-gapok').value
+                no_wa: document.getElementById('new-wa').value,
+                target_sales_rp: angkaRupiahSupabase_(document.getElementById('new-target-sales').value),
+                gaji_pokok: angkaRupiahSupabase_(document.getElementById('new-gapok').value),
+                hak_akses_cabang: document.getElementById('new-role').value === 'admin_raha' ? 'Raha' : 'Semua'
             };
+            if (finalPw !== '') payload.password = finalPw;
 
             if (!modeEditUser && (globalUsers || []).find(u => u && String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) { 
                 showToast("Afwan, Username tersebut sudah digunakan.", "error"); 
                 btn.innerText='Simpan Profil'; btn.disabled=false; return; 
             } 
 
-            try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                const jsonRes = await res.json();
-                
-                if(jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Profil tersimpan.', 'success'); 
-                    
-                    if (penggunaAktif && penggunaAktif.Username === payload.username) {
+            try {
+                if (modeEditUser) {
+                    await callSupabase(endpointFilterSupabase_('users', 'username', payload.username), 'PATCH', payload);
+                } else {
+                    await callSupabase('users', 'POST', payload);
+                }
+
+                showToast('Alhamdulillah! Profil tersimpan.', 'success');
+
+                if (penggunaAktif && penggunaAktif.Username === payload.username) {
+                    simpanSesiAktif(waktuLoginAktif);
+                }
+
+                if (penggunaAktif && penggunaAktif.Role === 'admin') {
+                    batalEditUser();
+                }
+
+                document.getElementById('loading').style.display='block';
+                await ambilSemuaData(true);
+
+                if (penggunaAktif && penggunaAktif.Role !== 'admin') {
+                    const uUpdated = (globalUsers || []).find(x => x && x.Username === penggunaAktif.Username);
+                    if (uUpdated) {
+                        const sessionTokenAktif = penggunaAktif.SessionToken;
+                        const hakAksesCabangAktif = penggunaAktif.Hak_Akses_Cabang;
+                        penggunaAktif = Object.assign({}, penggunaAktif, uUpdated, { SessionToken: sessionTokenAktif, Hak_Akses_Cabang: hakAksesCabangAktif });
                         simpanSesiAktif(waktuLoginAktif);
                     }
-
-                    if (penggunaAktif && penggunaAktif.Role === 'admin') {
-                        batalEditUser(); 
-                    }
-                    
-                    document.getElementById('loading').style.display='block'; 
-                    await ambilSemuaData(true); 
-                    
-                    if (penggunaAktif && penggunaAktif.Role !== 'admin') {
-                        const uUpdated = (globalUsers || []).find(x => x && x.Username === penggunaAktif.Username);
-                        if (uUpdated) {
-                            const sessionTokenAktif = penggunaAktif.SessionToken;
-                            const hakAksesCabangAktif = penggunaAktif.Hak_Akses_Cabang;
-                            penggunaAktif = Object.assign({}, penggunaAktif, uUpdated, { SessionToken: sessionTokenAktif, Hak_Akses_Cabang: hakAksesCabangAktif });
-                            simpanSesiAktif(waktuLoginAktif);
-                        }
-                        siapkanProfilPribadi();
-                    }
-
-                    document.getElementById('loading').style.display='none'; 
-                } else {
-                    showToast('Afwan, Gagal dari server: ' + jsonRes.pesan, 'error');
+                    siapkanProfilPribadi();
                 }
+
+                document.getElementById('loading').style.display='none';
             } catch(err) { 
                 showToast("Afwan, Gagal menyimpan profil", "error");
             } 
@@ -5629,18 +5627,10 @@
                 
                 document.getElementById('loading').style.display = 'block'; 
                 
-                const res = await fetch(apiUrl, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteUser', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, username: String(un).trim() })
-                }); 
-                
-                const jsonRes = await res.json();
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! User berhasil dihapus.', 'success'); 
-                    await ambilSemuaData(true); 
-                } else {
-                    showToast('Afwan, gagal menghapus: ' + jsonRes.pesan, 'error');
-                }
+                await callSupabase(endpointFilterSupabase_('users', 'username', un), 'DELETE');
+
+                showToast('Alhamdulillah! User berhasil dihapus.', 'success');
+                await ambilSemuaData(true);
             } catch(err) {
                 showToast('Afwan, terjadi kesalahan jaringan saat menghapus.', 'error');
             } finally {
