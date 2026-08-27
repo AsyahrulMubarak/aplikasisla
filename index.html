@@ -1550,13 +1550,19 @@
         }
 
         function dataSesuaiCabangAktif_(record) {
-            const cabangRecord = normalisasiCabang(record && (
+            let cabangRecord = normalisasiCabang(record && (
                 record.Cabang || record['Cabang Aktif'] || record['Cabang Kerja'] || record.Hak_Akses_Cabang
             ));
-            if (cabangAktif && cabangRecord && cabangRecord !== 'Semua' && cabangRecord !== cabangAktif) return false;
-            const adminSLA = String(record && record['Admin SLA'] || '').trim().toLowerCase();
-            const adminTarget = (cabangRecord || cabangAktif) === 'Raha' ? 'admin_raha' : 'admin';
-            return !adminSLA || adminSLA === adminTarget;
+
+            // HARD FALLBACK: Jika data lama kosong melompong, otomatis itu milik Kendari
+            if (!cabangRecord) cabangRecord = 'Kendari';
+
+            // Jika cabang aplikasi sedang aktif, dan data tidak cocok dengan cabang tersebut, sembunyikan!
+            if (cabangAktif && cabangAktif !== 'Semua' && cabangRecord !== 'Semua' && cabangRecord !== cabangAktif) {
+                return false;
+            }
+
+            return true;
         }
 
         function penggunaAdalahFreelance(user = penggunaAktif) {
@@ -2594,12 +2600,12 @@
                             "Keterangan Sales": rowDB.keterangan_sales, "Alasan Admin": rowDB.alasan_admin, "Nilai Penjualan": rowDB.nilai_penjualan,
                             "Link PDF BA": rowDB.link_pdf_ba, "No WA Klien": rowDB.no_wa_klien, "Bobot Poin": rowDB.bobot_poin, "Veto Admin": rowDB.veto_admin,
                             "Status Pembayaran": rowDB.status_pembayaran, "Tanggal Lunas": rowDB.tanggal_lunas, "Teknisi Sebelumnya": rowDB.teknisi_sebelumnya,
-                            "Penalti Teknisi Lama": rowDB.penalti_teknisi_lama, "Tenggat Pengganti": rowDB.tenggat_pengganti, "Cabang": rowDB.cabang, "Admin SLA": rowDB.admin_sla
+                            "Penalti Teknisi Lama": rowDB.penalti_teknisi_lama, "Tenggat Pengganti": rowDB.tenggat_pengganti, "Cabang": rowDB.cabang || 'Kendari', "Admin SLA": rowDB.admin_sla || 'admin'
                         });
                     }
                     for (let u of dbUsers) globalUsers.push({ "Username": u.username, "Role": u.role, "Nama Asli": u.nama_asli, "Email": u.email, "Target Sales (Rp)": u.target_sales_rp, "No WA": u.no_wa, "Gaji Pokok": u.gaji_pokok, "Bonus Tambahan": u.bonus_tambahan, "Hak_Akses_Cabang": u.hak_akses_cabang });
-                    for (let p of dbPenjualan) globalPenjualan.push({ "ID Penjualan": p.id_penjualan, "No Transaksi": p.no_transaksi, "Waktu Lapor": p.waktu_lapor, "Nama Pembeli": p.nama_pembeli, "Barang / Jasa": p.barang_jasa, "Sales": p.sales, "Nominal (Rp)": p.nominal_rp, "Cabang": p.cabang, "Admin SLA": p.admin_sla });
-                    for (let p of dbProspek) globalProspek.push({ "ID Prospek": p.id_prospek, "Tanggal Input": p.tanggal_input, "Nama Calon Customer": p.nama_calon_customer, "Kebutuhan": p.kebutuhan, "Status Prospek": p.status_prospek, "Sales Penanggung Jawab": p.sales_penanggung_jawab, "Estimasi (Rp)": p.estimasi_rp, "Bukti Chat": p.bukti_chat, "Surat Penawaran": p.surat_penawaran, "No WA": p.no_wa, "Waktu Follow Up Terakhir": p.waktu_follow_up_terakhir, "Riwayat Follow Up": p.riwayat_follow_up, "Waktu Peringatan CRM Terakhir": p.waktu_peringatan_crm_terakhir, "Waktu Minta Penawaran": p.waktu_minta_penawaran, "Waktu Selesai Penawaran": p.waktu_selesai_penawaran, "Target SLA Penawaran (Jam)": p.target_sla_penawaran_jam, "Cabang": p.cabang, "Admin SLA": p.admin_sla });
+                    for (let p of dbPenjualan) globalPenjualan.push({ "ID Penjualan": p.id_penjualan, "No Transaksi": p.no_transaksi, "Waktu Lapor": p.waktu_lapor, "Nama Pembeli": p.nama_pembeli, "Barang / Jasa": p.barang_jasa, "Sales": p.sales, "Nominal (Rp)": p.nominal_rp, "Cabang": p.cabang || 'Kendari', "Admin SLA": p.admin_sla || 'admin' });
+                    for (let p of dbProspek) globalProspek.push({ "ID Prospek": p.id_prospek, "Tanggal Input": p.tanggal_input, "Nama Calon Customer": p.nama_calon_customer, "Kebutuhan": p.kebutuhan, "Status Prospek": p.status_prospek, "Sales Penanggung Jawab": p.sales_penanggung_jawab, "Estimasi (Rp)": p.estimasi_rp, "Bukti Chat": p.bukti_chat, "Surat Penawaran": p.surat_penawaran, "No WA": p.no_wa, "Waktu Follow Up Terakhir": p.waktu_follow_up_terakhir, "Riwayat Follow Up": p.riwayat_follow_up, "Waktu Peringatan CRM Terakhir": p.waktu_peringatan_crm_terakhir, "Waktu Minta Penawaran": p.waktu_minta_penawaran, "Waktu Selesai Penawaran": p.waktu_selesai_penawaran, "Target SLA Penawaran (Jam)": p.target_sla_penawaran_jam, "Cabang": p.cabang || 'Kendari', "Admin SLA": p.admin_sla || 'admin' });
                     for (let k of dbKlien) globalKlien.push({ "ID Klien": k.id_klien, "Nama Klien": k.nama_klien, "No WA": k.no_wa, "Kategori": k.kategori, "Total Transaksi": k.total_transaksi, "Transaksi Terakhir": k.transaksi_terakhir, "Sumber": k.sumber, "Tag Produk": k.tag_produk });
                     for (let g of dbGaransi) {
                         if (trackId && String(g.referensi_tiket_nota).toLowerCase() !== trackId) continue;
