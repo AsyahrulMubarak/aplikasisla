@@ -4102,84 +4102,137 @@
         }
 
         async function submitGaransi(e) {
-            e.preventDefault(); 
-            const btn = document.getElementById('btn-submit-garansi'); btn.innerText = 'Menyimpan...'; btn.disabled = true; 
-            
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-garansi');
+            btn.innerText = 'Menyimpan...';
+            btn.disabled = true;
+
             try {
                 let idGrs = document.getElementById('garansi-id').value;
                 if(!idGrs || idGrs === "") { setAutoIDs(); idGrs = document.getElementById('garansi-id').value; }
 
-                const payload = {
-                    apiKey: API_KEY, action: 'addGaransi', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idGaransi: idGrs,
-                    cabang: cabangAktif,
-                    referensi: document.getElementById('garansi-referensi').value, 
-                    noTransaksi: document.getElementById('garansi-notrans').value,
-                    pelanggan: document.getElementById('garansi-pelanggan').value, 
-                    barang: document.getElementById('garansi-barang').value, 
-                    durasi: document.getElementById('garansi-durasi').value, 
-                    status: document.getElementById('garansi-status').value,
-                    sales: Array.from(document.querySelectorAll('#garansi-sales-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '),
-                    omzet: document.getElementById('garansi-omzet').value,
-                    keteranganGaransi: document.getElementById('garansi-keterangan').value,
-                    // Paket Poin Tambahan
-                    bobotPoin: document.getElementById('garansi-poin-nilai') ? document.getElementById('garansi-poin-nilai').value : '',
-                    vetoPoin: (document.getElementById('garansi-poin-veto') && document.getElementById('garansi-poin-veto').checked) ? 'Ya' : 'Tidak'
-                };
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                const jsonRes = await res.json();
-                
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data Garansi berhasil disimpan.', 'success');
-                    tutupFormGaransi(); document.getElementById('loading').style.display = 'block'; 
-                    await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
-                } else { showToast('Afwan, Gagal dari server.', 'error'); }
-            } catch (err) { showToast('Afwan, Gagal menyimpan garansi.', 'error'); } finally { btn.innerText = 'Simpan Garansi'; btn.disabled = false; }
-        }
+                const referensi = document.getElementById('garansi-referensi').value.trim();
+                const durasiHari = Math.max(0, Number.parseInt(document.getElementById('garansi-durasi').value, 10) || 0);
+                const omzetRaw = document.getElementById('garansi-omzet').value;
+                const tiketReferensi = (globalTickets || []).find(item => item && String(item['ID Tiket']).trim() === referensi);
+                const cabangGaransi = normalisasiCabang((tiketReferensi && tiketReferensi.Cabang) || cabangAktif) || 'Kendari';
+                let statusGaransi = document.getElementById('garansi-status').value;
+                let tanggalMulai = null;
+                let tanggalHabis = null;
 
-        async function aktifkanGaransi(id) { 
-            let acc = await showConfirm(`Bismillah, barang sudah diambil Klien? Waktu garansi akan dihitung mulai detik ini.`); 
-            if(!acc) return; 
-            document.getElementById('loading').style.display = 'block'; 
-            try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'aktifkanGaransi', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idGaransi: id, cabang: cabangAktif }) });
-                if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi Aktif.', 'success'); await ambilSemuaData(true); } 
-            } catch(err) {} 
-            document.getElementById('loading').style.display = 'none'; 
-        }
-
-        async function prosesKlaimGaransi(id) { 
-            let acc = await showConfirm(`Bismillah, Klien melakukan klaim garansi untuk ID ${id}? \nStatus garansi ini akan langsung berubah menjadi HANGUS/HABIS setelah diklaim.`); 
-            if(!acc) return; 
-            document.getElementById('loading').style.display = 'block'; 
-            try { 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'klaimGaransi', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idGaransi: id, cabang: cabangAktif }) });
-                if ((await res.json()).status === 'sukses') { showToast('Alhamdulillah! Garansi berhasil diklaim (Hangus).', 'success'); await ambilSemuaData(true); } 
-            } catch(err) {} 
-            document.getElementById('loading').style.display = 'none'; 
-        }
-
-        async function hapusGaransi(id) { 
-            try {
-                let acc = await showConfirm(`Bismillah, yakin hapus data garansi ${id}?`); 
-                if(!acc) return; 
-                document.getElementById('loading').style.display = 'block'; 
-                
-                const res = await fetch(apiUrl, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteGaransi', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idGaransi: String(id).trim(), cabang: cabangAktif })
-                }); 
-                
-                const jsonRes = await res.json();
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data dihapus.', 'success'); 
-                    await ambilSemuaData(true); 
-                } else {
-                    showToast('Afwan, gagal menghapus: ' + jsonRes.pesan, 'error');
+                if (durasiHari === 0) {
+                    statusGaransi = 'Habis (Tanpa Garansi)';
+                } else if (statusGaransi === 'Aktif') {
+                    const mulai = new Date();
+                    const habis = new Date(mulai.getTime() + (durasiHari * 24 * 60 * 60 * 1000));
+                    tanggalMulai = tanggalIsoSupabase_(mulai);
+                    tanggalHabis = tanggalIsoSupabase_(habis);
                 }
-            } catch(err) {
-                showToast('Afwan, terjadi kesalahan jaringan saat menghapus.', 'error');
+
+                const payload = {
+                    id_garansi: idGrs,
+                    referensi_tiket_nota: referensi,
+                    nama_pelanggan: document.getElementById('garansi-pelanggan').value,
+                    barang_jasa: document.getElementById('garansi-barang').value,
+                    durasi_hari: durasiHari,
+                    status: statusGaransi,
+                    tanggal_mulai: tanggalMulai,
+                    tanggal_habis: tanggalHabis,
+                    no_transaksi: document.getElementById('garansi-notrans').value,
+                    sales: Array.from(document.querySelectorAll('#garansi-sales-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '),
+                    omzet: String(omzetRaw || '').trim() === '' ? null : angkaRupiahSupabase_(omzetRaw, 0),
+                    keterangan: document.getElementById('garansi-keterangan').value,
+                    cabang: cabangGaransi,
+                    admin_sla: adminSlaSupabase_(cabangGaransi)
+                };
+
+                const garansiSudahAda = (globalGaransi || []).some(item => item && String(item['ID Garansi']).trim() === String(idGrs).trim());
+                let hasil;
+                if (garansiSudahAda) {
+                    delete payload.id_garansi;
+                    hasil = await callSupabase(endpointFilterSupabase_('garansi', 'id_garansi', idGrs), 'PATCH', payload);
+                } else {
+                    payload.follow_up_after_sales_terkirim = null;
+                    hasil = await callSupabase('garansi', 'POST', payload);
+                }
+                pastikanHasilMutasiSupabase_(hasil, `Garansi ${idGrs}`);
+
+                showToast(`Alhamdulillah! Data Garansi berhasil ${garansiSudahAda ? 'diperbarui' : 'disimpan'}.`, 'success');
+                tutupFormGaransi();
+                document.getElementById('loading').style.display = 'block';
+                await ambilSemuaData(true);
+                document.getElementById('loading').style.display = 'none';
+            } catch (err) {
+                showToast('Afwan, Gagal menyimpan garansi: ' + err.message, 'error');
+                document.getElementById('loading').style.display = 'none';
             } finally {
-                document.getElementById('loading').style.display = 'none'; 
+                btn.innerText = 'Simpan Garansi';
+                btn.disabled = false;
+            }
+        }
+
+        async function aktifkanGaransi(id) {
+            let acc = await showConfirm(`Bismillah, barang sudah diambil Klien? Waktu garansi akan dihitung mulai detik ini.`);
+            if(!acc) return;
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const garansi = (globalGaransi || []).find(item => item && String(item['ID Garansi']).trim() === String(id).trim());
+                if (!garansi) throw new Error(`Garansi ${id} tidak ditemukan.`);
+
+                const durasiHari = Number.parseInt(garansi['Durasi (Hari)'], 10) || 0;
+                if (durasiHari <= 0) throw new Error('Durasi garansi harus lebih dari 0 hari untuk diaktifkan.');
+                const mulai = new Date();
+                const habis = new Date(mulai.getTime() + (durasiHari * 24 * 60 * 60 * 1000));
+                const payload = {
+                    status: 'Aktif',
+                    tanggal_mulai: tanggalIsoSupabase_(mulai),
+                    tanggal_habis: tanggalIsoSupabase_(habis)
+                };
+                const hasil = await callSupabase(endpointFilterSupabase_('garansi', 'id_garansi', id), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Garansi ${id}`);
+                showToast('Alhamdulillah! Garansi Aktif.', 'success');
+                await ambilSemuaData(true);
+            } catch(err) {
+                showToast('Afwan, Gagal mengaktifkan garansi: ' + err.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        async function prosesKlaimGaransi(id) {
+            let acc = await showConfirm(`Bismillah, Klien melakukan klaim garansi untuk ID ${id}? \nStatus garansi ini akan langsung berubah menjadi HANGUS/HABIS setelah diklaim.`);
+            if(!acc) return;
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const payload = {
+                    status: 'Diklaim (Hangus)',
+                    tanggal_habis: tanggalIsoSupabase_()
+                };
+                const hasil = await callSupabase(endpointFilterSupabase_('garansi', 'id_garansi', id), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Garansi ${id}`);
+                showToast('Alhamdulillah! Garansi berhasil diklaim (Hangus).', 'success');
+                await ambilSemuaData(true);
+            } catch(err) {
+                showToast('Afwan, Gagal memproses klaim garansi: ' + err.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        async function hapusGaransi(id) {
+            try {
+                let acc = await showConfirm(`Bismillah, yakin hapus data garansi ${id}?`);
+                if(!acc) return;
+                document.getElementById('loading').style.display = 'block';
+
+                const hasil = await callSupabase(endpointFilterSupabase_('garansi', 'id_garansi', id), 'DELETE');
+                pastikanHasilMutasiSupabase_(hasil, `Garansi ${id}`);
+                showToast('Alhamdulillah! Data dihapus.', 'success');
+                await ambilSemuaData(true);
+            } catch(err) {
+                showToast('Afwan, gagal menghapus garansi: ' + err.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
             }
         }
 
