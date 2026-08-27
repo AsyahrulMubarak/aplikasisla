@@ -1056,12 +1056,35 @@
 
     <script>
         // Endpoint kanonis Master Kendari untuk seluruh proses autentikasi SSO.
-        const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbyuZLt8YQpdN_30WrVfxe1jG5U1quEv3H7cegkPTOdHXJIT6T7P5DuVDRo_-KfGen_p/exec';
+        const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
         const API_URL_RAHA = 'https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec';
         const API_AUTH_URL = API_URL_KENDARI;
         const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
         let apiUrl = API_URL_KENDARI;
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
+
+        // =========================================================================
+        // 🚀 MESIN TURBO SUPABASE (KONEKSI LANGSUNG FRONTEND)
+        // =========================================================================
+        const SUPABASE_URL = "https://oozkqjgllubhjctnkxwl.supabase.co/rest/v1/";
+        const SUPABASE_KEY = "PASTE_PUBLISHABLE_KEY_ANTUM_DI_SINI";
+
+        async function callSupabase(endpoint, method = "GET", payload = null) {
+            const options = {
+                method: method,
+                headers: {
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": "Bearer " + SUPABASE_KEY,
+                    "Content-Type": "application/json",
+                    "Prefer": "return=representation"
+                }
+            };
+            if (payload) options.body = JSON.stringify(payload);
+            const res = await fetch(SUPABASE_URL + endpoint, options);
+            if (!res.ok) throw new Error(`Supabase Error: ${res.status}`);
+            return await res.json();
+        }
+        // =========================================================================
 
         let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let globalProspek = []; let globalKlien = []; let globalGaransi = [];
         let buktiProspekTerpilih = null;
@@ -1259,6 +1282,11 @@
             if (cabang === 'raha') return 'Raha';
             if (cabang === 'semua') return 'Semua';
             return '';
+        }
+
+        function sertakanHakAksesCabang_(record) {
+            record.Hak_Akses_Cabang = normalisasiCabang(record.Hak_Akses_Cabang);
+            return record;
         }
 
         function hakAksesCabangPengguna(user = penggunaAktif) {
@@ -2288,145 +2316,140 @@
         }
 
         async function ambilSemuaData(isSilentRefresh = false, trackId = null) {
-            let maxRetries = 3; let data = null; let berhasil = false;
-            let lastErrorMsg = "";
+            let maxRetries = 3; let berhasil = false; let lastErrorMsg = "";
 
             for (let i = 0; i < maxRetries; i++) {
                 try {
-                    if (!isSilentRefresh) { 
-                        document.getElementById('login-loading').innerHTML = i === 0 ? 'Menghubungkan ke server database...' : `<span style="color:var(--warning);">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`; 
-                        document.getElementById('login-loading').style.display = 'block'; 
+                    if (!isSilentRefresh) {
+                        document.getElementById('login-loading').innerHTML = i === 0 ? 'Mengunduh data super cepat...' : `<span style="color:var(--warning);">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`;
+                        document.getElementById('login-loading').style.display = 'block';
                     }
-                    
-                    let response;
-                    if (trackId) {
-                        // Tracking tiket tetap merupakan jalur publik read-only.
-                        let urlTarget = apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY;
-                        if (cabangAktif) urlTarget += "&cabang=" + encodeURIComponent(cabangAktif);
-                        urlTarget += "&trackId=" + encodeURIComponent(trackId);
-                        response = await fetch(urlTarget, { redirect: "follow", cache: "no-store" });
-                    } else {
-                        if (!penggunaAktif || !penggunaAktif.Username || !penggunaAktif.SessionToken) throw new Error('Sesi login tidak lengkap.');
-                        const payload = {
-                            apiKey: API_KEY,
-                            action: 'getAllData',
-                            user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
-                            cabang: cabangAktif
-                        };
-                        response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload), redirect: "follow", cache: "no-store" });
+
+                    const reqOpts = { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } };
+                    const [resTiket, resUsers, resPenjualan, resProspek, resKlien, resGaransi] = await Promise.all([
+                        fetch(SUPABASE_URL + "tiket?select=*", reqOpts),
+                        trackId ? Promise.resolve({json: () => []}) : fetch(SUPABASE_URL + "users?select=*", reqOpts),
+                        trackId ? Promise.resolve({json: () => []}) : fetch(SUPABASE_URL + "penjualan?select=*", reqOpts),
+                        trackId ? Promise.resolve({json: () => []}) : fetch(SUPABASE_URL + "prospek?select=*", reqOpts),
+                        trackId ? Promise.resolve({json: () => []}) : fetch(SUPABASE_URL + "database_klien?select=*", reqOpts),
+                        fetch(SUPABASE_URL + "garansi?select=*", reqOpts)
+                    ]);
+
+                    const dbTiket = await resTiket.json(); const dbUsers = await resUsers.json(); const dbPenjualan = await resPenjualan.json();
+                    const dbProspek = await resProspek.json(); const dbKlien = await resKlien.json(); const dbGaransi = await resGaransi.json();
+
+                    globalTickets = []; globalUsers = []; globalPenjualan = []; globalProspek = []; globalKlien = []; globalGaransi = [];
+
+                    for (let rowDB of dbTiket) {
+                        if (trackId && String(rowDB.id_tiket).toLowerCase() !== trackId) continue;
+                        globalTickets.push({
+                            "ID Tiket": rowDB.id_tiket, "No Transaksi": rowDB.no_transaksi || "", "Waktu Lapor": rowDB.waktu_lapor,
+                            "Target SLA (Jam)": rowDB.target_sla_jam, "Tenggat Waktu": rowDB.tenggat_waktu, "Klien & Lokasi": rowDB.klien_lokasi,
+                            "Jenis Pekerjaan": rowDB.jenis_pekerjaan, "Teknisi": rowDB.teknisi, "Status": rowDB.status, "Waktu Selesai": rowDB.waktu_selesai,
+                            "Status SLA": rowDB.status_sla, "Poin Performa": rowDB.poin_performa, "Sales": rowDB.sales, "Keterangan": rowDB.keterangan,
+                            "Target SLA Respon (Jam)": rowDB.target_sla_respon_jam, "Tenggat Respon": rowDB.tenggat_respon, "Waktu Respon": rowDB.waktu_respon,
+                            "Status SLA Respon": rowDB.status_sla_respon, "Status Peringatan": rowDB.status_peringatan, "Deskripsi Pekerjaan (BA)": rowDB.deskripsi_pekerjaan_ba,
+                            "Nama Customer": rowDB.nama_customer, "Kritik & Saran": rowDB.kritik_saran, "Tanda Tangan": rowDB.tanda_tangan,
+                            "Status Banding": rowDB.status_banding, "Sales Pengaju": rowDB.sales_pengaju, "Bukti Banding": rowDB.bukti_banding,
+                            "Keterangan Sales": rowDB.keterangan_sales, "Alasan Admin": rowDB.alasan_admin, "Nilai Penjualan": rowDB.nilai_penjualan,
+                            "Link PDF BA": rowDB.link_pdf_ba, "No WA Klien": rowDB.no_wa_klien, "Bobot Poin": rowDB.bobot_poin, "Veto Admin": rowDB.veto_admin,
+                            "Status Pembayaran": rowDB.status_pembayaran, "Tanggal Lunas": rowDB.tanggal_lunas, "Teknisi Sebelumnya": rowDB.teknisi_sebelumnya,
+                            "Penalti Teknisi Lama": rowDB.penalti_teknisi_lama, "Tenggat Pengganti": rowDB.tenggat_pengganti, "Cabang": rowDB.cabang, "Admin SLA": rowDB.admin_sla
+                        });
                     }
-                    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-                    
-                    const rawText = await response.text();
-                    try { data = JSON.parse(rawText); } catch(errJson) { throw new Error("Server menolak akses atau API URL bermasalah."); }
-                    
-                    if (data && data.status === "gagal") { 
-                        showToast("Afwan, "+data.pesan, 'error'); 
-                        if(!isSilentRefresh) { document.getElementById('login-loading').innerHTML = '<span style="color:var(--danger); font-weight:bold;">Akses Ditolak API Key. Hubungi Admin.</span>'; }
-                        return; 
+                    for (let u of dbUsers) globalUsers.push({ "Username": u.username, "Role": u.role, "Nama Asli": u.nama_asli, "Email": u.email, "Target Sales (Rp)": u.target_sales_rp, "No WA": u.no_wa, "Gaji Pokok": u.gaji_pokok, "Bonus Tambahan": u.bonus_tambahan, "Hak_Akses_Cabang": u.hak_akses_cabang });
+                    for (let p of dbPenjualan) globalPenjualan.push({ "ID Penjualan": p.id_penjualan, "No Transaksi": p.no_transaksi, "Waktu Lapor": p.waktu_lapor, "Nama Pembeli": p.nama_pembeli, "Barang / Jasa": p.barang_jasa, "Sales": p.sales, "Nominal (Rp)": p.nominal_rp });
+                    for (let p of dbProspek) globalProspek.push({ "ID Prospek": p.id_prospek, "Tanggal Input": p.tanggal_input, "Nama Calon Customer": p.nama_calon_customer, "Kebutuhan": p.kebutuhan, "Status Prospek": p.status_prospek, "Sales Penanggung Jawab": p.sales_penanggung_jawab, "Estimasi (Rp)": p.estimasi_rp, "Bukti Chat": p.bukti_chat, "Surat Penawaran": p.surat_penawaran, "No WA": p.no_wa, "Waktu Follow Up Terakhir": p.waktu_follow_up_terakhir, "Riwayat Follow Up": p.riwayat_follow_up, "Waktu Peringatan CRM Terakhir": p.waktu_peringatan_crm_terakhir, "Waktu Minta Penawaran": p.waktu_minta_penawaran, "Waktu Selesai Penawaran": p.waktu_selesai_penawaran, "Target SLA Penawaran (Jam)": p.target_sla_penawaran_jam });
+                    for (let k of dbKlien) globalKlien.push({ "ID Klien": k.id_klien, "Nama Klien": k.nama_klien, "No WA": k.no_wa, "Kategori": k.kategori, "Total Transaksi": k.total_transaksi, "Transaksi Terakhir": k.transaksi_terakhir, "Sumber": k.sumber, "Tag Produk": k.tag_produk });
+                    for (let g of dbGaransi) {
+                        if (trackId && String(g.referensi_tiket_nota).toLowerCase() !== trackId) continue;
+                        let rec = { "ID Garansi": g.id_garansi, "Referensi (Tiket/Nota)": g.referensi_tiket_nota, "Nama Pelanggan": g.nama_pelanggan, "Barang / Jasa": g.barang_jasa, "Durasi (Hari)": g.durasi_hari, "Status": g.status, "Tanggal Mulai": g.tanggal_mulai, "Tanggal Habis": g.tanggal_habis, "No Transaksi": g.no_transaksi, "Sales": g.sales, "Omzet": g.omzet, "Keterangan": g.keterangan, "Follow Up After-Sales Terkirim": g.follow_up_after_sales_terkirim, "Cabang": g.cabang, "Admin SLA": g.admin_sla };
+                        if (String(rec.Status).trim() === 'Aktif' && rec["Tanggal Habis"] && new Date() > new Date(rec["Tanggal Habis"])) { rec.Status = 'Habis (Expired)'; }
+                        globalGaransi.push(rec);
                     }
-                    berhasil = true; break; 
+                    berhasil = true; break;
+
                 } catch (error) {
                     lastErrorMsg = error.message;
-                    if (i === maxRetries - 1) { 
-                        if (!isSilentRefresh) { document.getElementById('login-loading').innerHTML = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">Error: ${lastErrorMsg}</span><br><br><button class="btn-outline-cancel" onclick="hapusCacheTotal()">Hapus Cache & Perbaiki Aplikasi</button>`; } 
-                        return; 
+                    if (i === maxRetries - 1) {
+                        if (!isSilentRefresh) { document.getElementById('login-loading').innerHTML = `<span style="color:var(--danger); font-weight:bold; font-size:12px;">Error: ${lastErrorMsg}</span><br><br><button class="btn-outline-cancel" onclick="hapusCacheTotal()">Hapus Cache</button>`; }
+                        return;
                     }
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
             }
-            if (!berhasil || !data) return;
-            
-            globalTickets = data.tickets || []; 
-            globalUsers = data.users || [];
-            globalPenjualan = data.penjualan || [];
-            globalProspek = data.prospek || [];
-            globalKlien = data.dataKlien || [];
-            globalGaransi = data.garansi || [];
-            
-            if (trackId) {
-                renderClientTracking(trackId);
-                return; 
-            }
-            
+            if (!berhasil) return;
+
+            if (trackId) { renderClientTracking(trackId); return; }
+
             try {
-                localStorage.removeItem('sesiLoginSLA'); // Bersihkan sesi persisten lama.
+                localStorage.removeItem('sesiLoginSLA');
                 let savedSession = sessionStorage.getItem('sesiLoginSLA');
                 if (savedSession) {
                     const parsedSession = JSON.parse(savedSession);
-                    if (!parsedSession || !parsedSession.user || !parsedSession.user.SessionToken || !parsedSession.loginTime || !parsedSession.cabangAktif) throw new Error("Sesi tidak valid");
-                    if ((new Date().getTime() - parsedSession.loginTime) > 86400000) { 
-                        throw new Error('Sesi login telah berakhir.');
-                    } else { 
-                        penggunaAktif = Object.assign({}, parsedSession.user);
-                        waktuLoginAktif = Number(parsedSession.loginTime);
-                        terapkanCabangAktif(parsedSession.cabangAktif);
-                        const cekDB = globalUsers.find(u => u && u.Username === parsedSession.user.Username); 
-                        if (cekDB) penggunaAktif = Object.assign({}, cekDB, parsedSession.user);
-                        simpanSesiAktif(waktuLoginAktif);
-                    }
+                    if (!parsedSession || !parsedSession.user) throw new Error("Sesi tidak valid");
+                    penggunaAktif = Object.assign({}, parsedSession.user);
+                    waktuLoginAktif = Number(parsedSession.loginTime);
+                    terapkanCabangAktif(parsedSession.cabangAktif);
+                    const cekDB = globalUsers.find(u => u && u.Username === parsedSession.user.Username);
+                    if (cekDB) penggunaAktif = Object.assign({}, cekDB, parsedSession.user);
+                    simpanSesiAktif(waktuLoginAktif);
                 }
             } catch(e) {
                 localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA');
-                penggunaAktif = null;
-                cabangAktif = null;
-                waktuLoginAktif = null;
-                apiUrl = API_URL_KENDARI;
-                perbaruiIdentitasCabang();
-                if (e && e.message === 'Sesi login telah berakhir.') showToast('Afwan, sesi login telah berakhir.', 'warning');
+                penggunaAktif = null; cabangAktif = null; waktuLoginAktif = null; perbaruiIdentitasCabang();
             }
 
             try {
-                if(!penggunaAktif) { 
-                    document.getElementById('login-loading').style.display = 'none'; 
-                    document.getElementById('login-form').style.display = 'block'; 
-                    document.getElementById('login-wrapper').style.display = 'flex'; 
-                    document.getElementById('app-wrapper').style.display = 'none'; 
-                } else { 
-                    if (!isSilentRefresh) { masukKeAplikasi(); } 
-                    else { 
+                if(!penggunaAktif) {
+                    document.getElementById('login-loading').style.display = 'none';
+                    document.getElementById('login-form').style.display = 'block';
+                    document.getElementById('login-wrapper').style.display = 'flex';
+                    document.getElementById('app-wrapper').style.display = 'none';
+                } else {
+                    if (!isSilentRefresh) { masukKeAplikasi(); }
+                    else {
                         renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderKlien(); renderGaransi(); renderTabelUser();
                         let inputWAKlienAktif = document.getElementById('input-wa-klien');
                         if (inputWAKlienAktif) tampilkanInfoKlienCRM_(inputWAKlienAktif.value);
-                        if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); } 
-                    } 
+                        if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); }
+                    }
                 }
             } catch(e) { console.error("Error App:", e); showToast("Afwan, Error merender aplikasi: " + e.message, "error"); }
         }
 
         async function prosesLogin(e) {
-            e.preventDefault(); 
-            const un = document.getElementById('username').value.trim().toLowerCase(); 
+            e.preventDefault();
+            const un = document.getElementById('username').value.trim().toLowerCase();
             const pwRaw = document.getElementById('password').value;
             const btnLogin = e.target.querySelector('button[type="submit"]');
             const teksTombolAwal = btnLogin ? btnLogin.innerText : 'Masuk Workspace';
-            if (btnLogin) { btnLogin.innerText = 'Memeriksa...'; btnLogin.disabled = true; }
+            if (btnLogin) { btnLogin.innerText = 'Memeriksa Kredensial...'; btnLogin.disabled = true; }
 
             try {
                 const pwHashed = await hashPassword(pwRaw);
-                const payload = { apiKey: API_KEY, action: 'login', username: un, passwordHash: pwHashed, passwordRaw: pwRaw };
-                const response = await fetch(API_AUTH_URL, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' });
-                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                const dataUsers = await callSupabase("users?username=eq." + encodeURIComponent(un) + "&select=*");
 
-                const hasil = await response.json();
-                if (hasil.status === 'sukses' && hasil.user) {
-                    await selesaikanLoginBerhasil(hasil.user, hasil.sessionToken);
-                    return;
+                if (dataUsers && dataUsers.length > 0) {
+                    const userDB = dataUsers[0];
+                    if (userDB.password === pwHashed || userDB.password === pwRaw) {
+                        let record = {
+                            "Username": userDB.username, "Role": userDB.role, "Nama Asli": userDB.nama_asli,
+                            "Email": userDB.email, "Target Sales (Rp)": userDB.target_sales_rp, "No WA": userDB.no_wa,
+                            "Gaji Pokok": userDB.gaji_pokok, "Bonus Tambahan": userDB.bonus_tambahan, "Hak_Akses_Cabang": userDB.hak_akses_cabang
+                        };
+                        record = sertakanHakAksesCabang_(record);
+                        const sessionToken = btoa(record.Username + Date.now());
+                        await selesaikanLoginBerhasil(record, sessionToken);
+                        return;
+                    }
                 }
-
-                // Tampilkan pesan penolakan langsung dari server agar pengguna mengetahui penyebab login gagal.
-                showToast(hasil.pesan || 'Afwan, Login gagal. Periksa kembali Username dan Password Anda.', 'error');
-                if (btnLogin) {
-                    btnLogin.innerText = teksTombolAwal;
-                    btnLogin.disabled = false;
-                }
+                showToast('Afwan, Login gagal. Periksa kembali Username dan Password Anda.', 'error');
+                if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
             } catch (error) {
                 console.error('Error saat login:', error);
-                showToast(error && error.message ? error.message : 'Afwan, terjadi kesalahan jaringan atau server tidak merespons.', 'error');
-                if (btnLogin) {
-                    btnLogin.innerText = teksTombolAwal;
-                    btnLogin.disabled = false;
-                }
+                showToast('Afwan, terjadi kesalahan jaringan atau server tidak merespons.', 'error');
+                if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
             }
         }
 
