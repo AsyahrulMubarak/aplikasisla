@@ -1009,6 +1009,12 @@
                             <option value="teknisi">Teknisi</option>
                             <option value="sales">Sales</option>
                         </select>
+                        <label>Cabang Kerja</label>
+                        <select id="new-cabang" required>
+                            <option value="Kendari">Kendari</option>
+                            <option value="Raha">Raha</option>
+                            <option value="Semua">Semua Cabang (Pusat)</option>
+                        </select>
                         <div id="div-keuangan-user" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
                         <label style="color:#166534; margin-top:0;">Gaji Pokok (Rp)</label>
                         <input type="number" id="new-gapok" placeholder="Contoh: 1500000" style="margin-bottom:10px;">
@@ -2668,10 +2674,15 @@
                     const userDB = dataUsers[0];
                     const passDB = String(userDB.password || '').trim();
                     if (passDB === pwHashed || passDB === pwRaw) {
+                        let fallbackCab = 'Kendari';
+                        let roleLow = String(userDB.role).toLowerCase();
+                        if (roleLow === 'admin_raha') fallbackCab = 'Raha';
+                        else if (roleLow === 'direktur' || roleLow === 'manager') fallbackCab = 'Semua';
+
                         let record = {
                             "Username": userDB.username, "Role": userDB.role, "Nama Asli": userDB.nama_asli,
                             "Email": userDB.email, "Target Sales (Rp)": userDB.target_sales_rp, "No WA": userDB.no_wa,
-                            "Gaji Pokok": userDB.gaji_pokok, "Bonus Tambahan": userDB.bonus_tambahan, "Hak_Akses_Cabang": userDB.hak_akses_cabang
+                            "Gaji Pokok": userDB.gaji_pokok, "Bonus Tambahan": userDB.bonus_tambahan, "Hak_Akses_Cabang": userDB.hak_akses_cabang || fallbackCab
                         };
                         record = sertakanHakAksesCabang_(record);
                         const sessionToken = btoa(record.Username + Date.now());
@@ -5661,6 +5672,7 @@
             document.getElementById('tabel-user-wrapper').style.display = 'none';
 
             document.getElementById('new-role').value = penggunaAktif.Role; 
+            document.getElementById('new-cabang').value = normalisasiCabang(penggunaAktif.Hak_Akses_Cabang) || 'Kendari';
             document.getElementById('new-target-sales').value = penggunaAktif['Target Sales'] || ''; 
             
             document.getElementById('btn-tambah-user').innerText = 'Update Profil Saya'; 
@@ -5683,6 +5695,7 @@
 
             document.getElementById('role-wrapper').style.display = 'block';
             document.getElementById('new-role').value = u.Role; toggleTargetSales(); 
+            document.getElementById('new-cabang').value = normalisasiCabang(u.Hak_Akses_Cabang) || (String(u.Role).toLowerCase() === 'admin_raha' ? 'Raha' : ['direktur', 'manager'].includes(String(u.Role).toLowerCase()) ? 'Semua' : 'Kendari');
             let targetVal = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || ''; 
             document.getElementById('new-target-sales').value = targetVal; 
             document.getElementById('new-username').classList.add('input-terkunci'); 
@@ -5708,6 +5721,7 @@
 
             document.getElementById('role-wrapper').style.display = 'block';
             document.getElementById('new-role').value = ''; toggleTargetSales(); 
+            document.getElementById('new-cabang').value = 'Kendari';
             document.getElementById('new-target-sales').value = ''; 
             document.getElementById('new-username').classList.remove('input-terkunci'); 
             document.getElementById('new-username').readOnly = false; 
@@ -5736,7 +5750,7 @@
                 no_wa: document.getElementById('new-wa').value,
                 target_sales_rp: angkaRupiahSupabase_(document.getElementById('new-target-sales').value),
                 gaji_pokok: angkaRupiahSupabase_(document.getElementById('new-gapok').value),
-                hak_akses_cabang: document.getElementById('new-role').value === 'admin_raha' ? 'Raha' : 'Semua'
+                hak_akses_cabang: document.getElementById('new-cabang').value
             };
             if (finalPw !== '') payload.password = finalPw;
 
