@@ -734,7 +734,7 @@
                 <span class="clear-icon" onclick="clearSearch('search-prospek-input')">✖</span>
             </div>
             <div id="form-prospek-container" class="form-card" style="display:none; border-top-color:var(--success);">
-                <h3 style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
+                <h3 id="form-prospek-title" style="color:var(--success); margin-top:0;">Input Prospek Baru</h3>
                 <form id="form-prospek" onsubmit="submitProspek(event)">
                     <input type="hidden" id="prospek-id">
                     <label>Nama Calon Customer</label>
@@ -1121,6 +1121,50 @@
             return String(nama || '').trim().toLowerCase().replace(/\s+/g, ' ');
         }
 
+        async function kirimNotifWASales(stringNamaSales, pesan) {
+            try {
+                const daftarNamaSales = String(stringNamaSales || '')
+                    .split(',')
+                    .map(nama => nama.trim().toLowerCase())
+                    .filter(Boolean);
+                if (daftarNamaSales.length === 0 || !String(pesan || '').trim()) return { dijadwalkan: 0 };
+
+                const nomorTujuan = new Set();
+                daftarNamaSales.forEach(namaSales => {
+                    (globalUsers || []).forEach(user => {
+                        if (!user) return;
+                        const namaAsli = String(user['Nama Asli'] || user.nama_asli || '').trim().toLowerCase();
+                        const username = String(user.Username || user.username || '').trim().toLowerCase();
+                        if (namaSales !== namaAsli && namaSales !== username) return;
+
+                        const nomorWa = normalisasiWASementara_(user['No WA'] || user.no_wa || '');
+                        if (/^628\d{7,12}$/.test(nomorWa)) nomorTujuan.add(nomorWa);
+                    });
+                });
+
+                nomorTujuan.forEach(nomorWa => {
+                    fetch(apiUrl, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            apiKey: API_KEY,
+                            action: 'relayWA',
+                            nomorTujuan: nomorWa,
+                            pesan: pesan
+                        })
+                    }).then(response => {
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    }).catch(error => {
+                        console.error(`Relay WhatsApp ke ${nomorWa} gagal:`, error);
+                    });
+                });
+
+                return { dijadwalkan: nomorTujuan.size };
+            } catch (error) {
+                console.error('Penjadwalan notifikasi WhatsApp Sales gagal:', error);
+                return { dijadwalkan: 0 };
+            }
+        }
+
         async function sinkronkanStatusProspekDariTiket_(statusTiket, noWaCustomer, namaCustomer) {
             const statusTiketNormal = String(statusTiket || '').trim().toLowerCase();
             const statusProsesServis = ['on progress', 'menunggu', 'pending', 'outsource'];
@@ -1143,7 +1187,7 @@
             const waLayakDicocokkan = waTarget.length >= 8;
             if (!waLayakDicocokkan && !namaTarget) return { ditemukan: 0, diperbarui: 0, status: statusProspekTujuan };
 
-            const daftarProspek = await callSupabase('prospek?select=id_prospek,no_wa,nama_calon_customer,status_prospek');
+            const daftarProspek = await callSupabase('prospek?select=id_prospek,no_wa,nama_calon_customer,status_prospek,sales_penanggung_jawab');
             if (!Array.isArray(daftarProspek)) throw new Error('Respons pencarian Prospek tidak valid.');
 
             const idSudahDiproses = new Set();
@@ -1175,6 +1219,12 @@
                 pastikanHasilMutasiSupabase_(hasil, `Prospek ${idProspek}`);
                 const prospekLokal = (globalProspek || []).find(item => item && String(item['ID Prospek']).trim() === idProspek);
                 if (prospekLokal) prospekLokal['Status Prospek'] = statusProspekTujuan;
+
+                const namaCustomerProspek = String(prospek.nama_calon_customer || namaCustomer || '-').trim();
+                const pesanWA = `⚠️ *INFO OTOMATIS SISTEM SLA*\n\nBismillah. Status prospek Anda atas nama *${namaCustomerProspek}* otomatis diubah menjadi *${statusProspekTujuan}* karena tiket perbaikannya telah diselesaikan/diubah statusnya.\n\nMohon pantau di aplikasi.`;
+                kirimNotifWASales(prospek.sales_penanggung_jawab, pesanWA).catch(error => {
+                    console.error(`Notifikasi WhatsApp Prospek ${idProspek} gagal dijadwalkan:`, error);
+                });
             }));
 
             return { ditemukan: prospekCocok.length, diperbarui: prospekPerluDiubah.length, status: statusProspekTujuan };
@@ -1188,7 +1238,7 @@
         let penggunaAktif = null;
         let cabangAktif = null;
         let waktuLoginAktif = null;
-        let modeEditUser = false; let modeEditTiket = false; let ttdTiketEditTersimpan = ''; let intervalAutoRefresh; let currentTabId = 'dashboard';
+        let modeEditUser = false; let modeEditTiket = false; let modeEditProspek = false; let ttdTiketEditTersimpan = ''; let intervalAutoRefresh; let currentTabId = 'dashboard';
         let currentTicketFilter = 'aktif';
         let deferredPrompt = null;
         let timerPromptInstall = null;
@@ -2781,7 +2831,7 @@
                 }
                 
                 let prospekEl = document.getElementById('prospek-id');
-                if(prospekEl) { prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0'); }
+                if(prospekEl && !modeEditProspek) { prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0'); }
 
                 let garansiEl = document.getElementById('garansi-id');
                 if(garansiEl) { garansiEl.value = 'GRS-' + String(maxGrs + 1).padStart(3, '0'); }
@@ -4312,33 +4362,124 @@
             }
         }
 
+        function buatElemenKebutuhanProspek_(nama = '', nominal = '', bolehDihapus = true) {
+            const div = document.createElement('div');
+            div.className = 'kebutuhan-item';
+            div.style.cssText = 'position:relative; margin-bottom:10px; padding:10px; background:#f8fafc; border:1px solid var(--border); border-radius:8px;';
+            div.innerHTML = `
+                <input type="text" class="input-keb-nama" placeholder="Contoh: CCTV 4 Titik Dahua" required style="margin-bottom:8px;">
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div style="flex:1;">
+                        <input type="number" class="input-keb-nominal" placeholder="Nominal Ditawarkan (Rp) - Opsional" oninput="hitungTotalProspek()">
+                    </div>
+                    ${bolehDihapus ? '<button type="button" class="btn-del" style="padding:8px 12px; margin:0; border-radius:8px;" onclick="this.parentElement.parentElement.remove(); hitungTotalProspek();">X</button>' : ''}
+                </div>`;
+            div.querySelector('.input-keb-nama').value = nama;
+            div.querySelector('.input-keb-nominal').value = nominal;
+            return div;
+        }
+
+        function resetModeEditProspek_() {
+            modeEditProspek = false;
+            const judul = document.getElementById('form-prospek-title');
+            const btn = document.getElementById('btn-submit-prospek');
+            const status = document.getElementById('prospek-status');
+            const salesGroup = document.getElementById('prospek-sales-group');
+            if (judul) judul.innerText = 'Input Prospek Baru';
+            if (btn) { btn.innerText = 'Simpan Prospek'; btn.disabled = false; }
+            if (status) status.querySelectorAll('.prospek-status-dinamis').forEach(option => option.remove());
+            if (salesGroup) salesGroup.querySelectorAll('.prospek-sales-dinamis').forEach(label => label.remove());
+        }
+
         function bukaFormProspek() {
+            resetModeEditProspek_();
             document.getElementById('form-prospek-container').style.display = 'block';
             document.getElementById('form-prospek').reset();
             resetBuktiProspek_();
-            
+
             // Reset Container Item dan Centang Sales
-            document.getElementById('wadah-kebutuhan-prospek').innerHTML = `
-                <div class="kebutuhan-item" style="position:relative; margin-bottom:10px; padding:10px; background:#f8fafc; border:1px solid var(--border); border-radius:8px;">
-                    <input type="text" class="input-keb-nama" placeholder="Contoh: CCTV 4 Titik Dahua" required style="margin-bottom:8px;">
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <div style="flex:1;">
-                            <input type="number" class="input-keb-nominal" placeholder="Nominal Ditawarkan (Rp) - Opsional" oninput="hitungTotalProspek()">
-                        </div>
-                    </div>
-                </div>
-            `;
+            const wadahKebutuhan = document.getElementById('wadah-kebutuhan-prospek');
+            wadahKebutuhan.innerHTML = '';
+            wadahKebutuhan.appendChild(buatElemenKebutuhanProspek_('', '', false));
             document.querySelectorAll('#prospek-sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
-            
-            document.getElementById('btn-submit-prospek').innerText = 'Simpan Prospek';
-            document.getElementById('btn-submit-prospek').disabled = false;
-            cekStatusProspek(); 
-            setAutoIDs(); 
+
+            cekStatusProspek();
+            setAutoIDs();
         }
-        
+
         function tutupFormProspek() {
             resetBuktiProspek_();
+            document.getElementById('form-prospek').reset();
+            resetModeEditProspek_();
             document.getElementById('form-prospek-container').style.display = 'none';
+        }
+
+        function aktifkanEditProspek(id) {
+            const idProspek = String(id || '').trim();
+            const p = (globalProspek || []).find(item => item && String(item['ID Prospek'] || '').trim() === idProspek);
+            if (!p) {
+                showToast(`Afwan, data Prospek ${idProspek} tidak ditemukan.`, 'error');
+                return;
+            }
+
+            bukaFormProspek();
+            modeEditProspek = true;
+            document.getElementById('form-prospek-title').innerText = `Edit Prospek: ${idProspek}`;
+            document.getElementById('prospek-id').value = idProspek;
+            document.getElementById('prospek-nama').value = p['Nama Calon Customer'] || '';
+            document.getElementById('prospek-wa').value = p['No WA'] || '';
+            document.getElementById('prospek-nominal').value = angkaRupiahSupabase_(p['Estimasi (Rp)'], '') || '';
+
+            const statusProspek = String(p['Status Prospek'] || 'Tahap Penawaran').trim();
+            const selectStatus = document.getElementById('prospek-status');
+            if (![...selectStatus.options].some(option => option.value === statusProspek)) {
+                const optionStatus = document.createElement('option');
+                optionStatus.value = statusProspek;
+                optionStatus.textContent = statusProspek;
+                optionStatus.className = 'prospek-status-dinamis';
+                selectStatus.appendChild(optionStatus);
+            }
+            selectStatus.value = statusProspek;
+
+            const barisKebutuhan = String(p['Kebutuhan'] || '').split(/\r?\n/).map(item => item.trim()).filter(Boolean);
+            const kebutuhanLama = barisKebutuhan.length ? barisKebutuhan : [''];
+            const wadahKebutuhan = document.getElementById('wadah-kebutuhan-prospek');
+            wadahKebutuhan.innerHTML = '';
+            kebutuhanLama.forEach((baris, index) => {
+                let namaKebutuhan = baris.replace(/^\d+\.\s*/, '').trim();
+                let nominalKebutuhan = '';
+                const nominalMatch = namaKebutuhan.match(/\s*\(Rp\s*([0-9.,]+)\)\s*$/i);
+                if (nominalMatch) {
+                    nominalKebutuhan = angkaRupiahSupabase_(nominalMatch[1], '');
+                    namaKebutuhan = namaKebutuhan.slice(0, nominalMatch.index).trim();
+                }
+                wadahKebutuhan.appendChild(buatElemenKebutuhanProspek_(namaKebutuhan, nominalKebutuhan, index > 0));
+            });
+
+            const namaSales = String(p['Sales Penanggung Jawab'] || '').split(',').map(nama => nama.trim()).filter(Boolean);
+            const salesGroup = document.getElementById('prospek-sales-group');
+            namaSales.forEach(nama => {
+                const sudahAda = [...salesGroup.querySelectorAll('input[type="checkbox"]')].some(cb => cb.value === nama);
+                if (!sudahAda) {
+                    const label = document.createElement('label');
+                    label.className = 'prospek-sales-dinamis';
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = nama;
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(` ${nama}`));
+                    salesGroup.appendChild(label);
+                }
+            });
+            salesGroup.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = namaSales.some(nama => nama.toLowerCase() === String(cb.value).trim().toLowerCase());
+            });
+
+            cekStatusProspek();
+            const btn = document.getElementById('btn-submit-prospek');
+            btn.innerText = 'Update Prospek';
+            btn.disabled = false;
+            document.getElementById('form-prospek-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function renderProspek() {
@@ -4385,6 +4526,10 @@
                 let isOwner = salesProspek.includes(String(penggunaAktif['Nama Asli'] || '').toLowerCase());
                 let canEditProspek = ['admin', 'manager'].includes(penggunaAktif.Role) || (penggunaAktif.Role === 'sales' && isOwner);
 
+                if (canEditProspek) {
+                    btnHtml += `<button class="btn-action-primary" style="background:#fefce8; color:#a16207; border-color:#fde047;" onclick="aktifkanEditProspek('${p['ID Prospek']}')">✏️ Edit Data Klien</button>`;
+                }
+
                 let isBatalAtauTanpaKet = textStatus.includes('Batal') || textStatus.includes('Tanpa Keterangan');
                 let isMenungguPemulihan = textStatus.includes('Menunggu Pemulihan');
                 let canSeeUpdateForm = canEditProspek && !textStatus.includes('Closing') && !isMenungguPemulihan;
@@ -4398,7 +4543,7 @@
                         adminOptions = `<option value="Batal" ${textStatus.includes('Batal')?'selected':''}>❌ Batal</option><option value="Tanpa Keterangan" ${textStatus.includes('Tanpa Keterangan')?'selected':''}>❓ Tanpa Keterangan</option>`;
                     }
 
-                    btnHtml = `<div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;">
+                    btnHtml += `<div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;">
                         <label style="font-size:11px; margin-top:0;">Update Status Prospek:</label>
                         <div style="display:flex; gap:5px;">
                             <select id="update-prospek-${p['ID Prospek']}" style="flex:1; padding:6px; font-size:12px;">
@@ -4568,20 +4713,24 @@
         }
 
         async function submitProspek(e) {
-            e.preventDefault(); 
-            const btn = document.getElementById('btn-submit-prospek'); 
-            btn.innerText = 'Menyiapkan Data...'; 
-            btn.disabled = true; 
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-prospek');
+            const sedangEditProspek = modeEditProspek;
+            btn.innerText = 'Menyiapkan Data...';
+            btn.disabled = true;
             
             try {
                 let idPrp = document.getElementById('prospek-id').value;
                 if(!idPrp || idPrp === "") { setAutoIDs(); idPrp = document.getElementById('prospek-id').value; }
 
                 // Tarik banyak Sales dengan Checkbox
+                const salesTerpilih = Array.from(document.querySelectorAll('#prospek-sales-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
                 let salesPenanggung = penggunaAktif['Nama Asli'];
-                if(penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') { 
-                    const s = Array.from(document.querySelectorAll('#prospek-sales-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
-                    salesPenanggung = s !== "" ? s : penggunaAktif['Nama Asli']; 
+                if(penggunaAktif.Role === 'admin' || penggunaAktif.Role === 'manager') {
+                    salesPenanggung = salesTerpilih !== "" ? salesTerpilih : penggunaAktif['Nama Asli'];
+                } else if (sedangEditProspek) {
+                    const prospekLama = (globalProspek || []).find(item => item && String(item['ID Prospek'] || '').trim() === String(idPrp).trim());
+                    salesPenanggung = prospekLama && prospekLama['Sales Penanggung Jawab'] ? prospekLama['Sales Penanggung Jawab'] : penggunaAktif['Nama Asli'];
                 }
 
                 const fileInput = document.getElementById('prospek-bukti');
@@ -4614,27 +4763,33 @@
 
                 const nilaiEstimasi = document.getElementById('prospek-nominal').value;
                 const payload = {
-                    id_prospek: idPrp,
-                    tanggal_input: tanggalIsoSupabase_(),
                     nama_calon_customer: document.getElementById('prospek-nama').value,
                     no_wa: document.getElementById('prospek-wa') ? document.getElementById('prospek-wa').value : '',
                     kebutuhan: finalKebutuhan,
                     status_prospek: document.getElementById('prospek-status').value,
                     sales_penanggung_jawab: salesPenanggung,
-                    estimasi_rp: String(nilaiEstimasi || '').trim() === '' ? null : angkaRupiahSupabase_(nilaiEstimasi, 0),
-                    bukti_chat: base64Bukti
+                    estimasi_rp: String(nilaiEstimasi || '').trim() === '' ? null : angkaRupiahSupabase_(nilaiEstimasi, 0)
                 };
 
                 document.getElementById('loading').style.display = 'block';
-                const hasil = await callSupabase('prospek', 'POST', payload);
+                let hasil;
+                if (sedangEditProspek) {
+                    if (base64Bukti) payload.bukti_chat = base64Bukti;
+                    hasil = await callSupabase(endpointFilterSupabase_('prospek', 'id_prospek', idPrp), 'PATCH', payload);
+                } else {
+                    payload.id_prospek = idPrp;
+                    payload.tanggal_input = tanggalIsoSupabase_();
+                    payload.bukti_chat = base64Bukti;
+                    hasil = await callSupabase('prospek', 'POST', payload);
+                }
                 pastikanHasilMutasiSupabase_(hasil, `Prospek ${idPrp}`);
-                showToast('Alhamdulillah! Data Prospek berhasil disimpan.', 'success');
+                showToast(sedangEditProspek ? 'Alhamdulillah! Data Prospek berhasil diperbarui.' : 'Alhamdulillah! Data Prospek berhasil disimpan.', 'success');
                 tutupFormProspek(); await ambilSemuaData(true);
             } catch (err) {
-                showToast('Afwan, Gagal menyimpan data prospek: ' + err.message, 'error');
+                showToast(`Afwan, Gagal ${sedangEditProspek ? 'memperbarui' : 'menyimpan'} data prospek: ${err.message}`, 'error');
             } finally {
-                document.getElementById('loading').style.display = 'none'; 
-                btn.innerText = 'Simpan Prospek'; btn.disabled = false;
+                document.getElementById('loading').style.display = 'none';
+                btn.innerText = modeEditProspek ? 'Update Prospek' : 'Simpan Prospek'; btn.disabled = false;
             }
         }
 
@@ -5557,19 +5712,7 @@
         // ==========================================
         function tambahKolomProspek() {
             const wadah = document.getElementById('wadah-kebutuhan-prospek');
-            const div = document.createElement('div');
-            div.className = 'kebutuhan-item';
-            div.style.cssText = 'position:relative; margin-bottom:10px; padding:10px; background:#f8fafc; border:1px solid var(--border); border-radius:8px;';
-            div.innerHTML = `
-                <input type="text" class="input-keb-nama" placeholder="Kebutuhan/Barang lain..." required style="margin-bottom:8px;">
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <div style="flex:1;">
-                        <input type="number" class="input-keb-nominal" placeholder="Nominal (Rp) - Opsional" oninput="hitungTotalProspek()">
-                    </div>
-                    <button type="button" class="btn-del" style="padding:8px 12px; margin:0; border-radius:8px;" onclick="this.parentElement.parentElement.remove(); hitungTotalProspek();">X</button>
-                </div>
-            `;
-            wadah.appendChild(div);
+            wadah.appendChild(buatElemenKebutuhanProspek_('', '', true));
         }
 
         function hitungTotalProspek() {
