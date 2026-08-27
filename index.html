@@ -1154,6 +1154,7 @@
                         body: JSON.stringify({
                             apiKey: API_KEY,
                             action: 'relayWA',
+                            user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
                             nomorTujuan: nomorWa,
                             pesan: pesan
                         })
@@ -1181,6 +1182,7 @@
                     body: JSON.stringify({
                         apiKey: API_KEY,
                         action: 'relayWA',
+                        user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
                         nomorTujuan: nomorTujuan,
                         pesan: pesan
                     })
@@ -2563,6 +2565,7 @@
 
         async function ambilSemuaData(isSilentRefresh = false, trackId = null) {
             let maxRetries = 3; let berhasil = false; let lastErrorMsg = "";
+            const cabangRequest = normalisasiCabang(cabangAktif) || 'Kendari';
 
             for (let i = 0; i < maxRetries; i++) {
                 try {
@@ -2572,13 +2575,15 @@
                     }
 
                     const reqOpts = { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } };
+                    let queryCabang = (cabangRequest && cabangRequest !== 'Semua') ? "&cabang=eq." + encodeURIComponent(cabangRequest) : "";
+                    let queryFilter = trackId ? "" : queryCabang;
                     const [resTiket, resUsers, resPenjualan, resProspek, resKlien, resGaransi] = await Promise.all([
-                        fetch(SUPABASE_URL + "tiket?select=*", reqOpts),
+                        fetch(SUPABASE_URL + "tiket?select=*" + queryFilter, reqOpts),
                         trackId ? Promise.resolve({json: () => []}) : fetch(SUPABASE_URL + "users?select=*", reqOpts),
-                        trackId ? Promise.resolve({json: () => []}) : fetch(SUPABASE_URL + "penjualan?select=*", reqOpts),
-                        trackId ? Promise.resolve({json: () => []}) : fetch(SUPABASE_URL + "prospek?select=*", reqOpts),
+                        trackId ? Promise.resolve({json: () => []}) : fetch(SUPABASE_URL + "penjualan?select=*" + queryFilter, reqOpts),
+                        trackId ? Promise.resolve({json: () => []}) : fetch(SUPABASE_URL + "prospek?select=*" + queryFilter, reqOpts),
                         trackId ? Promise.resolve({json: () => []}) : fetch(SUPABASE_URL + "database_klien?select=*", reqOpts),
-                        fetch(SUPABASE_URL + "garansi?select=*", reqOpts)
+                        fetch(SUPABASE_URL + "garansi?select=*" + queryFilter, reqOpts)
                     ]);
 
                     const dbTiket = await resTiket.json(); const dbUsers = await resUsers.json(); const dbPenjualan = await resPenjualan.json();
@@ -2674,29 +2679,25 @@
 
             try {
                 const pwHashed = await hashPassword(pwRaw);
-                const dataUsers = await callSupabase("users?username=ilike." + encodeURIComponent(un) + "&select=*");
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        apiKey: API_KEY,
+                        action: 'login',
+                        username: un,
+                        passwordHash: pwHashed,
+                        passwordRaw: pwRaw
+                    })
+                });
+                if (!response.ok) throw new Error(`HTTP Login ${response.status}`);
 
-                if (dataUsers && dataUsers.length > 0) {
-                    const userDB = dataUsers[0];
-                    const passDB = String(userDB.password || '').trim();
-                    if (passDB === pwHashed || passDB === pwRaw) {
-                        let fallbackCab = 'Kendari';
-                        let roleLow = String(userDB.role).toLowerCase();
-                        if (roleLow === 'admin_raha') fallbackCab = 'Raha';
-                        else if (roleLow === 'direktur' || roleLow === 'manager') fallbackCab = 'Semua';
-
-                        let record = {
-                            "Username": userDB.username, "Role": userDB.role, "Nama Asli": userDB.nama_asli,
-                            "Email": userDB.email, "Target Sales (Rp)": userDB.target_sales_rp, "No WA": userDB.no_wa,
-                            "Gaji Pokok": userDB.gaji_pokok, "Bonus Tambahan": userDB.bonus_tambahan, "Hak_Akses_Cabang": userDB.hak_akses_cabang || fallbackCab
-                        };
-                        record = sertakanHakAksesCabang_(record);
-                        const sessionToken = btoa(record.Username + Date.now());
-                        await selesaikanLoginBerhasil(record, sessionToken);
-                        return;
-                    }
+                const hasilLogin = await response.json();
+                if (hasilLogin.status === 'sukses' && hasilLogin.user && hasilLogin.sessionToken) {
+                    await selesaikanLoginBerhasil(hasilLogin.user, hasilLogin.sessionToken);
+                    return;
                 }
-                showToast('Afwan, Login gagal. Periksa kembali Username dan Password Anda.', 'error');
+
+                showToast(hasilLogin.pesan || 'Afwan, Login gagal. Periksa kembali Username dan Password Anda.', 'error');
                 if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
             } catch (error) {
                 console.error('Error saat login:', error);
@@ -5585,6 +5586,7 @@
                             body: JSON.stringify({
                                 apiKey: API_KEY,
                                 action: 'buatPDF',
+                                user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
                                 idTiket: idTiket,
                                 waktuSelesai: waktuSekarangStr,
                                 namaKlien: t['Klien & Lokasi'],
