@@ -1121,21 +1121,21 @@
             return String(nama || '').trim().toLowerCase().replace(/\s+/g, ' ');
         }
 
-        async function kirimNotifWASales(stringNamaSales, pesan) {
+        async function kirimNotifWAInternal(stringNamaPegawai, pesan) {
             try {
-                const daftarNamaSales = String(stringNamaSales || '')
+                const daftarNamaPegawai = String(stringNamaPegawai || '')
                     .split(',')
                     .map(nama => nama.trim().toLowerCase())
                     .filter(Boolean);
-                if (daftarNamaSales.length === 0 || !String(pesan || '').trim()) return { dijadwalkan: 0 };
+                if (daftarNamaPegawai.length === 0 || !String(pesan || '').trim()) return { dijadwalkan: 0 };
 
                 const nomorTujuan = new Set();
-                daftarNamaSales.forEach(namaSales => {
+                daftarNamaPegawai.forEach(namaPegawai => {
                     (globalUsers || []).forEach(user => {
                         if (!user) return;
                         const namaAsli = String(user['Nama Asli'] || user.nama_asli || '').trim().toLowerCase();
                         const username = String(user.Username || user.username || '').trim().toLowerCase();
-                        if (namaSales !== namaAsli && namaSales !== username) return;
+                        if (namaPegawai !== namaAsli && namaPegawai !== username) return;
 
                         const nomorWa = normalisasiWASementara_(user['No WA'] || user.no_wa || '');
                         if (/^628\d{7,12}$/.test(nomorWa)) nomorTujuan.add(nomorWa);
@@ -1160,7 +1160,33 @@
 
                 return { dijadwalkan: nomorTujuan.size };
             } catch (error) {
-                console.error('Penjadwalan notifikasi WhatsApp Sales gagal:', error);
+                console.error('Penjadwalan notifikasi WhatsApp internal gagal:', error);
+                return { dijadwalkan: 0 };
+            }
+        }
+
+        async function kirimNotifWAEksternal(nomorWa, pesan) {
+            try {
+                const nomorTujuan = normalisasiWASementara_(nomorWa);
+                if (!/^628\d{7,12}$/.test(nomorTujuan) || !String(pesan || '').trim()) return { dijadwalkan: 0 };
+
+                fetch(apiUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        apiKey: API_KEY,
+                        action: 'relayWA',
+                        nomorTujuan: nomorTujuan,
+                        pesan: pesan
+                    })
+                }).then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                }).catch(error => {
+                    console.error(`Relay WhatsApp eksternal ke ${nomorTujuan} gagal:`, error);
+                });
+
+                return { dijadwalkan: 1 };
+            } catch (error) {
+                console.error('Penjadwalan notifikasi WhatsApp eksternal gagal:', error);
                 return { dijadwalkan: 0 };
             }
         }
@@ -1222,7 +1248,7 @@
 
                 const namaCustomerProspek = String(prospek.nama_calon_customer || namaCustomer || '-').trim();
                 const pesanWA = `⚠️ *INFO OTOMATIS SISTEM SLA*\n\nBismillah. Status prospek Anda atas nama *${namaCustomerProspek}* otomatis diubah menjadi *${statusProspekTujuan}* karena tiket perbaikannya telah diselesaikan/diubah statusnya.\n\nMohon pantau di aplikasi.`;
-                kirimNotifWASales(prospek.sales_penanggung_jawab, pesanWA).catch(error => {
+                kirimNotifWAInternal(prospek.sales_penanggung_jawab, pesanWA).catch(error => {
                     console.error(`Notifikasi WhatsApp Prospek ${idProspek} gagal dijadwalkan:`, error);
                 });
             }));
@@ -5048,6 +5074,10 @@
                             };
                             const hasil = await callSupabase('tiket', 'POST', tiketBaru);
                             pastikanHasilMutasiSupabase_(hasil, `Tiket ${currentId}`);
+                            kirimNotifWAInternal(teknisiFinal, "⚠️ *TUGAS SLA BARU ALFACOM*\n\nBismillah, Anda ditugaskan pada tiket baru:\n🎫 *ID Tiket:* " + currentId + "\n🏢 *Klien:* " + tiketBaru.klien_lokasi + "\n🛠️ *Pekerjaan:* " + listPekerjaan[i] + "\n\nSegera cek aplikasi!");
+                            if (waKlien) {
+                                kirimNotifWAEksternal(waKlien, "Assalamu'alaikum, kami dari *Alfacom Multi Solution*.\n\nTiket perbaikan Anda telah terdaftar:\n🎫 *ID Tiket:* " + currentId + "\n🛠️ *Pekerjaan:* " + listPekerjaan[i] + "\n\nPantau progres secara live di: https://aplikasisla.vercel.app/?track=" + currentId);
+                            }
                             if (!prospekSudahDisinkronkan) {
                                 try {
                                     await sinkronkanStatusProspekDariTiket_('Menunggu', waKlienUntukProspek, namaCustomerUntukProspek);
@@ -5417,6 +5447,41 @@
                 } catch (errorSinkronProspek) {
                     console.error('Sinkronisasi Prospek dari update tiket gagal:', errorSinkronProspek);
                     sinkronProspekGagal = true;
+                }
+                if (statusBaruNormal === 'selesai') {
+                    const waktuSekarangStr = new Date(payload.waktu_selesai || sekarang).toLocaleString('id-ID');
+                    const teknisiFinal = String(t.Teknisi || '').trim();
+                    const waKlienCRM = String(t['No WA Klien'] || '').trim();
+
+                    try {
+                        const responsePdf = await fetch(apiUrl, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                apiKey: API_KEY,
+                                action: 'buatPDF',
+                                idTiket: idTiket,
+                                waktuSelesai: waktuSekarangStr,
+                                namaKlien: t['Klien & Lokasi'],
+                                teknisi: teknisiFinal,
+                                deskripsi: payload.deskripsi_pekerjaan_ba,
+                                kritik: payload.kritik_saran,
+                                ttdImg: ttdBase64,
+                                namaCustomer: payload.nama_customer
+                            })
+                        });
+                        if (!responsePdf.ok) throw new Error(`HTTP PDF ${responsePdf.status}`);
+
+                        const hasilPdf = await responsePdf.json();
+                        if (hasilPdf.status === 'sukses') {
+                            await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', { link_pdf_ba: hasilPdf.url });
+                        } else {
+                            console.error('Pembuatan PDF gagal:', hasilPdf.pesan || hasilPdf);
+                        }
+                    } catch (errorPdf) {
+                        console.error(`Pembuatan PDF tiket ${idTiket} gagal:`, errorPdf);
+                    }
+
+                    kirimNotifWAEksternal(waKlienCRM, "✅ *PEKERJAAN SELESAI*\n\nBismillah. Pelanggan Yth,\n\nKami informasikan bahwa pekerjaan untuk tiket *" + idTiket + "* Telah SELESAI dikerjakan.\n\nSilakan cek Berita Acara (PDF) dan Status Garansi Anda pada tautan berikut:\n🌐 https://aplikasisla.vercel.app/?track=" + idTiket);
                 }
                 showToast(
                     sinkronProspekGagal ? 'Tiket diperbarui, tetapi status Prospek gagal disinkronkan.' : 'Alhamdulillah! Data berhasil diupdate.',
