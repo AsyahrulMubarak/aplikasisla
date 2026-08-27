@@ -1067,7 +1067,7 @@
         // 🚀 MESIN TURBO SUPABASE (KONEKSI LANGSUNG FRONTEND)
         // =========================================================================
         const SUPABASE_URL = "https://oozkqjgllubhjctnkxwl.supabase.co/rest/v1/";
-        const SUPABASE_KEY = "sb_publishable_Wa3EUtroPjqwfCkJOyRSSw_MWnMXH6E";
+        const SUPABASE_KEY = "PASTE_PUBLISHABLE_KEY_ANTUM_DI_SINI";
 
         async function callSupabase(endpoint, method = "GET", payload = null) {
             const options = {
@@ -1083,6 +1083,38 @@
             const res = await fetch(SUPABASE_URL + endpoint, options);
             if (!res.ok) throw new Error(`Supabase Error: ${res.status}`);
             return await res.json();
+        }
+
+        function endpointFilterSupabase_(tabel, kolom, nilai) {
+            return `${tabel}?${kolom}=eq.${encodeURIComponent(String(nilai || '').trim())}`;
+        }
+
+        function pastikanHasilMutasiSupabase_(hasil, namaData) {
+            if (!Array.isArray(hasil) || hasil.length === 0) {
+                throw new Error(`${namaData} tidak ditemukan atau tidak diizinkan oleh RLS Supabase.`);
+            }
+            return hasil;
+        }
+
+        function angkaRupiahSupabase_(nilai, fallback = 0) {
+            if (typeof nilai === 'number') return Number.isFinite(nilai) ? nilai : fallback;
+            const angka = String(nilai == null ? '' : nilai).replace(/[^0-9-]/g, '');
+            const hasil = Number(angka);
+            return angka !== '' && Number.isFinite(hasil) ? hasil : fallback;
+        }
+
+        function angkaDesimalSupabase_(nilai, fallback) {
+            const hasil = Number.parseFloat(String(nilai == null ? '' : nilai).replace(',', '.'));
+            return Number.isFinite(hasil) ? hasil : fallback;
+        }
+
+        function tanggalIsoSupabase_(nilai = new Date()) {
+            const tanggal = nilai instanceof Date ? nilai : new Date(nilai);
+            return Number.isNaN(tanggal.getTime()) ? null : tanggal.toISOString();
+        }
+
+        function adminSlaSupabase_(cabang) {
+            return normalisasiCabang(cabang) === 'Raha' ? 'admin_raha' : 'admin';
         }
         // =========================================================================
 
@@ -4394,26 +4426,24 @@
 
             try {
                 const buktiFollowUp = await prosesUploadBebas(fileInput.files[0]);
+                const prospek = (globalProspek || []).find(item => item && String(item['ID Prospek']).trim() === String(idProspek).trim());
+                if (!prospek) throw new Error(`Prospek ${idProspek} tidak ditemukan.`);
+                const waktuFollowUp = new Date();
+                const waktuTeks = waktuFollowUp.toLocaleString('id-ID');
+                const riwayatBaru = `[${waktuTeks}] ${penggunaAktif ? penggunaAktif['Nama Asli'] : '-'}\nKeterangan: ${keterangan}\nBukti: tersimpan pada kolom bukti_chat`;
+                const riwayatLama = String(prospek['Riwayat Follow Up'] || '').trim();
                 const payload = {
-                    apiKey: API_KEY,
-                    action: 'addFollowUpProspek',
-                    user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
-                    idProspek: idProspek,
-                    namaSales: penggunaAktif ? penggunaAktif['Nama Asli'] : '',
-                    keterangan: keterangan,
-                    buktiFollowUp: buktiFollowUp
+                    waktu_follow_up_terakhir: tanggalIsoSupabase_(waktuFollowUp),
+                    riwayat_follow_up: riwayatLama ? `${riwayatLama}\n\n${riwayatBaru}` : riwayatBaru,
+                    bukti_chat: buktiFollowUp
                 };
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
-                const hasil = await res.json();
-                if (hasil.status === 'sukses') {
-                    showToast('Alhamdulillah! Follow Up berhasil dicatat.', 'success');
-                    document.getElementById('modal-followup').style.display = 'none';
-                    await ambilSemuaData(true);
-                } else {
-                    showToast('Afwan, Follow Up gagal disimpan: ' + (hasil.pesan || 'Respons server tidak valid.'), 'error');
-                }
+                const hasil = await callSupabase(endpointFilterSupabase_('prospek', 'id_prospek', idProspek), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${idProspek}`);
+                showToast('Alhamdulillah! Follow Up berhasil dicatat.', 'success');
+                document.getElementById('modal-followup').style.display = 'none';
+                await ambilSemuaData(true);
             } catch (err) {
-                showToast('Afwan, Gagal mengompres atau mengirim bukti Follow Up.', 'error');
+                showToast('Afwan, Gagal menyimpan Follow Up: ' + err.message, 'error');
             } finally {
                 statusInfo.style.display = 'none';
                 btn.disabled = false;
@@ -4466,37 +4496,26 @@
                 
                 let finalKebutuhan = stringKebutuhan.join('\n'); // Pisahkan tiap barang dengan Enter (Baris Baru)
 
-                const payload = { 
-                    apiKey: API_KEY,
-                    action: 'addProspek',
-                    user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
-                    idProspek: idPrp,
-                    customer: document.getElementById('prospek-nama').value, 
-                    waCustomer: document.getElementById('prospek-wa') ? document.getElementById('prospek-wa').value : '',
-                    kebutuhan: finalKebutuhan, 
-                    statusProspek: document.getElementById('prospek-status').value, 
-                    sales: salesPenanggung, 
-                    estimasi: document.getElementById('prospek-nominal').value, 
-                    buktiChat: base64Bukti 
+                const nilaiEstimasi = document.getElementById('prospek-nominal').value;
+                const payload = {
+                    id_prospek: idPrp,
+                    tanggal_input: tanggalIsoSupabase_(),
+                    nama_calon_customer: document.getElementById('prospek-nama').value,
+                    no_wa: document.getElementById('prospek-wa') ? document.getElementById('prospek-wa').value : '',
+                    kebutuhan: finalKebutuhan,
+                    status_prospek: document.getElementById('prospek-status').value,
+                    sales_penanggung_jawab: salesPenanggung,
+                    estimasi_rp: String(nilaiEstimasi || '').trim() === '' ? null : angkaRupiahSupabase_(nilaiEstimasi, 0),
+                    bukti_chat: base64Bukti
                 };
 
                 document.getElementById('loading').style.display = 'block';
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 20000);
-                
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload), signal: controller.signal }); 
-                clearTimeout(timeoutId);
-                const jsonRes = await res.json();
-                
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data Prospek berhasil disimpan.', 'success');
-                    tutupFormProspek(); await ambilSemuaData(true); 
-                } else { showToast('Afwan, Gagal menyimpan data prospek.', 'error'); }
-            } catch (err) { 
-                if (err.name === 'AbortError' || err.message.includes('fetch')) {
-                    showToast('Alhamdulillah! Data terkirim (Respons lambat).', 'success');
-                    tutupFormProspek(); await ambilSemuaData(true); 
-                } else { showToast('Afwan, Gagal. Sinyal tidak stabil.', 'error'); }
+                const hasil = await callSupabase('prospek', 'POST', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${idPrp}`);
+                showToast('Alhamdulillah! Data Prospek berhasil disimpan.', 'success');
+                tutupFormProspek(); await ambilSemuaData(true);
+            } catch (err) {
+                showToast('Afwan, Gagal menyimpan data prospek: ' + err.message, 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none'; 
                 btn.innerText = 'Simpan Prospek'; btn.disabled = false;
@@ -4511,10 +4530,10 @@
                 const p = (globalProspek || []).find(x => x && x['ID Prospek'] === id);
                 let estimasiLama = p ? p['Estimasi (Rp)'] || '' : '';
                 
-                if (!estimasiLama || parseInt(estimasiLama) <= 0) {
+                if (!estimasiLama || angkaRupiahSupabase_(estimasiLama, 0) <= 0) {
                     nominalUpdate = await showPrompt("Bismillah, Prospek Deal! Silakan masukkan Nominal / Nilai Proyek (Rp) yang disepakati:");
-                    if (nominalUpdate === null) return; 
-                    if (nominalUpdate.trim() === "" || isNaN(nominalUpdate)) {
+                    if (nominalUpdate === null) return;
+                    if (nominalUpdate.trim() === "" || angkaRupiahSupabase_(nominalUpdate, 0) <= 0) {
                         showToast("Afwan, Nominal WAJIB diisi dengan angka untuk status Closing/Deal!", "warning");
                         return;
                     }
@@ -4523,18 +4542,17 @@
 
             document.getElementById('loading').style.display = 'block'; 
             try { 
-                const payload = { apiKey: API_KEY, action: 'updateProspekStatus', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idProspek: id, statusBaru: newVal };
+                const payload = { status_prospek: newVal };
                 if (nominalUpdate !== undefined) {
-                    payload.estimasi = nominalUpdate;
+                    payload.estimasi_rp = angkaRupiahSupabase_(nominalUpdate, 0);
                 }
 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                if ((await res.json()).status === 'sukses') { 
-                    showToast('Alhamdulillah! Status berhasil diperbarui.', 'success'); 
-                    await ambilSemuaData(true); 
-                } 
-            } catch (err) { 
-                showToast('Afwan, Gagal mengupdate status.', 'error'); 
+                const hasil = await callSupabase(endpointFilterSupabase_('prospek', 'id_prospek', id), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${id}`);
+                showToast('Alhamdulillah! Status berhasil diperbarui.', 'success');
+                await ambilSemuaData(true);
+            } catch (err) {
+                showToast('Afwan, Gagal mengupdate status: ' + err.message, 'error');
             } 
             document.getElementById('loading').style.display = 'none'; 
         }
@@ -4545,24 +4563,20 @@
 
             document.getElementById('loading').style.display = 'block';
             try {
+                const prospek = (globalProspek || []).find(item => item && String(item['ID Prospek']).trim() === String(id).trim());
+                if (!prospek) throw new Error(`Prospek ${id} tidak ditemukan.`);
+                const riwayatLama = String(prospek['Riwayat Follow Up'] || '').trim();
+                const riwayatBaru = `[${new Date().toLocaleString('id-ID')}] ♻️ PENGAJUAN PEMULIHAN oleh ${penggunaAktif['Nama Asli'] || '-'}\nAlasan: ${alasan.trim()}`;
                 const payload = {
-                    apiKey: API_KEY,
-                    action: 'ajukanPemulihanProspek',
-                    user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
-                    idProspek: id,
-                    namaSales: penggunaAktif['Nama Asli'],
-                    alasan: alasan.trim()
+                    status_prospek: 'Menunggu Pemulihan',
+                    riwayat_follow_up: riwayatLama ? `${riwayatLama}\n\n${riwayatBaru}` : riwayatBaru
                 };
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
-                const hasil = await res.json();
-                if (hasil.status === 'sukses') {
-                    showToast('Alhamdulillah! Pengajuan pemulihan berhasil dikirim.', 'success');
-                    await ambilSemuaData(true);
-                } else {
-                    showToast('Afwan, Gagal mengajukan pemulihan: ' + hasil.pesan, 'error');
-                }
+                const hasil = await callSupabase(endpointFilterSupabase_('prospek', 'id_prospek', id), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${id}`);
+                showToast('Alhamdulillah! Pengajuan pemulihan berhasil dikirim.', 'success');
+                await ambilSemuaData(true);
             } catch (err) {
-                showToast('Afwan, Gagal mengirim pengajuan pemulihan.', 'error');
+                showToast('Afwan, Gagal mengirim pengajuan pemulihan: ' + err.message, 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
@@ -4571,17 +4585,21 @@
         async function responPemulihan(id, keputusan) {
             document.getElementById('loading').style.display = 'block';
             try {
-                const payload = { apiKey: API_KEY, action: 'responPemulihanProspek', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idProspek: id, keputusan: keputusan };
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) });
-                const hasil = await res.json();
-                if (hasil.status === 'sukses') {
-                    showToast('Alhamdulillah! Pengajuan pemulihan berhasil diproses.', 'success');
-                    await ambilSemuaData(true);
-                } else {
-                    showToast('Afwan, Gagal memproses pemulihan: ' + hasil.pesan, 'error');
-                }
+                if (keputusan !== 'Tahap Penawaran' && keputusan !== 'Batal') throw new Error('Keputusan pemulihan tidak valid.');
+                const prospek = (globalProspek || []).find(item => item && String(item['ID Prospek']).trim() === String(id).trim());
+                if (!prospek) throw new Error(`Prospek ${id} tidak ditemukan.`);
+                const riwayatLama = String(prospek['Riwayat Follow Up'] || '').trim();
+                const riwayatBaru = `[${new Date().toLocaleString('id-ID')}] 👨‍💼 RESPON ADMIN: Pemulihan ${keputusan}`;
+                const payload = {
+                    status_prospek: keputusan,
+                    riwayat_follow_up: riwayatLama ? `${riwayatLama}\n\n${riwayatBaru}` : riwayatBaru
+                };
+                const hasil = await callSupabase(endpointFilterSupabase_('prospek', 'id_prospek', id), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${id}`);
+                showToast('Alhamdulillah! Pengajuan pemulihan berhasil diproses.', 'success');
+                await ambilSemuaData(true);
             } catch (err) {
-                showToast('Afwan, Gagal memproses pengajuan pemulihan.', 'error');
+                showToast('Afwan, Gagal memproses pengajuan pemulihan: ' + err.message, 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
@@ -4592,12 +4610,16 @@
             if(!acc) return;
             document.getElementById('loading').style.display = 'block';
             try {
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'mintaPenawaran', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idProspek: idProspek }) });
-                if ((await res.json()).status === 'sukses') {
-                    showToast('Alhamdulillah! Permintaan Penawaran terkirim ke Admin.', 'success');
-                    await ambilSemuaData(true);
-                } else { showToast('Afwan, Gagal mengirim permintaan.', 'error'); }
-            } catch(err) { showToast('Afwan, Terjadi kesalahan jaringan.', 'error'); }
+                const payload = {
+                    waktu_minta_penawaran: tanggalIsoSupabase_(),
+                    waktu_selesai_penawaran: null,
+                    target_sla_penawaran_jam: 9
+                };
+                const hasil = await callSupabase(endpointFilterSupabase_('prospek', 'id_prospek', idProspek), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${idProspek}`);
+                showToast('Alhamdulillah! Permintaan Penawaran tersimpan.', 'success');
+                await ambilSemuaData(true);
+            } catch(err) { showToast('Afwan, Gagal menyimpan permintaan: ' + err.message, 'error'); }
             document.getElementById('loading').style.display = 'none';
         }
 
@@ -4607,20 +4629,12 @@
                 if(!acc) return; 
                 document.getElementById('loading').style.display = 'block'; 
                 
-                const res = await fetch(apiUrl, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'deleteProspek', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idProspek: String(id).trim() })
-                }); 
-                
-                const jsonRes = await res.json();
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data Prospek berhasil dihapus.', 'success'); 
-                    await ambilSemuaData(true); 
-                } else {
-                    showToast('Afwan, gagal menghapus: ' + jsonRes.pesan, 'error');
-                }
+                const hasil = await callSupabase(endpointFilterSupabase_('prospek', 'id_prospek', id), 'DELETE');
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${id}`);
+                showToast('Alhamdulillah! Data Prospek berhasil dihapus.', 'success');
+                await ambilSemuaData(true);
             } catch(err) {
-                showToast('Afwan, terjadi kesalahan jaringan saat menghapus.', 'error');
+                showToast('Afwan, gagal menghapus prospek: ' + err.message, 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none'; 
             }
@@ -4637,20 +4651,22 @@
                 let base64Doc = await prosesUploadBebas(fileInput.files[0]);
                 const idPrp = document.getElementById('penawaran-id').value;
                 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'updateProspekStatus', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idProspek: idPrp, statusBaru: "Tahap Penawaran", suratPenawaran: base64Doc }) });
-                const jsonRes = await res.json();
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Surat Penawaran tersimpan & terkirim.', 'success'); 
-                    document.getElementById('modal-penawaran').style.display = 'none'; 
-                    await ambilSemuaData(true); 
-                } else { showToast('Afwan, Gagal mengupload.', 'error'); }
-            } catch (err) { showToast('Afwan, Jaringan tidak stabil atau file terlalu besar.', 'error'); }
+                const payload = {
+                    status_prospek: 'Tahap Penawaran',
+                    surat_penawaran: base64Doc,
+                    waktu_selesai_penawaran: tanggalIsoSupabase_()
+                };
+                const hasil = await callSupabase(endpointFilterSupabase_('prospek', 'id_prospek', idPrp), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${idPrp}`);
+                showToast('Alhamdulillah! Surat Penawaran tersimpan.', 'success');
+                document.getElementById('modal-penawaran').style.display = 'none';
+                await ambilSemuaData(true);
+            } catch (err) { showToast('Afwan, Gagal menyimpan Surat Penawaran: ' + err.message, 'error'); }
             btn.innerText = 'Kirim Penawaran'; btn.disabled = false;
         }
 
-        async function submitData(e, type) { 
-            e.preventDefault(); 
-            const payload = { apiKey: API_KEY, user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, cabang: cabangAktif };
+        async function submitData(e, type) {
+            e.preventDefault();
             let btnID = type === 'sla' ? 'btn-submit-edit' : 'btn-submit-sls';
             let btn = document.getElementById(btnID);
             
@@ -4667,37 +4683,98 @@
                     let idNum = parseInt(baseId.split('-')[1]); 
                     
                     let successCount = 0;
-                    document.getElementById('loading').style.display = 'block'; 
+                    document.getElementById('loading').style.display = 'block';
 
                     for (let i = 0; i < listPekerjaan.length; i++) {
                         let currentId = modeEditTiket ? baseId : `${idPrefix}-${String(idNum + i).padStart(3, '0')}`;
                         btn.innerText = `Menyimpan (${i+1}/${listPekerjaan.length})...`;
-                        
-                        let loopPayload = { 
-                            apiKey: API_KEY,
-                            action: modeEditTiket ? 'editTicket' : 'addTicket',
-                            user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
-                            cabang: cabangAktif,
-                            idTiket: currentId,
-                            noTransaksi: document.getElementById('input-notrans-sla').value,
-                            targetSLA: document.getElementById('input-sla').value,
-                            targetRespon: document.getElementById('input-sla-respon').value,
-                            klien: document.getElementById('input-klien').value,
-                            pekerjaan: listPekerjaan[i],
-                            sales: s, 
-                            nilaiPenjualan: document.getElementById('input-nilai-penjualan').value,
-                            teknisi: t,
-                            isGantiTeknisi: document.getElementById('ganti-teknisi-cek') ? document.getElementById('ganti-teknisi-cek').checked : false,
-                            waKlien: document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '',
-                            ttdKlienAwal: isCanvasInputDrawn ? canvasInput.toDataURL('image/png') : ttdTiketEditTersimpan
-                        };
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 20000);
-                        const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(loopPayload), signal: controller.signal }); 
-                        clearTimeout(timeoutId);
-                        const hasil = await res.json();
-                        
-                        if (hasil.status === 'sukses') successCount++;
+
+                        const targetSLAInput = angkaDesimalSupabase_(document.getElementById('input-sla').value, 24);
+                        const targetResponInput = angkaDesimalSupabase_(document.getElementById('input-sla-respon').value, 1);
+                        const targetSLA = targetSLAInput > 0 ? targetSLAInput : 24;
+                        const targetRespon = targetResponInput > 0 ? targetResponInput : 1;
+                        const teknisiFinal = t || 'Belum Ditugaskan';
+                        const cabangForm = normalisasiCabang(cabangAktif) || 'Kendari';
+                        const nilaiPenjualanRaw = document.getElementById('input-nilai-penjualan').value;
+                        const nilaiPenjualan = String(nilaiPenjualanRaw || '').trim() === '' ? null : angkaRupiahSupabase_(nilaiPenjualanRaw, 0);
+                        const waKlien = document.getElementById('input-wa-klien') ? document.getElementById('input-wa-klien').value : '';
+                        const tandaTangan = isCanvasInputDrawn ? canvasInput.toDataURL('image/png') : ttdTiketEditTersimpan;
+
+                        if (modeEditTiket) {
+                            const tiketLama = (globalTickets || []).find(item => item && String(item['ID Tiket']).trim() === String(currentId).trim());
+                            if (!tiketLama) throw new Error(`Tiket ${currentId} tidak ditemukan pada data lokal.`);
+
+                            const waktuLapor = new Date(tiketLama['Waktu Lapor']);
+                            const waktuDasar = Number.isNaN(waktuLapor.getTime()) ? new Date() : waktuLapor;
+                            const cabangTiket = normalisasiCabang(tiketLama.Cabang || cabangForm) || cabangForm;
+                            const teknisiLama = String(tiketLama.Teknisi || 'Belum Ditugaskan').trim();
+                            const gantiTeknisi = !!(document.getElementById('ganti-teknisi-cek') && document.getElementById('ganti-teknisi-cek').checked);
+                            const sekarang = new Date();
+                            const tiketPatch = {
+                                no_transaksi: document.getElementById('input-notrans-sla').value || '',
+                                target_sla_jam: targetSLA,
+                                tenggat_waktu: tanggalIsoSupabase_(hitungTenggatJamKerja(waktuDasar, targetSLA, cabangTiket)),
+                                klien_lokasi: document.getElementById('input-klien').value,
+                                jenis_pekerjaan: listPekerjaan[i],
+                                teknisi: teknisiFinal,
+                                sales: s,
+                                target_sla_respon_jam: targetRespon,
+                                nilai_penjualan: nilaiPenjualan,
+                                no_wa_klien: waKlien,
+                                cabang: cabangTiket,
+                                admin_sla: adminSlaSupabase_(cabangTiket)
+                            };
+
+                            if (tandaTangan) tiketPatch.tanda_tangan = tandaTangan;
+                            if ((!teknisiLama || teknisiLama === 'Belum Ditugaskan') && teknisiFinal !== 'Belum Ditugaskan') {
+                                tiketPatch.tenggat_respon = tanggalIsoSupabase_(hitungTenggatJamKerja(sekarang, targetRespon, cabangTiket));
+                            }
+                            if (gantiTeknisi && teknisiLama && teknisiLama !== 'Belum Ditugaskan') {
+                                const auditPergantian = `[${sekarang.toLocaleString('id-ID')}] 🔄 PERGANTIAN TEKNISI\nDari: ${teknisiLama}\nKe: ${teknisiFinal}`;
+                                tiketPatch.teknisi_sebelumnya = teknisiLama;
+                                tiketPatch.penalti_teknisi_lama = `${teknisiLama} | Respon: ${tiketLama['Status SLA Respon'] || 'AMAN'} | Kerja: ${tiketLama['Status SLA'] || 'AMAN'}`;
+                                tiketPatch.tenggat_pengganti = tanggalIsoSupabase_(hitungTenggatJamKerja(sekarang, targetSLA, cabangTiket));
+                                tiketPatch.waktu_respon = null;
+                                tiketPatch.tenggat_respon = tanggalIsoSupabase_(hitungTenggatJamKerja(sekarang, targetRespon, cabangTiket));
+                                tiketPatch.keterangan = tiketLama.Keterangan ? `${tiketLama.Keterangan}\n\n${auditPergantian}` : auditPergantian;
+                            }
+
+                            const hasil = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', currentId), 'PATCH', tiketPatch);
+                            pastikanHasilMutasiSupabase_(hasil, `Tiket ${currentId}`);
+                        } else {
+                            const sekarang = new Date();
+                            const tiketBaru = {
+                                id_tiket: currentId,
+                                no_transaksi: document.getElementById('input-notrans-sla').value || '',
+                                waktu_lapor: tanggalIsoSupabase_(sekarang),
+                                target_sla_jam: targetSLA,
+                                tenggat_waktu: tanggalIsoSupabase_(hitungTenggatJamKerja(sekarang, targetSLA, cabangForm)),
+                                klien_lokasi: document.getElementById('input-klien').value,
+                                jenis_pekerjaan: listPekerjaan[i],
+                                teknisi: teknisiFinal,
+                                status: 'Menunggu',
+                                waktu_selesai: null,
+                                status_sla: 'AMAN',
+                                poin_performa: 0,
+                                sales: s,
+                                keterangan: '',
+                                target_sla_respon_jam: targetRespon,
+                                tenggat_respon: teknisiFinal === 'Belum Ditugaskan' ? null : tanggalIsoSupabase_(hitungTenggatJamKerja(sekarang, targetRespon, cabangForm)),
+                                waktu_respon: null,
+                                status_sla_respon: 'AMAN',
+                                status_peringatan: '',
+                                tanda_tangan: tandaTangan || '',
+                                nilai_penjualan: nilaiPenjualan,
+                                no_wa_klien: waKlien,
+                                veto_admin: 'Tidak',
+                                cabang: cabangForm,
+                                admin_sla: adminSlaSupabase_(cabangForm)
+                            };
+                            const hasil = await callSupabase('tiket', 'POST', tiketBaru);
+                            pastikanHasilMutasiSupabase_(hasil, `Tiket ${currentId}`);
+                        }
+
+                        successCount++;
                     }
 
                     if (successCount > 0) { 
@@ -4710,41 +4787,39 @@
 
                 } else if (type === 'sls') {
                     btn.innerText = 'Menyimpan...';
-                    payload.action = 'addPenjualan'; 
-                    payload.idPenjualan = document.getElementById('input-id-sls').value; 
-                    payload.noTransaksi = document.getElementById('input-notrans-sls').value; 
-                    payload.pembeli = document.getElementById('input-pembeli-sls').value; 
-                    payload.barang = document.getElementById('input-barang-sls').value; 
-                    payload.sales = Array.from(document.querySelectorAll('#input-sales-sls-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
-                    payload.nilaiPenjualan = document.getElementById('input-nilai-sls').value;
+                    const sales = Array.from(document.querySelectorAll('#input-sales-sls-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
 
-                    if(payload.sales === "") {
+                    if(sales === "") {
                         showToast('Afwan, Pilih minimal 1 sales!', 'warning');
                         btn.innerText = 'Simpan Penjualan';
                         btn.disabled = false;
                         return;
                     }
 
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 20000);
-                    const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload), signal: controller.signal }); 
-                    clearTimeout(timeoutId);
-                    const hasil = await res.json();
-                    
-                    if (hasil.status === 'sukses') { 
-                        showToast('Alhamdulillah! Data berhasil disimpan.', 'success');
-                        document.getElementById('form-sls').reset(); switchTab('penjualan'); 
-                        await ambilSemuaData(true); 
-                    } else { showToast('Afwan, Gagal menyimpan: ' + hasil.pesan, 'error'); }
+                    const noTransaksi = document.getElementById('input-notrans-sls').value.trim();
+                    if (noTransaksi) {
+                        const duplikat = await callSupabase(`penjualan?no_transaksi=eq.${encodeURIComponent(noTransaksi)}&select=id_penjualan&limit=1`);
+                        if (Array.isArray(duplikat) && duplikat.length > 0) throw new Error(`No Transaksi / SO '${noTransaksi}' sudah pernah diinput.`);
+                    }
+
+                    const penjualanBaru = {
+                        id_penjualan: document.getElementById('input-id-sls').value,
+                        no_transaksi: noTransaksi,
+                        waktu_lapor: tanggalIsoSupabase_(),
+                        nama_pembeli: document.getElementById('input-pembeli-sls').value,
+                        barang_jasa: document.getElementById('input-barang-sls').value,
+                        sales: sales,
+                        nominal_rp: angkaRupiahSupabase_(document.getElementById('input-nilai-sls').value, 0)
+                    };
+                    const hasil = await callSupabase('penjualan', 'POST', penjualanBaru);
+                    pastikanHasilMutasiSupabase_(hasil, `Penjualan ${penjualanBaru.id_penjualan}`);
+
+                    showToast('Alhamdulillah! Data berhasil disimpan.', 'success');
+                    document.getElementById('form-sls').reset(); switchTab('penjualan');
+                    await ambilSemuaData(true);
                 }
-            } catch (err) { 
-                if (err.name === 'AbortError' || err.message.includes('fetch')) {
-                    showToast('Alhamdulillah! Data terkirim (Respons lambat).', 'success');
-                    if (type === 'sla') { batalEditTiket(); switchTab('tiket'); } else { document.getElementById('form-sls').reset(); switchTab('penjualan'); }
-                    await ambilSemuaData(true); 
-                } else {
-                    showToast('Afwan, Kesalahan sistem: ' + err.message, 'error'); 
-                }
+            } catch (err) {
+                showToast('Afwan, Kesalahan sistem: ' + err.message, 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none'; 
                 if (btn) {
@@ -4997,25 +5072,57 @@
                 keteranganFinal = keteranganFinal ? keteranganFinal + '\n\n' + teksLogBaru : teksLogBaru; 
             } 
             
+            const sekarang = new Date();
+            const statusLama = String(t['Status'] || '').trim();
+            const statusBaruNormal = String(status || '').trim().toLowerCase();
+            const statusLamaNormal = statusLama.toLowerCase();
+            const cabangTiket = normalisasiCabang(t.Cabang || cabangAktif) || 'Kendari';
             const payload = {
-                apiKey: API_KEY, action: 'updateTicket', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idTiket: idTiket, status: status,
-                cabang: cabangAktif,
-                keterangan: keteranganFinal, baDeskripsi: document.getElementById('ba-deskripsi').value, 
-                baNamaCustomer: document.getElementById('ba-nama-customer').value, baKritik: document.getElementById('ba-kritik').value, 
-                baTTD: ttdBase64 
-            }; 
-            
-            try { 
-                const response = await fetch(apiUrl, { method: 'POST', body: JSON.stringify(payload) }); 
-                const result = await response.json(); 
-                if (result.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data berhasil diupdate.', 'success'); 
-                    tutupModal(); document.getElementById('loading').style.display = 'block'; 
-                    await ambilSemuaData(true); document.getElementById('loading').style.display = 'none'; 
-                } else { 
-                    showToast('Afwan, Gagal mengupdate data: ' + result.pesan, 'error'); 
-                } 
-            } catch(err) { window.location.reload(); } 
+                status: status,
+                keterangan: keteranganFinal || '-',
+                deskripsi_pekerjaan_ba: document.getElementById('ba-deskripsi').value,
+                nama_customer: document.getElementById('ba-nama-customer').value,
+                kritik_saran: document.getElementById('ba-kritik').value,
+                tanda_tangan: ttdBase64,
+                cabang: cabangTiket,
+                admin_sla: adminSlaSupabase_(cabangTiket)
+            };
+
+            if (statusLama === 'Menunggu' && status !== 'Menunggu' && !t['Waktu Respon']) {
+                payload.waktu_respon = tanggalIsoSupabase_(sekarang);
+                const tenggatRespon = new Date(t['Tenggat Respon']);
+                payload.status_sla_respon = !Number.isNaN(tenggatRespon.getTime()) && sekarang > tenggatRespon ? 'GAGAL' : 'TERPENUHI';
+            }
+
+            if (statusBaruNormal === 'selesai') {
+                const waktuSelesai = statusLamaNormal === 'selesai' && t['Waktu Selesai'] ? new Date(t['Waktu Selesai']) : sekarang;
+                const tenggatWaktu = new Date(t['Tenggat Waktu']);
+                const terlambat = !Number.isNaN(tenggatWaktu.getTime()) && waktuSelesai > tenggatWaktu;
+                payload.waktu_selesai = tanggalIsoSupabase_(waktuSelesai);
+                payload.status_sla = terlambat ? 'TERLAMBAT' : 'TERPENUHI';
+                payload.poin_performa = terlambat ? -5 : 10;
+            } else {
+                payload.waktu_selesai = null;
+                if (status === 'Pending') payload.status_sla = 'DIPENDING';
+                else if (status === 'Outsource') payload.status_sla = 'DIOPOR';
+                else {
+                    const tenggatWaktu = new Date(t['Tenggat Waktu']);
+                    const terlambat = !Number.isNaN(tenggatWaktu.getTime()) && sekarang > tenggatWaktu;
+                    payload.status_sla = terlambat ? 'TERLAMBAT' : 'AMAN';
+                    payload.poin_performa = terlambat ? -5 : 0;
+                }
+            }
+
+            try {
+                const result = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(result, `Tiket ${idTiket}`);
+                showToast('Alhamdulillah! Data berhasil diupdate.', 'success');
+                tutupModal(); document.getElementById('loading').style.display = 'block';
+                await ambilSemuaData(true); document.getElementById('loading').style.display = 'none';
+            } catch(err) {
+                showToast('Afwan, Gagal mengupdate data: ' + err.message, 'error');
+                document.getElementById('loading').style.display = 'none';
+            }
             btn.innerText = 'Update Tiket'; btn.disabled = false; 
         }
         
@@ -5026,31 +5133,12 @@
                 
                 document.getElementById('loading').style.display = 'block'; 
                 
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-                const res = await fetch(apiUrl, { 
-                    method: 'POST', 
-                    body: JSON.stringify({apiKey: API_KEY, action: 'deleteTicket', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idTiket: String(idTiket).trim()}),
-                    signal: controller.signal
-                }); 
-                
-                clearTimeout(timeoutId);
-                const jsonRes = await res.json();
-                
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Tiket berhasil dihapus.', 'success'); 
-                    await ambilSemuaData(true); 
-                } else {
-                    showToast('Afwan, gagal menghapus: ' + jsonRes.pesan, 'error');
-                }
+                const hasil = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'DELETE');
+                pastikanHasilMutasiSupabase_(hasil, `Tiket ${idTiket}`);
+                showToast('Alhamdulillah! Tiket berhasil dihapus.', 'success');
+                await ambilSemuaData(true);
             } catch(err) {
-                if (err.name === 'AbortError') {
-                    showToast('Alhamdulillah! Perintah hapus terkirim (Server lambat merespons).', 'success');
-                    await ambilSemuaData(true); 
-                } else {
-                    showToast('Afwan, terjadi kesalahan jaringan.', 'error');
-                }
+                showToast('Afwan, gagal menghapus tiket: ' + err.message, 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none'; 
             }
@@ -5062,20 +5150,12 @@
                 if(!acc) return; 
                 document.getElementById('loading').style.display = 'block'; 
                 
-                const res = await fetch(apiUrl, { 
-                    method: 'POST', 
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'deletePenjualan', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idPenjualan: String(idPenjualan).trim() })
-                }); 
-                
-                const jsonRes = await res.json();
-                if (jsonRes.status === 'sukses') { 
-                    showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success'); 
-                    await ambilSemuaData(true); 
-                } else {
-                    showToast('Afwan, gagal menghapus: ' + jsonRes.pesan, 'error');
-                }
+                const hasil = await callSupabase(endpointFilterSupabase_('penjualan', 'id_penjualan', idPenjualan), 'DELETE');
+                pastikanHasilMutasiSupabase_(hasil, `Penjualan ${idPenjualan}`);
+                showToast('Alhamdulillah! Data Penjualan berhasil dihapus.', 'success');
+                await ambilSemuaData(true);
             } catch(err) {
-                showToast('Afwan, terjadi kesalahan jaringan saat menghapus.', 'error');
+                showToast('Afwan, gagal menghapus penjualan: ' + err.message, 'error');
             } finally {
                 document.getElementById('loading').style.display = 'none'; 
             }
@@ -5577,43 +5657,26 @@
             if (!catatan || catatan.trim() === "") return;
 
             showToast("Mengirim permintaan revisi...", "info");
-
-            // Dukungan jika frontend dijalankan langsung melalui Google Apps Script.
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler((res) => {
-                        if (res === true || (res && res.status === 'sukses')) {
-                            showToast("Permintaan Revisi terkirim ke Admin!", "success");
-                            ambilSemuaData(true);
-                        } else {
-                            showToast("Afwan, permintaan revisi gagal diproses.", "error");
-                        }
-                    })
-                    .withFailureHandler(() => showToast("Afwan, gagal menghubungi backend.", "error"))
-                    .prosesRevisiSPBackend(id, catatan.trim(), sales);
-                return;
-            }
-
-            // Jalur utama deployment Vercel: kirim melalui Web App API yang sudah digunakan aplikasi.
             try {
-                const res = await fetch(apiUrl, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        apiKey: API_KEY,
-                        action: 'prosesRevisiSP',
-                        user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken },
-                        idProspek: id,
-                        catatan: catatan.trim(),
-                        namaSales: sales
-                    })
-                });
-                const hasil = await res.json();
-                if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Permintaan revisi gagal.');
+                const prospek = (globalProspek || []).find(item => item && String(item['ID Prospek']).trim() === String(id).trim());
+                if (!prospek) throw new Error(`Prospek ${id} tidak ditemukan.`);
+                const sekarang = new Date();
+                const riwayatLama = String(prospek['Riwayat Follow Up'] || '').trim();
+                const riwayatBaru = `[${sekarang.toLocaleString('id-ID')}] ✏️ REVISI SP oleh ${sales || '-'}\nCatatan: ${catatan.trim()}`;
+                const payload = {
+                    status_prospek: 'Revisi SP',
+                    waktu_minta_penawaran: tanggalIsoSupabase_(sekarang),
+                    waktu_selesai_penawaran: null,
+                    target_sla_penawaran_jam: 3,
+                    riwayat_follow_up: riwayatLama ? `${riwayatLama}\n\n${riwayatBaru}` : riwayatBaru
+                };
+                const hasil = await callSupabase(endpointFilterSupabase_('prospek', 'id_prospek', id), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${id}`);
 
-                showToast("Permintaan Revisi terkirim ke Admin!", "success");
+                showToast("Permintaan Revisi tersimpan!", "success");
                 await ambilSemuaData(true);
             } catch (err) {
-                showToast("Afwan, permintaan revisi gagal dikirim.", "error");
+                showToast("Afwan, permintaan revisi gagal disimpan: " + err.message, "error");
             }
         }
 
