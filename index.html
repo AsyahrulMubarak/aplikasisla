@@ -1191,6 +1191,69 @@
             }
         }
 
+        async function sinkronkanDatabaseKlienSupabase_(namaKlien, noWaKlien, sumberTransaksi, deskripsiProduk) {
+            try {
+                const noWaNormal = normalisasiWASementara_(noWaKlien);
+                if (!/^628\d{7,12}$/.test(noWaNormal)) return false;
+
+                const gabungkanTagProduk = (tagLama, tagBaru) => {
+                    const hasil = [];
+                    const kunciTerpakai = new Set();
+                    const tambahTag = nilai => {
+                        const tag = String(nilai || '').trim();
+                        const kunci = tag.toLowerCase();
+                        if (!tag || kunciTerpakai.has(kunci)) return;
+                        kunciTerpakai.add(kunci);
+                        hasil.push(tag);
+                    };
+
+                    String(tagLama || '').split(/[,\n|;]+/).forEach(tambahTag);
+                    String(tagBaru || '').split(/[,\n|;]+/).forEach(tambahTag);
+                    return hasil.join(', ');
+                };
+
+                const daftarKlien = await callSupabase('database_klien?no_wa=eq.' + noWaNormal);
+                if (Array.isArray(daftarKlien) && daftarKlien.length > 0) {
+                    const klienLama = daftarKlien[0];
+                    const hasilPatch = await callSupabase(
+                        endpointFilterSupabase_('database_klien', 'id_klien', klienLama.id_klien),
+                        'PATCH',
+                        {
+                            total_transaksi: (Number.parseInt(klienLama.total_transaksi, 10) || 0) + 1,
+                            transaksi_terakhir: tanggalIsoSupabase_(),
+                            tag_produk: gabungkanTagProduk(klienLama.tag_produk, deskripsiProduk)
+                        }
+                    );
+                    pastikanHasilMutasiSupabase_(hasilPatch, `Database Klien ${klienLama.id_klien}`);
+                    return true;
+                }
+
+                const daftarIdTerakhir = await callSupabase('database_klien?select=id_klien&order=id_klien.desc&limit=1');
+                const idTerakhir = Array.isArray(daftarIdTerakhir) && daftarIdTerakhir.length > 0
+                    ? String(daftarIdTerakhir[0].id_klien || '')
+                    : '';
+                const cocokNomor = /^KLIEN-(\d+)$/i.exec(idTerakhir.trim());
+                const nomorBaru = (cocokNomor ? Number.parseInt(cocokNomor[1], 10) || 0 : 0) + 1;
+                const idKlienBaru = `KLIEN-${String(nomorBaru).padStart(3, '0')}`;
+                const klienBaru = {
+                    id_klien: idKlienBaru,
+                    nama_klien: String(namaKlien || '').trim() || 'Tanpa Nama',
+                    no_wa: noWaNormal,
+                    kategori: 'Perorangan',
+                    total_transaksi: 1,
+                    transaksi_terakhir: tanggalIsoSupabase_(),
+                    sumber: String(sumberTransaksi || '').trim() || '-',
+                    tag_produk: gabungkanTagProduk('', deskripsiProduk)
+                };
+                const hasilPost = await callSupabase('database_klien', 'POST', klienBaru);
+                pastikanHasilMutasiSupabase_(hasilPost, `Database Klien ${idKlienBaru}`);
+                return true;
+            } catch (error) {
+                console.error('Sinkronisasi Database Klien Supabase gagal:', error);
+                return false;
+            }
+        }
+
         async function sinkronkanStatusProspekDariTiket_(statusTiket, noWaCustomer, namaCustomer) {
             const statusTiketNormal = String(statusTiket || '').trim().toLowerCase();
             const statusProsesServis = ['on progress', 'menunggu', 'pending', 'outsource'];
@@ -2529,8 +2592,8 @@
                         });
                     }
                     for (let u of dbUsers) globalUsers.push({ "Username": u.username, "Role": u.role, "Nama Asli": u.nama_asli, "Email": u.email, "Target Sales (Rp)": u.target_sales_rp, "No WA": u.no_wa, "Gaji Pokok": u.gaji_pokok, "Bonus Tambahan": u.bonus_tambahan, "Hak_Akses_Cabang": u.hak_akses_cabang });
-                    for (let p of dbPenjualan) globalPenjualan.push({ "ID Penjualan": p.id_penjualan, "No Transaksi": p.no_transaksi, "Waktu Lapor": p.waktu_lapor, "Nama Pembeli": p.nama_pembeli, "Barang / Jasa": p.barang_jasa, "Sales": p.sales, "Nominal (Rp)": p.nominal_rp });
-                    for (let p of dbProspek) globalProspek.push({ "ID Prospek": p.id_prospek, "Tanggal Input": p.tanggal_input, "Nama Calon Customer": p.nama_calon_customer, "Kebutuhan": p.kebutuhan, "Status Prospek": p.status_prospek, "Sales Penanggung Jawab": p.sales_penanggung_jawab, "Estimasi (Rp)": p.estimasi_rp, "Bukti Chat": p.bukti_chat, "Surat Penawaran": p.surat_penawaran, "No WA": p.no_wa, "Waktu Follow Up Terakhir": p.waktu_follow_up_terakhir, "Riwayat Follow Up": p.riwayat_follow_up, "Waktu Peringatan CRM Terakhir": p.waktu_peringatan_crm_terakhir, "Waktu Minta Penawaran": p.waktu_minta_penawaran, "Waktu Selesai Penawaran": p.waktu_selesai_penawaran, "Target SLA Penawaran (Jam)": p.target_sla_penawaran_jam });
+                    for (let p of dbPenjualan) globalPenjualan.push({ "ID Penjualan": p.id_penjualan, "No Transaksi": p.no_transaksi, "Waktu Lapor": p.waktu_lapor, "Nama Pembeli": p.nama_pembeli, "Barang / Jasa": p.barang_jasa, "Sales": p.sales, "Nominal (Rp)": p.nominal_rp, "Cabang": p.cabang, "Admin SLA": p.admin_sla });
+                    for (let p of dbProspek) globalProspek.push({ "ID Prospek": p.id_prospek, "Tanggal Input": p.tanggal_input, "Nama Calon Customer": p.nama_calon_customer, "Kebutuhan": p.kebutuhan, "Status Prospek": p.status_prospek, "Sales Penanggung Jawab": p.sales_penanggung_jawab, "Estimasi (Rp)": p.estimasi_rp, "Bukti Chat": p.bukti_chat, "Surat Penawaran": p.surat_penawaran, "No WA": p.no_wa, "Waktu Follow Up Terakhir": p.waktu_follow_up_terakhir, "Riwayat Follow Up": p.riwayat_follow_up, "Waktu Peringatan CRM Terakhir": p.waktu_peringatan_crm_terakhir, "Waktu Minta Penawaran": p.waktu_minta_penawaran, "Waktu Selesai Penawaran": p.waktu_selesai_penawaran, "Target SLA Penawaran (Jam)": p.target_sla_penawaran_jam, "Cabang": p.cabang, "Admin SLA": p.admin_sla });
                     for (let k of dbKlien) globalKlien.push({ "ID Klien": k.id_klien, "Nama Klien": k.nama_klien, "No WA": k.no_wa, "Kategori": k.kategori, "Total Transaksi": k.total_transaksi, "Transaksi Terakhir": k.transaksi_terakhir, "Sumber": k.sumber, "Tag Produk": k.tag_produk });
                     for (let g of dbGaransi) {
                         if (trackId && String(g.referensi_tiket_nota).toLowerCase() !== trackId) continue;
@@ -3282,7 +3345,7 @@
                 let penjualanByNoTransaksi = new Map();
                 let tiketById = new Map();
 
-                (globalPenjualan || []).forEach(p => {
+                (globalPenjualan || []).filter(dataSesuaiCabangAktif_).forEach(p => {
                     if (!p) return;
                     let idPenjualan = normalisasiKunciTransaksiDashboard_(p['ID Penjualan']);
                     let noTransaksi = noTransaksiDashboard_(p);
@@ -3297,7 +3360,7 @@
                 });
 
                 // SLS adalah sumber utama omzet penjualan langsung.
-                (globalPenjualan || []).forEach(p => {
+                (globalPenjualan || []).filter(dataSesuaiCabangAktif_).forEach(p => {
                     if (!p || !inPeriode(p['Tanggal'] || p['Waktu Lapor'] || p['Tanggal Input'])) return;
 
                     let idPenjualan = normalisasiKunciTransaksiDashboard_(p['ID Penjualan']);
@@ -3385,7 +3448,7 @@
                 let prospekDeal = 0;
 
                 // PIPELINE STREAM: Prospek Closing/Deal dan Batal tidak menyumbang rupiah potensi.
-                (globalProspek || []).forEach(p => {
+                (globalProspek || []).filter(dataSesuaiCabangAktif_).forEach(p => {
                     if (!p || !inPeriode(p['Tanggal Input'] || p['Tanggal'])) return;
                     prospekTotal++;
                     if (isProspekClosingDashboard_(p)) {
@@ -3578,7 +3641,7 @@
             });
 
             // === PROSPEK: HANYA PIPELINE AKTIF DAN JUMLAH WIN/LOSS, TANPA OMZET AKTUAL ===
-            (globalProspek || []).forEach(p => {
+            (globalProspek || []).filter(dataSesuaiCabangAktif_).forEach(p => {
                 if (!p) return;
                 if (!inPeriode(p['Tanggal Input'])) return; // Filter Bulan Prospek
 
@@ -3612,7 +3675,7 @@
                 });
             });
 
-            (globalPenjualan || []).forEach(p => {
+            (globalPenjualan || []).filter(dataSesuaiCabangAktif_).forEach(p => {
                 if(!p) return;
                 if(!inPeriode(p['Tanggal'] || p['Waktu Lapor'] || p['Tanggal Input'])) return; // Filter Bulan Penjualan
 
@@ -3976,7 +4039,7 @@
             let penDitampilkan = [];
             
             if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna())) {
-                penDitampilkan = [...(globalPenjualan || [])]; 
+                penDitampilkan = (globalPenjualan || []).filter(dataSesuaiCabangAktif_); 
             }
             
             let htmlAda = false;
@@ -4516,7 +4579,7 @@
             let pDitampilkan = [];
             
             if (['admin', 'manager', 'direktur', 'sales'].includes(penggunaAktif.Role)) { 
-                pDitampilkan = [...(globalProspek || [])]; 
+                pDitampilkan = (globalProspek || []).filter(dataSesuaiCabangAktif_); 
             }
             
             let htmlAda = false;
@@ -4789,13 +4852,16 @@
                 let finalKebutuhan = stringKebutuhan.join('\n'); // Pisahkan tiap barang dengan Enter (Baris Baru)
 
                 const nilaiEstimasi = document.getElementById('prospek-nominal').value;
+                const cabangAktual = normalisasiCabang(cabangAktif) || 'Kendari';
                 const payload = {
                     nama_calon_customer: document.getElementById('prospek-nama').value,
                     no_wa: document.getElementById('prospek-wa') ? document.getElementById('prospek-wa').value : '',
                     kebutuhan: finalKebutuhan,
                     status_prospek: document.getElementById('prospek-status').value,
                     sales_penanggung_jawab: salesPenanggung,
-                    estimasi_rp: String(nilaiEstimasi || '').trim() === '' ? null : angkaRupiahSupabase_(nilaiEstimasi, 0)
+                    estimasi_rp: String(nilaiEstimasi || '').trim() === '' ? null : angkaRupiahSupabase_(nilaiEstimasi, 0),
+                    cabang: cabangAktual,
+                    admin_sla: adminSlaSupabase_(cabangAktual)
                 };
 
                 document.getElementById('loading').style.display = 'block';
@@ -5123,6 +5189,7 @@
                         if (Array.isArray(duplikat) && duplikat.length > 0) throw new Error(`No Transaksi / SO '${noTransaksi}' sudah pernah diinput.`);
                     }
 
+                    const cabangAktual = normalisasiCabang(cabangAktif) || 'Kendari';
                     const penjualanBaru = {
                         id_penjualan: document.getElementById('input-id-sls').value,
                         no_transaksi: noTransaksi,
@@ -5130,10 +5197,19 @@
                         nama_pembeli: document.getElementById('input-pembeli-sls').value,
                         barang_jasa: document.getElementById('input-barang-sls').value,
                         sales: sales,
-                        nominal_rp: angkaRupiahSupabase_(document.getElementById('input-nilai-sls').value, 0)
+                        nominal_rp: angkaRupiahSupabase_(document.getElementById('input-nilai-sls').value, 0),
+                        cabang: cabangAktual,
+                        admin_sla: adminSlaSupabase_(cabangAktual)
                     };
                     const hasil = await callSupabase('penjualan', 'POST', penjualanBaru);
                     pastikanHasilMutasiSupabase_(hasil, `Penjualan ${penjualanBaru.id_penjualan}`);
+
+                    const namaPembeliNormal = normalisasiNamaCustomerProspek_(penjualanBaru.nama_pembeli);
+                    const prospekPenjualan = (globalProspek || []).slice().reverse().find(prospek =>
+                        prospek && normalisasiNamaCustomerProspek_(prospek['Nama Calon Customer']) === namaPembeliNormal
+                    );
+                    const noWaPenjualanCRM = prospekPenjualan ? (prospekPenjualan['No WA'] || '') : '';
+                    await sinkronkanDatabaseKlienSupabase_(penjualanBaru.nama_pembeli, noWaPenjualanCRM, 'Penjualan', penjualanBaru.barang_jasa || '');
 
                     showToast('Alhamdulillah! Data berhasil disimpan.', 'success');
                     document.getElementById('form-sls').reset(); switchTab('penjualan');
@@ -5283,14 +5359,10 @@
                 const ketSales = document.getElementById('banding-keterangan').value; 
                 const idTiket = document.getElementById('banding-id').value; 
                 
-                const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'ajukanBanding', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idTiket: idTiket, namaSales: penggunaAktif['Nama Asli'], buktiBanding: gabunganBukti, keteranganSales: ketSales }) });
-                if ((await res.json()).status === 'sukses') { 
-                    showToast('Alhamdulillah! Klaim terkirim, menunggu persetujuan Admin.', 'success'); 
-                    document.getElementById('modal-banding').style.display = 'none'; 
-                    await ambilSemuaData(true); 
-                } else {
-                    showToast('Afwan, Gagal mengirim klaim.', 'error');
-                }
+                await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', { status_banding: 'Diajukan', sales_pengaju: penggunaAktif['Nama Asli'], bukti_banding: gabunganBukti, keterangan_sales: ketSales });
+                showToast('Alhamdulillah! Klaim terkirim, menunggu persetujuan Admin.', 'success'); 
+                document.getElementById('modal-banding').style.display = 'none'; 
+                await ambilSemuaData(true); 
             } catch (err) { 
                 showToast('Afwan, Gagal kompresi foto atau sinyal lemah.', 'error'); 
             } 
@@ -5299,7 +5371,38 @@
             document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti'; 
         }
         
-        async function responBanding(idTiket, keputusan, namaSales) { let alasan = ''; if (keputusan === 'Ditolak') { alasan = await showPrompt("Bismillah, Tuliskan alasan penolakan untuk Sales:"); if(alasan === null) return; if(alasan.trim() === "") { showToast("Afwan, Alasan penolakan wajib diisi!", "warning"); return; } } else { let acc = await showConfirm(`Bismillah, yakin menerima klaim ini? Nama Sales akan otomatis diupdate.`, false); if(!acc) return; } document.getElementById('loading').style.display = 'block'; try { const res = await fetch(apiUrl, { method: 'POST', body: JSON.stringify({ apiKey: API_KEY, action: 'responBanding', user: { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken }, idTiket: idTiket, statusBanding: keputusan, namaSales: namaSales, alasanAdmin: alasan }) }); if ((await res.json()).status === 'sukses') { showToast(`Alhamdulillah! Klaim berhasil diproses (${keputusan}).`, 'success'); await ambilSemuaData(true); } } catch (err) {} document.getElementById('loading').style.display = 'none'; }
+        async function responBanding(idTiket, keputusan, namaSales) {
+            let alasan = '';
+            if (keputusan === 'Ditolak') {
+                alasan = await showPrompt("Bismillah, Tuliskan alasan penolakan untuk Sales:");
+                if (alasan === null) return;
+                if (alasan.trim() === '') {
+                    showToast('Afwan, Alasan penolakan wajib diisi!', 'warning');
+                    return;
+                }
+            } else {
+                const acc = await showConfirm('Bismillah, yakin menerima klaim ini? Nama Sales akan otomatis diupdate.', false);
+                if (!acc) return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            try {
+                if (keputusan === 'Diterima') {
+                    await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', { status_banding: keputusan, sales: namaSales, alasan_admin: null });
+                } else if (keputusan === 'Ditolak') {
+                    await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', { status_banding: keputusan, alasan_admin: alasan });
+                } else {
+                    throw new Error(`Keputusan Banding tidak valid: ${keputusan}`);
+                }
+
+                showToast(`Alhamdulillah! Klaim berhasil diproses (${keputusan}).`, 'success');
+                await ambilSemuaData(true);
+            } catch (err) {
+                showToast('Afwan, gagal memproses klaim: ' + err.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
         
         function toggleKanvasByStatus(statusVal) {
             const wadah = document.getElementById('wadah-ttd-klien');
@@ -5450,8 +5553,14 @@
                 }
                 if (statusBaruNormal === 'selesai') {
                     const waktuSekarangStr = new Date(payload.waktu_selesai || sekarang).toLocaleString('id-ID');
+                    const namaKlienInfo = String(t['Klien & Lokasi'] || payload.nama_customer || '').trim();
                     const teknisiFinal = String(t.Teknisi || '').trim();
                     const waKlienCRM = String(t['No WA Klien'] || '').trim();
+                    const produkTiketCRM = String(t['Jenis Pekerjaan'] || payload.deskripsi_pekerjaan_ba || '').trim();
+
+                    if (statusLamaNormal !== 'selesai') {
+                        await sinkronkanDatabaseKlienSupabase_(namaKlienInfo, waKlienCRM, 'Tiket Selesai', produkTiketCRM);
+                    }
 
                     try {
                         const responsePdf = await fetch(apiUrl, {
