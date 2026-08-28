@@ -509,8 +509,8 @@
             <h2 id="main-lobby-title">Portal Gateway Alfacom</h2>
             <p id="main-lobby-user">Pilih cabang SLA atau modul yang ingin dibuka.</p>
             <div class="main-lobby-options">
-                <button type="button" id="btn-lobby-sla-kendari" class="main-lobby-option" onclick="pilihCabangSLA('Kendari')">
-                    <span aria-hidden="true">🏢</span>Manajemen SLA Kendari
+                <button type="button" id="btn-lobby-sla-" class="main-lobby-option" onclick="pilihCabangSLA('')">
+                    <span aria-hidden="true">🏢</span>Manajemen SLA 
                 </button>
                 <button type="button" id="btn-lobby-sla-raha" class="main-lobby-option raha" onclick="pilihCabangSLA('Raha')">
                     <span aria-hidden="true">🏢</span>Manajemen SLA Raha
@@ -1012,7 +1012,7 @@
                         </select>
                         <label>Cabang Kerja</label>
                         <select id="new-cabang" required>
-                            <option value="Kendari">Kendari</option>
+                            <option value=""></option>
                             <option value="Raha">Raha</option>
                             <option value="Semua">Semua Cabang (Pusat)</option>
                         </select>
@@ -1062,7 +1062,7 @@
     </div>
 
     <script>
-        // Endpoint kanonis Master Kendari untuk seluruh proses autentikasi SSO.
+        // Endpoint kanonis Master  untuk seluruh proses autentikasi SSO.
         const API_KEY = 'ALFACOM_SECURE_KEY_2026';
         const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
         const API_URL_RAHA = 'https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec';
