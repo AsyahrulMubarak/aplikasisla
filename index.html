@@ -5658,6 +5658,35 @@
             try {
                 const result = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', payload);
                 pastikanHasilMutasiSupabase_(result, `Tiket ${idTiket}`);
+
+                // --- AWAL NOTIFIKASI WA ADMIN (TIKET SELESAI) ---
+                try {
+                    const updateStatusVal = document.getElementById('update-status').value;
+                    if (updateStatusVal === 'Selesai') {
+                        const tId = document.getElementById('update-id').value;
+                        const tData = (globalTickets || []).find(t => String(t['ID Tiket']) === String(tId)) || {};
+                        const namaKlienSelesai = tData['Klien & Lokasi'] || 'Pelanggan';
+                        const teknisiSelesai = tData['Teknisi'] || (penggunaAktif ? penggunaAktif['Nama Asli'] : 'Teknisi');
+
+                        const pesanSelesaiAdmin = `✅ *PEKERJAAN SELESAI*\n\nAssalamu'alaikum Admin,\nTiket perbaikan telah diselesaikan oleh Teknisi dan menunggu pembuatan Nota/Garansi:\n\n🎫 *ID Tiket:* ${tId}\n🏢 *Klien:* ${namaKlienSelesai}\n👨‍🔧 *Teknisi:* ${teknisiSelesai}\n\nMohon segera diverifikasi dan diproses Nota/Garansinya!\n🌐 https://aplikasisla.vercel.app/`;
+
+                        // Cari semua Admin yang sesuai dengan cabang aktif
+                        const adminUsers = (globalUsers || []).filter(u => {
+                            const r = String(u.Role || u.role || '').toLowerCase();
+                            const c = String(u.Hak_Akses_Cabang || u.cabang || '').toLowerCase();
+                            const cAktif = String(cabangAktif || 'kendari').toLowerCase();
+                            return (r === 'admin' || r === 'admin_raha') && (c === 'semua' || c === cAktif);
+                        }).map(u => u.Username).join(',');
+
+                        if (adminUsers) {
+                            kirimNotifWAInternal(adminUsers, pesanSelesaiAdmin);
+                        }
+                    }
+                } catch(errNotif) {
+                    console.error('Gagal mengirim notif WA selesai ke admin:', errNotif);
+                }
+                // --- AKHIR NOTIFIKASI WA ADMIN ---
+
                 try {
                     await sinkronkanStatusProspekDariTiket_(
                         status,
