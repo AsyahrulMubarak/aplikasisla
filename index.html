@@ -6526,4 +6526,51 @@
                 targetInputSLA.value = totalSLA;
             }
         }
+
+        // ==========================================
+        // INISIALISASI APLIKASI
+        // ==========================================
+        window.onload = async function() {
+            console.log("[INIT] Aplikasi dimulai...");
+            perbaruiDukunganBiometrik();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const trackParam = urlParams.get('track');
+            console.log("[INIT] trackParam: ", trackParam);
+
+            // Verifikasi koneksi ke Supabase via Proxy
+            console.log("[INIT] API_KEY: ", API_KEY ? "ada" : "TIDAK ADA");
+            console.log("[INIT] API_URL_KENDARI: \n" + API_URL_KENDARI);
+
+            try {
+                const sesiString = localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA');
+                if (sesiString) {
+                    const sesi = JSON.parse(sesiString);
+                    const selisihJam = (new Date().getTime() - (sesi.loginTime || 0)) / (1000 * 60 * 60);
+                    if (selisihJam < 24 && sesi.user && sesi.user.Username && sesi.user.SessionToken) {
+                        penggunaAktif = sesi.user;
+                        waktuLoginAktif = sesi.loginTime;
+                        if (sesi.modulAktif === 'lobby' || !sesi.cabangAktif) {
+                            masukKeAplikasi();
+                            return;
+                        }
+                        cabangAktif = sesi.cabangAktif;
+                        apiUrl = API_URL_CABANG[cabangAktif] || API_URL_KENDARI;
+                        await ambilSemuaData(false, trackParam);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error("Pemulihan sesi ditolak:", error);
+            }
+
+            if (trackParam) {
+                await ambilSemuaData(false, trackParam);
+                return;
+            }
+
+            document.getElementById('login-loading').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
+            inisialisasiPrefetchLoginBiometrik_();
+        };
     </script>
