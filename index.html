@@ -1082,18 +1082,32 @@
                 request.user = { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken };
             }
 
-            const response = await fetch(url, Object.assign({
-                method: 'POST',
-                body: JSON.stringify(request),
-                redirect: 'follow'
-            }, opsiFetch || {}));
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-            let hasil;
-            try { hasil = await response.json(); }
-            catch (error) { throw new Error('Server mengembalikan respons yang tidak valid.'); }
-            if (hasil && hasil.status === 'gagal') throw new Error(hasil.pesan || 'Permintaan ditolak server.');
-            return hasil;
+            try {
+                const response = await fetch(url, Object.assign({
+                    method: 'POST',
+                    body: JSON.stringify(request),
+                    redirect: 'follow',
+                    signal: controller.signal
+                }, opsiFetch || {}));
+                clearTimeout(timeoutId);
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                let hasil;
+                try { hasil = await response.json(); }
+                catch (error) { throw new Error('Server mengembalikan respons yang tidak valid.'); }
+                if (hasil && hasil.status === 'gagal') throw new Error(hasil.pesan || 'Permintaan ditolak server.');
+                return hasil;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    throw new Error('Server tidak merespons dalam 25 detik. Periksa koneksi atau coba lagi nanti.');
+                }
+                throw error;
+            }
         }
 
         async function callSupabase(endpoint, method = "GET", payload = null) {
@@ -1776,13 +1790,27 @@
         }
 
         async function kirimWebAuthn(action, payload) {
-            const response = await fetch(API_AUTH_URL, {
-                method: 'POST',
-                body: JSON.stringify(Object.assign({ action: action }, payload || {})),
-                redirect: 'follow'
-            });
-            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-            return response.json();
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+            try {
+                const response = await fetch(API_AUTH_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(Object.assign({ action: action }, payload || {})),
+                    redirect: 'follow',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                return response.json();
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    throw new Error('Server tidak merespons dalam 25 detik. Periksa koneksi atau coba lagi nanti.');
+                }
+                throw error;
+            }
         }
 
         // Challenge server berlaku 5 menit. Cache frontend dibuat lebih singkat agar
@@ -2722,7 +2750,14 @@
                 if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
             } catch (error) {
                 console.error('Error saat login:', error);
-                showToast('Afwan, terjadi kesalahan jaringan atau server tidak merespons.', 'error');
+                const errorMsg = error.message || '';
+                if (errorMsg.indexOf('tidak merespons') !== -1 || errorMsg.indexOf('AbortError') !== -1) {
+                    showToast('Server tidak merespons dalam 25 detik. Periksa koneksi internet atau coba beberapa saat lagi.', 'error');
+                } else if (errorMsg.indexOf('database') !== -1 || errorMsg.indexOf('Supabase') !== -1) {
+                    showToast('Layanan database sedang gangguan. Silakan coba beberapa saat lagi.', 'error');
+                } else {
+                    showToast('Afwan, terjadi kesalahan: ' + errorMsg, 'error');
+                }
                 if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
             }
         }
