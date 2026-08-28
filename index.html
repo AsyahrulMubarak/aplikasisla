@@ -2682,14 +2682,14 @@
                         dbGaransi = Array.isArray(hasilTracking.garansi) ? hasilTracking.garansi : [];
                         dbUsers = []; dbPenjualan = []; dbProspek = []; dbKlien = [];
                     } else {
-                        [dbTiket, dbUsers, dbPenjualan, dbProspek, dbKlien, dbGaransi] = await Promise.all([
-                            callSupabase('tiket?select=*'),
-                            callSupabase('users?select=*'),
-                            callSupabase('penjualan?select=*'),
-                            callSupabase('prospek?select=*'),
-                            callSupabase('database_klien?select=*'),
-                            callSupabase('garansi?select=*')
-                        ]);
+                        // 🚀 TARIK SEMUA TABEL DALAM 1X REQUEST KE BACKEND
+                        const responseAll = await kirimKeBackend_(apiUrl, 'getAllData', { cabang: cabangAktif });
+                        dbTiket = responseAll.tickets || [];
+                        dbUsers = responseAll.users || [];
+                        dbPenjualan = responseAll.penjualan || [];
+                        dbProspek = responseAll.prospek || [];
+                        dbKlien = responseAll.dataKlien || [];
+                        dbGaransi = responseAll.garansi || [];
                     }
 
                     console.log('[DATA] Raw counts - Tiket:', dbTiket?.length, 'Users:', dbUsers?.length, 'Penjualan:', dbPenjualan?.length, 'Prospek:', dbProspek?.length, 'Klien:', dbKlien?.length, 'Garansi:', dbGaransi?.length);
