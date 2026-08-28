@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.vercel.app; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
     <title>Sistem Manajemen SLA</title>
 
     <link rel="manifest" href="./manifest.json">
@@ -1064,7 +1064,7 @@
     <script>
         // Endpoint kanonis Master Kendari untuk seluruh proses autentikasi SSO.
         const API_KEY = 'ALFACOM_SECURE_KEY_2026';
-        const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbyuZLt8YQpdN_30WrVfxe1jG5U1quEv3H7cegkPTOdHXJIT6T7P5DuVDRo_-KfGen_p/exec';
+        const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbyuZL8tYQpdN_30WrVfxe1jG5U1quEv3H7cegkPTOdHXJIT6T7P5DuVDRo-_KfGen_p/exec';
         const API_URL_RAHA = 'https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec';
         const API_AUTH_URL = API_URL_KENDARI;
         const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
@@ -1083,6 +1083,7 @@
                 request.user = { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken };
             }
 
+            // Use POST with credentials
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 25000);
 
@@ -1097,9 +1098,9 @@
                 }, opsiFetch || {}));
                 clearTimeout(timeoutId);
 
-                // DETEKSI CORS BLOCKED
-                if (!response.ok && (response.status === 0 || response.headers.get('content-type')?.includes('text/html'))) {
-                    throw new Error('Koneksi ke server diblokir browser (CORS). Silakan refresh halaman atau gunakan mode incognito.');
+                // Check for CORS error
+                if (!response.ok && response.status === 0) {
+                    throw new Error('CORS blocked: Cannot connect to server. Please check deployment.');
                 }
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
