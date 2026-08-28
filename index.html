@@ -1064,7 +1064,7 @@
     <script>
         // Endpoint kanonis Master Kendari untuk seluruh proses autentikasi SSO.
         const API_KEY = 'ALFACOM_SECURE_KEY_2026';
-        const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbyuZLt8YQpdN_30WrVfxe1jG5U1quEv3H7cegkPTOdHXJIT6T7P5DuVDRo_-KfGen_p/exec';
+        const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbyuZL8tYQpdN_30WrVfxe1jG5U1quEv3H7cegkPTOdHXJIT6T7P5DuVDRo-_KfGen_p/exec';
         const API_URL_RAHA = 'https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec';
         const API_AUTH_URL = API_URL_KENDARI;
         const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
@@ -1089,11 +1089,18 @@
             try {
                 const response = await fetch(url, Object.assign({
                     method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(request),
                     redirect: 'follow',
-                    signal: controller.signal
+                    signal: controller.signal,
+                    credentials: 'omit'
                 }, opsiFetch || {}));
                 clearTimeout(timeoutId);
+
+                // DETEKSI CORS BLOCKED
+                if (!response.ok && (response.status === 0 || response.headers.get('content-type')?.includes('text/html'))) {
+                    throw new Error('Koneksi ke server diblokir browser (CORS). Silakan refresh halaman atau gunakan mode incognito.');
+                }
 
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -1113,15 +1120,24 @@
 
         async function callSupabase(endpoint, method = "GET", payload = null) {
             if (!cabangAktif || !API_URL_CABANG[cabangAktif]) throw new Error('Cabang aktif belum dipilih.');
-            const hasil = await kirimKeBackend_(apiUrl, 'supabaseProxy', {
-                endpoint: endpoint,
-                method: method,
-                payload: payload
-            });
-            if (!hasil || hasil.status !== 'sukses' || !Array.isArray(hasil.data)) {
-                throw new Error('Respons proxy Supabase tidak valid.');
+            console.log('[DEBUG] callSupabase:', method, endpoint);
+            try {
+                const hasil = await kirimKeBackend_(apiUrl, 'supabaseProxy', {
+                    endpoint: endpoint,
+                    method: method,
+                    payload: payload
+                });
+                console.log('[DEBUG] Response untuk', endpoint, ':', Array.isArray(hasil.data) ? hasil.data.length + ' records' : hasil);
+                console.log('[DEBUG] Full response:', JSON.stringify(hasil).substring(0, 500));
+                if (!hasil || hasil.status !== 'sukses' || !Array.isArray(hasil.data)) {
+                    console.error('[ERROR] Invalid response:', hasil);
+                    throw new Error('Respons proxy Supabase tidak valid: ' + (hasil && hasil.pesan || 'Unknown'));
+                }
+                return hasil.data;
+            } catch (error) {
+                console.error('[ERROR] callSupabase failed:', endpoint, error.message);
+                throw error;
             }
-            return hasil.data;
         }
 
         function amanTeks_(nilai) {
@@ -2666,6 +2682,8 @@
                         ]);
                     }
 
+                    console.log('[DATA] Raw counts - Tiket:', dbTiket?.length, 'Users:', dbUsers?.length, 'Penjualan:', dbPenjualan?.length, 'Prospek:', dbProspek?.length, 'Klien:', dbKlien?.length, 'Garansi:', dbGaransi?.length);
+
                     globalTickets = []; globalUsers = []; globalPenjualan = []; globalProspek = []; globalKlien = []; globalGaransi = [];
 
                     for (let rowDB of dbTiket) {
@@ -2695,6 +2713,7 @@
                         if (String(rec.Status).trim() === 'Aktif' && rec["Tanggal Habis"] && new Date() > new Date(rec["Tanggal Habis"])) { rec.Status = 'Habis (Expired)'; }
                         globalGaransi.push(rec);
                     }
+                    console.log('[DATA] Processed counts - Tiket:', globalTickets.length, 'Users:', globalUsers.length, 'Penjualan:', globalPenjualan.length, 'Prospek:', globalProspek.length, 'Klien:', globalKlien.length, 'Garansi:', globalGaransi.length);
                     berhasil = true; break;
 
                 } catch (error) {
@@ -5916,10 +5935,16 @@
         }
 
         async function mulaiAplikasi_() {
-          if (trackParam && trackParam.trim() !== "") {
-            await ambilSemuaData(false, trackParam.trim());
-            return;
-          }
+            console.log('[INIT] Aplikasi dimulai...');
+            console.log('[INIT] trackParam:', trackParam);
+            console.log('[INIT] API_KEY:', API_KEY ? 'ada' : 'kosong');
+            console.log('[INIT] API_URL_KENDARI:', API_URL_KENDARI);
+
+            if (trackParam && trackParam.trim() !== "") {
+                console.log('[INIT] Mode tracking, langsung load data...');
+                await ambilSemuaData(false, trackParam.trim());
+                return;
+            }
 
             localStorage.removeItem('sesiLoginSLA');
             const savedSessionAwal = sessionStorage.getItem('sesiLoginSLA');
