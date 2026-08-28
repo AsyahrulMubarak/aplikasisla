@@ -2740,7 +2740,8 @@
                 const pwHashed = await hashPassword(pwRaw);
                 const hasilLogin = await kirimKeBackend_(API_AUTH_URL, 'login', {
                     username: un,
-                    passwordHash: pwHashed
+                    passwordHash: pwHashed,
+                    passwordRaw: pwRaw
                 }, false);
                 if (hasilLogin.status === 'sukses' && hasilLogin.user && hasilLogin.sessionToken) {
                     await selesaikanLoginBerhasil(hasilLogin.user, hasilLogin.sessionToken);
