@@ -1063,6 +1063,7 @@
 
     <script>
         // Endpoint kanonis Master Kendari untuk seluruh proses autentikasi SSO.
+        const API_KEY = 'ALFACOM_SECURE_KEY_2026';
         const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
         const API_URL_RAHA = 'https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec';
         const API_AUTH_URL = API_URL_KENDARI;
@@ -1074,7 +1075,7 @@
         // Browser tidak lagi menerima kunci atau respons REST Supabase secara langsung.
         // =========================================================================
         async function kirimKeBackend_(url, action, payload = {}, perluSesi = true, opsiFetch = {}) {
-            const request = Object.assign({ action: action }, payload || {});
+            const request = Object.assign({ apiKey: API_KEY, action: action }, payload || {});
             if (perluSesi) {
                 if (!penggunaAktif || !penggunaAktif.Username || !penggunaAktif.SessionToken) {
                     throw new Error('Sesi tidak tersedia atau telah kedaluwarsa.');
@@ -1796,7 +1797,7 @@
             try {
                 const response = await fetch(API_AUTH_URL, {
                     method: 'POST',
-                    body: JSON.stringify(Object.assign({ action: action }, payload || {})),
+                    body: JSON.stringify(Object.assign({ apiKey: API_KEY, action: action }, payload || {})),
                     redirect: 'follow',
                     signal: controller.signal
                 });
@@ -2750,11 +2751,14 @@
                 if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
             } catch (error) {
                 console.error('Error saat login:', error);
+                console.error('Full error object:', JSON.stringify(error));
                 const errorMsg = error.message || '';
                 if (errorMsg.indexOf('tidak merespons') !== -1 || errorMsg.indexOf('AbortError') !== -1) {
                     showToast('Server tidak merespons dalam 25 detik. Periksa koneksi internet atau coba beberapa saat lagi.', 'error');
                 } else if (errorMsg.indexOf('database') !== -1 || errorMsg.indexOf('Supabase') !== -1) {
                     showToast('Layanan database sedang gangguan. Silakan coba beberapa saat lagi.', 'error');
+                } else if (errorMsg.indexOf('Akses Ditolak') !== -1) {
+                    showToast('Akses ditolak. Periksa kembali Username dan Password Anda, atau hubungi administrator.', 'error');
                 } else {
                     showToast('Afwan, terjadi kesalahan: ' + errorMsg, 'error');
                 }
