@@ -1545,6 +1545,13 @@
             if (!val) return new Date(NaN);
             if (val instanceof Date) return val;
             let str = String(val).trim();
+
+            // FIX: Safari/iOS menolak format "YYYY-MM-DD HH:mm:ss+00". Ubah menjadi standar ISO dengan 'T'
+            if (str.length >= 19 && str.charAt(10) === ' ') {
+                str = str.replace(' ', 'T');
+                if (str.endsWith('+00')) str += ':00';
+            }
+
             let d = new Date(str);
             if (!isNaN(d.getTime())) return d;
 
@@ -2678,52 +2685,31 @@
                     let dbTiket, dbUsers, dbPenjualan, dbProspek, dbKlien, dbGaransi;
                     if (trackIdNormal) {
                         const hasilTracking = await kirimKeBackend_(API_AUTH_URL, 'trackTicket', { idTiket: trackIdNormal }, false);
-                        dbTiket = Array.isArray(hasilTracking.tiket) ? hasilTracking.tiket : [];
-                        dbGaransi = Array.isArray(hasilTracking.garansi) ? hasilTracking.garansi : [];
-                        dbUsers = []; dbPenjualan = []; dbProspek = []; dbKlien = [];
+                        // Map data mentah khusus untuk mode tracking klien
+                        let rawTiket = Array.isArray(hasilTracking.tiket) ? hasilTracking.tiket : [];
+                        globalTickets = rawTiket.map(r => ({
+                            "ID Tiket": r.id_tiket, "Status": r.status, "Klien & Lokasi": r.klien_lokasi,
+                            "Jenis Pekerjaan": r.jenis_pekerjaan, "Teknisi": r.teknisi, "Waktu Lapor": r.waktu_lapor,
+                            "WA Klien": r.no_wa_klien, "Link PDF BA": r.link_pdf_ba
+                        }));
+                        let rawGaransi = Array.isArray(hasilTracking.garansi) ? hasilTracking.garansi : [];
+                        globalGaransi = rawGaransi.map(g => ({
+                            "Referensi (Tiket/Nota)": g.referensi_tiket_nota, "Status": g.status,
+                            "Tanggal Habis": g.tanggal_habis, "Barang / Jasa": g.barang_jasa,
+                            "Durasi (Hari)": g.durasi_hari, "Keterangan": g.keterangan
+                        }));
+                        globalUsers = []; globalPenjualan = []; globalProspek = []; globalKlien = [];
                     } else {
                         // 🚀 TARIK SEMUA TABEL DALAM 1X REQUEST KE BACKEND
                         const responseAll = await kirimKeBackend_(apiUrl, 'getAllData', { cabang: cabangAktif });
-                        dbTiket = responseAll.tickets || [];
-                        dbUsers = responseAll.users || [];
-                        dbPenjualan = responseAll.penjualan || [];
-                        dbProspek = responseAll.prospek || [];
-                        dbKlien = responseAll.dataKlien || [];
-                        dbGaransi = responseAll.garansi || [];
+                        globalTickets = responseAll.tickets || [];
+                        globalUsers = responseAll.users || [];
+                        globalPenjualan = responseAll.penjualan || [];
+                        globalProspek = responseAll.prospek || [];
+                        globalKlien = responseAll.dataKlien || [];
+                        globalGaransi = responseAll.garansi || [];
                     }
-
-                    console.log('[DATA] Raw counts - Tiket:', dbTiket?.length, 'Users:', dbUsers?.length, 'Penjualan:', dbPenjualan?.length, 'Prospek:', dbProspek?.length, 'Klien:', dbKlien?.length, 'Garansi:', dbGaransi?.length);
-
-                    globalTickets = []; globalUsers = []; globalPenjualan = []; globalProspek = []; globalKlien = []; globalGaransi = [];
-
-                    for (let rowDB of dbTiket) {
-                        if (trackIdNormal && String(rowDB.id_tiket || '').toLowerCase() !== trackIdNormal.toLowerCase()) continue;
-                        globalTickets.push({
-                            "ID Tiket": rowDB.id_tiket, "No Transaksi": rowDB.no_transaksi || "", "Waktu Lapor": rowDB.waktu_lapor,
-                            "Target SLA (Jam)": rowDB.target_sla_jam, "Tenggat Waktu": rowDB.tenggat_waktu, "Klien & Lokasi": rowDB.klien_lokasi,
-                            "Jenis Pekerjaan": rowDB.jenis_pekerjaan, "Teknisi": rowDB.teknisi, "Status": rowDB.status, "Waktu Selesai": rowDB.waktu_selesai,
-                            "Status SLA": rowDB.status_sla, "Poin Performa": rowDB.poin_performa, "Sales": rowDB.sales, "Keterangan": rowDB.keterangan,
-                            "Target SLA Respon (Jam)": rowDB.target_sla_respon_jam, "Tenggat Respon": rowDB.tenggat_respon, "Waktu Respon": rowDB.waktu_respon,
-                            "Status SLA Respon": rowDB.status_sla_respon, "Status Peringatan": rowDB.status_peringatan, "Deskripsi Pekerjaan (BA)": rowDB.deskripsi_pekerjaan_ba,
-                            "Nama Customer": rowDB.nama_customer, "Kritik & Saran": rowDB.kritik_saran, "Tanda Tangan": rowDB.tanda_tangan,
-                            "Status Banding": rowDB.status_banding, "Sales Pengaju": rowDB.sales_pengaju, "Bukti Banding": rowDB.bukti_banding,
-                            "Keterangan Sales": rowDB.keterangan_sales, "Alasan Admin": rowDB.alasan_admin, "Nilai Penjualan": rowDB.nilai_penjualan,
-                            "Link PDF BA": rowDB.link_pdf_ba, "No WA Klien": rowDB.no_wa_klien, "Bobot Poin": rowDB.bobot_poin, "Veto Admin": rowDB.veto_admin,
-                            "Status Pembayaran": rowDB.status_pembayaran, "Tanggal Lunas": rowDB.tanggal_lunas, "Teknisi Sebelumnya": rowDB.teknisi_sebelumnya,
-                            "Penalti Teknisi Lama": rowDB.penalti_teknisi_lama, "Tenggat Pengganti": rowDB.tenggat_pengganti, "Cabang": rowDB.cabang || 'Kendari', "Admin SLA": rowDB.admin_sla || 'admin'
-                        });
-                    }
-                    for (let u of dbUsers) globalUsers.push({ "Username": u.username, "Role": u.role, "Nama Asli": u.nama_asli, "Email": u.email, "Target Sales (Rp)": u.target_sales_rp, "No WA": u.no_wa, "Gaji Pokok": u.gaji_pokok, "Bonus Tambahan": u.bonus_tambahan, "Hak_Akses_Cabang": u.hak_akses_cabang });
-                    for (let p of dbPenjualan) globalPenjualan.push({ "ID Penjualan": p.id_penjualan, "No Transaksi": p.no_transaksi, "Waktu Lapor": p.waktu_lapor, "Nama Pembeli": p.nama_pembeli, "Barang / Jasa": p.barang_jasa, "Sales": p.sales, "Nominal (Rp)": p.nominal_rp, "Cabang": p.cabang || 'Kendari', "Admin SLA": p.admin_sla || 'admin' });
-                    for (let p of dbProspek) globalProspek.push({ "ID Prospek": p.id_prospek, "Tanggal Input": p.tanggal_input, "Nama Calon Customer": p.nama_calon_customer, "Kebutuhan": p.kebutuhan, "Status Prospek": p.status_prospek, "Sales Penanggung Jawab": p.sales_penanggung_jawab, "Estimasi (Rp)": p.estimasi_rp, "Bukti Chat": p.bukti_chat, "Surat Penawaran": p.surat_penawaran, "No WA": p.no_wa, "Waktu Follow Up Terakhir": p.waktu_follow_up_terakhir, "Riwayat Follow Up": p.riwayat_follow_up, "Waktu Peringatan CRM Terakhir": p.waktu_peringatan_crm_terakhir, "Waktu Minta Penawaran": p.waktu_minta_penawaran, "Waktu Selesai Penawaran": p.waktu_selesai_penawaran, "Target SLA Penawaran (Jam)": p.target_sla_penawaran_jam, "Cabang": p.cabang || 'Kendari', "Admin SLA": p.admin_sla || 'admin' });
-                    for (let k of dbKlien) globalKlien.push({ "ID Klien": k.id_klien, "Nama Klien": k.nama_klien, "No WA": k.no_wa, "Kategori": k.kategori, "Total Transaksi": k.total_transaksi, "Transaksi Terakhir": k.transaksi_terakhir, "Sumber": k.sumber, "Tag Produk": k.tag_produk, "Cabang": k.cabang || 'Kendari', "Admin SLA": k.admin_sla || 'admin' });
-                    for (let g of dbGaransi) {
-                        if (trackIdNormal && String(g.referensi_tiket_nota || '').toLowerCase() !== trackIdNormal.toLowerCase()) continue;
-                        let rec = { "ID Garansi": g.id_garansi, "Referensi (Tiket/Nota)": g.referensi_tiket_nota, "Nama Pelanggan": g.nama_pelanggan, "Barang / Jasa": g.barang_jasa, "Durasi (Hari)": g.durasi_hari, "Status": g.status, "Tanggal Mulai": g.tanggal_mulai, "Tanggal Habis": g.tanggal_habis, "No Transaksi": g.no_transaksi, "Sales": g.sales, "Omzet": g.omzet, "Keterangan": g.keterangan, "Follow Up After-Sales Terkirim": g.follow_up_after_sales_terkirim, "Cabang": g.cabang, "Admin SLA": g.admin_sla };
-                        if (String(rec.Status).trim() === 'Aktif' && rec["Tanggal Habis"] && new Date() > new Date(rec["Tanggal Habis"])) { rec.Status = 'Habis (Expired)'; }
-                        globalGaransi.push(rec);
-                    }
-                    console.log('[DATA] Processed counts - Tiket:', globalTickets.length, 'Users:', globalUsers.length, 'Penjualan:', globalPenjualan.length, 'Prospek:', globalProspek.length, 'Klien:', globalKlien.length, 'Garansi:', globalGaransi.length);
+                    console.log('[DATA] Berhasil disinkronisasi - Tiket:', globalTickets.length, 'Users:', globalUsers.length);
                     berhasil = true; break;
 
                 } catch (error) {
