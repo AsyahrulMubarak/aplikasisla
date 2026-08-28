@@ -518,7 +518,7 @@
         // ==========================================
         // KONFIGURASI API (WAJIB DIISI)
         // ==========================================
-        const API_URL_KENDARI = "https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec";
+        const API_URL_KENDARI = "https://script.google.com/macros/s/AKfycbyuZL8tYQpdN_30WrVfxe1jG5U1quEv3H7cegkPTOdHXJIT6T7P5DuVDRo-_KfGen_p/exec";
         const API_URL_RAHA = "https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec";
         const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
         const API_ABSEN = "https://script.google.com/macros/s/AKfycbzWjDbDmP8HTkFhnr4i_-HDN4Gozsfa8tuSKnwIszLIphJdtfuUk9R0YdgZyotncqgyfg/exec";
@@ -673,7 +673,7 @@
             try {
                 const res = await fetch(apiUrl, {
                     method: 'POST',
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'getVariabelPayroll', periode: periode })
+                    body: JSON.stringify(payloadSesiSlip('getVariabelPayroll', { periode: periode }))
                 });
                 const json = await res.json();
                 if (json.status !== 'sukses') throw new Error(json.pesan || 'Data payroll gagal dimuat.');
@@ -738,16 +738,14 @@
             try {
                 const res = await fetch(apiUrl, {
                     method: 'POST',
-                    body: JSON.stringify({
-                        apiKey: API_KEY,
-                        action: 'simpanVariabelPayroll',
+                    body: JSON.stringify(payloadSesiSlip('simpanVariabelPayroll', {
                         periode: periode,
                         namaPegawai: namaPegawai,
                         fee: document.getElementById('input-fee').value,
                         kasbon: document.getElementById('input-kasbon').value,
                         luarKota: document.getElementById('input-luar-kota').value,
                         diubahOleh: penggunaAktif['Nama Asli'] || penggunaAktif.Username || '-'
-                    })
+                    }))
                 });
                 const json = await res.json();
                 if (json.status !== 'sukses') throw new Error(json.pesan || 'Penyimpanan gagal.');
@@ -828,12 +826,10 @@
             try {
                 const res = await fetch(apiUrl, {
                     method: 'POST',
-                    body: JSON.stringify({
-                        apiKey: API_KEY,
-                        action: 'updateTunjangan',
+                    body: JSON.stringify(payloadSesiSlip('updateTunjangan', {
                         namaAsli: namaTarget,
                         tunjanganData: finalStr
-                    })
+                    }))
                 });
                 const json = await res.json();
                 if(json.status === 'sukses') {
@@ -875,17 +871,34 @@
             }
         }
 
+        function payloadSesiSlip(action, tambahan = {}) {
+            return Object.assign({
+                apiKey: API_KEY,
+                action: action,
+                cabang: cabangAktif,
+                user: {
+                    Username: penggunaAktif.Username,
+                    SessionToken: penggunaAktif.SessionToken
+                }
+            }, tambahan);
+        }
+
         async function tarikSemuaData() {
             document.getElementById('loading').style.display = 'block';
             try {
-                let resSLA = await fetch(apiUrl + "?nocache=" + new Date().getTime() + "&apiKey=" + API_KEY, { redirect: 'follow' });
+                // BUG FIX 1: Gunakan POST getAllData dengan sesi SSO
+                let resSLA = await fetch(apiUrl, {
+                    method: 'POST',
+                    body: JSON.stringify(payloadSesiSlip('getAllData'))
+                });
                 let dataSLA = await resSLA.json();
                 globalUsers = dataSLA.users || [];
                 globalTickets = dataSLA.tickets || [];
 
+                // BUG FIX 2: Lampirkan sesi pada fetch Absen
                 let resAbsen = await fetch(API_ABSEN, {
                     method: 'POST', redirect: 'follow',
-                    body: JSON.stringify({ apiKey: API_KEY, action: 'getAbsen' })
+                    body: JSON.stringify(payloadSesiSlip('getAbsen'))
                 });
                 let dataAbsen = await resAbsen.json();
                 
