@@ -5233,6 +5233,11 @@
 
                             const hasil = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', currentId), 'PATCH', tiketPatch);
                             pastikanHasilMutasiSupabase_(hasil, `Tiket ${currentId}`);
+                            if ((!teknisiLama || teknisiLama === 'Belum Ditugaskan' || teknisiLama === '-') && teknisiFinal !== 'Belum Ditugaskan' && teknisiFinal !== '-') {
+                                const salesText = s ? s : 'Tidak Ada';
+                                const pesanTeknisiBaru = `🆕 *TUGAS BARU (ASSIGNMENT)*\n\nBismillah, antum mendapat penugasan untuk tiket *${currentId}*.\n\n🏢 *Klien:* ${document.getElementById('input-klien').value}\n🛠️ *Pekerjaan:* ${listPekerjaan[i]}\n💼 *Sales:* ${salesText}\n⏳ *Batas Respon:* ${targetRespon} Jam\n⏳ *Batas Selesai:* ${targetSLA} Jam\n\nMohon segera *Login* ke aplikasi untuk merespon tiket ini.\n🌐 https://aplikasisla.vercel.app/`;
+                                kirimNotifWAInternal(teknisiFinal, pesanTeknisiBaru);
+                            }
                         } else {
                             const sekarang = new Date();
                             const tiketBaru = {
@@ -5715,16 +5720,17 @@
                         console.error('Gagal mengirim notif WA selesai ke admin:', errNotif);
                     }
                     // --- AKHIR NOTIFIKASI WA ADMIN ---
+                }
 
-                    // === SINKRONISASI OTOMATIS KE PROSPEK (WA SALES ADA DI DALAM SINI) ===
-                    try {
-                        await sinkronkanStatusProspekDariTiket_(statusBaru, (tiketLama && tiketLama['WA Klien']) || '', (tiketLama && tiketLama['Klien & Lokasi']) || '');
-                    } catch (errSync) {
-                        console.error("Gagal sinkronisasi prospek:", errSync);
-                    }
+                // === SINKRONISASI OTOMATIS KE PROSPEK (SETIAP KALI TIKET BERHASIL DIUPDATE) ===
+                try {
+                    await sinkronkanStatusProspekDariTiket_(statusBaru, (tiketLama && tiketLama['WA Klien']) || '', (tiketLama && tiketLama['Klien & Lokasi']) || '');
+                } catch (errSync) {
+                    console.error("Gagal sinkronisasi prospek:", errSync);
+                }
 
-                    // === NOTIFIKASI WA KE KLIEN (HANYA SAAT SELESAI) ===
-                    const linkTracking = "https://aplikasisla.vercel.app/?track=" + encodeURIComponent(idTiket);
+                // === NOTIFIKASI WA KE KLIEN (HANYA SAAT SELESAI) ===
+                const linkTracking = "https://aplikasisla.vercel.app/?track=" + encodeURIComponent(idTiket);
                     if (statusBaruNormal === 'selesai') {
                         const namaKlienInfo = String(t['Klien & Lokasi'] || payload.nama_customer || '').trim();
                         const waKlienCRM = String(t['No WA Klien'] || '').trim();
