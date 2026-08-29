@@ -1673,7 +1673,8 @@
         function penggunaBolehMengaksesCabang(cabang, user = penggunaAktif) {
             const cabangTarget = normalisasiCabang(cabang);
             const hakAkses = hakAksesCabangPengguna(user);
-            return !!API_URL_CABANG[cabangTarget] && (hakAkses === 'Semua' || hakAkses === cabangTarget);
+            const roleUser = rolePengguna(user);
+            return !!API_URL_CABANG[cabangTarget] && (hakAkses === 'Semua' || hakAkses === cabangTarget || roleUser === 'sales');
         }
 
         function perbaruiIdentitasCabang() {
@@ -1756,9 +1757,12 @@
             document.getElementById('main-lobby-status').innerText = '';
 
             const hakAkses = hakAksesCabangPengguna();
+            const roleAktifUser = rolePengguna();
             const isManajemenUtama = roleAdalahManajemenUtama_();
-            document.getElementById('btn-lobby-sla-kendari').style.display = hakAkses === 'Semua' || hakAkses === 'Kendari' ? 'block' : 'none';
-            document.getElementById('btn-lobby-sla-raha').style.display = hakAkses === 'Semua' || hakAkses === 'Raha' ? 'block' : 'none';
+            const showAllBranches = (hakAkses === 'Semua' || roleAktifUser === 'sales');
+
+            document.getElementById('btn-lobby-sla-kendari').style.display = showAllBranches || hakAkses === 'Kendari' ? 'block' : 'none';
+            document.getElementById('btn-lobby-sla-raha').style.display = showAllBranches || hakAkses === 'Raha' ? 'block' : 'none';
             ['btn-lobby-absen', 'btn-lobby-gaji'].forEach(idTombol => {
                 const tombol = document.getElementById(idTombol);
                 tombol.style.display = 'block';
@@ -2802,7 +2806,7 @@
         // ==========================================
         function punyaAksesLobby() {
             if (!penggunaAktif || penggunaAdalahFreelance()) return false;
-            if (rolePengguna() === 'direktur') return true;
+            if (rolePengguna() === 'direktur' || rolePengguna() === 'sales') return true;
             let hasGaji = parseFloat(penggunaAktif['Gaji Pokok']) > 0;
             return hasGaji;
         }
