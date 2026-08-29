@@ -5264,7 +5264,9 @@
                             };
                             const hasil = await callSupabase('tiket', 'POST', tiketBaru);
                             pastikanHasilMutasiSupabase_(hasil, `Tiket ${currentId}`);
-                            const hasilNotifTeknisi = await kirimNotifWAInternal(teknisiFinal, "⚠️ *TUGAS SLA BARU ALFACOM*\n\nBismillah, Anda ditugaskan pada tiket baru:\n🎫 *ID Tiket:* " + currentId + "\n🏢 *Klien:* " + tiketBaru.klien_lokasi + "\n🛠️ *Pekerjaan:* " + listPekerjaan[i] + "\n\nSegera cek aplikasi!");
+                            const salesText = s ? s : 'Tidak Ada';
+                            const pesanTeknisi = `🆕 *TUGAS BARU (UPDATE)*\n\nBismillah, antum mendapat penugasan untuk tiket *${currentId}*.\n\n🏢 *Klien:* ${tiketBaru.klien_lokasi}\n🛠️ *Pekerjaan:* ${listPekerjaan[i]}\n💼 *Sales:* ${salesText}\n⏳ *Batas Respon:* ${targetRespon} Jam\n⏳ *Batas Selesai:* ${targetSLA} Jam\n\nMohon segera *Login* ke aplikasi untuk merespon tiket ini.\n🌐 https://aplikasisla.vercel.app/`;
+                            const hasilNotifTeknisi = await kirimNotifWAInternal(teknisiFinal, pesanTeknisi);
                             if (hasilNotifTeknisi.gagal > 0) notifikasiTiketGagal = true;
                             if (waKlien) {
                                 const hasilNotifKlien = await kirimNotifWAEksternal(waKlien, "Assalamu'alaikum, kami dari *Alfacom Multi Solution*.\n\nTiket perbaikan Anda telah terdaftar:\n🎫 *ID Tiket:* " + currentId + "\n🛠️ *Pekerjaan:* " + listPekerjaan[i] + "\n\nPantau progres secara live di: https://aplikasisla.vercel.app/?track=" + encodeURIComponent(currentId));

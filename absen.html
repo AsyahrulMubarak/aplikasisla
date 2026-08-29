@@ -387,6 +387,27 @@
             return '';
         }
 
+        async function fetchAntiCORS(url, payload) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 25000);
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+                    body: JSON.stringify(payload),
+                    redirect: 'follow',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') throw new Error('Server tidak merespons dalam 25 detik.');
+                throw error;
+            }
+        }
+
         function bacaSesiCabangAktif() {
             const savedSession = sessionStorage.getItem('sesiLoginSLA');
             if (!savedSession) throw new Error('Sesi portal tidak ditemukan.');
@@ -768,8 +789,7 @@
                     alasan: alasan,
                     buktiFotoBase64: buktiFotoBase64
                 });
-                const response = await fetch(API_ABSEN_URL, { method:'POST', redirect:'follow', body:JSON.stringify(payload) });
-                const hasil = await response.json();
+                const hasil = await fetchAntiCORS(API_ABSEN_URL, payload);
 
                 if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Pengajuan ditolak oleh sistem.');
                 showToast('✅ ' + hasil.pesan, false);
@@ -824,10 +844,7 @@
             jumlah.innerText = 'Memuat...';
 
             try {
-                const response = await fetch(API_ABSEN_URL, {
-                    method:'POST', redirect:'follow', body:JSON.stringify(payloadDenganSesi('getDaftarPengajuan'))
-                });
-                const hasil = await response.json();
+                const hasil = await fetchAntiCORS(API_ABSEN_URL, payloadDenganSesi('getDaftarPengajuan'));
                 if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Daftar pengajuan gagal dimuat.');
 
                 const dataPengajuan = Array.isArray(hasil.data) ? hasil.data : [];
@@ -891,10 +908,7 @@
             jumlah.innerText = 'Memuat...';
 
             try {
-                const response = await fetch(API_ABSEN_URL, {
-                    method: 'POST', redirect: 'follow', body: JSON.stringify(payloadDenganSesi('getRiwayatPengajuan'))
-                });
-                const hasil = await response.json();
+                const hasil = await fetchAntiCORS(API_ABSEN_URL, payloadDenganSesi('getRiwayatPengajuan'));
                 if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Riwayat gagal dimuat.');
 
                 const dataRiwayat = Array.isArray(hasil.data) ? hasil.data : [];
@@ -968,8 +982,7 @@
                     namaPemberiAcc: penggunaAktif['Nama Asli']
                 });
 
-                const response = await fetch(API_ABSEN_URL, { method: 'POST', redirect:'follow', body:JSON.stringify(payload) });
-                const hasil = await response.json();
+                const hasil = await fetchAntiCORS(API_ABSEN_URL, payload);
 
                 if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Keputusan gagal disimpan.');
 
@@ -1059,12 +1072,7 @@
 
                 textLoading.innerText = "Mencatat ke database Alfacom...";
                 
-                const response = await fetch(API_ABSEN_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-                
-                const hasil = await response.json();
+                const hasil = await fetchAntiCORS(API_ABSEN_URL, payload);
                 
                 if (hasil.status === 'sukses') {
                     showToast("✅ Alhamdulillah: " + hasil.pesan, false);
@@ -1089,13 +1097,7 @@
             try {
                 let session = bacaSesiCabangAktif();
 
-                let res = await fetch(API_ABSEN_URL, { method:'POST', body: JSON.stringify({
-                    apiKey: API_KEY,
-                    action: 'getTinjauanAbsen',
-                    nama: session.user['Nama Asli'],
-                    user: { Username: session.user.Username, SessionToken: session.user.SessionToken }
-                }) });
-                let json = await res.json();
+                let json = await fetchAntiCORS(API_ABSEN_URL, { apiKey: API_KEY, action: 'getTinjauanAbsen', nama: session.user['Nama Asli'], user: { Username: session.user.Username, SessionToken: session.user.SessionToken } });
 
                 if(json.status === 'sukses' && json.data.length > 0) {
                     let html = '';
