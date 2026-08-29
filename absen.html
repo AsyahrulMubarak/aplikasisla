@@ -709,6 +709,7 @@
             return Object.assign({
                 apiKey: API_KEY,
                 action: action,
+                cabang: cabangAktif,
                 username: penggunaAktif.Username,
                 user: {
                     Username: penggunaAktif.Username,
@@ -1042,6 +1043,7 @@
 
                 const payload = {
                     apiKey: API_KEY,
+                    cabang: cabangAktif,
                     username: penggunaAktif.Username,
                     user: {
                         Username: penggunaAktif.Username,
@@ -1097,7 +1099,7 @@
             try {
                 let session = bacaSesiCabangAktif();
 
-                let json = await fetchAntiCORS(API_ABSEN_URL, { apiKey: API_KEY, action: 'getTinjauanAbsen', nama: session.user['Nama Asli'], user: { Username: session.user.Username, SessionToken: session.user.SessionToken } });
+                let json = await fetchAntiCORS(API_ABSEN_URL, { apiKey: API_KEY, action: 'getTinjauanAbsen', cabang: cabangAktif, nama: session.user['Nama Asli'], user: { Username: session.user.Username, SessionToken: session.user.SessionToken } });
 
                 if(json.status === 'sukses' && json.data.length > 0) {
                     let html = '';
