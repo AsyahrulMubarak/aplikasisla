@@ -2982,7 +2982,10 @@
                         await ambilSemuaData(true);
                     }, 300000); // 300000 ms = 5 menit
                 }
-            } catch(e) { showToast("Afwan, Error merender aplikasi", "error"); }
+            } catch (e) {
+                console.error("Error App:", e);
+                showToast("Afwan, Error merender aplikasi: " + e.message, "error");
+            }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; cabangAktif = null; waktuLoginAktif = null; apiUrl = API_URL_KENDARI; window.location.reload(); }
 
