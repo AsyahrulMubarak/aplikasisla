@@ -4410,6 +4410,8 @@
                 const referensi = document.getElementById('garansi-referensi').value.trim();
                 const durasiHari = Math.max(0, Number.parseInt(document.getElementById('garansi-durasi').value, 10) || 0);
                 const omzetRaw = document.getElementById('garansi-omzet').value;
+                const poinNilaiStr = document.getElementById('garansi-poin-nilai').value;
+                const poinVeto = document.getElementById('garansi-poin-veto').checked ? 'Ya' : 'Tidak';
                 const tiketReferensi = (globalTickets || []).find(item => item && String(item['ID Tiket']).trim() === referensi);
                 const cabangGaransi = normalisasiCabang((tiketReferensi && tiketReferensi.Cabang) || cabangAktif) || 'Kendari';
                 let statusGaransi = document.getElementById('garansi-status').value;
@@ -4452,6 +4454,20 @@
                     hasil = await callSupabase('garansi', 'POST', payload);
                 }
                 pastikanHasilMutasiSupabase_(hasil, `Garansi ${idGrs}`);
+
+                // === SINKRONISASI POIN KE TIKET ===
+                if (referensi.startsWith('TKT-') && poinNilaiStr !== '') {
+                    try {
+                        await kirimKeBackend_(apiUrl, 'updatePoinTiket', {
+                            idTiket: referensi,
+                            bobotPoin: poinNilaiStr,
+                            vetoPoin: poinVeto
+                        });
+                    } catch (errPoin) {
+                        console.error('Gagal update poin dari garansi:', errPoin);
+                    }
+                }
+                // ==================================
 
                 showToast(`Alhamdulillah! Data Garansi berhasil ${garansiSudahAda ? 'diperbarui' : 'disimpan'}.`, 'success');
                 tutupFormGaransi();
