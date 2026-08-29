@@ -6548,50 +6548,70 @@
             }
         }
 
-        // ==========================================
-        // INISIALISASI APLIKASI
-        // ==========================================
-        window.onload = async function() {
-            console.log("[INIT] Aplikasi dimulai...");
-            perbaruiDukunganBiometrik();
+        // =========================================================================
+        // 🚦 MASTER ROUTER (PENGENDALI LALU LINTAS HALAMAN & AUTO-LOGIN)
+        // =========================================================================
+        document.addEventListener("DOMContentLoaded", async () => {
+            // 1. Matikan semua layar terlebih dahulu (mencegah kedipan UI / Overlap)
+            document.getElementById('client-tracking-wrapper').style.display = 'none';
+            document.getElementById('login-wrapper').style.display = 'none';
+            document.getElementById('main-lobby-wrapper').style.display = 'none';
+            document.getElementById('app-wrapper').style.display = 'none';
 
+            // 2. Cek Mode Tracking Klien (Dari Link WA)
             const urlParams = new URLSearchParams(window.location.search);
-            const trackParam = urlParams.get('track');
-            console.log("[INIT] trackParam: ", trackParam);
-
-            // Verifikasi koneksi ke Supabase via Proxy
-            console.log("[INIT] API_KEY: ", API_KEY ? "ada" : "TIDAK ADA");
-            console.log("[INIT] API_URL_KENDARI: \n" + API_URL_KENDARI);
-
-            try {
-                const sesiString = localStorage.getItem('sesiLoginSLA') || sessionStorage.getItem('sesiLoginSLA');
-                if (sesiString) {
-                    const sesi = JSON.parse(sesiString);
-                    const selisihJam = (new Date().getTime() - (sesi.loginTime || 0)) / (1000 * 60 * 60);
-                    if (selisihJam < 24 && sesi.user && sesi.user.Username && sesi.user.SessionToken) {
-                        penggunaAktif = sesi.user;
-                        waktuLoginAktif = sesi.loginTime;
-                        if (sesi.modulAktif === 'lobby' || !sesi.cabangAktif) {
-                            masukKeAplikasi();
-                            return;
-                        }
-                        cabangAktif = sesi.cabangAktif;
-                        apiUrl = API_URL_CABANG[cabangAktif] || API_URL_KENDARI;
-                        await ambilSemuaData(false, trackParam);
-                        return;
-                    }
-                }
-            } catch (error) {
-                console.error("Pemulihan sesi ditolak:", error);
-            }
-
-            if (trackParam) {
-                await ambilSemuaData(false, trackParam);
+            const trackId = urlParams.get('track');
+            if (trackId) {
+                document.getElementById('client-tracking-wrapper').style.display = 'flex';
+                renderClientTracking(trackId);
                 return;
             }
 
-            document.getElementById('login-loading').style.display = 'none';
+            // 3. Cek Sesi Login yang Tersimpan (Auto-Login / Routing Fokus)
+            const savedSession = sessionStorage.getItem('sesiLoginSLA');
+            if (savedSession) {
+                try {
+                    const session = JSON.parse(savedSession);
+                    const loginTime = Number(session.loginTime);
+                    // Cek apakah sesi masih berlaku (24 Jam)
+                    if (Number.isFinite(loginTime) && loginTime > 0 && (Date.now() - loginTime) <= 86400000) {
+                        penggunaAktif = session.user;
+                        waktuLoginAktif = loginTime;
+
+                        // Eksekusi Logika "Fokus" sesuai Role & Modul
+                        if (session.modulAktif === 'lobby' && punyaAksesLobby()) {
+                            // Fokus ke Lobi
+                            tampilkanLobbyUtama();
+                            return;
+                        } else if (session.modulAktif === 'sla' || !punyaAksesLobby()) {
+                            // Fokus ke Manajemen SLA (Juga berlaku otomatis untuk Freelance)
+                            cabangAktif = normalisasiCabang(session.cabangAktif) || cabangOtomatisPengguna();
+                            if (cabangAktif && API_URL_CABANG[cabangAktif]) {
+                                apiUrl = API_URL_CABANG[cabangAktif];
+                                document.documentElement.dataset.cabangAktif = cabangAktif;
+                                bukaAplikasiSLA(); // Ini akan mematikan Lobi dan Login
+                                document.getElementById('loading').style.display = 'block';
+                                document.getElementById('loading').innerText = `Mengunduh database Cabang ${cabangAktif}...`;
+                                await ambilSemuaData(true);
+                                document.getElementById('loading').style.display = 'none';
+                                document.getElementById('loading').innerText = 'Sinkronisasi data sistem...';
+                                return;
+                            }
+                        }
+                    } else {
+                        // Sesi kedaluwarsa, bersihkan memori
+                        sessionStorage.removeItem('sesiLoginSLA');
+                    }
+                } catch (e) {
+                    console.error("Gagal membaca sesi lokal:", e);
+                }
+            }
+
+            // 4. Jika Tidak Ada Sesi / Gagal -> Fokus ke Halaman Login Utama
+            document.getElementById('login-wrapper').style.display = 'flex';
             document.getElementById('login-form').style.display = 'block';
+            document.getElementById('login-loading').style.display = 'none';
+            perbaruiDukunganBiometrik();
             inisialisasiPrefetchLoginBiometrik_();
-        };
+        });
     </script>
