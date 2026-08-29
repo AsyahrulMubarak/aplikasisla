@@ -2970,7 +2970,14 @@
                 }
 
                 renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderKlien(); renderGaransi(); renderTabelUser(); switchTab('dashboard');
-                if (!intervalAutoRefresh) { intervalAutoRefresh = setInterval(() => { if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('modal-followup').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex') return; ambilSemuaData(true); }, 30000); }
+                if (!intervalAutoRefresh) {
+                    intervalAutoRefresh = setInterval(async () => {
+                        if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('modal-followup').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex') return;
+
+                        // Auto-refresh penuh dijadwalkan setiap 5 menit untuk mengamankan kuota Egress
+                        await ambilSemuaData(true);
+                    }, 300000); // 300000 ms = 5 menit
+                }
             } catch(e) { showToast("Afwan, Error merender aplikasi", "error"); }
         }
         function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; cabangAktif = null; waktuLoginAktif = null; apiUrl = API_URL_KENDARI; window.location.reload(); }
