@@ -234,7 +234,7 @@
                 <button type="button" id="btn-buka-pengajuan" style="flex:1; padding:12px; border-radius:8px; background:#fefce8; color:#a16207; border:1px solid #fde047; font-weight:bold; cursor:pointer;" onclick="bukaModalPengajuan()">📝 Ajukan Cuti/Sakit</button>
             </div>
             <button type="button" id="btn-approval-manajemen" style="display:none; width:100%; padding:12px; border-radius:8px; background:#1e3a8a; color:white; border:none; font-weight:bold; cursor:pointer; margin-top:10px;" onclick="bukaModalApproval()">🛡️ Approval Pengajuan</button>
-            <button type="button" class="btn-back" onclick="window.location.href='index.html'">Kembali ke Lobi</button>
+            <button type="button" class="btn-back" onclick="kembaliKeLobiAman()">Kembali ke Lobi</button>
         </form>
     </div>
 
@@ -1127,7 +1127,21 @@
             document.getElementById('tinjauan-loading').style.display = 'none';
         }
 
-        function kembaliKeSLA() { window.location.href = "index.html"; }
+        function kembaliKeLobiAman() {
+            try {
+                let sesiStr = sessionStorage.getItem('sesiLoginSLA');
+                if (sesiStr) {
+                    let sesi = JSON.parse(sesiStr);
+                    sesi.modulAktif = 'lobby';
+                    sesi.cabangAktif = null;
+                    sesi.apiUrl = null;
+                    sessionStorage.setItem('sesiLoginSLA', JSON.stringify(sesi));
+                }
+            } catch(e) {
+                console.error('Gagal memulihkan sesi lobby', e);
+            }
+            window.location.href = 'index.html';
+        }
     </script>
 </body>
 </html>
