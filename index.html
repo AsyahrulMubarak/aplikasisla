@@ -770,7 +770,11 @@
                     <select id="prospek-status" required onchange="cekStatusProspek()">
                         <option value="Tahap Penawaran">📝 Tahap Penawaran</option>
                         <option value="Kunjungan Toko">🏪 Kunjungan Toko</option>
+                        <option value="On Progress">⚙️ On Progress</option>
+                        <option value="Pending">⏳ Pending</option>
                         <option value="Closing / Deal">✅ Closing / Deal</option>
+                        <option value="Batal">❌ Batal</option>
+                        <option value="Tanpa Keterangan">❓ Tanpa Keterangan</option>
                     </select>
 
                     <!-- ESTIMASI TOTAL OTOMATIS -->
@@ -1335,18 +1339,19 @@
 
         async function sinkronkanStatusProspekDariTiket_(statusTiket, noWaCustomer, namaCustomer) {
             const statusTiketNormal = String(statusTiket || '').trim().toLowerCase();
-            const statusProsesServis = ['on progress', 'menunggu', 'pending', 'outsource'];
             let statusProspekTujuan = '';
-            let hanyaDariTahapAwal = false;
 
-            if (statusProsesServis.includes(statusTiketNormal)) {
-                statusProspekTujuan = 'Proses Servis';
-                hanyaDariTahapAwal = true;
+            // Pemetaan 1:1 antara status Tiket dengan status Prospek
+            if (statusTiketNormal === 'on progress') {
+                statusProspekTujuan = 'On Progress';
+            } else if (statusTiketNormal === 'pending') {
+                statusProspekTujuan = 'Pending';
             } else if (statusTiketNormal === 'selesai' || statusTiketNormal === 'closed') {
-                statusProspekTujuan = 'Closing';
+                statusProspekTujuan = 'Closing / Deal';
             } else if (statusTiketNormal === 'cancel' || statusTiketNormal === 'batal') {
                 statusProspekTujuan = 'Batal';
             } else {
+                // Abaikan status 'Menunggu' atau 'Outsource'
                 return { ditemukan: 0, diperbarui: 0, status: '' };
             }
 
@@ -1370,11 +1375,13 @@
                 return true;
             });
 
-            const tahapAwalDiizinkan = new Set(['tahap penawaran', 'kunjungan toko']);
             const prospekPerluDiubah = prospekCocok.filter(prospek => {
                 const statusSaatIni = String(prospek.status_prospek || '').trim().toLowerCase();
+                // Jika statusnya sudah sama, abaikan
                 if (statusSaatIni === statusProspekTujuan.toLowerCase()) return false;
-                return !hanyaDariTahapAwal || tahapAwalDiizinkan.has(statusSaatIni);
+                // Cegah status mundur (Misal: dari Closing/Deal kembali ke On Progress)
+                if (statusSaatIni === 'closing / deal' || statusSaatIni === 'batal') return false;
+                return true;
             });
 
             await Promise.all(prospekPerluDiubah.map(async prospek => {
@@ -1389,9 +1396,12 @@
                 if (prospekLokal) prospekLokal['Status Prospek'] = statusProspekTujuan;
 
                 const namaCustomerProspek = String(prospek.nama_calon_customer || namaCustomer || '-').trim();
-                const pesanWA = `⚠️ *INFO OTOMATIS SISTEM SLA*\n\nBismillah. Status prospek Anda atas nama *${namaCustomerProspek}* otomatis diubah menjadi *${statusProspekTujuan}* karena tiket perbaikannya telah diselesaikan/diubah statusnya.\n\nMohon pantau di aplikasi.`;
+                let ikon = statusProspekTujuan === 'Closing / Deal' ? '✅' : (statusProspekTujuan === 'Batal' ? '❌' : (statusProspekTujuan === 'Pending' ? '⏳' : '⚙️'));
+
+                const pesanWA = `⚠️ *UPDATE PROSPEK OTOMATIS*\n\nAssalamu'alaikum Sales,\nStatus prospek Anda atas nama *${namaCustomerProspek}* kini berubah menjadi:\n\n${ikon} *${statusProspekTujuan}*\n\nStatus ini disinkronkan otomatis karena Teknisi telah mengubah status tiket perbaikannya. Mohon pantau terus di aplikasi SLA!`;
+
                 const hasilNotifProspek = await kirimNotifWAInternal(prospek.sales_penanggung_jawab, pesanWA);
-                if (hasilNotifProspek.gagal > 0) throw new Error(`Status Prospek ${idProspek} tersimpan, tetapi notifikasi WhatsApp gagal dikirim.`);
+                if (hasilNotifProspek.gagal > 0) console.error(`Notif WA Prospek ${idProspek} ke Sales gagal.`);
             }));
 
             return { ditemukan: prospekCocok.length, diperbarui: prospekPerluDiubah.length, status: statusProspekTujuan };
@@ -5586,6 +5596,7 @@
             const catatanBaru = document.getElementById('update-keterangan').value.trim();
             const idTiket = document.getElementById('update-id').value;
             const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket);
+            const tiketLama = (globalTickets || []).find(item => item && String(item['ID Tiket']).trim() === String(idTiket).trim());
             let ttdBase64 = String((t && t['Tanda Tangan']) || "");
             // FITUR PENCEGAHAN: KONFIRMASI JIKA STATUS BERUBAH MENJADI SELESAI
             if (status === 'Selesai' && t['Status'] !== 'Selesai') {
@@ -5625,8 +5636,8 @@
             const statusLamaNormal = statusLama.toLowerCase();
             const jenisPekerjaan = t['Jenis Pekerjaan'] || '-';
 
-            // Deteksi jika ini murni revisi dokumen (Status Selesai -> Selesai)
-            const isRevisi = (statusLamaNormal === 'selesai' && statusBaruNormal === 'selesai');
+            // Deteksi jika ini murni revisi dokumen/catatan (Status tidak berubah sama sekali)
+            const isRevisi = (statusLama === status);
             const cabangTiket = normalisasiCabang(t.Cabang || cabangAktif) || 'Kendari';
             const payload = {
                 status: status,
@@ -5701,14 +5712,25 @@
 
                     try {
                         await sinkronkanStatusProspekDariTiket_(
-                            status,
-                            t['No WA Klien'] || '',
-                            t['Klien & Lokasi'] || t['Nama Customer'] || ''
+                            statusBaru,
+                            (tiketLama && tiketLama['WA Klien']) || '',
+                            (tiketLama && tiketLama['Klien & Lokasi']) || ''
                         );
                     } catch (errorSinkronProspek) {
                         console.error('Sinkronisasi Prospek dari update tiket gagal:', errorSinkronProspek);
                         sinkronProspekGagal = true;
                     }
+                    // === SINKRONISASI OTOMATIS KE PROSPEK (WA SALES ADA DI DALAM SINI) ===
+                    const noWaKlienLama = tiketLama['WA Klien'] || '';
+                    const namaKlienLama = tiketLama['Klien & Lokasi'] || '';
+                    try {
+                        await sinkronkanStatusProspekDariTiket_(statusBaru, noWaKlienLama, namaKlienLama);
+                    } catch (errSync) {
+                        console.error("Gagal sinkronisasi prospek:", errSync);
+                    }
+
+                    // === NOTIFIKASI WA KE KLIEN (HANYA SAAT SELESAI) ===
+                    const linkTracking = "https://aplikasisla.vercel.app/?track=" + encodeURIComponent(idTiket);
                     if (statusBaruNormal === 'selesai') {
                         const namaKlienInfo = String(t['Klien & Lokasi'] || payload.nama_customer || '').trim();
                         const waKlienCRM = String(t['No WA Klien'] || '').trim();
@@ -5736,11 +5758,12 @@
                         }
 
                         const pesanSelesai = pdfTersimpan
-                            ? "✅ *PEKERJAAN SELESAI*\n\nBismillah. Pelanggan Yth,\n\nKami informasikan bahwa pekerjaan untuk tiket *" + idTiket + "* telah SELESAI dikerjakan.\n\n🛠️ *Pekerjaan:* " + jenisPekerjaan + "\n\nSilakan cek Berita Acara (PDF) dan Status Garansi Anda pada tautan berikut:\n🌐 https://aplikasisla.vercel.app/?track=" + encodeURIComponent(idTiket)
-                            : "✅ *PEKERJAAN SELESAI*\n\nBismillah. Pelanggan Yth,\n\nKami informasikan bahwa pekerjaan untuk tiket *" + idTiket + "* telah SELESAI dikerjakan.\n\n🛠️ *Pekerjaan:* " + jenisPekerjaan + "\nDokumen Berita Acara sedang diproses oleh Admin.\n\nStatus pekerjaan dapat dilihat di:\n🌐 https://aplikasisla.vercel.app/?track=" + encodeURIComponent(idTiket);
+                            ? "✅ *PEKERJAAN SELESAI*\n\nBismillah. Pelanggan Yth,\n\nKami informasikan bahwa pekerjaan untuk tiket *" + idTiket + "* telah SELESAI dikerjakan.\n\n🛠️ *Pekerjaan:* " + jenisPekerjaan + "\n\nSilakan cek Berita Acara (PDF) dan Status Garansi Anda pada tautan berikut:\n🌐 " + linkTracking
+                            : "✅ *PEKERJAAN SELESAI*\n\nBismillah. Pelanggan Yth,\n\nKami informasikan bahwa pekerjaan untuk tiket *" + idTiket + "* telah SELESAI dikerjakan.\n\n🛠️ *Pekerjaan:* " + jenisPekerjaan + "\nDokumen Berita Acara sedang diproses oleh Admin.\n\nStatus pekerjaan dapat dilihat di:\n🌐 " + linkTracking;
                         const hasilWaSelesai = await kirimNotifWAEksternal(waKlienCRM, pesanSelesai);
                         if (hasilWaSelesai.gagal > 0) integrasiEksternalGagal = true;
                     }
+                    // TIDAK ADA LAGI WA KE KLIEN UNTUK STATUS LAINNYA
                 }
                 const adaPeringatanUpdate = sinkronProspekGagal || integrasiEksternalGagal;
                 let pesanUpdate = 'Alhamdulillah! Data tiket berhasil diupdate.';
