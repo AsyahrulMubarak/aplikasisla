@@ -2992,10 +2992,7 @@
 
         function renderDynamicInputs() {
             try {
-                const userSesuaiCabangForm = user => {
-                    const hakAksesCabang = normalisasiCabang(user && (user.Cabang || user.Hak_Akses_Cabang));
-                    return hakAksesCabang === 'Semua' || hakAksesCabang === cabangAktif;
-                };
+                const userSesuaiCabangForm = user => { if (!user) return false; const h = normalisasiCabang(user.Cabang || user['Cabang Kerja'] || user['Cabang Aktif'] || user.Hak_Akses_Cabang); return h === 'Semua' || h === cabangAktif; };
                 const group = document.getElementById('teknisi-group'); group.innerHTML = '';
                 (globalUsers || []).filter(u => userSesuaiCabangForm(u) && rolePengguna(u) === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { tambahkanHtmlAman_(group, `<label><input type="checkbox" value="${amanTeks_(t['Nama Asli'])}"> ${amanTeks_(t['Nama Asli'])}</label>`); });
 
@@ -5710,21 +5707,9 @@
                     }
                     // --- AKHIR NOTIFIKASI WA ADMIN ---
 
-                    try {
-                        await sinkronkanStatusProspekDariTiket_(
-                            statusBaru,
-                            (tiketLama && tiketLama['WA Klien']) || '',
-                            (tiketLama && tiketLama['Klien & Lokasi']) || ''
-                        );
-                    } catch (errorSinkronProspek) {
-                        console.error('Sinkronisasi Prospek dari update tiket gagal:', errorSinkronProspek);
-                        sinkronProspekGagal = true;
-                    }
                     // === SINKRONISASI OTOMATIS KE PROSPEK (WA SALES ADA DI DALAM SINI) ===
-                    const noWaKlienLama = tiketLama['WA Klien'] || '';
-                    const namaKlienLama = tiketLama['Klien & Lokasi'] || '';
                     try {
-                        await sinkronkanStatusProspekDariTiket_(statusBaru, noWaKlienLama, namaKlienLama);
+                        await sinkronkanStatusProspekDariTiket_(statusBaru, (tiketLama && tiketLama['WA Klien']) || '', (tiketLama && tiketLama['Klien & Lokasi']) || '');
                     } catch (errSync) {
                         console.error("Gagal sinkronisasi prospek:", errSync);
                     }

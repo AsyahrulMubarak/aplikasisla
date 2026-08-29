@@ -523,7 +523,22 @@
         const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
         const API_ABSEN = "https://script.google.com/macros/s/AKfycbzWjDbDmP8HTkFhnr4i_-HDN4Gozsfa8tuSKnwIszLIphJdtfuUk9R0YdgZyotncqgyfg/exec";
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
-        let apiUrl = API_URL_KENDARI;
+
+        // --- RESTORASI SESI CABANG DARI LOBI UTAMA ---
+        let cabangAktif = 'Kendari'; // Fallback aman
+        let apiUrl = '';
+        try {
+            const sesiTersimpan = sessionStorage.getItem('sesiLoginSLA');
+            if (sesiTersimpan) {
+                const sesi = JSON.parse(sesiTersimpan);
+                cabangAktif = sesi.cabangAktif || 'Kendari';
+                apiUrl = sesi.apiUrl || API_URL_KENDARI;
+            }
+        } catch (e) {
+            console.error("Gagal membaca sesi SLA:", e);
+            apiUrl = API_URL_KENDARI;
+        }
+        // ---------------------------------------------
 
         let penggunaAktif = null;
         let globalUsers = []; let globalTickets = []; let globalAbsen = [];
@@ -553,7 +568,7 @@
                 throw new Error('Sesi portal telah kedaluwarsa.');
             }
 
-            const cabangAktif = normalisasiCabangSesi(session.cabangAktif);
+            cabangAktif = normalisasiCabangSesi(session.cabangAktif);
             const hakAkses = normalisasiCabangSesi(session.user.Hak_Akses_Cabang);
             const apiCabang = API_URL_CABANG[cabangAktif];
             if (!apiCabang || (hakAkses !== 'Semua' && hakAkses !== cabangAktif)) {
