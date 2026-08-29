@@ -2974,14 +2974,7 @@
                 }
 
                 renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderKlien(); renderGaransi(); renderTabelUser(); switchTab('dashboard');
-                if (!intervalAutoRefresh) {
-                    intervalAutoRefresh = setInterval(async () => {
-                        if (document.getElementById('modal-update').style.display === 'flex' || document.getElementById('modal-bug').style.display === 'flex' || document.getElementById('modal-banding').style.display === 'flex' || document.getElementById('modal-followup').style.display === 'flex' || document.getElementById('custom-confirm-modal').style.display === 'flex' || document.getElementById('custom-prompt-modal').style.display === 'flex' || document.getElementById('modal-penawaran').style.display === 'flex' || document.getElementById('modal-export').style.display === 'flex') return;
-
-                        // Auto-refresh penuh dijadwalkan setiap 5 menit untuk mengamankan kuota Egress
-                        await ambilSemuaData(true);
-                    }, 300000); // 300000 ms = 5 menit
-                }
+                // Fitur auto-refresh interval 5 menit telah dihapus untuk persiapan migrasi ke Supabase Realtime.
             } catch (e) {
                 console.error("Error App:", e);
                 showToast("Afwan, Error merender aplikasi: " + e.message, "error");
