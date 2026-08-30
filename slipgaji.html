@@ -524,6 +524,10 @@
         const API_ABSEN = "https://script.google.com/macros/s/AKfycbzWjDbDmP8HTkFhnr4i_-HDN4Gozsfa8tuSKnwIszLIphJdtfuUk9R0YdgZyotncqgyfg/exec";
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
         const FETCH_TIMEOUT_MS = 30000;
+        const SUPABASE_URL = 'https://oozkqjgllubhjctnkxwl.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Wa3EUtroPjqwfCkJOyRSSw_MWnMXH6E';
+        const SUPABASE_REFRESH_MARGIN_MS = 60000;
+        let promiseRefreshSupabase_ = null;
 
         // --- RESTORASI SESI CABANG DARI LOBI UTAMA ---
         let cabangAktif = 'Kendari'; // Fallback aman
@@ -549,6 +553,97 @@
         let urutanLoadPayroll = 0;
         let urutanLoadDataPayroll = 0;
         let currentTab = 'slip';
+
+        function waktuKedaluwarsaJwt_(token) {
+            try {
+                const bagian = String(token || '').split('.');
+                if (bagian.length !== 3) return 0;
+                let payloadBase64 = bagian[1].replace(/-/g, '+').replace(/_/g, '/');
+                while (payloadBase64.length % 4) payloadBase64 += '=';
+                const payload = JSON.parse(atob(payloadBase64));
+                return Number(payload.exp) > 0 ? Number(payload.exp) * 1000 : 0;
+            } catch (error) {
+                return 0;
+            }
+        }
+
+        function buatErrorSesiSupabase_(pesan) {
+            const error = new Error(pesan);
+            error.code = 'AUTH_EXPIRED';
+            return error;
+        }
+
+        function simpanPembaruanTokenSesi_() {
+            try {
+                const raw = sessionStorage.getItem('sesiLoginSLA');
+                if (!raw || !penggunaAktif) return;
+                const sesi = JSON.parse(raw);
+                if (!sesi || !sesi.user) return;
+                sesi.user = Object.assign({}, sesi.user, {
+                    SessionToken: penggunaAktif.SessionToken,
+                    RefreshToken: penggunaAktif.RefreshToken || '',
+                    SessionExpiresAt: penggunaAktif.SessionExpiresAt || waktuKedaluwarsaJwt_(penggunaAktif.SessionToken)
+                });
+                sessionStorage.setItem('sesiLoginSLA', JSON.stringify(sesi));
+            } catch (error) {
+                console.warn('Token payroll tidak dapat disalin ke sessionStorage:', error);
+            }
+        }
+
+        async function pastikanTokenSupabaseAktif_(paksaRefresh = false) {
+            if (!penggunaAktif || !penggunaAktif.SessionToken) {
+                throw buatErrorSesiSupabase_('Sesi login tidak tersedia. Silakan kembali ke Lobi dan login ulang.');
+            }
+
+            const tokenSekarang = String(penggunaAktif.SessionToken);
+            if (tokenSekarang.split('.').length !== 3) {
+                throw buatErrorSesiSupabase_('Sesi Passkey lama tidak kompatibel dengan Slip Gaji Direct-to-Supabase. Silakan login kembali menggunakan password.');
+            }
+
+            const kedaluwarsaPada = Number(penggunaAktif.SessionExpiresAt) || waktuKedaluwarsaJwt_(tokenSekarang);
+            if (!paksaRefresh && kedaluwarsaPada > Date.now() + SUPABASE_REFRESH_MARGIN_MS) return tokenSekarang;
+            if (!penggunaAktif.RefreshToken) {
+                if (!paksaRefresh && kedaluwarsaPada > Date.now()) return tokenSekarang;
+                throw buatErrorSesiSupabase_('Sesi Supabase telah kedaluwarsa. Silakan kembali ke Lobi dan login ulang menggunakan password.');
+            }
+
+            if (!promiseRefreshSupabase_) {
+                promiseRefreshSupabase_ = (async () => {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+                    try {
+                        const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+                            method: 'POST',
+                            headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refresh_token: penggunaAktif.RefreshToken }),
+                            signal: controller.signal
+                        });
+                        const authData = await response.json().catch(() => ({}));
+                        if (!response.ok || !authData.access_token) {
+                            throw buatErrorSesiSupabase_(authData.error_description || authData.msg || authData.message || 'Refresh sesi Supabase ditolak. Silakan login kembali.');
+                        }
+                        penggunaAktif.SessionToken = authData.access_token;
+                        penggunaAktif.RefreshToken = authData.refresh_token || penggunaAktif.RefreshToken;
+                        penggunaAktif.SessionExpiresAt = authData.expires_at
+                            ? Number(authData.expires_at) * 1000
+                            : (waktuKedaluwarsaJwt_(authData.access_token) || Date.now() + (Number(authData.expires_in) || 3600) * 1000);
+                        simpanPembaruanTokenSesi_();
+                        return penggunaAktif.SessionToken;
+                    } catch (error) {
+                        if (error && error.name === 'AbortError') throw new Error('Pembaruan sesi Supabase melewati batas waktu.');
+                        throw error;
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
+                })();
+            }
+
+            try {
+                return await promiseRefreshSupabase_;
+            } finally {
+                promiseRefreshSupabase_ = null;
+            }
+        }
 
         function normalisasiCabangSesi(nilai) {
             const cabang = String(nilai || '').trim().toLowerCase();
@@ -642,6 +737,7 @@
             try {
                 const session = bacaSesiCabangAktif();
                 penggunaAktif = session.user;
+                await pastikanTokenSupabaseAktif_();
             } catch(e) { window.location.href = "index.html"; return; }
 
             // Logika Hak Akses Master
@@ -727,6 +823,7 @@
                 document.getElementById('input-luar-kota').value = '';
             }
             try {
+                await pastikanTokenSupabaseAktif_();
                 const json = await fetchJsonDenganTimeout_(
                     apiUrl,
                     payloadSesiSlip('getVariabelPayroll', { periode: periode }),
@@ -793,6 +890,7 @@
             btn.disabled = true;
             btn.innerText = 'Menyimpan...';
             try {
+                await pastikanTokenSupabaseAktif_();
                 const res = await fetch(apiUrl, {
                     method: 'POST',
                     body: JSON.stringify(payloadSesiSlip('simpanVariabelPayroll', {
@@ -881,6 +979,7 @@
             btn.innerText = 'Menyimpan ke Database...'; btn.disabled = true;
             
             try {
+                await pastikanTokenSupabaseAktif_();
                 const res = await fetch(apiUrl, {
                     method: 'POST',
                     body: JSON.stringify(payloadSesiSlip('updateTunjangan', {
@@ -954,6 +1053,7 @@
             loading.style.display = 'block';
 
             try {
+                await pastikanTokenSupabaseAktif_();
                 // Kedua deployment GAS dipanggil bersamaan. Backend utama hanya
                 // mengambil users, tiket pada periode aktif, dan komponen payroll.
                 const [dataSLA, dataAbsen] = await Promise.all([

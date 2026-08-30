@@ -1079,6 +1079,107 @@
         // =========================================================================
         const SUPABASE_URL = 'https://oozkqjgllubhjctnkxwl.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_Wa3EUtroPjqwfCkJOyRSSw_MWnMXH6E';
+        const SUPABASE_FETCH_TIMEOUT_MS = 20000;
+        const SUPABASE_REFRESH_MARGIN_MS = 60000;
+        let promiseRefreshSupabase_ = null;
+
+        function waktuKedaluwarsaJwt_(token) {
+            try {
+                const bagian = String(token || '').split('.');
+                if (bagian.length !== 3) return 0;
+                let payloadBase64 = bagian[1].replace(/-/g, '+').replace(/_/g, '/');
+                while (payloadBase64.length % 4) payloadBase64 += '=';
+                const payload = JSON.parse(atob(payloadBase64));
+                return Number(payload.exp) > 0 ? Number(payload.exp) * 1000 : 0;
+            } catch (error) {
+                return 0;
+            }
+        }
+
+        function buatErrorSesiSupabase_(pesan) {
+            const error = new Error(pesan);
+            error.code = 'AUTH_EXPIRED';
+            return error;
+        }
+
+        function simpanPembaruanTokenSesi_() {
+            if (!penggunaAktif) return;
+            try {
+                const raw = sessionStorage.getItem('sesiLoginSLA');
+                if (!raw) return;
+                const sesi = JSON.parse(raw);
+                if (!sesi || !sesi.user) return;
+                sesi.user = Object.assign({}, sesi.user, {
+                    SessionToken: penggunaAktif.SessionToken,
+                    RefreshToken: penggunaAktif.RefreshToken || '',
+                    SessionExpiresAt: penggunaAktif.SessionExpiresAt || waktuKedaluwarsaJwt_(penggunaAktif.SessionToken)
+                });
+                sessionStorage.setItem('sesiLoginSLA', JSON.stringify(sesi));
+            } catch (error) {
+                console.warn('Token baru tidak dapat disalin ke sessionStorage:', error);
+            }
+        }
+
+        async function pastikanTokenSupabaseAktif_(paksaRefresh = false) {
+            if (!penggunaAktif || !penggunaAktif.SessionToken) {
+                throw buatErrorSesiSupabase_('Sesi login tidak tersedia. Silakan login kembali.');
+            }
+
+            const tokenSekarang = String(penggunaAktif.SessionToken);
+            if (tokenSekarang.split('.').length !== 3) {
+                throw buatErrorSesiSupabase_('Sesi Passkey lama tidak kompatibel dengan koneksi langsung Supabase. Silakan login kembali menggunakan password.');
+            }
+
+            const kedaluwarsaPada = Number(penggunaAktif.SessionExpiresAt) || waktuKedaluwarsaJwt_(tokenSekarang);
+            if (!paksaRefresh && kedaluwarsaPada > Date.now() + SUPABASE_REFRESH_MARGIN_MS) return tokenSekarang;
+
+            if (!penggunaAktif.RefreshToken) {
+                if (!paksaRefresh && kedaluwarsaPada > Date.now()) return tokenSekarang;
+                throw buatErrorSesiSupabase_('Sesi Supabase telah kedaluwarsa dan tidak memiliki refresh token. Silakan login kembali menggunakan password.');
+            }
+
+            if (!promiseRefreshSupabase_) {
+                promiseRefreshSupabase_ = (async () => {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), SUPABASE_FETCH_TIMEOUT_MS);
+                    try {
+                        const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+                            method: 'POST',
+                            headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refresh_token: penggunaAktif.RefreshToken }),
+                            signal: controller.signal
+                        });
+                        const authData = await response.json().catch(() => ({}));
+                        if (!response.ok || !authData.access_token) {
+                            throw buatErrorSesiSupabase_(authData.error_description || authData.msg || authData.message || 'Refresh sesi Supabase ditolak. Silakan login kembali.');
+                        }
+
+                        penggunaAktif.SessionToken = authData.access_token;
+                        penggunaAktif.RefreshToken = authData.refresh_token || penggunaAktif.RefreshToken;
+                        penggunaAktif.SessionExpiresAt = authData.expires_at
+                            ? Number(authData.expires_at) * 1000
+                            : (waktuKedaluwarsaJwt_(authData.access_token) || Date.now() + (Number(authData.expires_in) || 3600) * 1000);
+                        simpanPembaruanTokenSesi_();
+                        return penggunaAktif.SessionToken;
+                    } catch (error) {
+                        if (error && error.name === 'AbortError') {
+                            const timeoutError = new Error('Pembaruan sesi Supabase melewati batas waktu. Periksa koneksi lalu coba lagi.');
+                            timeoutError.code = 'AUTH_TIMEOUT';
+                            throw timeoutError;
+                        }
+                        throw error;
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
+                })();
+            }
+
+            try {
+                return await promiseRefreshSupabase_;
+            } finally {
+                promiseRefreshSupabase_ = null;
+            }
+        }
 
         // =========================================================================
         // 🚀 GATEWAY GOOGLE APPS SCRIPT TERBATAS
@@ -1089,6 +1190,7 @@
                 if (!penggunaAktif || !penggunaAktif.Username || !penggunaAktif.SessionToken) {
                     throw new Error('Sesi tidak tersedia atau telah kedaluwarsa.');
                 }
+                await pastikanTokenSupabaseAktif_();
                 request.user = { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken };
             }
 
@@ -1130,35 +1232,52 @@
 
         async function callSupabase(endpoint, method = "GET", payload = null) {
             if (!cabangAktif) throw new Error('Cabang aktif belum dipilih.');
-            
-            // Siapkan URL dan Headers
             const url = endpoint.startsWith('http') ? endpoint : `${SUPABASE_URL}/rest/v1/${endpoint}`;
-            const headers = {
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${penggunaAktif && penggunaAktif.SessionToken ? penggunaAktif.SessionToken : SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=representation'
+            const jalankanRequest = async (bolehRefreshUlang) => {
+                const token = await pastikanTokenSupabaseAktif_();
+                const headers = {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                };
+                if (method !== 'GET') headers.Prefer = 'return=representation';
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), SUPABASE_FETCH_TIMEOUT_MS);
+                const options = { method: method, headers: headers, signal: controller.signal };
+                if (payload && ['POST', 'PATCH', 'PUT'].includes(method)) options.body = JSON.stringify(payload);
+
+                console.log(`[SUPABASE DIRECT] ${method} ${url}`);
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 401 && bolehRefreshUlang) {
+                        await pastikanTokenSupabaseAktif_(true);
+                        return jalankanRequest(false);
+                    }
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        const error = new Error(errorData.message || errorData.hint || `HTTP Error ${response.status}`);
+                        error.status = response.status;
+                        error.code = response.status === 401 ? 'AUTH_EXPIRED' : (errorData.code || 'SUPABASE_HTTP_ERROR');
+                        throw error;
+                    }
+                    if (response.status === 204) return [];
+                    const responseText = await response.text();
+                    return responseText ? JSON.parse(responseText) : [];
+                } catch (error) {
+                    if (error && error.name === 'AbortError') {
+                        const timeoutError = new Error(`Supabase tidak merespons dalam ${Math.round(SUPABASE_FETCH_TIMEOUT_MS / 1000)} detik.`);
+                        timeoutError.code = 'SUPABASE_TIMEOUT';
+                        throw timeoutError;
+                    }
+                    throw error;
+                } finally {
+                    clearTimeout(timeoutId);
+                }
             };
 
-            const options = {
-                method: method,
-                headers: headers
-            };
-            if (payload && (method === 'POST' || method === 'PATCH')) {
-                options.body = JSON.stringify(payload);
-            }
-
-            console.log(`[SUPABASE DIRECT] ${method} ${url}`);
-
-            const response = await fetch(url, options);
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || errorData.hint || `HTTP Error ${response.status}`);
-            }
-
-            // DELETE request Supabase sering mengembalikan 204 No Content
-            if (response.status === 204) return []; 
-            return await response.json();
+            return jalankanRequest(true);
         }
 
         function amanTeks_(nilai) {
@@ -1425,6 +1544,7 @@
         // =========================================================================
 
         let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let globalProspek = []; let globalKlien = []; let globalGaransi = [];
+        let permintaanDataAktif_ = null;
         let buktiProspekTerpilih = null;
         let pilihanBroadcastCRM = new Map();
         let broadcastCRMSedangDikirim = false;
@@ -1838,6 +1958,9 @@
 
         async function aktifkanCabangDanMuat(cabang, loginTime, modulTujuan = 'sla') {
             if (!['sla', 'absen', 'gaji'].includes(modulTujuan)) throw new Error('Modul tujuan tidak valid.');
+            // Pastikan seluruh modul menerima JWT yang masih aktif. Pembaruan token
+            // dilakukan sebelum sesi disalin ke sessionStorage dan sebelum navigasi.
+            await pastikanTokenSupabaseAktif_();
             terapkanCabangAktif(cabang);
             simpanSesiAktif(loginTime, modulTujuan);
             bersihkanDataCabangDiMemori();
@@ -2107,13 +2230,24 @@
             }
         }
 
-        async function selesaikanLoginBerhasil(user, sessionToken) {
+        async function selesaikanLoginBerhasil(user, authSession) {
             penggunaAktif = Object.assign({}, user);
-            if (sessionToken) penggunaAktif.SessionToken = sessionToken;
+            const dataAuth = typeof authSession === 'string'
+                ? { access_token: authSession }
+                : (authSession || {});
+            if (dataAuth.access_token) penggunaAktif.SessionToken = dataAuth.access_token;
+            if (dataAuth.refresh_token) penggunaAktif.RefreshToken = dataAuth.refresh_token;
+            penggunaAktif.SessionExpiresAt = dataAuth.expires_at
+                ? Number(dataAuth.expires_at) * 1000
+                : (waktuKedaluwarsaJwt_(penggunaAktif.SessionToken) || (Number(dataAuth.expires_in) > 0 ? Date.now() + Number(dataAuth.expires_in) * 1000 : 0));
             ['Password', 'WebAuthn_CredentialID', 'WebAuthn_PublicKey'].forEach(kunci => {
                 if (Object.prototype.hasOwnProperty.call(penggunaAktif, kunci)) delete penggunaAktif[kunci];
             });
             if (!penggunaAktif.SessionToken) throw new Error('Token sesi tidak diterima dari server.');
+            if (String(penggunaAktif.SessionToken).split('.').length !== 3) {
+                penggunaAktif = null;
+                throw new Error('Passkey berhasil diverifikasi, tetapi belum dapat membuat sesi Direct-to-Supabase. Silakan login menggunakan password.');
+            }
             const hakAksesCabang = hakAksesCabangPengguna();
             if (!hakAksesCabang) throw new Error('Hak_Akses_Cabang belum valid. Hubungi administrator Master Kendari.');
             waktuLoginAktif = new Date().getTime();
@@ -2750,7 +2884,23 @@
         }
 
         async function ambilSemuaData(isSilentRefresh = false, trackId = null) {
-            let maxRetries = 3; let berhasil = false; let lastErrorMsg = "";
+            const kunciRequest = `${String(trackId || '').trim() || 'app'}|${cabangAktif || '-'}`;
+            if (permintaanDataAktif_ && permintaanDataAktif_.kunci === kunciRequest) {
+                console.log('[DATA DIRECT] Menggunakan request yang masih berjalan:', kunciRequest);
+                return permintaanDataAktif_.promise;
+            }
+
+            const promise = ambilSemuaDataInternal_(isSilentRefresh, trackId);
+            permintaanDataAktif_ = { kunci: kunciRequest, promise: promise };
+            try {
+                return await promise;
+            } finally {
+                if (permintaanDataAktif_ && permintaanDataAktif_.promise === promise) permintaanDataAktif_ = null;
+            }
+        }
+
+        async function ambilSemuaDataInternal_(isSilentRefresh = false, trackId = null) {
+            let maxRetries = 2; let berhasil = false; let lastErrorMsg = "";
             const trackIdNormal = String(trackId || '').trim();
 
             for (let i = 0; i < maxRetries; i++) {
@@ -2791,9 +2941,10 @@
                         
                         const cabangFilter = cabangAktif === 'Kendari' ? 'or=(cabang.eq.Kendari,cabang.is.null)' : `cabang=eq.${encodeURIComponent(cabangAktif)}`;
 
+                        const kolomUsers = 'username,role,nama_asli,email,target_sales_rp,no_wa,gaji_pokok,bonus_tambahan,hak_akses_cabang';
                         let reqs = [
                             callSupabase(`tiket?select=*&${cabangFilter}&order=id_tiket.desc`),
-                            callSupabase(`users?select=*`)
+                            callSupabase(`users?select=${kolomUsers}`)
                         ];
 
                         if (isManajemen || isSales) {
@@ -2803,14 +2954,16 @@
                             reqs.push(Promise.resolve([])); reqs.push(Promise.resolve([]));
                         }
 
-                        if (isManajemen) {
-                            reqs.push(callSupabase(`garansi?select=*&${cabangFilter}&order=id_garansi.desc`));
-                            reqs.push(callSupabase(`database_klien?select=*&${cabangFilter}`));
-                        } else {
-                            reqs.push(Promise.resolve([])); reqs.push(Promise.resolve([]));
-                        }
+                        // Garansi dan CRM tidak boleh menahan tampilan Dasbor utama.
+                        // Request tetap dimulai paralel, tetapi kegagalannya diisolasi.
+                        const promiseTambahan = Promise.allSettled(isManajemen ? [
+                            callSupabase(`garansi?select=*&${cabangFilter}&order=id_garansi.desc`),
+                            callSupabase(`database_klien?select=*&${cabangFilter}`)
+                        ] : [Promise.resolve([]), Promise.resolve([])]);
 
-                        const [dbTiket, dbUsers, dbPenjualan, dbProspek, dbGaransi, dbKlien] = await Promise.all(reqs);
+                        const [dbTiket, dbUsers, dbPenjualan, dbProspek] = await Promise.all(reqs);
+                        let dbGaransi = [];
+                        let dbKlien = [];
 
                         // --- MAP DATA TIKET ---
                         globalTickets = (dbTiket || []).map(r => {
@@ -2877,6 +3030,21 @@
                             "Cabang": p.cabang || 'Kendari'
                         }));
 
+                        // Dasbor, tiket, penjualan, dan prospek sudah dapat dipakai
+                        // tanpa menunggu dua dataset pendukung selesai.
+                        if (isSilentRefresh && penggunaAktif) {
+                            renderDashboard();
+                            renderTickets();
+                            renderPenjualan();
+                            renderProspek();
+                        }
+
+                        const hasilTambahan = await promiseTambahan;
+                        if (hasilTambahan[0].status === 'fulfilled') dbGaransi = hasilTambahan[0].value || [];
+                        else console.warn('[DATA DIRECT] Garansi gagal dimuat tanpa menahan Dasbor:', hasilTambahan[0].reason);
+                        if (hasilTambahan[1].status === 'fulfilled') dbKlien = hasilTambahan[1].value || [];
+                        else console.warn('[DATA DIRECT] CRM gagal dimuat tanpa menahan Dasbor:', hasilTambahan[1].reason);
+
                         // --- MAP DATA GARANSI ---
                         globalGaransi = (dbGaransi || []).map(g => {
                             let rec = {
@@ -2904,11 +3072,13 @@
 
                 } catch (error) {
                     lastErrorMsg = error.message;
-                    if (i === maxRetries - 1) {
+                    const errorAutentikasi = error && (error.code === 'AUTH_EXPIRED' || error.status === 401 || error.status === 403);
+                    if (errorAutentikasi || i === maxRetries - 1) {
                         if (!isSilentRefresh) { tetapkanHtmlAman_(document.getElementById('login-loading'), `<span style="color:var(--danger); font-weight:bold; font-size:12px;">Error: ${amanTeks_(lastErrorMsg)}</span><br><br><button class="btn-outline-cancel" onclick="window.location.reload()">Silakan muat ulang halaman</button>`); }
+                        else showToast('Gagal mengunduh data: ' + lastErrorMsg, 'error');
                         return;
                     }
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
             if (!berhasil) return;
@@ -3005,7 +3175,7 @@
                 recordBersih["Gaji Pokok"] = userRecord.gaji_pokok;
                 recordBersih["Bonus Tambahan"] = userRecord.bonus_tambahan;
 
-                await selesaikanLoginBerhasil(recordBersih, sessionToken);
+                await selesaikanLoginBerhasil(recordBersih, authData);
 
             } catch (error) {
                 console.error('Error saat login:', error);
@@ -6253,7 +6423,16 @@
                     const urlValidasi = API_URL_CABANG[cabangSesi] || API_AUTH_URL;
                     const hasilValidasi = await kirimKeBackend_(urlValidasi, 'validateSession');
                     if (!hasilValidasi || hasilValidasi.status !== 'sukses' || !hasilValidasi.user) throw new Error('Sesi ditolak server.');
-                    penggunaAktif = Object.assign({}, hasilValidasi.user, { SessionToken: parsedSessionAwal.user.SessionToken });
+                    // Respons GAS tidak membawa refresh token. Pertahankan pasangan
+                    // token terbaru yang mungkin baru saja dirotasi sebelum validasi.
+                    const tokenAktif = penggunaAktif.SessionToken;
+                    const refreshTokenAktif = penggunaAktif.RefreshToken || parsedSessionAwal.user.RefreshToken || '';
+                    const expiresAtAktif = penggunaAktif.SessionExpiresAt || parsedSessionAwal.user.SessionExpiresAt || waktuKedaluwarsaJwt_(tokenAktif);
+                    penggunaAktif = Object.assign({}, hasilValidasi.user, {
+                        SessionToken: tokenAktif,
+                        RefreshToken: refreshTokenAktif,
+                        SessionExpiresAt: expiresAtAktif
+                    });
                     if (!hakAksesCabangPengguna()) throw new Error('Hak akses cabang tidak valid.');
 
                     if (!punyaAksesLobby()) {
@@ -6794,70 +6973,7 @@
             }
         }
 
-        // =========================================================================
-        // 🚦 MASTER ROUTER (PENGENDALI LALU LINTAS HALAMAN & AUTO-LOGIN)
-        // =========================================================================
-        document.addEventListener("DOMContentLoaded", async () => {
-            // 1. Matikan semua layar terlebih dahulu (mencegah kedipan UI / Overlap)
-            document.getElementById('client-tracking-wrapper').style.display = 'none';
-            document.getElementById('login-wrapper').style.display = 'none';
-            document.getElementById('main-lobby-wrapper').style.display = 'none';
-            document.getElementById('app-wrapper').style.display = 'none';
-
-            // 2. Cek Mode Tracking Klien (Dari Link WA)
-            const urlParams = new URLSearchParams(window.location.search);
-            const trackId = urlParams.get('track');
-            if (trackId) {
-                document.getElementById('client-tracking-wrapper').style.display = 'flex';
-                renderClientTracking(trackId);
-                return;
-            }
-
-            // 3. Cek Sesi Login yang Tersimpan (Auto-Login / Routing Fokus)
-            const savedSession = sessionStorage.getItem('sesiLoginSLA');
-            if (savedSession) {
-                try {
-                    const session = JSON.parse(savedSession);
-                    const loginTime = Number(session.loginTime);
-                    // Cek apakah sesi masih berlaku (24 Jam)
-                    if (Number.isFinite(loginTime) && loginTime > 0 && (Date.now() - loginTime) <= 86400000) {
-                        penggunaAktif = session.user;
-                        waktuLoginAktif = loginTime;
-
-                        // Eksekusi Logika "Fokus" sesuai Role & Modul
-                        if (session.modulAktif === 'lobby' && punyaAksesLobby()) {
-                            // Fokus ke Lobi
-                            tampilkanLobbyUtama();
-                            return;
-                        } else if (session.modulAktif === 'sla' || !punyaAksesLobby()) {
-                            // Fokus ke Manajemen SLA (Juga berlaku otomatis untuk Freelance)
-                            cabangAktif = normalisasiCabang(session.cabangAktif) || cabangOtomatisPengguna();
-                            if (cabangAktif && API_URL_CABANG[cabangAktif]) {
-                                apiUrl = API_URL_CABANG[cabangAktif];
-                                document.documentElement.dataset.cabangAktif = cabangAktif;
-                                bukaAplikasiSLA(); // Ini akan mematikan Lobi dan Login
-                                document.getElementById('loading').style.display = 'block';
-                                document.getElementById('loading').innerText = `Mengunduh database Cabang ${cabangAktif}...`;
-                                await ambilSemuaData(true);
-                                document.getElementById('loading').style.display = 'none';
-                                document.getElementById('loading').innerText = 'Sinkronisasi data sistem...';
-                                return;
-                            }
-                        }
-                    } else {
-                        // Sesi kedaluwarsa, bersihkan memori
-                        sessionStorage.removeItem('sesiLoginSLA');
-                    }
-                } catch (e) {
-                    console.error("Gagal membaca sesi lokal:", e);
-                }
-            }
-
-            // 4. Jika Tidak Ada Sesi / Gagal -> Fokus ke Halaman Login Utama
-            document.getElementById('login-wrapper').style.display = 'flex';
-            document.getElementById('login-form').style.display = 'block';
-            document.getElementById('login-loading').style.display = 'none';
-            perbaruiDukunganBiometrik();
-            inisialisasiPrefetchLoginBiometrik_();
-        });
+        // Inisialisasi halaman ditangani satu pintu oleh mulaiAplikasi_().
+        // Router DOMContentLoaded lama dihapus agar validasi sesi dan pengunduhan
+        // database tidak berjalan dua kali atau saling menimpa tampilan.
     </script>
