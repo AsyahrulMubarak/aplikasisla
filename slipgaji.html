@@ -907,7 +907,19 @@
                     body: JSON.stringify(payloadSesiSlip('getAllData'))
                 });
                 let dataSLA = await resSLA.json();
-                globalUsers = dataSLA.users || [];
+                
+                // MAPPING ULANG RESPONS SUPABASE AGAR BISA DIBACA MODUL GAJI
+                globalUsers = (dataSLA.users || []).map(u => ({
+                    "Username": u.Username || u.username,
+                    "Role": u.Role || u.role,
+                    "Nama Asli": u['Nama Asli'] || u.nama_asli,
+                    "Email": u.Email || u.email,
+                    "Target Sales (Rp)": u['Target Sales (Rp)'] || u.target_sales_rp,
+                    "No WA": u['No WA'] || u.no_wa,
+                    "Gaji Pokok": u['Gaji Pokok'] || u.gaji_pokok,
+                    "Bonus Tambahan": u['Bonus Tambahan'] || u.bonus_tambahan,
+                    "Hak_Akses_Cabang": u.Hak_Akses_Cabang || u.hak_akses_cabang
+                }));
                 globalTickets = dataSLA.tickets || [];
 
                 // BUG FIX 2: Lampirkan sesi pada fetch Absen
