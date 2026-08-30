@@ -1667,6 +1667,10 @@
             return '';
         }
 
+        function normalisasiUsernameLogin_(nilai) {
+            return String(nilai || '').trim().toLowerCase().replace(/\s+/g, '');
+        }
+
         function sertakanHakAksesCabang_(record) {
             record.Hak_Akses_Cabang = normalisasiCabang(record.Hak_Akses_Cabang);
             return record;
@@ -2932,6 +2936,7 @@
         async function prosesLogin(e) {
             e.preventDefault();
             const un = document.getElementById('username').value.trim().toLowerCase();
+            const usernameNormal = normalisasiUsernameLogin_(un);
             const pwRaw = document.getElementById('password').value;
             const btnLogin = e.target.querySelector('button[type="submit"]');
             const teksTombolAwal = btnLogin ? btnLogin.innerText : 'Masuk Workspace';
@@ -2940,7 +2945,7 @@
 
             try {
                 // 1. Panggil Supabase Auth
-                const emailSistem = un.replace(/\s+/g, '') + '@alfacom.local';
+                const emailSistem = usernameNormal + '@alfacom.local';
                 const authUrl = `${SUPABASE_URL}/auth/v1/token?grant_type=password`;
                 const authResponse = await fetch(authUrl, {
                     method: 'POST',
@@ -2954,18 +2959,38 @@
                 const authData = await authResponse.json();
                 const sessionToken = authData.access_token; // Ini JWT dari Supabase!
 
-                // 2. Ambil Profil Karyawan dari public.users menggunakan Token JWT tersebut
-                const profilUrl = `${SUPABASE_URL}/rest/v1/users?username=eq.${encodeURIComponent(un)}&select=*`;
-                const profilResponse = await fetch(profilUrl, {
+                // 2. Kompatibilitas data lama: username di public.users masih dapat
+                // mengandung huruf besar dan spasi (contoh "Abu Abid").
+                const profilHeaders = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${sessionToken}` };
+                const profilLegacyUrl = `${SUPABASE_URL}/rest/v1/users?username=ilike.${encodeURIComponent(un)}&select=*&limit=10`;
+                const profilLegacyResponse = await fetch(profilLegacyUrl, {
                     method: 'GET',
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${sessionToken}` }
+                    headers: profilHeaders
                 });
+                if (!profilLegacyResponse.ok) throw new Error('Gagal memuat profil karyawan.');
 
-                if (!profilResponse.ok) throw new Error('Gagal memuat profil karyawan.');
-                const profilData = await profilResponse.json();
-                if (!profilData || profilData.length === 0) throw new Error('Profil pengguna tidak terdaftar di sistem.');
+                let profilData = await profilLegacyResponse.json();
+                let userRecord = (profilData || []).find(record =>
+                    normalisasiUsernameLogin_(record && record.username) === usernameNormal
+                );
 
-                const userRecord = profilData[0];
+                // Setelah migrasi username_login dijalankan, jalur ini juga menerima
+                // input tanpa spasi seperti "abuabid" untuk row "Abu Abid".
+                if (!userRecord) {
+                    const profilNormalUrl = `${SUPABASE_URL}/rest/v1/users?username_login=eq.${encodeURIComponent(usernameNormal)}&select=*&limit=1`;
+                    const profilNormalResponse = await fetch(profilNormalUrl, {
+                        method: 'GET',
+                        headers: profilHeaders
+                    });
+                    if (profilNormalResponse.ok) {
+                        const profilNormalData = await profilNormalResponse.json();
+                        userRecord = Array.isArray(profilNormalData) ? profilNormalData[0] : null;
+                    } else if (profilNormalResponse.status !== 400) {
+                        throw new Error('Gagal memuat profil karyawan.');
+                    }
+                }
+                if (!userRecord) throw new Error('Profil pengguna tidak terdaftar di sistem.');
+
                 const recordBersih = {
                     "Username": userRecord.username,
                     "Role": userRecord.role,
