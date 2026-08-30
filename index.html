@@ -524,7 +524,7 @@
                     <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Manajemen</strong>
                 </button>
             </div>
-            <p class="main-lobby-note">Absensi dan Slip Gaji hanya tersedia untuk Admin, Manager, dan Direktur.</p>
+            <p class="main-lobby-note">Untuk saat ini, Absensi dan Slip Gaji hanya dapat dibuka oleh Admin, Manager, dan Direktur. Akses pegawai lain akan dibuka setelah modul Absensi dipublikasikan.</p>
             <div id="main-lobby-status" role="status" aria-live="polite"></div>
             <button type="button" class="main-lobby-logout" onclick="prosesLogout()">🚪 Keluar Aplikasi</button>
         </div>
@@ -1692,6 +1692,10 @@
             return ['admin', 'manager', 'direktur'].includes(role);
         }
 
+        function penggunaSalesTanpaGaji_(user = penggunaAktif) {
+            return rolePengguna(user) === 'sales' && !(parseFloat(user && user['Gaji Pokok']) > 0);
+        }
+
         function dataSesuaiCabangAktif_(record) {
             const dataOperasional = !!(record && Object.prototype.hasOwnProperty.call(record, 'Cabang'));
             let cabangRecord = normalisasiCabang(record && (
@@ -1727,8 +1731,11 @@
         function penggunaBolehMengaksesCabang(cabang, user = penggunaAktif) {
             const cabangTarget = normalisasiCabang(cabang);
             const hakAkses = hakAksesCabangPengguna(user);
-            const roleUser = rolePengguna(user);
-            return !!API_URL_CABANG[cabangTarget] && (hakAkses === 'Semua' || hakAkses === cabangTarget || roleUser === 'sales');
+            return !!API_URL_CABANG[cabangTarget] && (
+                hakAkses === 'Semua' ||
+                hakAkses === cabangTarget ||
+                penggunaSalesTanpaGaji_(user)
+            );
         }
 
         function perbaruiIdentitasCabang() {
@@ -1811,9 +1818,8 @@
             document.getElementById('main-lobby-status').innerText = '';
 
             const hakAkses = hakAksesCabangPengguna();
-            const roleAktifUser = rolePengguna();
             const isManajemenUtama = roleAdalahManajemenUtama_();
-            const showAllBranches = (hakAkses === 'Semua' || roleAktifUser === 'sales');
+            const showAllBranches = (hakAkses === 'Semua' || penggunaSalesTanpaGaji_());
 
             document.getElementById('btn-lobby-sla-kendari').style.display = showAllBranches || hakAkses === 'Kendari' ? 'block' : 'none';
             document.getElementById('btn-lobby-sla-raha').style.display = showAllBranches || hakAkses === 'Raha' ? 'block' : 'none';
@@ -2969,12 +2975,10 @@
                     "Hak_Akses_Cabang": userRecord.hak_akses_cabang || userRecord.cabang
                 };
 
-                // Hanya tarik gaji jika admin/manager
-                const isManajemen = ['admin', 'manager', 'direktur'].includes(String(userRecord.role).toLowerCase());
-                if (isManajemen) {
-                    recordBersih["Gaji Pokok"] = userRecord.gaji_pokok;
-                    recordBersih["Bonus Tambahan"] = userRecord.bonus_tambahan;
-                }
+                // Nilai milik user sendiri diperlukan untuk membedakan Sales bergaji
+                // (hanya cabang kerjanya) dan Sales tanpa gaji (dua cabang SLA).
+                recordBersih["Gaji Pokok"] = userRecord.gaji_pokok;
+                recordBersih["Bonus Tambahan"] = userRecord.bonus_tambahan;
 
                 await selesaikanLoginBerhasil(recordBersih, sessionToken);
 
@@ -2989,10 +2993,8 @@
         // FITUR LOBBY UTAMA DATAR (SSO ALFACOM)
         // ==========================================
         function punyaAksesLobby() {
-            if (!penggunaAktif || penggunaAdalahFreelance()) return false;
-            if (rolePengguna() === 'direktur' || rolePengguna() === 'sales') return true;
-            let hasGaji = parseFloat(penggunaAktif['Gaji Pokok']) > 0;
-            return hasGaji;
+            // Semua pegawai yang memiliki sesi login sah selalu masuk melalui Lobby.
+            return !!(penggunaAktif && penggunaAktif.SessionToken && rolePengguna());
         }
 
         function masukKeAplikasi() {
