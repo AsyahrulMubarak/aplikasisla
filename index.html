@@ -1075,8 +1075,13 @@
         let apiUrl = API_URL_KENDARI;
 
         // =========================================================================
-        // 🚀 PROXY SUPABASE TERPROTEKSI
-        // Browser tidak lagi menerima kunci atau respons REST Supabase secara langsung.
+        // 🚀 SUPABASE DIRECT — Konfigurasi koneksi langsung ke Supabase REST API
+        // =========================================================================
+        const SUPABASE_URL = 'https://oozkqjgllubhjctnkxwl.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vemtxamdsbHViaGpjdG5reHdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDcxNjY4NTAsImV4cCI6MjAyMjI0Njg1MH0.xxxxxx'; // Minta user memasukkan kunci asli dari dashboard nanti
+
+        // =========================================================================
+        // 🚀 GATEWAY GOOGLE APPS SCRIPT TERBATAS
         // =========================================================================
         async function kirimKeBackend_(url, action, payload = {}, perluSesi = true, opsiFetch = {}) {
             const request = Object.assign({ apiKey: API_KEY, action: action }, payload || {});
@@ -1124,25 +1129,36 @@
         }
 
         async function callSupabase(endpoint, method = "GET", payload = null) {
-            if (!cabangAktif || !API_URL_CABANG[cabangAktif]) throw new Error('Cabang aktif belum dipilih.');
-            console.log('[DEBUG] callSupabase:', method, endpoint);
-            try {
-                const hasil = await kirimKeBackend_(apiUrl, 'supabaseProxy', {
-                    endpoint: endpoint,
-                    method: method,
-                    payload: payload
-                });
-                console.log('[DEBUG] Response untuk', endpoint, ':', Array.isArray(hasil.data) ? hasil.data.length + ' records' : hasil);
-                console.log('[DEBUG] Full response:', JSON.stringify(hasil).substring(0, 500));
-                if (!hasil || hasil.status !== 'sukses' || !Array.isArray(hasil.data)) {
-                    console.error('[ERROR] Invalid response:', hasil);
-                    throw new Error('Respons proxy Supabase tidak valid: ' + (hasil && hasil.pesan || 'Unknown'));
-                }
-                return hasil.data;
-            } catch (error) {
-                console.error('[ERROR] callSupabase failed:', endpoint, error.message);
-                throw error;
+            if (!cabangAktif) throw new Error('Cabang aktif belum dipilih.');
+            
+            // Siapkan URL dan Headers
+            const url = endpoint.startsWith('http') ? endpoint : `${SUPABASE_URL}/rest/v1/${endpoint}`;
+            const headers = {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${penggunaAktif && penggunaAktif.SessionToken ? penggunaAktif.SessionToken : SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            };
+
+            const options = {
+                method: method,
+                headers: headers
+            };
+            if (payload && (method === 'POST' || method === 'PATCH')) {
+                options.body = JSON.stringify(payload);
             }
+
+            console.log(`[SUPABASE DIRECT] ${method} ${url}`);
+
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || errorData.hint || `HTTP Error ${response.status}`);
+            }
+
+            // DELETE request Supabase sering mengembalikan 204 No Content
+            if (response.status === 204) return []; 
+            return await response.json();
         }
 
         function amanTeks_(nilai) {
@@ -2768,35 +2784,58 @@
             const pwRaw = document.getElementById('password').value;
             const btnLogin = e.target.querySelector('button[type="submit"]');
             const teksTombolAwal = btnLogin ? btnLogin.innerText : 'Masuk Workspace';
+
             if (btnLogin) { btnLogin.innerText = 'Memeriksa Kredensial...'; btnLogin.disabled = true; }
 
             try {
-                const pwHashed = await hashPassword(pwRaw);
-                const hasilLogin = await kirimKeBackend_(API_AUTH_URL, 'login', {
-                    username: un,
-                    passwordHash: pwHashed,
-                    passwordRaw: pwRaw
-                }, false);
-                if (hasilLogin.status === 'sukses' && hasilLogin.user && hasilLogin.sessionToken) {
-                    await selesaikanLoginBerhasil(hasilLogin.user, hasilLogin.sessionToken);
-                    return;
+                // 1. Panggil Supabase Auth
+                const emailSistem = un.replace(/\s+/g, '') + '@alfacom.local';
+                const authUrl = `${SUPABASE_URL}/auth/v1/token?grant_type=password`;
+                const authResponse = await fetch(authUrl, {
+                    method: 'POST',
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailSistem, password: pwRaw })
+                });
+
+                if (!authResponse.ok) {
+                    throw new Error('Username atau Password salah.');
+                }
+                const authData = await authResponse.json();
+                const sessionToken = authData.access_token; // Ini JWT dari Supabase!
+
+                // 2. Ambil Profil Karyawan dari public.users menggunakan Token JWT tersebut
+                const profilUrl = `${SUPABASE_URL}/rest/v1/users?username=eq.${encodeURIComponent(un)}&select=*`;
+                const profilResponse = await fetch(profilUrl, {
+                    method: 'GET',
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${sessionToken}` }
+                });
+
+                if (!profilResponse.ok) throw new Error('Gagal memuat profil karyawan.');
+                const profilData = await profilResponse.json();
+                if (!profilData || profilData.length === 0) throw new Error('Profil pengguna tidak terdaftar di sistem.');
+
+                const userRecord = profilData[0];
+                const recordBersih = {
+                    "Username": userRecord.username,
+                    "Role": userRecord.role,
+                    "Nama Asli": userRecord.nama_asli,
+                    "Email": userRecord.email,
+                    "No WA": userRecord.no_wa,
+                    "Hak_Akses_Cabang": userRecord.hak_akses_cabang || userRecord.cabang
+                };
+
+                // Hanya tarik gaji jika admin/manager
+                const isManajemen = ['admin', 'manager', 'direktur'].includes(String(userRecord.role).toLowerCase());
+                if (isManajemen) {
+                    recordBersih["Gaji Pokok"] = userRecord.gaji_pokok;
+                    recordBersih["Bonus Tambahan"] = userRecord.bonus_tambahan;
                 }
 
-                showToast(hasilLogin.pesan || 'Afwan, Login gagal. Periksa kembali Username dan Password Anda.', 'error');
-                if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
+                await selesaikanLoginBerhasil(recordBersih, sessionToken);
+
             } catch (error) {
                 console.error('Error saat login:', error);
-                console.error('Full error object:', JSON.stringify(error));
-                const errorMsg = error.message || '';
-                if (errorMsg.indexOf('tidak merespons') !== -1 || errorMsg.indexOf('AbortError') !== -1) {
-                    showToast('Server tidak merespons dalam 25 detik. Periksa koneksi internet atau coba beberapa saat lagi.', 'error');
-                } else if (errorMsg.indexOf('database') !== -1 || errorMsg.indexOf('Supabase') !== -1) {
-                    showToast('Layanan database sedang gangguan. Silakan coba beberapa saat lagi.', 'error');
-                } else if (errorMsg.indexOf('Akses Ditolak') !== -1) {
-                    showToast('Akses ditolak. Periksa kembali Username dan Password Anda, atau hubungi administrator.', 'error');
-                } else {
-                    showToast('Afwan, terjadi kesalahan: ' + errorMsg, 'error');
-                }
+                showToast(error.message || 'Afwan, Login gagal.', 'error');
                 if (btnLogin) { btnLogin.innerText = teksTombolAwal; btnLogin.disabled = false; }
             }
         }
