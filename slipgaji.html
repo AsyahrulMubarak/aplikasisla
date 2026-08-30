@@ -906,7 +906,19 @@
                     method: 'POST',
                     body: JSON.stringify(payloadSesiSlip('getAllData'))
                 });
+
+                if (!resSLA.ok) {
+                    throw new Error(`Server payroll merespons HTTP ${resSLA.status}`);
+                }
+
                 let dataSLA = await resSLA.json();
+
+                if (dataSLA.status === 'gagal') {
+                    throw new Error(dataSLA.pesan || 'Backend menolak pengambilan data.');
+                }
+                if (!Array.isArray(dataSLA.users) || dataSLA.users.length === 0) {
+                    throw new Error('Data pegawai kosong atau ditolak oleh kebijakan RLS Supabase.');
+                }
                 
                 // MAPPING ULANG RESPONS SUPABASE AGAR BISA DIBACA MODUL GAJI
                 globalUsers = (dataSLA.users || []).map(u => ({
@@ -939,7 +951,10 @@
                 loadTunjanganPegawai();
                 cekKunciBulan();
                 await muatVariabelPayroll(true);
-            } catch(e) { showToast("Gagal menarik data. Detail: " + e.message, "error"); }
+            } catch(e) {
+                console.error('Gagal menarik data payroll:', e);
+                showToast("Gagal menarik data. Detail: " + e.message, "error");
+            }
             document.getElementById('loading').style.display = 'none';
         }
 
