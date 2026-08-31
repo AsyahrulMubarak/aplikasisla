@@ -1827,6 +1827,10 @@
             return String(cabang || '').trim().toLowerCase() === 'raha';
         }
 
+        function cabangKendari_(cabang = cabangAktif) {
+            return String(cabang || '').trim().toLowerCase() === 'kendari';
+        }
+
         function jedaSholatRaha_(waktu) {
             const jam = waktu.getHours();
             const menit = waktu.getMinutes();
@@ -1873,8 +1877,48 @@
             return msTotal;
         }
 
+        // Khusus Kendari: samakan kalkulator browser dengan mesin backend.
+        // Jam aktif 08.00–17.00, Senin–Sabtu, dengan jeda sholat yang sama.
+        function hitungTenggatJamKerjaKendari_(waktuMulai, durasiJam) {
+            let dt = new Date(waktuMulai.getTime());
+            let msSisa = Number(durasiJam) * 3600000;
+            while (msSisa > 0) {
+                const hari = dt.getDay();
+                const jam = dt.getHours();
+                if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                if (jam < 8) { dt.setHours(8, 0, 0, 0); continue; }
+                if (jam >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                if (!jedaSholatRaha_(dt)) {
+                    const langkah = Math.min(60000, msSisa);
+                    dt.setTime(dt.getTime() + langkah);
+                    msSisa -= langkah;
+                    continue;
+                }
+                dt.setTime(dt.getTime() + 60000);
+            }
+            return dt;
+        }
+
+        function hitungDurasiJamKerjaKendariMs_(awal, akhir) {
+            if (awal >= akhir) return 0;
+            let msTotal = 0;
+            let dt = new Date(awal.getTime());
+            while (dt < akhir) {
+                const hari = dt.getDay();
+                const jam = dt.getHours();
+                if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                if (jam < 8) { dt.setHours(8, 0, 0, 0); continue; }
+                if (jam >= 17) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                const langkah = Math.min(60000, akhir.getTime() - dt.getTime());
+                if (!jedaSholatRaha_(dt)) msTotal += langkah;
+                dt.setTime(dt.getTime() + langkah);
+            }
+            return msTotal;
+        }
+
         function hitungTenggatJamKerja(waktuMulai, durasiJam, cabang = cabangAktif) {
             if (cabangRaha_(cabang)) return hitungTenggatJamKerjaRaha_(waktuMulai, durasiJam);
+            if (cabangKendari_(cabang)) return hitungTenggatJamKerjaKendari_(waktuMulai, durasiJam);
             var jamSelesai = jamSelesaiOperasional_(cabang);
             var dt = new Date(waktuMulai.getTime()); var msSisa = durasiJam * 3600 * 1000;
             while (msSisa > 0) {
@@ -1906,6 +1950,7 @@
 
         function hitungDurasiJamKerjaMs(awal, akhir, cabang = cabangAktif) {
             if (cabangRaha_(cabang)) return hitungDurasiJamKerjaRahaMs_(awal, akhir);
+            if (cabangKendari_(cabang)) return hitungDurasiJamKerjaKendariMs_(awal, akhir);
             var jamSelesai = jamSelesaiOperasional_(cabang);
             if (awal >= akhir) return 0; var msTotal = 0; var dt = new Date(awal.getTime());
             while (dt < akhir) {
