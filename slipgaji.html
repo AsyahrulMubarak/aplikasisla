@@ -1453,10 +1453,11 @@
                     }
 
                     if (menitMasukPertama !== null && menitKeluarTerakhir !== null && menitKeluarTerakhir > menitMasukPertama) {
-                        const awalDibayar = Math.max(menitMasukPertama, kebijakanKerja.mulaiMenit);
+                        // Absen lebih awal tetap mulai dihitung pada batas kerja 08.00.
+                        const awalDibayar = Math.max(kebijakanKerja.mulaiMenit, menitMasukPertama);
                         const akhirReguler = Math.min(menitKeluarTerakhir, kebijakanKerja.selesaiMenit);
                         const menitReguler = Math.max(0, akhirReguler - awalDibayar);
-                        totJam = (menitKeluarTerakhir - menitMasukPertama) / 60;
+                        totJam = (menitKeluarTerakhir - awalDibayar) / 60;
                         upahRegulerHariIni = menitReguler * upahPerMenit;
 
                         if (menitMasukPertama > kebijakanKerja.batasTelatMenit) countTelatPagi++;

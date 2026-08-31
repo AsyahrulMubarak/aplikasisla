@@ -1261,17 +1261,22 @@
         async function bukaTinjauan() {
             document.getElementById('modal-tinjauan').style.display = 'flex';
             document.getElementById('tinjauan-loading').style.display = 'block';
-            document.getElementById('tinjauan-data').innerHTML = '';
+            const wadahTinjauan = document.getElementById('tinjauan-data');
+            wadahTinjauan.style.cssText = '';
+            wadahTinjauan.innerHTML = '';
             try {
-                let session = bacaSesiCabangAktif();
+                bacaSesiCabangAktif();
+                let json = await fetchAntiCORS(API_ABSEN_URL, payloadDenganSesi('getTinjauanAbsen'));
+                if (!json || json.status !== 'sukses') {
+                    throw new Error(json && json.pesan ? json.pesan : 'Server menolak permintaan tinjauan absensi.');
+                }
+                const dataTinjauan = Array.isArray(json.data) ? json.data : [];
 
-                let json = await fetchAntiCORS(API_ABSEN_URL, { apiKey: API_KEY, action: 'getTinjauanAbsen', cabang: cabangAktif, nama: session.user['Nama Asli'], user: { Username: session.user.Username, SessionToken: session.user.SessionToken } });
-
-                if(json.status === 'sukses' && json.data.length > 0) {
+                if(dataTinjauan.length > 0) {
                     let html = '';
-                    json.data.forEach(d => {
+                    dataTinjauan.forEach(d => {
                         let btnGPS = '';
-                        if(['admin', 'manager', 'direktur'].includes(session.user.Role.toLowerCase()) && d.gps && d.gps !== '-') {
+                        if(['admin', 'manager', 'direktur'].includes(String(penggunaAktif.Role || '').toLowerCase()) && d.gps && d.gps !== '-') {
                             btnGPS = `<a href="${d.gps}" target="_blank" style="display:inline-block; margin-top:10px; padding:6px 12px; background:#fefce8; color:#a16207; border:1px solid #fde047; border-radius:6px; font-size:11px; text-decoration:none; font-weight:bold;">📍 Cek Lokasi GPS</a>`;
                         }
                         html += `<div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:8px; margin-bottom:10px; font-size:12px;">
@@ -1287,9 +1292,16 @@
                             ${btnGPS}
                         </div>`;
                     });
-                    document.getElementById('tinjauan-data').innerHTML = html;
-                } else { document.getElementById('tinjauan-data').innerHTML = '<div style="text-align:center; color:#ef4444; font-size:12px;">Data tidak ditemukan.</div>'; }
-            } catch(e) { document.getElementById('tinjauan-data').innerHTML = '<div style="text-align:center; color:#ef4444; font-size:12px;">Gagal memuat data.</div>'; }
+                    wadahTinjauan.innerHTML = html;
+                } else {
+                    wadahTinjauan.style.cssText = 'text-align:center; color:#64748b; font-size:12px;';
+                    wadahTinjauan.textContent = 'Belum ada data absensi hari ini.';
+                }
+            } catch(e) {
+                console.error('Gagal memuat tinjauan absensi:', e);
+                wadahTinjauan.style.cssText = 'text-align:center; color:#ef4444; font-size:12px;';
+                wadahTinjauan.textContent = 'Gagal memuat data: ' + (e.message || 'kesalahan tidak diketahui.');
+            }
             document.getElementById('tinjauan-loading').style.display = 'none';
         }
 
