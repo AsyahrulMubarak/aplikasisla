@@ -2105,6 +2105,16 @@
             return ['admin', 'manager', 'direktur'].includes(role);
         }
 
+        // Akses ini hanya untuk rute Absensi; tidak mengubah hak akses SLA cabang.
+        function penggunaBolehMengaksesAbsensi_(user = penggunaAktif) {
+            const role = rolePengguna(user);
+            const cabang = hakAksesCabangPengguna(user);
+            const nama = String(user && user['Nama Asli'] || '').trim().toLowerCase().replace(/\s+/g, ' ');
+            const adminRaha = role === 'admin_raha' || (role === 'admin' && cabang === 'Raha');
+            const manajemen = ['admin', 'manager', 'direktur'].includes(role);
+            return (manajemen && !adminRaha) || (role === 'teknisi' && nama === 'asyahrul');
+        }
+
         function penggunaSalesTanpaGaji_(user = penggunaAktif) {
             return rolePengguna(user) === 'sales' && !(parseFloat(user && user['Gaji Pokok']) > 0);
         }
@@ -2233,16 +2243,22 @@
 
             const hakAkses = hakAksesCabangPengguna();
             const isManajemenUtama = roleAdalahManajemenUtama_();
+            const bolehAbsensi = penggunaBolehMengaksesAbsensi_();
             const showAllBranches = (hakAkses === 'Semua' || penggunaSalesTanpaGaji_());
 
             document.getElementById('btn-lobby-sla-kendari').style.display = showAllBranches || hakAkses === 'Kendari' ? 'block' : 'none';
             document.getElementById('btn-lobby-sla-raha').style.display = showAllBranches || hakAkses === 'Raha' ? 'block' : 'none';
-            ['btn-lobby-absen', 'btn-lobby-gaji'].forEach(idTombol => {
+            const hakModulPendukung = {
+                'btn-lobby-absen': bolehAbsensi,
+                'btn-lobby-gaji': isManajemenUtama
+            };
+            Object.keys(hakModulPendukung).forEach(idTombol => {
                 const tombol = document.getElementById(idTombol);
+                const diizinkan = hakModulPendukung[idTombol];
                 tombol.style.display = 'block';
-                tombol.classList.toggle('is-locked', !isManajemenUtama);
-                tombol.setAttribute('aria-disabled', String(!isManajemenUtama));
-                tombol.title = isManajemenUtama ? '' : 'Fitur ini hanya untuk level Manajemen Utama';
+                tombol.classList.toggle('is-locked', !diizinkan);
+                tombol.setAttribute('aria-disabled', String(!diizinkan));
+                tombol.title = diizinkan ? '' : 'Akses modul belum diizinkan untuk akun ini';
             });
         }
 
@@ -3530,6 +3546,7 @@
         async function bukaModulPendukung(namaModul) {
             const role = rolePengguna();
             const isManajemenUtama = roleAdalahManajemenUtama_(role);
+            const bolehAbsensi = penggunaBolehMengaksesAbsensi_();
 
             if (!['absen', 'gaji'].includes(namaModul)) {
                 showToast('Modul yang dipilih tidak valid.', 'error');
@@ -3539,8 +3556,8 @@
                 showToast('Akun ini hanya dapat menggunakan Dashboard SLA.', 'warning');
                 return;
             }
-            if (!isManajemenUtama) {
-                showToast('Afwan, fitur ini hanya untuk level Manajemen Utama', 'warning');
+            if ((namaModul === 'absen' && !bolehAbsensi) || (namaModul === 'gaji' && !isManajemenUtama)) {
+                showToast('Afwan, akun ini belum diizinkan menggunakan modul tersebut.', 'warning');
                 return;
             }
 

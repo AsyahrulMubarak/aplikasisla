@@ -368,9 +368,8 @@
         }
         // ---------------------------------------------
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
-        const KANTOR_LAT = -3.9641006831731826;
-        const KANTOR_LON = 122.54316001476751;
-        const RADIUS_MAKSIMAL = 100; // dalam meter
+        const RADIUS_MAKSIMAL = 100; // Nilai final tetap diverifikasi oleh backend.
+        let kebijakanAbsensiAktif = null;
 
         let penggunaAktif = null;
         let jarakSekarang = 999999;
@@ -378,6 +377,23 @@
         let userLat = null;
         let userLon = null;
         let resolverConfirmAktif = null;
+
+        function normalisasiNamaAbsensi(nilai) {
+            return String(nilai || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        function penggunaBolehAbsenLokal() {
+            const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
+            const cabang = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
+            const nama = normalisasiNamaAbsensi(penggunaAktif && penggunaAktif['Nama Asli']);
+            const adminRaha = role === 'admin_raha' || (role === 'admin' && cabang === 'Raha');
+            const manajemen = ['admin', 'manager', 'direktur'].includes(role);
+            return (manajemen && !adminRaha) || (role === 'teknisi' && nama === 'asyahrul');
+        }
+
+        function formatJamDariMenit(menit) {
+            return String(Math.floor(menit / 60)).padStart(2, '0') + ':' + String(menit % 60).padStart(2, '0');
+        }
 
         function normalisasiCabangSesi(nilai) {
             const cabang = String(nilai || '').trim().toLowerCase();
@@ -406,6 +422,15 @@
                 if (error.name === 'AbortError') throw new Error('Server tidak merespons dalam 25 detik.');
                 throw error;
             }
+        }
+
+        async function muatKebijakanAbsensi() {
+            const hasil = await fetchAntiCORS(API_ABSEN_URL, payloadDenganSesi('getKonfigurasiAbsensi'));
+            if (hasil.status !== 'sukses' || !hasil.kebijakan || !hasil.kebijakan.kantor) {
+                throw new Error(hasil.pesan || 'Konfigurasi absensi tidak tersedia.');
+            }
+            kebijakanAbsensiAktif = hasil.kebijakan;
+            return kebijakanAbsensiAktif;
         }
 
         function bacaSesiCabangAktif() {
@@ -480,11 +505,15 @@
         }
 
         // 1. CEK SSO (SINGLE SIGN ON) DARI SESSIONSTORAGE
-        window.onload = function() {
+        window.onload = async function() {
             try {
                 const parsedSession = bacaSesiCabangAktif();
                 penggunaAktif = parsedSession.user;
                 document.getElementById('user-display').innerHTML = `<b>${penggunaAktif['Nama Asli']}</b><br>Role: ${penggunaAktif.Role.toUpperCase()}`;
+
+                if (!penggunaBolehAbsenLokal()) {
+                    throw new Error('Akun ini belum diizinkan menggunakan modul absensi.');
+                }
 
                 const roleAktif = String(penggunaAktif.Role || '').trim().toLowerCase();
                 const isManajemen = ['admin', 'manager', 'direktur'].includes(roleAktif) ||
@@ -495,10 +524,11 @@
                 if (roleAktif === 'direktur') {
                     document.getElementById('btn-buka-pengajuan').style.display = 'none';
                 }
+                await muatKebijakanAbsensi();
                 dapatkanLokasi();
             } catch(e) {
-                showToast("Afwan, antum harus login terlebih dahulu.", true);
-                window.location.href = "index.html";
+                showToast(e.message || "Afwan, antum harus login terlebih dahulu.", true);
+                setTimeout(() => { window.location.href = "index.html"; }, 1800);
             }
         };
 
@@ -533,7 +563,8 @@
             let jamF = jamAktif ? parseInt(jamAktif.split(':')[0]) + (parseInt(jamAktif.split(':')[1])/60) : 0;
 
             let wajib = false; let alasanWajib = ""; let wajibFoto = false;
-            if (jamAktif >= "20:00") { wajib = true; alasanWajib = "(Lembur)"; } 
+            const batasKeluarMenit = Number(kebijakanAbsensiAktif && kebijakanAbsensiAktif.selesaiMenit) || (17 * 60);
+            if (isKeluar && batasKeluarMenit === 17 * 60 && jamAktif >= "20:00") { wajib = true; wajibFoto = true; alasanWajib = "(Keluar Setelah 20:00)"; } 
             else if (isKeluar && jamAktif !== "" && jamF > 5.0 && jamF < 17.0) { wajib = true; alasanWajib = "(Izin Cepat)"; }
             else if (isKeluar && jamF >= 0 && jamF <= 5.0) { // DINI HARI
                 wajib = true; alasanWajib = "(Lembur Ekstrem)";
@@ -577,6 +608,13 @@
 
         function dapatkanLokasi() {
             const gpsBox = document.getElementById('gps-status');
+            if (!kebijakanAbsensiAktif || !kebijakanAbsensiAktif.kantor) {
+                gpsBox.className = 'gps-box error';
+                gpsBox.innerHTML = '❌ Konfigurasi lokasi toko belum tersedia.';
+                lokasiDitemukan = false;
+                cekKondisiAbsen();
+                return;
+            }
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -584,15 +622,16 @@
                         let lon = position.coords.longitude;
                         userLat = lat;
                         userLon = lon;
-                        jarakSekarang = hitungJarak(KANTOR_LAT, KANTOR_LON, lat, lon);
+                        jarakSekarang = hitungJarak(kebijakanAbsensiAktif.kantor.lat, kebijakanAbsensiAktif.kantor.lon, lat, lon);
                         lokasiDitemukan = true;
                         
-                        if (jarakSekarang <= RADIUS_MAKSIMAL) {
+                        const radiusAktif = Number(kebijakanAbsensiAktif.radiusMeter) || RADIUS_MAKSIMAL;
+                        if (jarakSekarang <= radiusAktif) {
                             gpsBox.className = "gps-box";
                             gpsBox.innerHTML = `<span>🏢 Jarak Kantor: <b>${jarakSekarang}m</b></span> <span style="color:var(--success); font-weight:bold;">Aman</span>`;
                         } else {
                             gpsBox.className = "gps-box warning";
-                            gpsBox.innerHTML = `<span>🌍 Luar Kantor: <b>${jarakSekarang}m</b></span> <span>Wajib Keterangan</span>`;
+                            gpsBox.innerHTML = `<span>🌍 Luar Kantor: <b>${jarakSekarang}m</b></span> <span>Wajib keterangan & foto</span>`;
                         }
                         cekKondisiAbsen(); // Re-evaluasi form
                         cekKondisiKeterangan();
@@ -637,13 +676,16 @@
                 placeholderKet = "Alasan lupa absen (Sisa Max 7x)...";
             } else {
                 // Jika Hadir/Masuk/Keluar tapi di Luar Radius
-                if (jarakSekarang > RADIUS_MAKSIMAL) {
-                    butuhKet = true;
+                const radiusAktif = Number(kebijakanAbsensiAktif && kebijakanAbsensiAktif.radiusMeter) || RADIUS_MAKSIMAL;
+                if (jarakSekarang > radiusAktif) {
+                    butuhKet = true; butuhFoto = true;
                     placeholderKet = "Mengerjakan apa di luar kantor?";
+                    document.getElementById('info-foto').innerText = "Wajib foto bukti lokasi / pekerjaan di luar radius";
                 }
                 
                 // Aturan Lembur Malam (> 20:00)
-                if (tipe === 'Keluar' && (jam >= 20)) {
+                const batasKeluarMenit = Number(kebijakanAbsensiAktif && kebijakanAbsensiAktif.selesaiMenit) || (17 * 60);
+                if (tipe === 'Keluar' && batasKeluarMenit === 17 * 60 && ((jam * 60) + menit > 20 * 60)) {
                     butuhKet = true; butuhFoto = true;
                     placeholderKet = "Pekerjaan lembur yang diselesaikan...";
                     document.getElementById('info-foto').innerText = "Wajib foto bukti kerjaan / lokasi lembur malam";
@@ -663,17 +705,17 @@
         function tentukanStatusDisiplin(tipe) {
             const now = new Date(); const h = now.getHours(); const m = now.getMinutes();
             let waktuAngka = h + (m/60); // Desimal jam
+            const batasTelatMenit = Number(kebijakanAbsensiAktif && kebijakanAbsensiAktif.batasTelatMenit) || (8 * 60 + 45);
+            const batasKeluarMenit = Number(kebijakanAbsensiAktif && kebijakanAbsensiAktif.selesaiMenit) || (17 * 60);
 
             if (tipe === 'Masuk') {
-                if (waktuAngka <= 8.0) return "Tepat Waktu";
-                else if (waktuAngka <= 8.75) return "Toleransi (8.00 - 8.45)";
-                else return "Terlambat (Diatas 08:45)";
+                if ((h * 60 + m) <= batasTelatMenit) return "Tepat Waktu";
+                return "Terlambat (Diatas " + formatJamDariMenit(batasTelatMenit) + ")";
             } else if (tipe === 'Masuk Setelah Istirahat') {
-                if (waktuAngka > 13.5) return "Terlambat (Potongan 1.5 Jam)";
+                if ((h * 60 + m) > 13 * 60) return "Terlambat Setelah Istirahat";
                 return "Tepat Waktu";
             } else if (tipe === 'Keluar') {
-                if (waktuAngka >= 20.0) return "Lembur Ekstrem Malam";
-                else if (waktuAngka >= 17.0) return "Lembur";
+                if ((h * 60 + m) > batasKeluarMenit) return "Lembur";
                 else return "Keluar Normal";
             }
             return "-";
@@ -1053,6 +1095,8 @@
                     role: penggunaAktif.Role,
                     tipeAbsen: tipeAbsen,
                     jarakMeter: jarakSekarang,
+                    latitude: userLat,
+                    longitude: userLon,
                     statusDisiplin: statusDisiplin,
                     keterangan: document.getElementById('input-keterangan').value,
                     fotoBase64: base64Foto

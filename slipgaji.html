@@ -451,9 +451,9 @@
                     <div style="flex:1; min-width:250px; background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                         <h4 style="margin:0 0 10px 0; color:#059669; border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">⚖️ Aturan Hak & Toleransi</h4>
                         <ul style="padding-left:15px; margin:0; font-size:11px; line-height:1.7;">
-                            <li><strong>Toleransi Keterlambatan:</strong> Pagi hari indikator aman s.d 08:45 (namun nominal potongan tetap ditarik sejak 08:00).</li>
-                            <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari beruntun dibayar penuh. Hari ke-4 dan seterusnya otomatis dihitung sebagai Izin (Sakit Non-Upah).</li>
-                            <li><strong>Toleransi Lupa Pulang:</strong> Maksimal 3x dalam sebulan sistem otomatis menutup absen di jam 17:00 (Aman dari denda).</li>
+                            <li><strong>Keterlambatan Masuk:</strong> Kendari dan Admin Raha ditandai telat setelah 08:45; pegawai Raha setelah 09:45.</li>
+                            <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari disetujui dibayar penuh. Hari berikutnya tetap biru namun tanpa upah.</li>
+                            <li><strong>Lupa Pulang:</strong> Maksimal 3x per bulan, sistem menutup saat absen masuk berikutnya pada jam kerja maksimal pegawai.</li>
                             <li><strong>Koreksi Absen:</strong> Dapat digunakan bila terjadi kendala sistem (Maksimal 7x per bulan).</li>
                         </ul>
                     </div>
@@ -462,10 +462,10 @@
                     <div style="flex:1; min-width:250px; background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                         <h4 style="margin:0 0 10px 0; color:#e11d48; border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">⚠️ Pelanggaran & Hukuman</h4>
                         <ul style="padding-left:15px; margin:0; font-size:11px; line-height:1.7;">
-                            <li><strong>Lupa Absen Pagi:</strong> Sistem otomatis mengisi masuk jam 13:30. Gaji dipotong dari 08:00 s.d 13:30.</li>
-                            <li><strong>Telat Masuk Siang (>13:30):</strong> Gaji dipotong proporsional per menit keterlambatan.</li>
-                            <li><strong>Pulang Cepat (<17:00):</strong> Gaji dipotong proporsional per menit dari selisih waktu pulang.</li>
-                            <li><strong>Lupa Pulang > 3x:</strong> Pada pelanggaran ke-4 dan seterusnya, sistem mengunci absen pulang di jam 15:30 (Gaji terpotong 1.5 jam).</li>
+                            <li><strong>Lupa Absen Pagi:</strong> Sistem otomatis mengisi masuk jam 13:00 dengan penanda kuning.</li>
+                            <li><strong>Telat Masuk Setelah Istirahat (>13:00):</strong> Potongan berjalan per menit, maksimal 90 menit.</li>
+                            <li><strong>Argo Upah:</strong> Upah reguler mengikuti menit antara masuk dan keluar; jam setelah batas kerja dihitung sebagai lembur.</li>
+                            <li><strong>Lupa Pulang > 3x:</strong> Sistem mengisi keluar 90 menit sebelum batas kerja dan menandainya abu-abu.</li>
                             <li><strong>Lupa Absen Istirahat:</strong> Mendapat hukuman sistem otomatis (Potongan 1.5 jam).</li>
                         </ul>
                     </div>
@@ -1180,10 +1180,38 @@
         // ==========================================
         // MESIN KALKULASI GAJI INTI (DIPAKAI BERSAMA)
         // ==========================================
+        function normalisasiCabangPayroll(nilai) {
+            const cabang = String(nilai || '').trim().toLowerCase();
+            if (cabang === 'raha') return 'Raha';
+            if (cabang === 'kendari') return 'Kendari';
+            return '';
+        }
+
+        function kebijakanJamKerjaPayroll(profil) {
+            const role = String(profil.Role || profil.role || '').trim().toLowerCase();
+            const cabang = normalisasiCabangPayroll(profil.Hak_Akses_Cabang || profil.hak_akses_cabang);
+            const adminRaha = role === 'admin_raha' || (role === 'admin' && cabang === 'Raha');
+            const memakaiRaha = cabang === 'Raha' && !adminRaha;
+            const selesaiMenit = memakaiRaha ? 20 * 60 : 17 * 60;
+            return {
+                cabang: memakaiRaha ? 'Raha' : 'Kendari',
+                mulaiMenit: 8 * 60,
+                selesaiMenit: selesaiMenit,
+                batasTelatMenit: memakaiRaha ? 9 * 60 + 45 : 8 * 60 + 45,
+                durasiMenit: selesaiMenit - 8 * 60
+            };
+        }
+
+        function formatJamMenitPayroll(menit) {
+            const nilaiAman = Math.max(0, Math.round(menit));
+            return String(Math.floor(nilaiAman / 60)).padStart(2, '0') + ':' + String(nilaiAman % 60).padStart(2, '0');
+        }
+
         function kalkulasiGajiPegawai(namaTarget, bulanTahun, hariKerjaEfektif, gunakanInputAktif = false) {
             let profil = globalUsers.find(u => u['Nama Asli'] === namaTarget) || {};
             let gapokRaw = profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)'] || 1500000; 
             let gajiPokok = parseFloat(gapokRaw) || 1500000;
+            let kebijakanKerja = kebijakanJamKerjaPayroll(profil);
 
             let bonusStr = profil['Bonus Tambahan'] || profil['Bonus'] || profil['Honor Tambahan'] || '';
             let totalTunjanganTetap = 0; let arrayTunjangan = [];
@@ -1201,7 +1229,7 @@
             }
 
             let upahPerHari = gajiPokok / hariKerjaEfektif;
-            let upahPerJam = upahPerHari / 9;
+            let upahPerJam = upahPerHari / (kebijakanKerja.durasiMenit / 60);
             let upahPerMenit = upahPerJam / 60;
             let [thnPilih, blnPilih] = bulanTahun.split('-');
             let variabelPayroll = ambilVariabelPayroll(namaTarget, bulanTahun, gunakanInputAktif);
@@ -1233,9 +1261,9 @@
                 }
             });
 
-            let totalPotongan = 0; let totalLembur = 0; let countKehadiran = 0;
+            let totalPotongan = 0; let totalLembur = 0; let totalUpahHadir = 0; let countKehadiran = 0;
             let barisHTML = ""; let countLupaPulang = 0;
-            let kuotaSakitTerpakai = 0; let sedangSakitBeruntun = false;
+            let kuotaSakitTerpakai = 0;
             let totalHariBulanIni = new Date(thnPilih, blnPilih, 0).getDate();
             const namaHariArr = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -1263,31 +1291,29 @@
                 // Izin dihitung satu kali per hari kerja untuk evaluasi kedisiplinan.
                 if (isIzinExplicit && !isAhad && !isFutureDate) countIzin++;
 
-                if (adaAbsenFisik) sedangSakitBeruntun = false;
-                if (isSakitExplicit) sedangSakitBeruntun = true;
-
                 let applySakitFull = false; let applySakitKosong = false;
-                let applyIzin = isIzinExplicit;
+                // Absen fisik pada hari izin/sakit selalu ditampilkan sebagai absensi nyata.
+                let applyIzin = isIzinExplicit && !adaAbsenFisik;
 
                 let msk1 = "-", klr1 = "-", msk2 = "-", klr2 = "-";
                 let bgM1 = "", bgK1 = "", bgM2 = "", bgK2 = ""; // Penyimpan warna per sel
 
-                let ketList = []; let potHariIni = 0; let lemHariIni = 0; let totJam = 0; let isHadir = false;
+                let ketList = []; let potHariIni = 0; let lemHariIni = 0; let totJam = 0; let upahRegulerHariIni = 0; let isHadir = false;
                 let isLupaKeluarParah = false; let isLupaKeluarBiasa = false; let isPokok2x = false; let isAlpa = false;
                 let txtLemburJam = "";
 
-                if (!isAhad && !isFutureDate && (isSakitExplicit || (sedangSakitBeruntun && !adaAbsenFisik))) {
+                if (!isAhad && !isFutureDate && isSakitExplicit && !adaAbsenFisik) {
                     if (kuotaSakitTerpakai < 3) {
-                        applySakitFull = true; kuotaSakitTerpakai++; sedangSakitBeruntun = true;
+                        applySakitFull = true; kuotaSakitTerpakai++;
                     } else {
                         applySakitKosong = true;
-                        sedangSakitBeruntun = true;
                     }
                 }
 
                 if (applySakitFull) {
-                    msk1 = "08:00"; msk2 = "13:30"; klr2 = "17:00";
-                    totJam = 9; isHadir = true; countKehadiran++;
+                    msk1 = "08:00"; msk2 = "13:30"; klr2 = formatJamMenitPayroll(kebijakanKerja.selesaiMenit);
+                    totJam = kebijakanKerja.durasiMenit / 60; isHadir = true; countKehadiran++;
+                    upahRegulerHariIni = upahPerHari;
                     ketList.push(isSakitExplicit ? "Sakit" : "Sakit (Auto)");
                 } else if (applySakitKosong) {
                     ketList.push(isSakitExplicit ? "Sakit (Non Upah)" : "Sakit (Auto - Non Upah)");
@@ -1295,14 +1321,20 @@
                     ketList.push(isIzinExplicit ? "Izin" : "Izin (Auto)");
                 } else if (events.length > 0) {
                     isHadir = true; countKehadiran++;
-                    let lastEventType = "";
+                    let adaKeluar = false;
+                    let menitMasukPertama = null;
+                    let menitMasukSetelahIstirahat = null;
+                    let menitKeluarTerakhir = null;
                     events.sort((a,b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen']));
 
                     events.forEach(e => {
                         let ed = new Date(e['Waktu Absen']);
                         let tipe = String(e['Tipe Absen']).trim();
                         let ket = String(e['Keterangan'] || "").trim();
-                        let isKoreksi = tipe.includes("Koreksi");
+                        let status = String(e['Status Disiplin'] || '').trim();
+                        let isKoreksi = tipe.includes("Koreksi") || status === 'Koreksi Manual';
+                        let isAutoMasuk = status.includes('Lupa Absen Masuk');
+                        let isAutoKeluar = status.includes('Auto Keluar');
 
                         if (ket && ket !== "-") {
                             if (ket.toLowerCase().includes("pokok x2")) isPokok2x = true;
@@ -1316,22 +1348,25 @@
                         }
 
                         let jamFloat = ed.getHours() + (ed.getMinutes() / 60) + (ed.getSeconds() / 3600);
+                        let menitEvent = Math.floor(jamFloat * 60);
                         let jamStr = String(ed.getHours()).padStart(2,'0') + ":" + String(ed.getMinutes()).padStart(2,'0') + ":" + String(ed.getSeconds()).padStart(2,'0');
                         if (e['isOvernight']) {
                             jamFloat += 24; // Agar 02:00 pagi dibaca sebagai 26:00
+                            menitEvent += 24 * 60;
                             jamStr += " (+1)"; // Penanda visual di tabel
                         }
-                        lastEventType = tipe;
 
                         if (tipe.includes("Masuk")) {
-                            if (jamFloat < 12.0) {
+                            if (isAutoMasuk || jamFloat < 12.0) {
                                 msk1 = jamStr;
                                 if (isKoreksi) bgM1 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
-                                else if (jamFloat > 8.75) bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Telat
+                                else if (isAutoMasuk || menitEvent > kebijakanKerja.batasTelatMenit) bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Telat / Lupa Masuk
                             } else {
                                 msk2 = jamStr;
                                 if (isKoreksi) bgM2 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
                             }
+                            if (menitMasukPertama === null || menitEvent < menitMasukPertama) menitMasukPertama = menitEvent;
+                            if (tipe.includes('Setelah Istirahat') || (!isAutoMasuk && menitEvent >= 12 * 60)) menitMasukSetelahIstirahat = menitEvent;
                         } else if (tipe.includes("Keluar") || tipe.includes("Pulang")) {
                             if (jamFloat <= 14.0) {
                                 klr1 = jamStr;
@@ -1339,75 +1374,49 @@
                             } else {
                                 klr2 = jamStr;
                                 if (isKoreksi) bgK2 = "background:#fbcfe8; color:#be185d;";
+                                else if (isAutoKeluar && status.includes('Penalti')) bgK2 = "background:#e2e8f0; color:#334155;";
+                                else if (isAutoKeluar) bgK2 = "background:#e0f2fe; color:#0369a1;";
                             }
+                            adaKeluar = true;
+                            if (menitKeluarTerakhir === null || menitEvent > menitKeluarTerakhir) menitKeluarTerakhir = menitEvent;
                         }
                     });
 
                     if (msk1 === "-" && msk2 === "-" && (klr1 !== "-" || klr2 !== "-")) {
-                        msk2 = "13:30"; bgM2 = "background:#e0f2fe; color:#0369a1;"; // Biru Muda Auto
-                        ketList.push("Lupa Masuk (Auto 13:30)");
+                        msk1 = "13:00"; bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Lupa Masuk
+                        menitMasukPertama = 13 * 60;
+                        ketList.push("Lupa Masuk (Auto 13:00)");
                     }
 
-                    if (lastEventType.includes("Masuk") && klr2 === "-") {
-                        countLupaPulang++;
-                        if (countLupaPulang <= 3) {
-                            klr2 = "17:00"; ketList.push("Lupa Pulang (Auto 17:00)");
-                            bgK2 = "background:#e0f2fe; color:#0369a1;"; // Biru Muda
-                        } else {
-                            klr2 = "15:30"; ketList.push("Lupa Pulang (Auto 15:30)");
-                            bgK2 = "background:#e2e8f0; color:#334155;"; // Abu Parah
+                    const tanggalHariIni = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+                    if (!adaKeluar && menitMasukPertama !== null && dateKey === tanggalHariIni) {
+                        const menitSaatIni = now.getHours() * 60 + now.getMinutes();
+                        if (menitSaatIni > menitMasukPertama) {
+                            menitKeluarTerakhir = menitSaatIni;
+                            klr2 = formatJamMenitPayroll(menitSaatIni) + ' (Berjalan)';
+                            ketList.push(menitSaatIni > kebijakanKerja.selesaiMenit ? 'Lembur berjalan sampai absen keluar' : 'Jam kerja berjalan sampai absen keluar');
                         }
                     }
 
-                    let parseH = (t) => {
-                        if (t === "-") return null;
-                        let cleanT = t.replace(" (+1)", "");
-                        let p = cleanT.split(':');
-                        let hasil = parseInt(p[0]) + parseInt(p[1])/60;
-                        if (p.length > 2) hasil += parseInt(p[2])/3600; // Tambahan baca detik
-                        if (t.includes("(+1)")) hasil += 24;
-                        return hasil;
-                    };
-                    let pMsk1 = parseH(msk1), pKlr1 = parseH(klr1), pMsk2 = parseH(msk2), pKlr2 = parseH(klr2);
+                    if (menitMasukPertama !== null && menitKeluarTerakhir !== null && menitKeluarTerakhir > menitMasukPertama) {
+                        const awalDibayar = Math.max(menitMasukPertama, kebijakanKerja.mulaiMenit);
+                        const akhirReguler = Math.min(menitKeluarTerakhir, kebijakanKerja.selesaiMenit);
+                        const menitReguler = Math.max(0, akhirReguler - awalDibayar);
+                        totJam = (menitKeluarTerakhir - menitMasukPertama) / 60;
+                        upahRegulerHariIni = menitReguler * upahPerMenit;
 
-                    let calcTotalMin = (hours) => Math.floor(hours * 60); // Konversi jam ke menit bulat (abaikan sisa detik)
-
-                    if (pMsk1) {
-                        let msk1Menit = calcTotalMin(pMsk1);
-                        if (msk1Menit > (8 * 60 + 45)) countTelatPagi++; // Lacak telat lebih dari 08:45
-
-                        if (msk1Menit > (8 * 60)) { // Jika masuk lewat dari 08:00
-                            let minLate = msk1Menit - (8 * 60);
-                            potHariIni += (minLate * upahPerMenit);
+                        if (menitMasukPertama > kebijakanKerja.batasTelatMenit) countTelatPagi++;
+                        if (menitMasukSetelahIstirahat !== null && menitMasukSetelahIstirahat > 13 * 60) {
+                            const potonganIstirahat = Math.min(90, menitMasukSetelahIstirahat - 13 * 60);
+                            potHariIni += potonganIstirahat * upahPerMenit;
+                            ketList.push('Telat Setelah Istirahat (' + potonganIstirahat + ' menit)');
+                        }
+                        if (menitKeluarTerakhir > kebijakanKerja.selesaiMenit) {
+                            const menitLembur = menitKeluarTerakhir - kebijakanKerja.selesaiMenit;
+                            lemHariIni += menitLembur * (5000 / 60); // Tetap memakai tarif lembur yang telah berlaku.
+                            txtLemburJam = (menitLembur / 60).toFixed(2) + 'j';
                         }
                     }
-                    if (pMsk2) {
-                        let msk2Menit = calcTotalMin(pMsk2);
-                        if (msk2Menit > (13 * 60 + 30)) { // Telat masuk setelah istirahat (Lewat 13:30)
-                            let minLate = msk2Menit - (13 * 60 + 30);
-                            potHariIni += (minLate * upahPerMenit);
-                        }
-                    }
-                    if (pKlr2) {
-                        let klr2Menit = calcTotalMin(pKlr2);
-                        if (klr2Menit < (17 * 60)) { // Pulang cepat (sebelum 17:00)
-                            let minEarly = (17 * 60) - klr2Menit;
-                            potHariIni += (minEarly * upahPerMenit);
-                        }
-                        if (klr2Menit > (17 * 60)) { // Lembur (setelah 17:00)
-                            let minLembur = klr2Menit - (17 * 60);
-                            lemHariIni += (minLembur * (5000 / 60)); // Rp 5000 per 60 menit
-                            txtLemburJam = (minLembur / 60).toFixed(2) + "j";
-                        }
-                    }
-
-                    let tot1 = 0, tot2 = 0;
-                    if (pMsk1 && pKlr1) tot1 = pKlr1 - pMsk1;
-                    else if (pMsk1 && pMsk2 && pKlr2) tot1 = 4;
-                    else if (pMsk1 && !pKlr1 && pKlr2) tot1 = (pKlr2 - pMsk1) - 1.5;
-                    if (pMsk2 && pKlr2) tot2 = pKlr2 - pMsk2;
-
-                    totJam = tot1 + tot2; if(totJam < 0) totJam = 0;
                 } else if (!isAhad && !isFutureDate) {
                     // LOGIKA ALPA
                     isAlpa = true; countAlpa++;
@@ -1420,9 +1429,10 @@
                 let txtJam = totJam > 0 ? totJam.toFixed(2) + "h" : "-";
                 let upahHariIniStr = "-";
                 if (isHadir) {
-                    // 1. Hitung Upah Bersih Reguler
-                    let upahBersihHariIni = upahPerHari - potHariIni + lemHariIni;
+                    // Argo upah reguler mengikuti menit dari absen masuk hingga keluar.
+                    let upahBersihHariIni = upahRegulerHariIni - potHariIni + lemHariIni;
                     if (upahBersihHariIni < 0) upahBersihHariIni = 0;
+                    totalUpahHadir += upahRegulerHariIni;
 
                     // 2. Terapkan Penggandaan Luar Kota JIKA ADA
                     if (isPokok2x) {
@@ -1532,8 +1542,6 @@
             totalTunjanganTetap = arrayTunjangan.reduce((total, t) => total + (parseFloat(t.nominal) || 0), 0);
             totalPotongan += dendaDisiplin;
 
-            let totalUpahHadir = (countKehadiran / hariKerjaEfektif) * gajiPokok;
-            if (totalUpahHadir > gajiPokok) totalUpahHadir = gajiPokok;
             let feeMarketing = variabelPayroll.fee;
             let kasbon = variabelPayroll.kasbon;
             let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin + totalTunjanganTetap + feeMarketing - kasbon;
