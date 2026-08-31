@@ -3535,7 +3535,16 @@
                     const num = parseInt(id.substring(prefixProspek.length), 10);
                     if (num > maxPrp) maxPrp = num;
                 });
-                (globalGaransi || []).forEach(g => { let id = String((g && g['ID Garansi']) || ''); if(id.startsWith('GRS-')) { let num = parseInt(id.split('-')[1]); if (num > maxGrs) maxGrs = num; } });
+                // Primary key Garansi digunakan bersama kedua cabang. Raha
+                // memakai GRR- agar nomor lokalnya tidak berbenturan dengan
+                // Garansi Kendari yang tetap memakai GRS-.
+                const prefixGaransi = normalisasiCabang(cabangAktif) === 'Raha' ? 'GRR-' : 'GRS-';
+                (globalGaransi || []).forEach(g => {
+                    const id = String((g && g['ID Garansi']) || '');
+                    if (!id.startsWith(prefixGaransi)) return;
+                    const num = nomorUrutSetelahPrefix_(id, prefixGaransi);
+                    if (num > maxGrs) maxGrs = num;
+                });
 
                 if (!modeEditTiket) {
                     let elTkt = document.getElementById('input-id'); if(elTkt) elTkt.value = prefixTiket + String(maxTkt + 1).padStart(3, '0');
@@ -3546,7 +3555,7 @@
                 if(prospekEl && !modeEditProspek) { prospekEl.value = prefixProspek + String(maxPrp + 1).padStart(3, '0'); }
 
                 let garansiEl = document.getElementById('garansi-id');
-                if(garansiEl) { garansiEl.value = 'GRS-' + String(maxGrs + 1).padStart(3, '0'); }
+                if(garansiEl) { garansiEl.value = prefixGaransi + String(maxGrs + 1).padStart(3, '0'); }
             } catch(e) { console.error("Error setAutoIDs:", e); }
         }
 
