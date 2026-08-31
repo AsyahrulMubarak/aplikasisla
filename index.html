@@ -1228,6 +1228,59 @@
             }
         }
 
+        // Tracking pelanggan tidak memakai aksi POST maupun sesi login. Endpoint
+        // GAS menerima GET dengan trackId dan mengembalikan `tickets`.
+        async function ambilTrackingPublik_(idTiket) {
+            const id = idAman_(idTiket);
+            if (!id) throw new Error('Format ID tiket pada tautan tracking tidak valid.');
+
+            const daftarApi = [API_URL_KENDARI, API_URL_RAHA];
+            const daftarError = [];
+            let adaResponsValid = false;
+
+            for (const endpoint of daftarApi) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 25000);
+                try {
+                    const url = new URL(endpoint);
+                    url.searchParams.set('apiKey', API_KEY);
+                    url.searchParams.set('trackId', id);
+
+                    const response = await fetch(url.toString(), {
+                        method: 'GET', redirect: 'follow', signal: controller.signal,
+                        credentials: 'omit'
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    let hasil;
+                    try { hasil = await response.json(); }
+                    catch (error) { throw new Error('Respons server tracking tidak valid.'); }
+                    if (hasil && hasil.status === 'gagal') {
+                        throw new Error(hasil.pesan || 'Permintaan tracking ditolak server.');
+                    }
+
+                    adaResponsValid = true;
+                    const tiket = Array.isArray(hasil && (hasil.tickets || hasil.tiket))
+                        ? (hasil.tickets || hasil.tiket) : [];
+                    if (tiket.length > 0) {
+                        return {
+                            tiket: tiket,
+                            garansi: Array.isArray(hasil && hasil.garansi) ? hasil.garansi : []
+                        };
+                    }
+                } catch (error) {
+                    daftarError.push(error && error.name === 'AbortError'
+                        ? 'Server tracking tidak merespons dalam 25 detik.'
+                        : (error && error.message ? error.message : 'Server tracking tidak dapat dihubungi.'));
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+            }
+
+            if (adaResponsValid) throw new Error(`Tiket ${id} tidak ditemukan.`);
+            throw new Error(daftarError[0] || 'Server tracking tidak dapat dihubungi.');
+        }
+
         async function callSupabase(endpoint, method = "GET", payload = null) {
             if (!cabangAktif) throw new Error('Cabang aktif belum dipilih.');
             const url = endpoint.startsWith('http') ? endpoint : `${SUPABASE_URL}/rest/v1/${endpoint}`;
@@ -2932,26 +2985,31 @@
                     }
 
                     if (trackIdNormal) {
-                        // Jalur Tracking Publik via GAS (Tanpa Login)
-                        const hasilTracking = await kirimKeBackend_(API_AUTH_URL, 'trackTicket', { idTiket: trackIdNormal }, false);
+                        // Jalur tracking publik menggunakan GET `trackId`, bukan
+                        // action POST yang hanya tersedia untuk aplikasi internal.
+                        const hasilTracking = await ambilTrackingPublik_(trackIdNormal);
                         let rawTiket = Array.isArray(hasilTracking.tiket) ? hasilTracking.tiket : [];
                         globalTickets = rawTiket.map(r => ({
-                            "ID Tiket": r.id_tiket, "Status": r.status, "Klien & Lokasi": r.klien_lokasi,
-                            "Jenis Pekerjaan": r.jenis_pekerjaan, "Teknisi": r.teknisi, "Waktu Lapor": r.waktu_lapor,
-                            "WA Klien": r.no_wa_klien, "Link PDF BA": r.link_pdf_ba,
-                            "Deskripsi Pekerjaan (BA)": r.deskripsi_pekerjaan_ba,
-                            "Kritik & Saran": r.kritik_saran,
-                            "Nama Customer": r.nama_customer,
-                            "Keterangan": r.keterangan,
-                            "No Transaksi": r.no_transaksi,
-                            "Cabang": r.cabang
+                            "ID Tiket": r["ID Tiket"] || r.id_tiket, "Status": r.Status || r.status,
+                            "Klien & Lokasi": r["Klien & Lokasi"] || r.klien_lokasi,
+                            "Jenis Pekerjaan": r["Jenis Pekerjaan"] || r.jenis_pekerjaan,
+                            "Teknisi": r.Teknisi || r.teknisi, "Waktu Lapor": r["Waktu Lapor"] || r.waktu_lapor,
+                            "WA Klien": r["No WA Klien"] || r["WA Klien"] || r.no_wa_klien,
+                            "Link PDF BA": r["Link PDF BA"] || r.link_pdf_ba,
+                            "Deskripsi Pekerjaan (BA)": r["Deskripsi Pekerjaan (BA)"] || r.deskripsi_pekerjaan_ba,
+                            "Kritik & Saran": r["Kritik & Saran"] || r.kritik_saran,
+                            "Nama Customer": r["Nama Customer"] || r.nama_customer,
+                            "Keterangan": r.Keterangan || r.keterangan,
+                            "No Transaksi": r["No Transaksi"] || r.no_transaksi,
+                            "Cabang": r.Cabang || r.cabang
                         }));
                         let rawGaransi = Array.isArray(hasilTracking.garansi) ? hasilTracking.garansi : [];
                         globalGaransi = rawGaransi.map(g => ({
-                            "Referensi (Tiket/Nota)": g.referensi_tiket_nota, "Status": g.status,
-                            "Tanggal Habis": g.tanggal_habis, "Barang / Jasa": g.barang_jasa,
-                            "Durasi (Hari)": g.durasi_hari, "Keterangan": g.keterangan,
-                            "Cabang": g.cabang
+                            "Referensi (Tiket/Nota)": g["Referensi (Tiket/Nota)"] || g.referensi_tiket_nota,
+                            "Status": g.Status || g.status, "Tanggal Habis": g["Tanggal Habis"] || g.tanggal_habis,
+                            "Barang / Jasa": g["Barang / Jasa"] || g.barang_jasa,
+                            "Durasi (Hari)": g["Durasi (Hari)"] || g.durasi_hari,
+                            "Keterangan": g.Keterangan || g.keterangan, "Cabang": g.Cabang || g.cabang
                         }));
                         globalUsers = []; globalPenjualan = []; globalProspek = []; globalKlien = [];
                     } else {
