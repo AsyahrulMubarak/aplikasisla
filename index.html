@@ -972,6 +972,8 @@
                     <label>No Transaksi (iPOS)</label>
                     <input type="text" id="input-notrans-sls" required>
                     <label>Nama Pembeli</label><input type="text" id="input-pembeli-sls" required oninput="deteksiSalesDariProspek(this, 'input-sales-sls-group')">
+                    <label style="color:#1e3a8a;">Nomor WhatsApp Pembeli <span style="color:var(--danger);">*</span></label>
+                    <input type="tel" id="input-wa-sls" required placeholder="Contoh: 6285123456789" oninput="formatWA(this)">
                     <label>Barang / Jasa Terjual</label><input type="text" id="input-barang-sls" required>
                     <label>Sales Bertugas</label><div class="checkbox-group" id="input-sales-sls-group"></div>
                     <label style="color:var(--purple);">Nominal Omzet (Rp)</label>
@@ -1510,14 +1512,19 @@
             }
         }
 
-        async function sinkronkanDatabaseKlienSupabase_(namaKlien, noWaKlien, sumberTransaksi, deskripsiProduk) {
+        async function sinkronkanDatabaseKlienSupabase_(namaKlien, noWaKlien, sumberTransaksi, deskripsiProduk, referensiTransaksi) {
             const noWaNormal = normalisasiWASementara_(noWaKlien);
-            if (!/^628\d{7,12}$/.test(noWaNormal)) return { dilewati: true, alasan: 'Nomor WA tidak valid.' };
+            if (!/^628\d{7,12}$/.test(noWaNormal)) {
+                throw new Error('Nomor WhatsApp pelanggan yang valid diperlukan untuk menyimpan Data Klien.');
+            }
+            const referensi = idAman_(referensiTransaksi);
+            if (!referensi) throw new Error('Referensi transaksi CRM tidak valid.');
             const hasil = await kirimKeBackend_(apiUrl, 'syncCRM', {
                 namaKlien: String(namaKlien || '').trim(),
                 noWaKlien: noWaNormal,
                 sumberTransaksi: String(sumberTransaksi || '').trim(),
-                deskripsiProduk: String(deskripsiProduk || '').trim()
+                deskripsiProduk: String(deskripsiProduk || '').trim(),
+                referensiTransaksi: referensi
             });
             if (!hasil || hasil.status !== 'sukses' || !hasil.data) throw new Error('Sinkronisasi CRM tidak terkonfirmasi.');
             return hasil.data;
@@ -5980,10 +5987,11 @@
                     const prospekPenjualan = (globalProspek || []).slice().reverse().find(prospek =>
                         prospek && normalisasiNamaCustomerProspek_(prospek['Nama Calon Customer']) === namaPembeliNormal
                     );
-                    const noWaPenjualanCRM = prospekPenjualan ? (prospekPenjualan['No WA'] || '') : '';
+                    const noWaDiisi = document.getElementById('input-wa-sls').value;
+                    const noWaPenjualanCRM = noWaDiisi || (prospekPenjualan ? (prospekPenjualan['No WA'] || '') : '');
                     let crmPenjualanGagal = false;
                     try {
-                        await sinkronkanDatabaseKlienSupabase_(penjualanBaru.nama_pembeli, noWaPenjualanCRM, 'Penjualan', penjualanBaru.barang_jasa || '');
+                        await sinkronkanDatabaseKlienSupabase_(penjualanBaru.nama_pembeli, noWaPenjualanCRM, 'Penjualan', penjualanBaru.barang_jasa || '', penjualanBaru.id_penjualan);
                     } catch (errorCRM) {
                         console.error(`Sinkronisasi CRM penjualan ${penjualanBaru.id_penjualan} gagal:`, errorCRM);
                         crmPenjualanGagal = true;
@@ -6379,7 +6387,7 @@
 
                         if (statusLamaNormal !== 'selesai') {
                             try {
-                                await sinkronkanDatabaseKlienSupabase_(namaKlienInfo, waKlienCRM, 'Tiket Selesai', produkTiketCRM);
+                                await sinkronkanDatabaseKlienSupabase_(namaKlienInfo, waKlienCRM, 'Tiket Selesai', produkTiketCRM, idTiket);
                             } catch (errorCRM) {
                                 console.error(`Sinkronisasi CRM tiket ${idTiket} gagal:`, errorCRM);
                                 integrasiEksternalGagal = true;
