@@ -570,7 +570,7 @@
             <form onsubmit="simpanPoinSelesai(event)">
                 <input type="hidden" id="poin-id-tiket">
                 <label>Bobot Poin Pekerjaan</label>
-                <input type="number" id="poin-nilai-input" placeholder="Contoh: 10, 50, 100" required>
+                <input type="number" id="poin-nilai-input" min="0" step="any" placeholder="Contoh: 10, 50, 100" required>
                 <div style="background:#fffbeb; padding:12px; border-radius:8px; border:1px dashed #fde68a; margin-top:10px; margin-bottom:15px;">
                     <label style="display:flex; align-items:center; margin:0; font-size:13px; color:#b45309; cursor:pointer; font-weight:bold;">
                         <input type="checkbox" id="poin-veto-input" style="width:18px; height:18px; margin-right:8px; accent-color:#f59e0b;">
@@ -850,11 +850,12 @@
                     <div id="garansi-poin-section" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px dashed #cbd5e1; margin-bottom:15px; display:none;">
                         <h4 style="margin:0 0 10px 0; color:#eab308; font-size:13px;">⭐ Penilaian Kinerja Teknisi</h4>
                         <label style="margin-top:0;">Bobot Poin Pekerjaan</label>
-                        <input type="number" id="garansi-poin-nilai" placeholder="Contoh: 10, 50, 100">
+                        <input type="number" id="garansi-poin-nilai" min="0" step="any" placeholder="Contoh: 10, 50, 100">
                         <label style="display:flex; align-items:center; margin-top:10px; font-size:12px; color:#b45309; cursor:pointer; font-weight:bold;">
                             <input type="checkbox" id="garansi-poin-veto" style="width:16px; height:16px; margin-right:8px; accent-color:#f59e0b;">
                             🛡️ Pulihkan Poin SLA (Veto Admin)
                         </label>
+                        <p style="margin:10px 0 0; font-size:11px; color:var(--text-muted); line-height:1.5;">Poin dari Garansi akan disalin ke tiket sebagai <strong>Poin Beku</strong>. Poin hanya masuk Dasbor Teknisi setelah pembayaran diverifikasi dan dicairkan.</p>
                     </div>
                     <label>Durasi Garansi</label>
                     <select id="garansi-durasi" required>
@@ -3759,6 +3760,41 @@
             perbaruiStatusBroadcastCRM_();
         }
 
+        function daftarTeknisiUnikTiket_(nilaiTeknisi) {
+            const namaTerlihat = new Set();
+            return String(nilaiTeknisi || '').split(',').map(nama => nama.trim()).filter(nama => {
+                if (!nama || nama === '-' || nama === 'Belum Ditugaskan') return false;
+                const kunci = nama.toLocaleLowerCase('id-ID');
+                if (namaTerlihat.has(kunci)) return false;
+                namaTerlihat.add(kunci);
+                return true;
+            });
+        }
+
+        function poinHangusKarenaSLA_(statusSLA) {
+            const status = String(statusSLA || '').trim().toLowerCase();
+            return status.includes('terlambat') || status.includes('gagal') || status.includes('failed');
+        }
+
+        function statusPoinSudahCair_(statusPembayaran) {
+            return String(statusPembayaran || '').trim().toLowerCase() === 'lunas';
+        }
+
+        function payloadPoinTiketDibekukan_(tiket, bobotPoin, vetoPoin) {
+            const payload = {
+                bobot_poin: bobotPoin,
+                poin_performa: bobotPoin,
+                veto_admin: vetoPoin
+            };
+            // Poin yang sudah pernah diverifikasi tetap cair ketika hanya nilai/vetonya dikoreksi.
+            // Untuk tiket baru yang belum diverifikasi, wajib kembali ke status beku.
+            if (!statusPoinSudahCair_(tiket && tiket['Status Pembayaran'])) {
+                payload.status_pembayaran = 'Poin Beku';
+                payload.tanggal_lunas = null;
+            }
+            return payload;
+        }
+
         function renderDashboard() {
             const dashTekContainer = document.getElementById('dash-tek-content'); dashTekContainer.innerHTML = '';
             const dashSalesContainer = document.getElementById('dash-sales-content'); dashSalesContainer.innerHTML = '';
@@ -4022,7 +4058,7 @@
                 const statusRespon = t['Status SLA Respon']; const statusPengerjaan = t['Status SLA']; const statusTiket = t['Status'] || 'Menunggu';
                 let teknisiVal = String(t['Teknisi'] || '').trim();
                 let isUnassigned = (teknisiVal === 'Belum Ditugaskan' || teknisiVal === '-' || teknisiVal === '');
-                let tekArr = teknisiVal.split(',').map(n => n.trim()).filter(n => n !== "Belum Ditugaskan" && n !== "-" && n !== "");
+                let tekArr = daftarTeknisiUnikTiket_(teknisiVal);
 
                 tekArr.forEach(nama => {
                     let n = nama; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
@@ -4115,11 +4151,11 @@
                 // BLOK 2: PENCAIRAN POIN (Dihitung di Bulan Lunas)
                 // ==========================================
                 if (isInPeriodePoin && statusTiket === 'Selesai') {
-                    let bobot = parseFloat(t['Bobot Poin'] || 0) || 0;
+                    let bobot = parseFloat(t['Bobot Poin'] || t['Poin Performa'] || 0) || 0;
                     let isVeto = String(t['Veto Admin'] || '').trim().toLowerCase() === 'ya';
 
-                    // Karena sudah difilter isInPeriodePoin (Pasti Lunas), langsung cairkan
-                    let poinBerlaku = (statusPengerjaan === 'TERPENUHI' || isVeto) ? bobot : 0;
+                    // Poin hanya hangus bila SLA pengerjaan gagal dan Admin belum memberi veto.
+                    let poinBerlaku = (poinHangusKarenaSLA_(statusPengerjaan) && !isVeto) ? 0 : bobot;
 
                     let poinPerOrang = tekArr.length > 0 ? (poinBerlaku / tekArr.length) : 0;
                     if (poinPerOrang > 0) {
@@ -4499,14 +4535,14 @@
                 // ==========================================
                 let htmlPoinTeknisi = '';
                 if (['admin', 'admin_raha', 'manager', 'direktur', 'teknisi'].includes(rolePengguna()) && textStatus === 'Selesai') {
-                    let nilaiPoin = parseFloat(ticket['Bobot Poin']) || 0;
+                    let nilaiPoin = parseFloat(ticket['Bobot Poin'] || ticket['Poin Performa']) || 0;
                     let isVeto = String(ticket['Veto Admin'] || '').trim().toLowerCase() === 'ya';
                     let statusSlaKerja = ticket['Status SLA'];
                     let statusBayar = ticket['Status Pembayaran'] || '';
 
                     if (nilaiPoin === 0) {
                         htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; display:inline-block; font-size:12px; color:#991b1b; font-weight:bold;">❌ Poin 0 (Garansi / Non-Revenue)</div>`;
-                    } else if (statusBayar !== 'Lunas') {
+                    } else if (!statusPoinSudahCair_(statusBayar)) {
                         // SEMUA TIKET DIBEKUKAN SAMPAI ADMIN TEKAN VERIFIKASI / LUNAS
                         htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fefce8; border:1px solid #fde047; border-radius:6px; display:inline-block; font-size:12px; color:#a16207; font-weight:bold;">⏳ Poin Beku: Menunggu Verifikasi/Lunas (Bobot: ${nilaiPoin})</div>`;
 
@@ -4514,18 +4550,11 @@
                         if (['admin', 'admin_raha', 'manager', 'direktur'].includes(rolePengguna())) {
                             btnHtml += `<button class="btn-action-primary" style="background:#ecfdf5; color:#065f46; border-color:#a7f3d0; margin-top:10px;" onclick="tandaiLunas('${ticket['ID Tiket']}')">✅ Verifikasi Pekerjaan & Cairkan Poin</button>`;
                         }
+                    } else if (poinHangusKarenaSLA_(statusSlaKerja) && !isVeto) {
+                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; display:inline-block; font-size:12px; color:#991b1b; font-weight:bold;">❌ Poin Hangus: ${nilaiPoin} Poin — SLA pengerjaan gagal. Aktifkan Veto Admin untuk memulihkan poin.</div>`;
                     } else {
-                        // POIN CAIR (Sudah diverifikasi/Lunas)
-                        let warnaPoin = '#166534'; let bgPoin = '#dcfce7'; let borderPoin = '#bbf7d0'; let teksPoinTambahan = '';
-
-                        if (statusSlaKerja === 'TERLAMBAT' && !isVeto) {
-                            warnaPoin = '#991b1b'; bgPoin = '#fef2f2'; borderPoin = '#fecaca';
-                            teksPoinTambahan = ' <span style="text-decoration:line-through; color:#ef4444;">(Hangus)</span>';
-                        } else if (isVeto) {
-                            teksPoinTambahan = ' <span title="Diselamatkan oleh Veto Admin">🛡️ <i style="font-size:10px;">(Veto Admin)</i></span>';
-                        }
-
-                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:${bgPoin}; border:1px solid ${borderPoin}; border-radius:6px; display:inline-block; font-size:12px; color:${warnaPoin}; font-weight:bold;">⭐ Poin Cair: ${nilaiPoin} Poin${teksPoinTambahan}</div>`;
+                        const teksPoinTambahan = isVeto ? ' <span title="Diselamatkan oleh Veto Admin">🛡️ <i style="font-size:10px;">(Veto Admin)</i></span>' : '';
+                        htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#dcfce7; border:1px solid #bbf7d0; border-radius:6px; display:inline-block; font-size:12px; color:#166534; font-weight:bold;">⭐ Poin Cair: ${nilaiPoin} Poin${teksPoinTambahan}</div>`;
                     }
                 }
 
@@ -4671,7 +4700,7 @@
                         // MUNCULKAN KOTAK POIN & ISI OTOMATIS JIKA SUDAH ADA POIN SEBELUMNYA
                         if (poinSection) {
                             poinSection.style.display = 'block';
-                            document.getElementById('garansi-poin-nilai').value = t['Bobot Poin'] || '';
+                            document.getElementById('garansi-poin-nilai').value = t['Bobot Poin'] || t['Poin Performa'] || '';
                             document.getElementById('garansi-poin-veto').checked = (String(t['Veto Admin'] || '').toLowerCase() === 'ya');
                         }
 
@@ -4833,13 +4862,20 @@
                 const referensi = document.getElementById('garansi-referensi').value.trim();
                 const durasiHari = Math.max(0, Number.parseInt(document.getElementById('garansi-durasi').value, 10) || 0);
                 const omzetRaw = document.getElementById('garansi-omzet').value;
-                const poinNilaiStr = document.getElementById('garansi-poin-nilai').value;
+                const poinNilaiStr = String(document.getElementById('garansi-poin-nilai').value || '').trim();
                 const poinVeto = document.getElementById('garansi-poin-veto').checked ? 'Ya' : 'Tidak';
                 const tiketReferensi = (globalTickets || []).find(item => item && String(item['ID Tiket']).trim() === referensi);
                 const cabangGaransi = normalisasiCabang((tiketReferensi && tiketReferensi.Cabang) || cabangAktif) || 'Kendari';
                 let statusGaransi = document.getElementById('garansi-status').value;
                 let tanggalMulai = null;
                 let tanggalHabis = null;
+
+                if (referensi.startsWith('TKT-') && poinNilaiStr !== '') {
+                    const poinDariGaransi = Number(poinNilaiStr);
+                    if (!Number.isFinite(poinDariGaransi) || poinDariGaransi < 0) {
+                        throw new Error('Bobot poin harus berupa angka nol atau lebih.');
+                    }
+                }
 
                 if (durasiHari === 0) {
                     statusGaransi = 'Habis (Tanpa Garansi)';
@@ -4880,19 +4916,20 @@
 
                 // === SINKRONISASI POIN KE TIKET ===
                 if (referensi.startsWith('TKT-') && poinNilaiStr !== '') {
-                    try {
-                        await kirimKeBackend_(apiUrl, 'updatePoinTiket', {
-                            idTiket: referensi,
-                            bobotPoin: poinNilaiStr,
-                            vetoPoin: poinVeto
-                        });
-                    } catch (errPoin) {
-                        console.error('Gagal update poin dari garansi:', errPoin);
-                    }
+                    if (!tiketReferensi) throw new Error(`Tiket referensi ${referensi} tidak ditemukan.`);
+                    const hasilPoin = await callSupabase(
+                        endpointFilterSupabase_('tiket', 'id_tiket', referensi),
+                        'PATCH',
+                        payloadPoinTiketDibekukan_(tiketReferensi, Number(poinNilaiStr), poinVeto)
+                    );
+                    pastikanHasilMutasiSupabase_(hasilPoin, `Poin tiket ${referensi}`);
                 }
                 // ==================================
 
-                showToast(`Alhamdulillah! Data Garansi berhasil ${garansiSudahAda ? 'diperbarui' : 'disimpan'}.`, 'success');
+                const pesanPoin = referensi.startsWith('TKT-') && poinNilaiStr !== ''
+                    ? ' Poin tiket disinkronkan sebagai Poin Beku sampai pembayaran diverifikasi.'
+                    : '';
+                showToast(`Alhamdulillah! Data Garansi berhasil ${garansiSudahAda ? 'diperbarui' : 'disimpan'}.${pesanPoin}`, 'success');
                 tutupFormGaransi();
                 document.getElementById('loading').style.display = 'block';
                 await ambilSemuaData(true);
@@ -6792,7 +6829,7 @@
         function bukaModalPoin(idTiket) {
             const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); if(!t) return;
             document.getElementById('poin-id-tiket').value = idTiket;
-            document.getElementById('poin-nilai-input').value = t['Bobot Poin'] || '';
+            document.getElementById('poin-nilai-input').value = t['Bobot Poin'] || t['Poin Performa'] || '';
             document.getElementById('poin-veto-input').checked = (String(t['Veto Admin'] || '').toLowerCase() === 'ya');
             document.getElementById('modal-poin').style.display = 'flex';
         }
@@ -6801,32 +6838,44 @@
             e.preventDefault();
             const btn = document.getElementById('btn-submit-poin'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
             try {
-                const payload = {
-                    idTiket: document.getElementById('poin-id-tiket').value,
-                    bobotPoin: document.getElementById('poin-nilai-input').value,
-                    vetoPoin: document.getElementById('poin-veto-input').checked ? 'Ya' : 'Tidak'
-                };
-                const hasil = await kirimKeBackend_(apiUrl, 'updatePoinTiket', payload);
-                if (hasil.status === 'sukses') {
-                    showToast('Alhamdulillah! Poin tersimpan.', 'success');
-                    document.getElementById('modal-poin').style.display = 'none';
-                    await ambilSemuaData(true);
-                } else { showToast('Afwan, Gagal update poin.', 'error'); }
-            } catch(err) { showToast('Afwan, Koneksi error.', 'error'); }
+                const idTiket = document.getElementById('poin-id-tiket').value;
+                const tiket = (globalTickets || []).find(item => item && String(item['ID Tiket']).trim() === String(idTiket).trim());
+                const nilaiInput = String(document.getElementById('poin-nilai-input').value || '').trim();
+                const bobotPoin = Number(nilaiInput);
+                const vetoPoin = document.getElementById('poin-veto-input').checked ? 'Ya' : 'Tidak';
+                if (!tiket) throw new Error('Tiket tidak ditemukan.');
+                if (nilaiInput === '' || !Number.isFinite(bobotPoin) || bobotPoin < 0) {
+                    throw new Error('Bobot poin harus berupa angka nol atau lebih.');
+                }
+
+                const hasil = await callSupabase(
+                    endpointFilterSupabase_('tiket', 'id_tiket', idTiket),
+                    'PATCH',
+                    payloadPoinTiketDibekukan_(tiket, bobotPoin, vetoPoin)
+                );
+                pastikanHasilMutasiSupabase_(hasil, `Poin tiket ${idTiket}`);
+                showToast('Alhamdulillah! Poin tersimpan.', 'success');
+                document.getElementById('modal-poin').style.display = 'none';
+                await ambilSemuaData(true);
+            } catch(err) { showToast(`Afwan, Gagal menyimpan poin: ${err.message}`, 'error'); }
             btn.innerText = 'Simpan Poin'; btn.disabled = false;
         }
         async function tandaiLunas(idTiket) {
-            let acc = await showConfirm(`Bismillah, apakah pekerjaan tiket ${idTiket} sudah diverifikasi dan Lunas? Poin Teknisi akan langsung dicairkan dan masuk ke saldo bulan ini.`);
+            let acc = await showConfirm(`Bismillah, apakah pekerjaan tiket ${idTiket} sudah diverifikasi dan Lunas? Poin yang memenuhi SLA atau sudah mendapat Veto Admin akan masuk ke Dasbor Teknisi pada bulan ini.`);
             if(!acc) return;
-            // ... [lanjutan kodenya tetap sama]
             document.getElementById('loading').style.display = 'block';
             try {
-                const hasil = await kirimKeBackend_(apiUrl, 'tandaiLunas', { idTiket: idTiket });
-                if (hasil.status === 'sukses') {
-                    showToast('Alhamdulillah! Nota Lunas, Poin dicairkan.', 'success');
-                    await ambilSemuaData(true);
-                } else { showToast('Afwan, Gagal update status pelunasan.', 'error'); }
-            } catch(err) { showToast('Afwan, Koneksi error.', 'error'); }
+                const tiket = (globalTickets || []).find(item => item && String(item['ID Tiket']).trim() === String(idTiket).trim());
+                if (!tiket) throw new Error('Tiket tidak ditemukan.');
+                const hasil = await callSupabase(
+                    endpointFilterSupabase_('tiket', 'id_tiket', idTiket),
+                    'PATCH',
+                    { status_pembayaran: 'Lunas', tanggal_lunas: tanggalIsoSupabase_() }
+                );
+                pastikanHasilMutasiSupabase_(hasil, `Pelunasan tiket ${idTiket}`);
+                showToast('Alhamdulillah! Pembayaran terverifikasi. Poin cair akan dihitung pada bulan ini.', 'success');
+                await ambilSemuaData(true);
+            } catch(err) { showToast(`Afwan, Gagal memverifikasi pembayaran: ${err.message}`, 'error'); }
             document.getElementById('loading').style.display = 'none';
         }
 
