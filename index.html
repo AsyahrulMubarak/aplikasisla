@@ -3422,10 +3422,35 @@
             } catch(e) { console.error("Error render inputs:", e); }
         }
 
+        function prefixTiketCabang_(cabang) {
+            return String(cabang || '').trim().toLowerCase() === 'raha' ? 'TKT-R-' : 'TKT-';
+        }
+
+        function nomorUrutSetelahPrefix_(id, prefix) {
+            const nomor = String(id || '').substring(String(prefix || '').length);
+            return /^\d+$/.test(nomor) ? Number(nomor) : 0;
+        }
+
+        function buatIdTiketBerurutan_(idDasar, tambahan = 0) {
+            const cocok = String(idDasar || '').match(/^(.*?)(\d+)$/);
+            if (!cocok) throw new Error('Format ID tiket otomatis tidak valid.');
+            const [, awalan, nomor] = cocok;
+            return awalan + String(Number(nomor) + Number(tambahan || 0)).padStart(Math.max(3, nomor.length), '0');
+        }
+
         function setAutoIDs() {
             try {
                 let maxTkt = 0; let maxSls = 0; let maxPrp = 0; let maxGrs = 0;
-                (globalTickets || []).forEach(t => { let id = String((t && t['ID Tiket']) || ''); if(id.startsWith('TKT-')) { let num = parseInt(id.split('-')[1]); if (num > maxTkt) maxTkt = num; } });
+                // Primary key tiket digunakan bersama kedua cabang. Raha memakai awalan TKT-R-
+                // agar tidak berbenturan dengan ID TKT- milik Kendari, namun tetap kompatibel
+                // dengan seluruh fitur yang mengenali referensi tiket melalui awalan TKT-.
+                const prefixTiket = prefixTiketCabang_(cabangAktif);
+                (globalTickets || []).forEach(t => {
+                    const id = String((t && t['ID Tiket']) || '');
+                    if (!id.startsWith(prefixTiket)) return;
+                    const num = nomorUrutSetelahPrefix_(id, prefixTiket);
+                    if (num > maxTkt) maxTkt = num;
+                });
                 (globalPenjualan || []).forEach(p => { let id = String((p && p['ID Penjualan']) || ''); if(id.startsWith('SLS-')) { let num = parseInt(id.split('-')[1]); if (num > maxSls) maxSls = num; } });
                 // Tabel Prospek memakai primary key global. Kendari tetap PRP-xxx;
                 // Raha memakai PRR-xxx agar nomor antar-cabang tidak saling berbenturan.
@@ -3439,7 +3464,7 @@
                 (globalGaransi || []).forEach(g => { let id = String((g && g['ID Garansi']) || ''); if(id.startsWith('GRS-')) { let num = parseInt(id.split('-')[1]); if (num > maxGrs) maxGrs = num; } });
 
                 if (!modeEditTiket) {
-                    let elTkt = document.getElementById('input-id'); if(elTkt) elTkt.value = 'TKT-' + String(maxTkt + 1).padStart(3, '0');
+                    let elTkt = document.getElementById('input-id'); if(elTkt) elTkt.value = prefixTiket + String(maxTkt + 1).padStart(3, '0');
                     let elSls = document.getElementById('input-id-sls'); if(elSls) elSls.value = 'SLS-' + String(maxSls + 1).padStart(3, '0');
                 }
 
@@ -5712,8 +5737,10 @@
 
                     let listPekerjaan = Array.from(document.querySelectorAll('.input-pekerjaan-multi')).map(ta => ta.value.trim()).filter(v => v !== "");
                     let baseId = document.getElementById('input-id').value;
-                    let idPrefix = baseId.split('-')[0];
-                    let idNum = parseInt(baseId.split('-')[1]);
+                    if (!modeEditTiket && !baseId) {
+                        setAutoIDs();
+                        baseId = document.getElementById('input-id').value;
+                    }
 
                     let successCount = 0;
                     let prospekSudahDisinkronkan = false;
@@ -5724,7 +5751,7 @@
                     document.getElementById('loading').style.display = 'block';
 
                     for (let i = 0; i < listPekerjaan.length; i++) {
-                        let currentId = modeEditTiket ? baseId : `${idPrefix}-${String(idNum + i).padStart(3, '0')}`;
+                        let currentId = modeEditTiket ? baseId : buatIdTiketBerurutan_(baseId, i);
                         btn.innerText = `Menyimpan (${i+1}/${listPekerjaan.length})...`;
 
                         const targetSLAInput = angkaDesimalSupabase_(document.getElementById('input-sla').value, 24);
