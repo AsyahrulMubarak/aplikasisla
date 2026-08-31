@@ -351,6 +351,10 @@
         const API_URL_KENDARI = "https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec";
         const API_URL_RAHA = "https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec";
         const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
+        const SUPABASE_URL = 'https://oozkqjgllubhjctnkxwl.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_Wa3EUtroPjqwfCkJOyRSSw_MWnMXH6E';
+        const SUPABASE_REFRESH_MARGIN_MS = 60000;
+        let promiseRefreshSupabase_ = null;
 
         // --- RESTORASI SESI CABANG DARI LOBI UTAMA ---
         let cabangAktif = 'Kendari'; // Fallback aman
@@ -403,20 +407,137 @@
             return '';
         }
 
-        async function fetchAntiCORS(url, payload) {
+        function waktuKedaluwarsaJwt_(token) {
+            try {
+                const bagian = String(token || '').split('.');
+                if (bagian.length !== 3) return 0;
+                let payloadBase64 = bagian[1].replace(/-/g, '+').replace(/_/g, '/');
+                while (payloadBase64.length % 4) payloadBase64 += '=';
+                const payload = JSON.parse(atob(payloadBase64));
+                return Number(payload.exp) > 0 ? Number(payload.exp) * 1000 : 0;
+            } catch (error) {
+                return 0;
+            }
+        }
+
+        function buatErrorSesiSupabase_(pesan) {
+            const error = new Error(pesan);
+            error.code = 'AUTH_EXPIRED';
+            return error;
+        }
+
+        function simpanPembaruanTokenSesi_() {
+            try {
+                const raw = sessionStorage.getItem('sesiLoginSLA');
+                if (!raw || !penggunaAktif) return;
+                const sesi = JSON.parse(raw);
+                if (!sesi || !sesi.user) return;
+                sesi.user = Object.assign({}, sesi.user, {
+                    SessionToken: penggunaAktif.SessionToken,
+                    RefreshToken: penggunaAktif.RefreshToken || '',
+                    SessionExpiresAt: penggunaAktif.SessionExpiresAt || waktuKedaluwarsaJwt_(penggunaAktif.SessionToken)
+                });
+                sessionStorage.setItem('sesiLoginSLA', JSON.stringify(sesi));
+            } catch (error) {
+                console.warn('Token absensi tidak dapat disalin ke sessionStorage:', error);
+            }
+        }
+
+        async function pastikanTokenSupabaseAktif_(paksaRefresh = false) {
+            if (!penggunaAktif || !penggunaAktif.SessionToken) {
+                throw buatErrorSesiSupabase_('Sesi login tidak tersedia. Silakan kembali ke Lobi dan login ulang.');
+            }
+
+            const tokenSekarang = String(penggunaAktif.SessionToken);
+            if (tokenSekarang.split('.').length !== 3) {
+                throw buatErrorSesiSupabase_('Sesi Passkey lama tidak kompatibel dengan Absensi. Silakan login kembali menggunakan password.');
+            }
+
+            const kedaluwarsaPada = Number(penggunaAktif.SessionExpiresAt) || waktuKedaluwarsaJwt_(tokenSekarang);
+            if (!paksaRefresh && kedaluwarsaPada > Date.now() + SUPABASE_REFRESH_MARGIN_MS) return tokenSekarang;
+            if (!penggunaAktif.RefreshToken) {
+                if (!paksaRefresh && kedaluwarsaPada > Date.now()) return tokenSekarang;
+                throw buatErrorSesiSupabase_('Sesi Supabase telah kedaluwarsa. Silakan kembali ke Lobi dan login ulang menggunakan password.');
+            }
+
+            if (!promiseRefreshSupabase_) {
+                promiseRefreshSupabase_ = (async () => {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 25000);
+                    try {
+                        const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+                            method: 'POST',
+                            headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refresh_token: penggunaAktif.RefreshToken }),
+                            signal: controller.signal
+                        });
+                        const authData = await response.json().catch(() => ({}));
+                        if (!response.ok || !authData.access_token) {
+                            throw buatErrorSesiSupabase_(authData.error_description || authData.msg || authData.message || 'Refresh sesi Supabase ditolak. Silakan login kembali.');
+                        }
+                        penggunaAktif.SessionToken = authData.access_token;
+                        penggunaAktif.RefreshToken = authData.refresh_token || penggunaAktif.RefreshToken;
+                        penggunaAktif.SessionExpiresAt = authData.expires_at
+                            ? Number(authData.expires_at) * 1000
+                            : (waktuKedaluwarsaJwt_(authData.access_token) || Date.now() + (Number(authData.expires_in) || 3600) * 1000);
+                        simpanPembaruanTokenSesi_();
+                        return penggunaAktif.SessionToken;
+                    } catch (error) {
+                        if (error && error.name === 'AbortError') throw new Error('Pembaruan sesi Supabase melewati batas waktu.');
+                        throw error;
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
+                })();
+            }
+
+            try {
+                return await promiseRefreshSupabase_;
+            } finally {
+                promiseRefreshSupabase_ = null;
+            }
+        }
+
+        function responsMenandakanSesiTidakSah_(hasil) {
+            const pesan = String(hasil && (hasil.pesan || hasil.message || hasil.error) || '').toLowerCase();
+            return hasil && hasil.status === 'gagal' && (
+                pesan.includes('sesi anda tidak sah') ||
+                pesan.includes('sesi anda telah kedaluwarsa') ||
+                pesan.includes('token jwt supabase ditolak')
+            );
+        }
+
+        function payloadDenganTokenTerbaru_(payload) {
+            const salinan = Object.assign({}, payload || {});
+            if (!penggunaAktif) return salinan;
+            salinan.user = Object.assign({}, salinan.user || {}, {
+                Username: penggunaAktif.Username,
+                SessionToken: penggunaAktif.SessionToken
+            });
+            return salinan;
+        }
+
+        async function fetchAntiCORS(url, payload, izinkanRefresh = true) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 25000);
             try {
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {'Content-Type': 'text/plain;charset=utf-8'},
-                    body: JSON.stringify(payload),
+                    body: JSON.stringify(payloadDenganTokenTerbaru_(payload)),
                     redirect: 'follow',
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return await response.json();
+                const hasil = await response.json();
+                if (izinkanRefresh && responsMenandakanSesiTidakSah_(hasil)) {
+                    // Token dapat habis di antara halaman dibuka dan request GAS.
+                    // Refresh lalu ulang satu kali agar tidak terjadi pengulangan tanpa batas.
+                    await pastikanTokenSupabaseAktif_(true);
+                    return await fetchAntiCORS(url, payload, false);
+                }
+                return hasil;
             } catch (error) {
                 clearTimeout(timeoutId);
                 if (error.name === 'AbortError') throw new Error('Server tidak merespons dalam 25 detik.');
@@ -509,6 +630,7 @@
             try {
                 const parsedSession = bacaSesiCabangAktif();
                 penggunaAktif = parsedSession.user;
+                await pastikanTokenSupabaseAktif_();
                 document.getElementById('user-display').innerHTML = `<b>${penggunaAktif['Nama Asli']}</b><br>Role: ${penggunaAktif.Role.toUpperCase()}`;
 
                 if (!penggunaBolehAbsenLokal()) {

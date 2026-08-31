@@ -729,6 +729,31 @@
             }
         }
 
+        function errorSesiAbsensi_(error) {
+            const pesan = String(error && error.message || error || '').toLowerCase();
+            return pesan.includes('sesi anda tidak sah') ||
+                pesan.includes('sesi anda telah kedaluwarsa') ||
+                pesan.includes('sesi anda tidak') ||
+                pesan.includes('token jwt supabase ditolak');
+        }
+
+        async function tarikDataAbsensiDenganPemulihan_(periode) {
+            const mintaDataAbsen = () => fetchJsonDenganTimeout_(
+                API_ABSEN,
+                payloadSesiSlip('getAbsen', { periode: periode }),
+                'Database absensi'
+            );
+            try {
+                return await mintaDataAbsen();
+            } catch (errorAwal) {
+                if (!errorSesiAbsensi_(errorAwal)) throw errorAwal;
+                // Sesi dapat kadaluwarsa tepat di antara pemuatan halaman dan
+                // panggilan Apps Script. Refresh lalu ulangi satu kali saja.
+                await pastikanTokenSupabaseAktif_(true);
+                return await mintaDataAbsen();
+            }
+        }
+
         window.onload = async function() {
             let now = new Date();
             let m = String(now.getMonth() + 1).padStart(2, '0');
@@ -1062,11 +1087,7 @@
                         payloadSesiSlip('getPayrollData', { periode: periode }),
                         'Database payroll'
                     ),
-                    fetchJsonDenganTimeout_(
-                        API_ABSEN,
-                        payloadSesiSlip('getAbsen', { periode: periode }),
-                        'Database absensi'
-                    )
+                    tarikDataAbsensiDenganPemulihan_(periode)
                 ]);
 
                 if (urutanRequest !== urutanLoadDataPayroll || document.getElementById('pilih-bulan').value !== periode) {
