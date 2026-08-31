@@ -3459,7 +3459,16 @@
 
         function renderDynamicInputs() {
             try {
-                const userSesuaiCabangForm = user => { if (!user) return false; const h = normalisasiCabang(user.Cabang || user['Cabang Kerja'] || user['Cabang Aktif'] || user.Hak_Akses_Cabang); return h === 'Semua' || h === cabangAktif; };
+                // Profil pengguna lama belum selalu memiliki nilai cabang. Sama
+                // seperti filter data lain, profil kosong tersebut adalah data
+                // Kendari agar daftar Sales/Teknisi tidak tersaring habis.
+                const userSesuaiCabangForm = user => {
+                    if (!user) return false;
+                    const cabangUser = normalisasiCabang(
+                        user.Cabang || user['Cabang Kerja'] || user['Cabang Aktif'] || user.Hak_Akses_Cabang
+                    ) || 'Kendari';
+                    return cabangUser === 'Semua' || cabangUser === cabangAktif;
+                };
                 const group = document.getElementById('teknisi-group'); group.innerHTML = '';
                 (globalUsers || []).filter(u => userSesuaiCabangForm(u) && rolePengguna(u) === 'teknisi' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli'])).forEach(t => { tambahkanHtmlAman_(group, `<label><input type="checkbox" value="${amanTeks_(t['Nama Asli'])}"> ${amanTeks_(t['Nama Asli'])}</label>`); });
 
