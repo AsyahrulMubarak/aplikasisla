@@ -519,14 +519,14 @@
                 </button>
                 <button type="button" id="btn-lobby-absen" class="main-lobby-option absen" onclick="bukaModulPendukung('absen')">
                     <span aria-hidden="true">📅</span>Sistem Absensi
-                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Manajemen</strong>
+                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Manajemen & Asyahrul (Uji)</strong>
                 </button>
                 <button type="button" id="btn-lobby-gaji" class="main-lobby-option gaji" onclick="bukaModulPendukung('gaji')">
                     <span aria-hidden="true">🧾</span>Slip Gaji Digital
-                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Manajemen</strong>
+                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Manajemen & Asyahrul (Uji)</strong>
                 </button>
             </div>
-            <p class="main-lobby-note">Untuk saat ini, Absensi dan Slip Gaji hanya dapat dibuka oleh Admin, Manager, dan Direktur. Akses pegawai lain akan dibuka setelah modul Absensi dipublikasikan.</p>
+            <p class="main-lobby-note">Untuk saat ini, Absensi dan Slip Gaji dapat dibuka oleh Admin, Manager, Direktur, serta Asyahrul untuk uji coba. Slip Gaji Asyahrul hanya menampilkan data miliknya sendiri.</p>
             <div id="main-lobby-status" role="status" aria-live="polite"></div>
             <button type="button" class="main-lobby-logout" onclick="prosesLogout()">🚪 Keluar Aplikasi</button>
         </div>
@@ -2105,14 +2105,23 @@
             return ['admin', 'manager', 'direktur'].includes(role);
         }
 
-        // Akses ini hanya untuk rute Absensi; tidak mengubah hak akses SLA cabang.
+        function penggunaAdalahTeknisiUjiAbsensi_(user = penggunaAktif) {
+            const role = rolePengguna(user);
+            const username = String(user && user.Username || '').trim().toLowerCase().replace(/\s+/g, '');
+            return role === 'teknisi' && username === 'asyahrul';
+        }
+
+        // Akses ini hanya untuk modul Absensi/Payroll; tidak mengubah hak akses SLA cabang.
         function penggunaBolehMengaksesAbsensi_(user = penggunaAktif) {
             const role = rolePengguna(user);
             const cabang = hakAksesCabangPengguna(user);
-            const nama = String(user && user['Nama Asli'] || '').trim().toLowerCase().replace(/\s+/g, ' ');
             const adminRaha = role === 'admin_raha' || (role === 'admin' && cabang === 'Raha');
             const manajemen = ['admin', 'manager', 'direktur'].includes(role);
-            return (manajemen && !adminRaha) || (role === 'teknisi' && nama === 'asyahrul');
+            return (manajemen && !adminRaha) || penggunaAdalahTeknisiUjiAbsensi_(user);
+        }
+
+        function penggunaBolehMengaksesSlipGaji_(user = penggunaAktif) {
+            return roleAdalahManajemenUtama_(rolePengguna(user)) || penggunaAdalahTeknisiUjiAbsensi_(user);
         }
 
         function penggunaSalesTanpaGaji_(user = penggunaAktif) {
@@ -2244,13 +2253,14 @@
             const hakAkses = hakAksesCabangPengguna();
             const isManajemenUtama = roleAdalahManajemenUtama_();
             const bolehAbsensi = penggunaBolehMengaksesAbsensi_();
+            const bolehSlipGaji = penggunaBolehMengaksesSlipGaji_();
             const showAllBranches = (hakAkses === 'Semua' || penggunaSalesTanpaGaji_());
 
             document.getElementById('btn-lobby-sla-kendari').style.display = showAllBranches || hakAkses === 'Kendari' ? 'block' : 'none';
             document.getElementById('btn-lobby-sla-raha').style.display = showAllBranches || hakAkses === 'Raha' ? 'block' : 'none';
             const hakModulPendukung = {
                 'btn-lobby-absen': bolehAbsensi,
-                'btn-lobby-gaji': isManajemenUtama
+                'btn-lobby-gaji': bolehSlipGaji
             };
             Object.keys(hakModulPendukung).forEach(idTombol => {
                 const tombol = document.getElementById(idTombol);
@@ -3545,8 +3555,8 @@
 
         async function bukaModulPendukung(namaModul) {
             const role = rolePengguna();
-            const isManajemenUtama = roleAdalahManajemenUtama_(role);
             const bolehAbsensi = penggunaBolehMengaksesAbsensi_();
+            const bolehSlipGaji = penggunaBolehMengaksesSlipGaji_();
 
             if (!['absen', 'gaji'].includes(namaModul)) {
                 showToast('Modul yang dipilih tidak valid.', 'error');
@@ -3556,7 +3566,7 @@
                 showToast('Akun ini hanya dapat menggunakan Dashboard SLA.', 'warning');
                 return;
             }
-            if ((namaModul === 'absen' && !bolehAbsensi) || (namaModul === 'gaji' && !isManajemenUtama)) {
+            if ((namaModul === 'absen' && !bolehAbsensi) || (namaModul === 'gaji' && !bolehSlipGaji)) {
                 showToast('Afwan, akun ini belum diizinkan menggunakan modul tersebut.', 'warning');
                 return;
             }

@@ -389,10 +389,10 @@
         function penggunaBolehAbsenLokal() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
             const cabang = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
-            const nama = normalisasiNamaAbsensi(penggunaAktif && penggunaAktif['Nama Asli']);
+            const username = String(penggunaAktif && penggunaAktif.Username || '').trim().toLowerCase().replace(/\s+/g, '');
             const adminRaha = role === 'admin_raha' || (role === 'admin' && cabang === 'Raha');
             const manajemen = ['admin', 'manager', 'direktur'].includes(role);
-            return (manajemen && !adminRaha) || (role === 'teknisi' && nama === 'asyahrul');
+            return (manajemen && !adminRaha) || (role === 'teknisi' && username === 'asyahrul');
         }
 
         function formatJamDariMenit(menit) {

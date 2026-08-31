@@ -554,6 +554,22 @@
         let urutanLoadDataPayroll = 0;
         let currentTab = 'slip';
 
+        function penggunaAdalahTeknisiUjiPayroll_() {
+            const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
+            const username = String(penggunaAktif && penggunaAktif.Username || '').trim().toLowerCase().replace(/\s+/g, '');
+            return role === 'teknisi' && username === 'asyahrul';
+        }
+
+        function penggunaBolehMembukaSlipGaji_() {
+            const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
+            return ['admin', 'manager', 'direktur'].includes(role) || penggunaAdalahTeknisiUjiPayroll_();
+        }
+
+        function penggunaBolehKelolaPayroll_() {
+            const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
+            return ['admin', 'manager', 'direktur'].includes(role);
+        }
+
         function waktuKedaluwarsaJwt_(token) {
             try {
                 const bagian = String(token || '').split('.');
@@ -765,9 +781,17 @@
                 await pastikanTokenSupabaseAktif_();
             } catch(e) { window.location.href = "index.html"; return; }
 
-            // Logika Hak Akses Master
-            if (['admin', 'manager', 'direktur'].includes(penggunaAktif.Role.toLowerCase())) {
+            // Manajemen melihat seluruh payroll; akses uji hanya slip pribadi Asyahrul.
+            if (!penggunaBolehMembukaSlipGaji_()) {
+                window.location.href = "index.html";
+                return;
+            }
+            if (penggunaBolehKelolaPayroll_()) {
                 document.getElementById('menu-tab').style.display = 'flex';
+            } else {
+                document.getElementById('div-komponen-variabel').style.display = 'none';
+                document.getElementById('dynamic-bonus-section').style.display = 'none';
+                document.getElementById('btn-simpan-variabel').style.display = 'none';
             }
 
             await tarikSemuaData();
@@ -832,6 +856,15 @@
             let periode = document.getElementById('pilih-bulan').value;
             let namaPegawai = document.getElementById('pilih-pegawai').value;
             if (!periode) return false;
+
+            // Akses uji hanya membaca variabel payroll pribadi yang sudah
+            // dikirim bersama getPayrollData; tidak memanggil API manajemen.
+            if (!penggunaBolehKelolaPayroll_()) {
+                if (periodePayrollTermuat !== periode) return false;
+                if (terapkanKeForm) terapkanVariabelPayrollKeForm(namaPegawai);
+                cekKunciBulan();
+                return true;
+            }
 
             if (periodePayrollTermuat === periode) {
                 if (terapkanKeForm) terapkanVariabelPayrollKeForm(namaPegawai);
