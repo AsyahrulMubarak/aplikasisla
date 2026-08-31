@@ -1766,8 +1766,12 @@
         }
 
         async function kelolaAkunAuthOlehAdmin_(usernameTarget, passwordBaru, buatBaru) {
-            if (!penggunaAktif || String(penggunaAktif.Role || '').toLowerCase() !== 'admin') {
+            const peranAktif = String(penggunaAktif && penggunaAktif.Role || '').toLowerCase();
+            if (!['admin', 'admin_raha'].includes(peranAktif)) {
                 throw new Error('Hanya admin yang dapat mengelola password pengguna lain.');
+            }
+            if (peranAktif === 'admin_raha' && normalisasiCabang(cabangAktif) !== 'Raha') {
+                throw new Error('Admin Raha hanya dapat mengelola password pada SLA Raha.');
             }
             const hasil = await kirimKeBackend_(API_AUTH_URL, 'manageSupabaseAuthUser', {
                 targetUsername: String(usernameTarget || '').trim().toLowerCase(),
@@ -2452,6 +2456,9 @@
             formLogin.style.display = 'none';
             try {
                 const json = await kirimKeBackend_(API_AUTH_URL, 'lupaSandi', { username: username }, false);
+                if (!json || json.resetSandiVersion !== 'v2') {
+                    throw new Error('Layanan reset sandi di server belum diperbarui. Admin perlu memperbarui dan men-deploy Google Apps Script.');
+                }
                 showToast(json.pesan || 'Jika akun terdaftar, admin akan menindaklanjuti permintaan reset.', 'success');
             } catch (error) {
                 console.error('Permintaan reset sandi gagal:', error);
@@ -3423,7 +3430,15 @@
                 let maxTkt = 0; let maxSls = 0; let maxPrp = 0; let maxGrs = 0;
                 (globalTickets || []).forEach(t => { let id = String((t && t['ID Tiket']) || ''); if(id.startsWith('TKT-')) { let num = parseInt(id.split('-')[1]); if (num > maxTkt) maxTkt = num; } });
                 (globalPenjualan || []).forEach(p => { let id = String((p && p['ID Penjualan']) || ''); if(id.startsWith('SLS-')) { let num = parseInt(id.split('-')[1]); if (num > maxSls) maxSls = num; } });
-                (globalProspek || []).forEach(pr => { let id = String((pr && pr['ID Prospek']) || ''); if(id.startsWith('PRP-')) { let num = parseInt(id.split('-')[1]); if (num > maxPrp) maxPrp = num; } });
+                // Tabel Prospek memakai primary key global. Kendari tetap PRP-xxx;
+                // Raha memakai PRR-xxx agar nomor antar-cabang tidak saling berbenturan.
+                const prefixProspek = normalisasiCabang(cabangAktif) === 'Raha' ? 'PRR-' : 'PRP-';
+                (globalProspek || []).forEach(pr => {
+                    const id = String((pr && pr['ID Prospek']) || '');
+                    if (!id.startsWith(prefixProspek)) return;
+                    const num = parseInt(id.substring(prefixProspek.length), 10);
+                    if (num > maxPrp) maxPrp = num;
+                });
                 (globalGaransi || []).forEach(g => { let id = String((g && g['ID Garansi']) || ''); if(id.startsWith('GRS-')) { let num = parseInt(id.split('-')[1]); if (num > maxGrs) maxGrs = num; } });
 
                 if (!modeEditTiket) {
@@ -3432,7 +3447,7 @@
                 }
 
                 let prospekEl = document.getElementById('prospek-id');
-                if(prospekEl && !modeEditProspek) { prospekEl.value = 'PRP-' + String(maxPrp + 1).padStart(3, '0'); }
+                if(prospekEl && !modeEditProspek) { prospekEl.value = prefixProspek + String(maxPrp + 1).padStart(3, '0'); }
 
                 let garansiEl = document.getElementById('garansi-id');
                 if(garansiEl) { garansiEl.value = 'GRS-' + String(maxGrs + 1).padStart(3, '0'); }
