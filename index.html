@@ -757,8 +757,8 @@
                     </div>
                     <button type="button" id="btn-tambah-kebutuhan" class="btn-action-primary" style="background:#ecfdf5; color:var(--success); border-color:#a7f3d0; margin-top:0; margin-bottom:15px; font-size:12px;" onclick="tambahKolomProspek()">➕ Tambah Kebutuhan Lain (1 Tiket)</button>
 
-                    <label>Bukti Chat / Interaksi (Screenshot/PDF)</label>
-                    <input type="file" id="prospek-bukti" accept="image/*, application/pdf" onchange="tanganiBuktiProspek(this)" aria-describedby="prospek-bukti-nama" style="font-size: 12px; margin-bottom:6px;">
+                    <label>Bukti Chat / Interaksi (Screenshot/PDF) <span style="color:var(--danger);">*Wajib untuk prospek baru</span></label>
+                    <input type="file" id="prospek-bukti" accept="image/*, application/pdf" required onchange="tanganiBuktiProspek(this)" aria-describedby="prospek-bukti-nama" style="font-size: 12px; margin-bottom:6px;">
                     <div id="prospek-bukti-nama" aria-live="polite" style="font-size:12px; color:var(--text-muted); margin-bottom:15px; overflow-wrap:anywhere;">Tidak ada file yang dipilih</div>
 
                     <!-- SALES MULTIPEL (CHECKBOX) -->
@@ -1313,7 +1313,7 @@
             ]);
             if (handlerStatis.has(handler)) return true;
 
-            const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|hapusGaransi|bukaModalFollowUp|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking)';
+            const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|hapusGaransi|bukaModalFollowUp|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|lihatBuktiChatProspek|unduhBuktiChatProspek)';
             if (new RegExp('^' + fungsiSatuId + "\\('[A-Za-z0-9._-]{1,120}'\\)$").test(handler)) return true;
             if (/^responBanding\('[A-Za-z0-9._-]{1,120}',\s*'(?:Diterima|Ditolak)'\)$/.test(handler)) return true;
             if (/^responPemulihan\('[A-Za-z0-9._-]{1,120}',\s*'[A-Za-z ]{1,40}'\)$/.test(handler)) return true;
@@ -5007,8 +5007,10 @@
             const btn = document.getElementById('btn-submit-prospek');
             const status = document.getElementById('prospek-status');
             const salesGroup = document.getElementById('prospek-sales-group');
+            const buktiChat = document.getElementById('prospek-bukti');
             if (judul) judul.innerText = 'Input Prospek Baru';
             if (btn) { btn.innerText = 'Simpan Prospek'; btn.disabled = false; }
+            if (buktiChat) buktiChat.required = true;
             if (status) status.querySelectorAll('.prospek-status-dinamis').forEach(option => option.remove());
             if (salesGroup) salesGroup.querySelectorAll('.prospek-sales-dinamis').forEach(label => label.remove());
         }
@@ -5046,6 +5048,7 @@
 
             bukaFormProspek();
             modeEditProspek = true;
+            document.getElementById('prospek-bukti').required = false;
             document.getElementById('form-prospek-title').innerText = `Edit Prospek: ${idProspek}`;
             document.getElementById('prospek-id').value = idProspek;
             document.getElementById('prospek-nama').value = p['Nama Calon Customer'] || '';
@@ -5104,6 +5107,100 @@
             document.getElementById('form-prospek-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
+        function waktuProspekUntukUrutan_(prospek) {
+            const nilai = String((prospek && prospek['Tanggal Input']) || '').trim();
+            if (!nilai) return 0;
+
+            const waktuLangsung = Date.parse(nilai);
+            if (Number.isFinite(waktuLangsung)) return waktuLangsung;
+
+            // Dukungan untuk data lama yang tersimpan dalam format tanggal Indonesia.
+            const cocokTanggalIndonesia = nilai.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+            if (!cocokTanggalIndonesia) return 0;
+            const [, hari, bulan, tahun, jam = '0', menit = '0', detik = '0'] = cocokTanggalIndonesia;
+            const waktu = new Date(Number(tahun), Number(bulan) - 1, Number(hari), Number(jam), Number(menit), Number(detik)).getTime();
+            return Number.isFinite(waktu) ? waktu : 0;
+        }
+
+        function urutkanProspekTerbaru_(a, b) {
+            const selisihWaktu = waktuProspekUntukUrutan_(b) - waktuProspekUntukUrutan_(a);
+            if (selisihWaktu !== 0) return selisihWaktu;
+            return String(b && b['ID Prospek'] || '').localeCompare(String(a && a['ID Prospek'] || ''), 'id', { numeric: true });
+        }
+
+        function sumberBuktiChatProspek_(idProspek) {
+            const id = String(idProspek || '').trim();
+            const prospek = (globalProspek || []).find(item => item && String(item['ID Prospek'] || '').trim() === id);
+            const bukti = String((prospek && prospek['Bukti Chat']) || '').trim();
+            if (!bukti) throw new Error('Bukti chat untuk prospek ini belum tersedia.');
+
+            const dataCocok = bukti.match(/^data:([a-z0-9.+/-]+);base64,([a-z0-9+/=]+)$/i);
+            if (dataCocok) {
+                const tipe = dataCocok[1].toLowerCase();
+                if (!/^image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml)$/.test(tipe) && tipe !== 'application/pdf') {
+                    throw new Error('Format bukti chat tidak didukung.');
+                }
+                const dataBiner = atob(dataCocok[2]);
+                const bytes = new Uint8Array(dataBiner.length);
+                for (let indeks = 0; indeks < dataBiner.length; indeks++) bytes[indeks] = dataBiner.charCodeAt(indeks);
+                return { blob: new Blob([bytes], { type: tipe }), tipe: tipe };
+            }
+
+            const url = urlAman_(bukti);
+            if (!url) throw new Error('Tautan bukti chat tidak valid.');
+            return { url: url, tipe: '' };
+        }
+
+        function namaFileBuktiChatProspek_(idProspek, tipe) {
+            const ekstensi = tipe === 'application/pdf' ? 'pdf'
+                : tipe === 'image/png' ? 'png'
+                : tipe === 'image/webp' ? 'webp'
+                : tipe === 'image/gif' ? 'gif'
+                : 'jpg';
+            return `Bukti_Chat_${String(idProspek || 'Prospek').replace(/[^A-Za-z0-9._-]/g, '_')}.${ekstensi}`;
+        }
+
+        function klikTautanBuktiChat_(url, atribut = {}) {
+            const tautan = document.createElement('a');
+            tautan.href = url;
+            Object.entries(atribut).forEach(([nama, nilai]) => tautan.setAttribute(nama, nilai));
+            document.body.appendChild(tautan);
+            tautan.click();
+            tautan.remove();
+        }
+
+        function lihatBuktiChatProspek(idProspek) {
+            try {
+                const sumber = sumberBuktiChatProspek_(idProspek);
+                if (sumber.blob) {
+                    const urlBlob = URL.createObjectURL(sumber.blob);
+                    klikTautanBuktiChat_(urlBlob, { target: '_blank', rel: 'noopener noreferrer' });
+                    setTimeout(() => URL.revokeObjectURL(urlBlob), 60000);
+                } else {
+                    klikTautanBuktiChat_(sumber.url, { target: '_blank', rel: 'noopener noreferrer' });
+                }
+            } catch (error) {
+                showToast(`Afwan, bukti chat tidak dapat ditampilkan: ${error.message}`, 'error');
+            }
+        }
+
+        function unduhBuktiChatProspek(idProspek) {
+            try {
+                const sumber = sumberBuktiChatProspek_(idProspek);
+                const namaFile = namaFileBuktiChatProspek_(idProspek, sumber.tipe);
+                if (sumber.blob) {
+                    const urlBlob = URL.createObjectURL(sumber.blob);
+                    klikTautanBuktiChat_(urlBlob, { download: namaFile });
+                    setTimeout(() => URL.revokeObjectURL(urlBlob), 1000);
+                } else {
+                    // Server pihak ketiga dapat mengabaikan atribut download; tetap buka bukti agar pengguna dapat mengunduhnya dari browser.
+                    klikTautanBuktiChat_(sumber.url, { download: namaFile, target: '_blank', rel: 'noopener noreferrer' });
+                }
+            } catch (error) {
+                showToast(`Afwan, bukti chat tidak dapat diunduh: ${error.message}`, 'error');
+            }
+        }
+
         function renderProspek() {
             const container = document.getElementById('prospek-container'); container.innerHTML = '';
             let searchInput = document.getElementById('search-prospek-input');
@@ -5115,7 +5212,7 @@
             }
 
             let htmlAda = false;
-            pDitampilkan.reverse().forEach(p => {
+            pDitampilkan.sort(urutkanProspekTerbaru_).forEach(p => {
                 if(!p) return;
                 let idPrp = String(p['ID Prospek'] || '');
                 if (!idPrp) return;
@@ -5215,7 +5312,7 @@
                 // -------------------------
                 let waHtml = noWaPrp ? `<p><strong>No WA:</strong> <a href="https://wa.me/${noWaPrp}" target="_blank" style="color:var(--primary); text-decoration:none; font-weight:600;">📱 ${noWaPrp}</a></p>` : '';
 
-                let buktiChatHtml = p['Bukti Chat'] && p['Bukti Chat'].length > 10 ? `<div style="margin-top:10px;"><a href="${p['Bukti Chat']}" download="Bukti_Chat_${p['ID Prospek']}.jpg" class="dl-btn" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">⬇️ Unduh Bukti Chat</a></div>` : '';
+                let buktiChatHtml = p['Bukti Chat'] && String(p['Bukti Chat']).length > 10 ? `<div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;"><button type="button" onclick="lihatBuktiChatProspek('${p['ID Prospek']}')" class="btn-action-primary" style="margin:0; background:#f0fdf4; color:#166534; border-color:#bbf7d0;">👁️ Lihat Bukti Chat</button><button type="button" onclick="unduhBuktiChatProspek('${p['ID Prospek']}')" class="dl-btn" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">⬇️ Unduh Bukti Chat</button></div>` : '';
 
                 let penawaranHtml = '';
                 if (p['Surat Penawaran'] && p['Surat Penawaran'].length > 10) {
@@ -5357,6 +5454,9 @@
 
                 const fileInput = document.getElementById('prospek-bukti');
                 const fileProspek = buktiProspekTerpilih || (fileInput && fileInput.files && fileInput.files[0]) || null;
+                if (!sedangEditProspek && !fileProspek) {
+                    throw new Error('Bukti chat / interaksi wajib dilampirkan untuk prospek baru.');
+                }
                 let base64Bukti = '';
                 if (fileProspek) {
                     btn.innerText = 'Memproses Bukti...';
