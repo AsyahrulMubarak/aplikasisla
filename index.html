@@ -6,13 +6,14 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.vercel.app https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.vercel.app https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
     <title>Sistem Manajemen SLA</title>
 
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#1e3a8a">
     <link rel="apple-touch-icon" href="depan_001.png">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -1081,7 +1082,14 @@
         const SUPABASE_ANON_KEY = 'sb_publishable_Wa3EUtroPjqwfCkJOyRSSw_MWnMXH6E';
         const SUPABASE_FETCH_TIMEOUT_MS = 20000;
         const SUPABASE_REFRESH_MARGIN_MS = 60000;
+        const SUPABASE_REALTIME_REFRESH_DELAY_MS = 700;
+        const SUPABASE_REALTIME_TOKEN_CHECK_MS = 5 * 60 * 1000;
         let promiseRefreshSupabase_ = null;
+        let supabaseRealtimeClient_ = null;
+        let kanalRealtimeSLA_ = null;
+        let kunciKanalRealtimeSLA_ = '';
+        let timerMuatUlangRealtime_ = null;
+        let intervalTokenRealtime_ = null;
 
         function waktuKedaluwarsaJwt_(token) {
             try {
@@ -1160,6 +1168,7 @@
                             ? Number(authData.expires_at) * 1000
                             : (waktuKedaluwarsaJwt_(authData.access_token) || Date.now() + (Number(authData.expires_in) || 3600) * 1000);
                         simpanPembaruanTokenSesi_();
+                        perbaruiTokenRealtimeSupabase_(penggunaAktif.SessionToken);
                         return penggunaAktif.SessionToken;
                     } catch (error) {
                         if (error && error.name === 'AbortError') {
@@ -1281,6 +1290,127 @@
 
             if (adaResponsValid) throw new Error(`Tiket ${id} tidak ditemukan.`);
             throw new Error(daftarError[0] || 'Server tracking tidak dapat dihubungi.');
+        }
+
+        // =========================================================================
+        // 🔴 SUPABASE REALTIME — Sinkronisasi perubahan dari perangkat lain
+        // =========================================================================
+        // Satu listener pada schema public sengaja dipakai agar setiap tabel
+        // operasional yang dipublikasikan ke supabase_realtime dapat diperbarui
+        // tanpa menambah polling data. RLS Supabase tetap memfilter event menurut
+        // JWT pengguna yang sedang login.
+        function buatKunciRealtimeSLA_() {
+            const cabang = normalisasiCabang(cabangAktif);
+            const username = String(penggunaAktif && penggunaAktif.Username || '')
+                .trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+            return cabang && username ? `${cabang.toLowerCase()}-${username}` : '';
+        }
+
+        function recordRealtimeSesuaiCabang_(payload) {
+            if (!payload || String(payload.table || '') === 'users') return true;
+            const baru = payload.new && typeof payload.new === 'object' ? payload.new : {};
+            const lama = payload.old && typeof payload.old === 'object' ? payload.old : {};
+            const record = Object.keys(baru).length ? baru : lama;
+            const cabangRecord = normalisasiCabang(record.cabang || record.hak_akses_cabang);
+            // Tabel global atau event DELETE tanpa record lengkap aman dimuat ulang;
+            // query aplikasi tetap mengambil data sesuai cabang dan RLS pengguna.
+            if (!cabangRecord) return true;
+            return cabangRecord === normalisasiCabang(cabangAktif);
+        }
+
+        function jadwalkanMuatUlangRealtime_(payload, cabangSaatEvent) {
+            if (!penggunaAktif || cabangSaatEvent !== normalisasiCabang(cabangAktif)) return;
+            if (!recordRealtimeSesuaiCabang_(payload)) return;
+            if (timerMuatUlangRealtime_) return;
+
+            timerMuatUlangRealtime_ = setTimeout(async () => {
+                timerMuatUlangRealtime_ = null;
+                if (!penggunaAktif || cabangSaatEvent !== normalisasiCabang(cabangAktif)) return;
+                try {
+                    await ambilSemuaData(true);
+                    console.log('[SUPABASE REALTIME] Tampilan diperbarui:', payload && payload.table, payload && payload.eventType);
+                } catch (error) {
+                    // Kegagalan listener tidak boleh mengganggu proses simpan yang
+                    // telah berjalan. Pengguna masih dapat memakai tombol refresh.
+                    console.warn('[SUPABASE REALTIME] Gagal memuat perubahan:', error);
+                }
+            }, SUPABASE_REALTIME_REFRESH_DELAY_MS);
+        }
+
+        function perbaruiTokenRealtimeSupabase_(token) {
+            if (!supabaseRealtimeClient_ || !token) return;
+            try {
+                supabaseRealtimeClient_.realtime.setAuth(String(token));
+            } catch (error) {
+                console.warn('[SUPABASE REALTIME] Token kanal belum dapat diperbarui:', error);
+            }
+        }
+
+        function hentikanRealtimeSLA_() {
+            if (timerMuatUlangRealtime_) {
+                clearTimeout(timerMuatUlangRealtime_);
+                timerMuatUlangRealtime_ = null;
+            }
+            if (intervalTokenRealtime_) {
+                clearInterval(intervalTokenRealtime_);
+                intervalTokenRealtime_ = null;
+            }
+            const client = supabaseRealtimeClient_;
+            const kanal = kanalRealtimeSLA_;
+            kanalRealtimeSLA_ = null;
+            kunciKanalRealtimeSLA_ = '';
+            supabaseRealtimeClient_ = null;
+            if (!client || !kanal) return;
+            try {
+                const hasilLepas = client.removeChannel(kanal);
+                if (hasilLepas && typeof hasilLepas.catch === 'function') hasilLepas.catch(() => {});
+            } catch (error) {
+                console.warn('[SUPABASE REALTIME] Kanal lama tidak dapat dilepas:', error);
+            }
+        }
+
+        async function mulaiRealtimeSLA_() {
+            const cabangSaatIni = normalisasiCabang(cabangAktif);
+            const kunciKanal = buatKunciRealtimeSLA_();
+            if (!cabangSaatIni || !kunciKanal || !penggunaAktif) return false;
+            if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+                console.warn('[SUPABASE REALTIME] Library belum termuat; fungsi aplikasi lain tetap berjalan.');
+                return false;
+            }
+
+            const token = await pastikanTokenSupabaseAktif_();
+            if (kanalRealtimeSLA_ && supabaseRealtimeClient_ && kunciKanalRealtimeSLA_ === kunciKanal) {
+                perbaruiTokenRealtimeSupabase_(token);
+                return true;
+            }
+
+            hentikanRealtimeSLA_();
+            const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+            });
+            client.realtime.setAuth(token);
+            const kanal = client
+                .channel(`sla-data-${kunciKanal}`)
+                .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
+                    jadwalkanMuatUlangRealtime_(payload, cabangSaatIni);
+                })
+                .subscribe((status, error) => {
+                    if (status === 'SUBSCRIBED') console.log('[SUPABASE REALTIME] Terhubung untuk Cabang ' + cabangSaatIni + '.');
+                    else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('[SUPABASE REALTIME] Status kanal:', status, error || '');
+                });
+
+            supabaseRealtimeClient_ = client;
+            kanalRealtimeSLA_ = kanal;
+            kunciKanalRealtimeSLA_ = kunciKanal;
+            intervalTokenRealtime_ = setInterval(async () => {
+                if (!supabaseRealtimeClient_ || !penggunaAktif) return;
+                try {
+                    perbaruiTokenRealtimeSupabase_(await pastikanTokenSupabaseAktif_());
+                } catch (error) {
+                    console.warn('[SUPABASE REALTIME] Sesi kanal perlu login ulang:', error);
+                }
+            }, SUPABASE_REALTIME_TOKEN_CHECK_MS);
+            return true;
         }
 
         async function callSupabase(endpoint, method = "GET", payload = null) {
@@ -1693,7 +1823,58 @@
             return String(cabang || '').trim().toLowerCase() === 'raha' ? 20 : 17;
         }
 
+        function cabangRaha_(cabang = cabangAktif) {
+            return String(cabang || '').trim().toLowerCase() === 'raha';
+        }
+
+        function jedaSholatRaha_(waktu) {
+            const jam = waktu.getHours();
+            const menit = waktu.getMinutes();
+            // Dzuhur: 12.00–13.30, Ashar: 15.00–16.00.
+            return jam === 12 || (jam === 13 && menit < 30) || jam === 15;
+        }
+
+        // Perhitungan ini khusus Raha. Jalur Kendari di bawah tetap dipertahankan
+        // apa adanya agar perubahan jam operasional Raha tidak memengaruhi SLA Kendari.
+        function hitungTenggatJamKerjaRaha_(waktuMulai, durasiJam) {
+            let dt = new Date(waktuMulai.getTime());
+            let msSisa = Number(durasiJam) * 3600000;
+            while (msSisa > 0) {
+                const hari = dt.getDay();
+                const jam = dt.getHours();
+                if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                if (jam < 8) { dt.setHours(8, 0, 0, 0); continue; }
+                if (jam >= 20) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                if (!jedaSholatRaha_(dt)) {
+                    const langkah = Math.min(60000, msSisa);
+                    dt.setTime(dt.getTime() + langkah);
+                    msSisa -= langkah;
+                    continue;
+                }
+                dt.setTime(dt.getTime() + 60000);
+            }
+            return dt;
+        }
+
+        function hitungDurasiJamKerjaRahaMs_(awal, akhir) {
+            if (awal >= akhir) return 0;
+            let msTotal = 0;
+            let dt = new Date(awal.getTime());
+            while (dt < akhir) {
+                const hari = dt.getDay();
+                const jam = dt.getHours();
+                if (hari === 0) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                if (jam < 8) { dt.setHours(8, 0, 0, 0); continue; }
+                if (jam >= 20) { dt.setDate(dt.getDate() + 1); dt.setHours(8, 0, 0, 0); continue; }
+                const langkah = Math.min(60000, akhir.getTime() - dt.getTime());
+                if (!jedaSholatRaha_(dt)) msTotal += langkah;
+                dt.setTime(dt.getTime() + langkah);
+            }
+            return msTotal;
+        }
+
         function hitungTenggatJamKerja(waktuMulai, durasiJam, cabang = cabangAktif) {
+            if (cabangRaha_(cabang)) return hitungTenggatJamKerjaRaha_(waktuMulai, durasiJam);
             var jamSelesai = jamSelesaiOperasional_(cabang);
             var dt = new Date(waktuMulai.getTime()); var msSisa = durasiJam * 3600 * 1000;
             while (msSisa > 0) {
@@ -1724,6 +1905,7 @@
         }
 
         function hitungDurasiJamKerjaMs(awal, akhir, cabang = cabangAktif) {
+            if (cabangRaha_(cabang)) return hitungDurasiJamKerjaRahaMs_(awal, akhir);
             var jamSelesai = jamSelesaiOperasional_(cabang);
             if (awal >= akhir) return 0; var msTotal = 0; var dt = new Date(awal.getTime());
             while (dt < akhir) {
@@ -1989,6 +2171,7 @@
         function tampilkanLobbyUtama() {
             if (!punyaAksesLobby()) throw new Error('Akun ini tidak memiliki akses ke Lobby utama.');
             if (intervalAutoRefresh) { clearInterval(intervalAutoRefresh); intervalAutoRefresh = null; }
+            hentikanRealtimeSLA_();
             cabangAktif = null;
             apiUrl = API_URL_KENDARI;
             perbaruiIdentitasCabang();
@@ -2023,6 +2206,7 @@
             // Pastikan seluruh modul menerima JWT yang masih aktif. Pembaruan token
             // dilakukan sebelum sesi disalin ke sessionStorage dan sebelum navigasi.
             await pastikanTokenSupabaseAktif_();
+            hentikanRealtimeSLA_();
             terapkanCabangAktif(cabang);
             simpanSesiAktif(loginTime, modulTujuan);
             bersihkanDataCabangDiMemori();
@@ -3185,6 +3369,10 @@
                         if (inputWAKlienAktif) tampilkanInfoKlienCRM_(inputWAKlienAktif.value);
                         if (currentTabId !== 'input') { renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); }
                     }
+                    // Listener diaktifkan setelah data awal berhasil, sehingga
+                    // event dari perangkat lain langsung memakai sesi dan cabang
+                    // yang sudah tervalidasi tanpa mengubah alur login/simpan.
+                    mulaiRealtimeSLA_().catch(error => console.warn('[SUPABASE REALTIME] Inisialisasi dilewati:', error));
                 }
             } catch(e) { console.error("Error App:", e); showToast("Afwan, Error merender aplikasi: " + e.message, "error"); }
         }
@@ -3441,13 +3629,13 @@
                 }
 
                 renderDynamicInputs(); togglePenjualanInput(); setAutoIDs(); renderDashboard(); renderTickets(); renderPenjualan(); renderProspek(); renderKlien(); renderGaransi(); renderTabelUser(); switchTab('dashboard');
-                // Fitur auto-refresh interval 5 menit telah dihapus untuk persiapan migrasi ke Supabase Realtime.
+                // Pembaruan data lintas-perangkat ditangani oleh listener Supabase Realtime.
             } catch (e) {
                 console.error("Error App:", e);
                 showToast("Afwan, Error merender aplikasi: " + e.message, "error");
             }
         }
-        function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; cabangAktif = null; waktuLoginAktif = null; apiUrl = API_URL_KENDARI; window.location.reload(); }
+        function prosesLogout() { if(intervalAutoRefresh) clearInterval(intervalAutoRefresh); hentikanRealtimeSLA_(); localStorage.removeItem('sesiLoginSLA'); sessionStorage.removeItem('sesiLoginSLA'); penggunaAktif = null; cabangAktif = null; waktuLoginAktif = null; apiUrl = API_URL_KENDARI; window.location.reload(); }
 
         function toggleTargetSales() {
             const role = document.getElementById('new-role').value;
