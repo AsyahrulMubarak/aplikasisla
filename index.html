@@ -6565,20 +6565,39 @@
             const idTiket = document.getElementById('update-id').value;
             const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket);
             const tiketLama = (globalTickets || []).find(item => item && String(item['ID Tiket']).trim() === String(idTiket).trim());
-            let ttdBase64 = String((t && t['Tanda Tangan']) || "");
-            // FITUR PENCEGAHAN: KONFIRMASI JIKA STATUS BERUBAH MENJADI SELESAI
-            if (status === 'Selesai' && t['Status'] !== 'Selesai') {
-                let yakinSelesai = await showConfirm(`Bismillah, apakah antum yakin pekerjaan ini sudah 100% tuntas?\n\nArgometer waktu SLA akan dihentikan. Poin tetap diinput manual oleh Admin.`);
-                if (!yakinSelesai) return;
+            if (!t) {
+                showToast('Afwan, tiket tidak ditemukan. Muat ulang data lalu coba kembali.', 'error');
+                return;
             }
+            let ttdBase64 = String((t && t['Tanda Tangan']) || "");
 
             if ((status === 'Pending' || status === 'Cancel' || status === 'Outsource') && catatanBaru === "")  {
                 showToast("Afwan, Catatan baru WAJIB diisi untuk status ini!", "warning"); return;
             }
             if (status === 'Selesai') {
+                const dataWajibBelumLengkap = [];
+                const namaKlienBA = String(t['Klien & Lokasi'] || '').trim();
+                const teknisiBA = daftarTeknisiUnikTiket_(t['Teknisi']);
+                const deskripsiBA = document.getElementById('ba-deskripsi').value.trim();
+                const namaCustomerBA = document.getElementById('ba-nama-customer').value.trim();
                 const hasExistingTTD = String(t['Tanda Tangan'] || '').length > 50;
-                if (!isCanvasDrawn && !hasExistingTTD) {
-                    showToast("Afwan, Tanda tangan WAJIB diisi sebelum Selesai!", "warning"); return;
+
+                if (!String(idTiket || '').trim()) dataWajibBelumLengkap.push('ID Tiket');
+                if (!namaKlienBA) dataWajibBelumLengkap.push('Nama Klien / Lokasi');
+                if (teknisiBA.length === 0) dataWajibBelumLengkap.push('Teknisi Pelaksana');
+                if (!deskripsiBA) dataWajibBelumLengkap.push('Rincian Pekerjaan');
+                if (!namaCustomerBA) dataWajibBelumLengkap.push('Nama Klien / PIC');
+                if (!isCanvasDrawn && !hasExistingTTD) dataWajibBelumLengkap.push('Tanda Tangan Klien');
+
+                if (dataWajibBelumLengkap.length > 0) {
+                    showToast(`Afwan, tiket belum dapat disimpan. Lengkapi: ${dataWajibBelumLengkap.join(', ')}.`, 'warning');
+                    return;
+                }
+
+                // FITUR PENCEGAHAN: KONFIRMASI JIKA STATUS BERUBAH MENJADI SELESAI
+                if (t['Status'] !== 'Selesai') {
+                    let yakinSelesai = await showConfirm(`Bismillah, apakah antum yakin pekerjaan ini sudah 100% tuntas?\n\nArgometer waktu SLA akan dihentikan. Poin tetap diinput manual oleh Admin.`);
+                    if (!yakinSelesai) return;
                 }
             }
 
@@ -6702,7 +6721,17 @@
                         }
 
                         try {
-                            const hasilPdf = await kirimKeBackend_(apiUrl, 'buatPDF', { idTiket: idTiket });
+                            const payloadPdf = {
+                                idTiket: idTiket,
+                                waktuSelesai: formatWaktu(payload.waktu_selesai || t['Waktu Selesai']),
+                                namaKlien: String(t['Klien & Lokasi'] || '').trim(),
+                                teknisi: String(t['Teknisi'] || '').trim(),
+                                deskripsi: String(payload.deskripsi_pekerjaan_ba || '').trim(),
+                                kritik: String(payload.kritik_saran || '').trim(),
+                                ttdImg: String(payload.tanda_tangan || ''),
+                                namaCustomer: String(payload.nama_customer || '').trim()
+                            };
+                            const hasilPdf = await kirimKeBackend_(apiUrl, 'buatPDF', payloadPdf);
                             if (!hasilPdf || hasilPdf.status !== 'sukses' || !urlAman_(hasilPdf.url)) throw new Error('URL PDF tidak valid.');
                             const hasilLinkPdf = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', { link_pdf_ba: hasilPdf.url });
                             pastikanHasilMutasiSupabase_(hasilLinkPdf, `Link PDF tiket ${idTiket}`);
