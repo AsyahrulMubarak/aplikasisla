@@ -5065,10 +5065,10 @@
                         document.getElementById('garansi-notrans').value = noTransaksi;
                         document.getElementById('garansi-keterangan').value = '';
 
-                        // MUNCULKAN KOTAK POIN & ISI OTOMATIS JIKA SUDAH ADA POIN SEBELUMNYA
+                        // Hanya tampilkan poin yang pernah diinput manual melalui kolom Bobot Poin.
                         if (poinSection) {
                             poinSection.style.display = 'block';
-                            document.getElementById('garansi-poin-nilai').value = t['Bobot Poin'] || t['Poin Performa'] || '';
+                            document.getElementById('garansi-poin-nilai').value = t['Bobot Poin'] || '';
                             document.getElementById('garansi-poin-veto').checked = (String(t['Veto Admin'] || '').toLowerCase() === 'ya');
                         }
 
@@ -5281,6 +5281,34 @@
                     hasil = await callSupabase('garansi', 'POST', payload);
                 }
                 pastikanHasilMutasiSupabase_(hasil, `Garansi ${idGrs}`);
+
+                // === SINKRONISASI NO TRANSAKSI KE REFERENSI ===
+                const noTransaksiGaransi = String(payload.no_transaksi || '').trim();
+                if (noTransaksiGaransi !== '') {
+                    let hasilSinkronNoTransaksi = null;
+                    let namaReferensiNoTransaksi = '';
+
+                    if (referensi.startsWith('TKT-')) {
+                        hasilSinkronNoTransaksi = await callSupabase(
+                            endpointFilterSupabase_('tiket', 'id_tiket', referensi),
+                            'PATCH',
+                            { no_transaksi: noTransaksiGaransi }
+                        );
+                        namaReferensiNoTransaksi = `Tiket ${referensi}`;
+                    } else if (referensi.startsWith('SLS-')) {
+                        hasilSinkronNoTransaksi = await callSupabase(
+                            endpointFilterSupabase_('penjualan', 'id_penjualan', referensi),
+                            'PATCH',
+                            { no_transaksi: noTransaksiGaransi }
+                        );
+                        namaReferensiNoTransaksi = `Penjualan ${referensi}`;
+                    }
+
+                    if (hasilSinkronNoTransaksi) {
+                        pastikanHasilMutasiSupabase_(hasilSinkronNoTransaksi, namaReferensiNoTransaksi);
+                    }
+                }
+                // =================================================
 
                 // === SINKRONISASI POIN KE TIKET ===
                 if (referensi.startsWith('TKT-') && poinNilaiStr !== '') {
@@ -6149,10 +6177,22 @@
 
                             const hasil = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', currentId), 'PATCH', tiketPatch);
                             pastikanHasilMutasiSupabase_(hasil, `Tiket ${currentId}`);
-                            if ((!teknisiLama || teknisiLama === 'Belum Ditugaskan' || teknisiLama === '-') && teknisiFinal !== 'Belum Ditugaskan' && teknisiFinal !== '-') {
+                            const teknisiLamaTerdaftar = new Set(
+                                daftarTeknisiUnikTiket_(teknisiLama).map(nama => nama.toLocaleLowerCase('id-ID'))
+                            );
+                            const teknisiDitambahkan = daftarTeknisiUnikTiket_(teknisiFinal).filter(
+                                nama => !teknisiLamaTerdaftar.has(nama.toLocaleLowerCase('id-ID'))
+                            );
+                            if (teknisiDitambahkan.length > 0) {
                                 const salesText = s ? s : 'Tidak Ada';
-                                const pesanTeknisiBaru = `🆕 *TUGAS BARU (ASSIGNMENT)*\n\nBismillah, antum mendapat penugasan untuk tiket *${currentId}*.\n\n🏢 *Klien:* ${document.getElementById('input-klien').value}\n🛠️ *Pekerjaan:* ${listPekerjaan[i]}\n💼 *Sales:* ${salesText}\n⏳ *Batas Respon:* ${targetRespon} Jam\n⏳ *Batas Selesai:* ${targetSLA} Jam\n\nMohon segera *Login* ke aplikasi untuk merespon tiket ini.\n🌐 https://aplikasisla.vercel.app/`;
-                                kirimNotifWAInternal(teknisiFinal, pesanTeknisiBaru);
+                                const judulPesanTeknisi = gantiTeknisi
+                                    ? '🔄 *PEMBERITAHUAN: TUGAS PENGGANTI*'
+                                    : '🆕 *TUGAS BARU (ASSIGNMENT)*';
+                                const pesanTeknisiBaru = `${judulPesanTeknisi}\n\nBismillah, antum mendapat penugasan untuk tiket *${currentId}*.\n\n🏢 *Klien:* ${document.getElementById('input-klien').value}\n🛠️ *Pekerjaan:* ${listPekerjaan[i]}\n💼 *Sales:* ${salesText}\n⏳ *Batas Respon:* ${targetRespon} Jam\n⏳ *Batas Selesai:* ${targetSLA} Jam\n\nMohon segera *Login* ke aplikasi untuk merespon tiket ini.\n🌐 https://aplikasisla.vercel.app/`;
+                                const hasilNotifTeknisiBaru = await kirimNotifWAInternal(teknisiDitambahkan.join(', '), pesanTeknisiBaru);
+                                if (hasilNotifTeknisiBaru.gagal > 0 || hasilNotifTeknisiBaru.terkirim < teknisiDitambahkan.length) {
+                                    notifikasiTiketGagal = true;
+                                }
                             }
                         } else {
                             const sekarang = new Date();
@@ -6528,7 +6568,7 @@
             let ttdBase64 = String((t && t['Tanda Tangan']) || "");
             // FITUR PENCEGAHAN: KONFIRMASI JIKA STATUS BERUBAH MENJADI SELESAI
             if (status === 'Selesai' && t['Status'] !== 'Selesai') {
-                let yakinSelesai = await showConfirm(`Bismillah, apakah antum yakin pekerjaan ini sudah 100% tuntas?\n\nArgometer waktu SLA akan dihentikan dan poin akan dihitung.`);
+                let yakinSelesai = await showConfirm(`Bismillah, apakah antum yakin pekerjaan ini sudah 100% tuntas?\n\nArgometer waktu SLA akan dihentikan. Poin tetap diinput manual oleh Admin.`);
                 if (!yakinSelesai) return;
             }
 
@@ -6590,7 +6630,6 @@
                 const terlambat = !Number.isNaN(tenggatWaktu.getTime()) && waktuSelesai > tenggatWaktu;
                 payload.waktu_selesai = tanggalIsoSupabase_(waktuSelesai);
                 payload.status_sla = terlambat ? 'TERLAMBAT' : 'TERPENUHI';
-                payload.poin_performa = terlambat ? -5 : 10;
             } else {
                 payload.waktu_selesai = null;
                 if (status === 'Pending') payload.status_sla = 'DIPENDING';
@@ -6599,7 +6638,6 @@
                     const tenggatWaktu = new Date(t['Tenggat Waktu']);
                     const terlambat = !Number.isNaN(tenggatWaktu.getTime()) && sekarang > tenggatWaktu;
                     payload.status_sla = terlambat ? 'TERLAMBAT' : 'AMAN';
-                    payload.poin_performa = terlambat ? -5 : 0;
                 }
             }
 
@@ -6646,7 +6684,7 @@
                     console.error("Gagal sinkronisasi prospek:", errSync);
                 }
 
-                // === NOTIFIKASI WA KE KLIEN (HANYA SAAT SELESAI) ===
+                // === NOTIFIKASI WA KE KLIEN (SAAT SELESAI ATAU DIBATALKAN) ===
                 const linkTracking = "https://aplikasisla.vercel.app/?track=" + encodeURIComponent(idTiket);
                     if (statusBaruNormal === 'selesai') {
                         const namaKlienInfo = String(t['Klien & Lokasi'] || payload.nama_customer || '').trim();
@@ -6679,8 +6717,15 @@
                             : "✅ *PEKERJAAN SELESAI*\n\nBismillah. Pelanggan Yth,\n\nKami informasikan bahwa pekerjaan untuk tiket *" + idTiket + "* telah SELESAI dikerjakan.\n\n🛠️ *Pekerjaan:* " + jenisPekerjaan + "\nDokumen Berita Acara sedang diproses oleh Admin.\n\nStatus pekerjaan dapat dilihat di:\n🌐 " + linkTracking;
                         const hasilWaSelesai = await kirimNotifWAEksternal(waKlienCRM, pesanSelesai);
                         if (hasilWaSelesai.gagal > 0) integrasiEksternalGagal = true;
+                    } else if (statusBaruNormal === 'cancel' && statusLamaNormal !== 'cancel') {
+                        const waKlienBatal = String(t['No WA Klien'] || '').trim();
+                        const namaKlienBatal = String(t['Klien & Lokasi'] || 'Pelanggan').trim();
+                        const alasanBatal = catatanBaru || 'Silakan hubungi Admin Alfacom untuk informasi lebih lanjut.';
+                        const pesanBatal = `❌ *TIKET DIBATALKAN*\n\nAssalamu'alaikum ${namaKlienBatal},\n\nKami informasikan bahwa tiket *${idTiket}* telah dibatalkan.\n\n🛠️ *Pekerjaan:* ${jenisPekerjaan}\n📝 *Alasan:* ${alasanBatal}\n\nStatus tiket dapat dilihat di:\n🌐 ${linkTracking}`;
+                        const hasilWaBatal = await kirimNotifWAEksternal(waKlienBatal, pesanBatal);
+                        if (hasilWaBatal.gagal > 0 || hasilWaBatal.terkirim === 0) integrasiEksternalGagal = true;
                     }
-                    // TIDAK ADA LAGI WA KE KLIEN UNTUK STATUS LAINNYA
+                    // Tidak mengirim WA klien untuk status lainnya.
                 const adaPeringatanUpdate = sinkronProspekGagal || integrasiEksternalGagal;
                 let pesanUpdate = 'Alhamdulillah! Data tiket berhasil diupdate.';
                 if (sinkronProspekGagal) pesanUpdate += ' Status/WA Prospek belum tersinkron sempurna.';
@@ -7218,7 +7263,7 @@
         function bukaModalPoin(idTiket) {
             const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); if(!t) return;
             document.getElementById('poin-id-tiket').value = idTiket;
-            document.getElementById('poin-nilai-input').value = t['Bobot Poin'] || t['Poin Performa'] || '';
+            document.getElementById('poin-nilai-input').value = t['Bobot Poin'] || '';
             document.getElementById('poin-veto-input').checked = (String(t['Veto Admin'] || '').toLowerCase() === 'ya');
             document.getElementById('modal-poin').style.display = 'flex';
         }
