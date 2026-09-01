@@ -6730,7 +6730,19 @@
             }
         }
 
-        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).filter(dataSesuaiCabangAktif_).forEach(u => { if(!u || !u.Username) return; const usernameAman = idAman_(u.Username); if (!usernameAman) return; tambahkanHtmlAman_(tbody, `<tr><td><strong>${amanTeks_(u.Username)}</strong></td><td>${amanTeks_(u['Nama Asli'])}</td><td>${amanTeks_(u['No WA'] || '-')}</td><td><span class="badge badge-aman">${amanTeks_(u.Role)}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${usernameAman}')">Edit</button><button class="btn-del" onclick="hapusUser('${usernameAman}')">Del</button></div></td></tr>`); }); }
+        function kunciProfilUserAman_(username) {
+            return idAman_(normalisasiUsernameLogin_(username));
+        }
+
+        function cariUserDariKunciProfil_(kunciUser) {
+            const kunciAman = kunciProfilUserAman_(kunciUser);
+            if (!kunciAman) return null;
+            return (globalUsers || []).find(user =>
+                user && kunciProfilUserAman_(user.Username) === kunciAman
+            ) || null;
+        }
+
+        function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).filter(dataSesuaiCabangAktif_).forEach(u => { if(!u || !u.Username) return; const usernameAman = kunciProfilUserAman_(u.Username); if (!usernameAman) return; tambahkanHtmlAman_(tbody, `<tr><td><strong>${amanTeks_(u.Username)}</strong></td><td>${amanTeks_(u['Nama Asli'])}</td><td>${amanTeks_(u['No WA'] || '-')}</td><td><span class="badge badge-aman">${amanTeks_(u.Role)}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${usernameAman}')">Edit</button><button class="btn-del" onclick="hapusUser('${usernameAman}')">Del</button></div></td></tr>`); }); }
 
         function siapkanProfilPribadi() {
             modeEditUser = true;
@@ -6759,8 +6771,8 @@
             document.getElementById('btn-batal-edit-user').style.display = 'none';
         }
 
-        function aktifkanEditUser(un) {
-            const u = (globalUsers || []).find(x => x && x.Username === un); if(!u) return;
+        function aktifkanEditUser(kunciUser) {
+            const u = cariUserDariKunciProfil_(kunciUser); if(!u) return;
             modeEditUser = true;
             document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username;
             document.getElementById('new-nama').value = u['Nama Asli'];
@@ -6896,8 +6908,14 @@
             btn.disabled = false;
         }
 
-        async function hapusUser(un) {
+        async function hapusUser(kunciUser) {
             try {
+                const userTarget = cariUserDariKunciProfil_(kunciUser);
+                if (!userTarget) {
+                    showToast('Afwan, data user tidak ditemukan.', 'error');
+                    return;
+                }
+                const un = userTarget.Username;
                 if (String(un).trim().toLowerCase() === 'admin') {
                     showToast('Afwan, akun admin utama dilarang dihapus!', 'error');
                     return;
