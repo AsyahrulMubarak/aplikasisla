@@ -1379,6 +1379,9 @@
                     let menitMasukPertama = null;
                     let menitMasukSetelahIstirahat = null;
                     let menitKeluarTerakhir = null;
+                    let menitSesiTerbuka = null;
+                    let potonganCheckpointIstirahat = 0;
+                    const sesiKerjaHariIni = [];
                     events.sort((a,b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen']));
 
                     events.forEach(e => {
@@ -1411,16 +1414,31 @@
                         }
 
                         if (tipe.includes("Masuk")) {
-                            if (isAutoMasuk || jamFloat < 12.0) {
+                            const sesiSudahTerbuka = menitSesiTerbuka !== null;
+                            const adalahCheckpointIstirahat = tipe.includes('Setelah Istirahat') || (!isAutoMasuk && menitEvent >= 12 * 60);
+
+                            if ((isAutoMasuk || jamFloat < 12.0) && msk1 === "-") {
                                 msk1 = jamStr;
                                 if (isKoreksi) bgM1 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
                                 else if (isAutoMasuk || menitEvent > kebijakanKerja.batasTelatMenit) bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Telat / Lupa Masuk
-                            } else {
+                            } else if (msk2 === "-") {
                                 msk2 = jamStr;
                                 if (isKoreksi) bgM2 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
+                            } else if (tipe.includes('Setelah Istirahat')) {
+                                ketList.push('Checkpoint Setelah Istirahat: ' + jamStr);
                             }
                             if (menitMasukPertama === null || menitEvent < menitMasukPertama) menitMasukPertama = menitEvent;
-                            if (tipe.includes('Setelah Istirahat') || (!isAutoMasuk && menitEvent >= 12 * 60)) menitMasukSetelahIstirahat = menitEvent;
+                            if (adalahCheckpointIstirahat && menitMasukSetelahIstirahat === null) {
+                                menitMasukSetelahIstirahat = menitEvent;
+                                // Checkpoint yang terlambat hanya dipotong bila argo masih
+                                // berjalan. Jika sebelumnya sudah Keluar, jedanya sudah non-upah.
+                                if (sesiSudahTerbuka && menitEvent > 13 * 60) {
+                                    potonganCheckpointIstirahat = Math.min(90, menitEvent - 13 * 60);
+                                } else if (!sesiSudahTerbuka && adaKeluar) {
+                                    ketList.push('Kembali setelah keluar pribadi: ' + jamStr);
+                                }
+                            }
+                            if (!sesiSudahTerbuka) menitSesiTerbuka = menitEvent;
                         } else if (tipe.includes("Keluar") || tipe.includes("Pulang")) {
                             if (jamFloat <= 14.0) {
                                 klr1 = jamStr;
@@ -1432,6 +1450,10 @@
                                 else if (isAutoKeluar) bgK2 = "background:#e0f2fe; color:#0369a1;";
                             }
                             adaKeluar = true;
+                            if (menitSesiTerbuka !== null && menitEvent > menitSesiTerbuka) {
+                                sesiKerjaHariIni.push({ mulai: menitSesiTerbuka, selesai: menitEvent });
+                            }
+                            menitSesiTerbuka = null;
                             if (menitKeluarTerakhir === null || menitEvent > menitKeluarTerakhir) menitKeluarTerakhir = menitEvent;
                         }
                     });
@@ -1440,36 +1462,54 @@
                         msk1 = "13:00"; bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Lupa Masuk
                         menitMasukPertama = 13 * 60;
                         ketList.push("Lupa Masuk (Auto 13:00)");
+                        if (menitKeluarTerakhir !== null && menitKeluarTerakhir > menitMasukPertama) {
+                            sesiKerjaHariIni.push({ mulai: menitMasukPertama, selesai: menitKeluarTerakhir });
+                        }
                     }
 
                     const tanggalHariIni = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-                    if (!adaKeluar && menitMasukPertama !== null && dateKey === tanggalHariIni) {
+                    if (menitSesiTerbuka !== null && dateKey === tanggalHariIni) {
                         const menitSaatIni = now.getHours() * 60 + now.getMinutes();
-                        if (menitSaatIni > menitMasukPertama) {
+                        if (menitSaatIni > menitSesiTerbuka) {
                             menitKeluarTerakhir = menitSaatIni;
                             klr2 = formatJamMenitPayroll(menitSaatIni) + ' (Berjalan)';
+                            sesiKerjaHariIni.push({ mulai: menitSesiTerbuka, selesai: menitSaatIni });
                             ketList.push(menitSaatIni > kebijakanKerja.selesaiMenit ? 'Lembur berjalan sampai absen keluar' : 'Jam kerja berjalan sampai absen keluar');
                         }
                     }
 
-                    if (menitMasukPertama !== null && menitKeluarTerakhir !== null && menitKeluarTerakhir > menitMasukPertama) {
-                        // Absen lebih awal tetap mulai dihitung pada batas kerja 08.00.
-                        const awalDibayar = Math.max(kebijakanKerja.mulaiMenit, menitMasukPertama);
-                        const akhirReguler = Math.min(menitKeluarTerakhir, kebijakanKerja.selesaiMenit);
-                        const menitReguler = Math.max(0, akhirReguler - awalDibayar);
-                        totJam = (menitKeluarTerakhir - awalDibayar) / 60;
-                        upahRegulerHariIni = menitReguler * upahPerMenit;
+                    if (sesiKerjaHariIni.length > 0) {
+                        let totalMenitReguler = 0;
+                        let totalMenitLembur = 0;
+                        let totalMenitArgo = 0;
+
+                        sesiKerjaHariIni.forEach((sesi, indexSesi) => {
+                            const awalReguler = Math.max(sesi.mulai, kebijakanKerja.mulaiMenit);
+                            const akhirReguler = Math.min(sesi.selesai, kebijakanKerja.selesaiMenit);
+                            const menitRegulerSesi = Math.max(0, akhirReguler - awalReguler);
+                            const awalLembur = Math.max(sesi.mulai, kebijakanKerja.selesaiMenit);
+                            const menitLemburSesi = Math.max(0, sesi.selesai - awalLembur);
+                            totalMenitReguler += menitRegulerSesi;
+                            totalMenitLembur += menitLemburSesi;
+                            totalMenitArgo += menitRegulerSesi + menitLemburSesi;
+
+                            const awalTampil = Math.max(sesi.mulai, kebijakanKerja.mulaiMenit);
+                            if (sesi.selesai > awalTampil) {
+                                ketList.push('Sesi Argo ' + (indexSesi + 1) + ': ' + formatJamMenitPayroll(awalTampil) + '–' + formatJamMenitPayroll(sesi.selesai));
+                            }
+                        });
+
+                        totJam = totalMenitArgo / 60;
+                        upahRegulerHariIni = totalMenitReguler * upahPerMenit;
 
                         if (menitMasukPertama > kebijakanKerja.batasTelatMenit) countTelatPagi++;
-                        if (menitMasukSetelahIstirahat !== null && menitMasukSetelahIstirahat > 13 * 60) {
-                            const potonganIstirahat = Math.min(90, menitMasukSetelahIstirahat - 13 * 60);
-                            potHariIni += potonganIstirahat * upahPerMenit;
-                            ketList.push('Telat Setelah Istirahat (' + potonganIstirahat + ' menit)');
+                        if (potonganCheckpointIstirahat > 0) {
+                            potHariIni += potonganCheckpointIstirahat * upahPerMenit;
+                            ketList.push('Telat Setelah Istirahat (' + potonganCheckpointIstirahat + ' menit)');
                         }
-                        if (menitKeluarTerakhir > kebijakanKerja.selesaiMenit) {
-                            const menitLembur = menitKeluarTerakhir - kebijakanKerja.selesaiMenit;
-                            lemHariIni += menitLembur * (5000 / 60); // Tetap memakai tarif lembur yang telah berlaku.
-                            txtLemburJam = (menitLembur / 60).toFixed(2) + 'j';
+                        if (totalMenitLembur > 0) {
+                            lemHariIni += totalMenitLembur * (5000 / 60); // Tetap memakai tarif lembur yang telah berlaku.
+                            txtLemburJam = (totalMenitLembur / 60).toFixed(2) + 'j';
                         }
                     }
                 } else if (!isAhad && !isFutureDate) {
