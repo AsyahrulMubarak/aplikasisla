@@ -704,6 +704,24 @@
 
         <div id="page-tiket" class="tab-page">
             <h3 class="section-title">Daftar Tiket SLA (Pekerjaan)</h3>
+            <div id="ticket-period-section" style="background:#ffffff; padding:15px; border-radius:12px; border:1px solid var(--border); margin-bottom:15px; display:flex; flex-direction:column; gap:10px; box-shadow:0 4px 10px rgba(0,0,0,0.03);">
+                <div>
+                    <div style="font-weight:600; color:var(--text-main); font-size:14px;">Periode Riwayat Tiket</div>
+                    <div id="ticket-period-help" style="font-size:10px; color:var(--text-muted); margin-top:3px; line-height:1.4;">Pekerjaan aktif tetap menampilkan seluruh periode agar tiket lama tidak terlewat.</div>
+                </div>
+                <div style="display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:10px;">
+                    <select id="filter-bulan-tiket" onchange="renderTickets()" style="padding:10px; font-size:13px; border-radius:8px; border:1px solid #cbd5e1; width:100%; min-width:0; margin:0; cursor:pointer;">
+                        <option value="all">Semua Bulan</option>
+                        <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+                        <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+                        <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+                        <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+                    </select>
+                    <select id="filter-tahun-tiket" onchange="renderTickets()" style="padding:10px; font-size:13px; border-radius:8px; border:1px solid #cbd5e1; width:100%; min-width:0; margin:0; cursor:pointer;">
+                        <option value="all">Semua Tahun</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option>
+                    </select>
+                </div>
+            </div>
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
                 <input type="text" id="search-tiket" placeholder="Cari ID, Klien, Pekerjaan, Sales..." oninput="toggleClearBtn(this); renderTickets()">
@@ -718,6 +736,21 @@
 
         <div id="page-penjualan" class="tab-page">
             <h3 class="section-title" style="color:var(--purple);">Daftar Penjualan Langsung</h3>
+            <div id="sales-period-section" style="background:#ffffff; padding:15px; border-radius:12px; border:1px solid var(--border); margin-bottom:15px; display:flex; flex-direction:column; gap:10px; box-shadow:0 4px 10px rgba(0,0,0,0.03);">
+                <div style="font-weight:600; color:var(--text-main); font-size:14px;">Periode Penjualan</div>
+                <div style="display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:10px;">
+                    <select id="filter-bulan-penjualan" onchange="renderPenjualan()" style="padding:10px; font-size:13px; border-radius:8px; border:1px solid #cbd5e1; width:100%; min-width:0; margin:0; cursor:pointer;">
+                        <option value="all">Semua Bulan</option>
+                        <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+                        <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+                        <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+                        <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+                    </select>
+                    <select id="filter-tahun-penjualan" onchange="renderPenjualan()" style="padding:10px; font-size:13px; border-radius:8px; border:1px solid #cbd5e1; width:100%; min-width:0; margin:0; cursor:pointer;">
+                        <option value="all">Semua Tahun</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option>
+                    </select>
+                </div>
+            </div>
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
                 <input type="text" id="search-sls" placeholder="Cari ID, No Trx, Pembeli, Barang..." oninput="toggleClearBtn(this); renderPenjualan()">
@@ -4163,6 +4196,86 @@
             return payload;
         }
 
+        function normalisasiNoTransaksiNota_(rawValue) {
+            const noTransaksi = String(rawValue == null ? '' : rawValue).trim().toUpperCase();
+            return ['', '-', 'N/A', 'NA', 'NULL', 'UNDEFINED'].includes(noTransaksi) ? '' : noTransaksi;
+        }
+
+        function rekapStatusNotaIpos_(daftarTiket, tanggalMasukPeriode) {
+            const notaByNomorTransaksi = new Map();
+            const statusBelumLunas = new Set(['poin beku', 'belum lunas', 'belum bayar', 'menunggu pembayaran']);
+
+            (daftarTiket || []).forEach(tiket => {
+                if (!tiket) return;
+
+                const noTransaksi = normalisasiNoTransaksiNota_(
+                    tiket['No Transaksi'] || tiket['No. Transaksi'] || tiket['Nomor Transaksi'] || ''
+                );
+                if (!noTransaksi) return;
+
+                if (!notaByNomorTransaksi.has(noTransaksi)) {
+                    notaByNomorTransaksi.set(noTransaksi, {
+                        statusTercatat: new Set(),
+                        lunasTanpaTanggal: false,
+                        tanggalLunasAcuan: null,
+                        periodeLunasTercatat: new Set()
+                    });
+                }
+
+                const nota = notaByNomorTransaksi.get(noTransaksi);
+                const statusPembayaran = String(tiket['Status Pembayaran'] || '').trim().toLowerCase();
+
+                if (statusPembayaran === 'lunas') {
+                    nota.statusTercatat.add('lunas');
+                    const tanggalLunas = tiket['Tanggal Lunas'];
+                    const tanggalLunasParsed = tanggalLunas ? parseSafeDate(tanggalLunas) : null;
+                    if (!tanggalLunasParsed || Number.isNaN(tanggalLunasParsed.getTime())) {
+                        nota.lunasTanpaTanggal = true;
+                    } else {
+                        if (!nota.tanggalLunasAcuan) nota.tanggalLunasAcuan = tanggalLunasParsed;
+                        nota.periodeLunasTercatat.add(
+                            `${tanggalLunasParsed.getFullYear()}-${String(tanggalLunasParsed.getMonth() + 1).padStart(2, '0')}`
+                        );
+                    }
+                } else if (statusBelumLunas.has(statusPembayaran)) {
+                    nota.statusTercatat.add('belum_lunas');
+                } else {
+                    nota.statusTercatat.add('perlu_diperiksa');
+                }
+            });
+
+            const hasil = {
+                total: notaByNomorTransaksi.size,
+                lunas: 0,
+                belumLunas: 0,
+                perluDiperiksa: 0,
+                poinAdminPeriode: 0
+            };
+
+            notaByNomorTransaksi.forEach(nota => {
+                const statusLunasKonsisten = nota.statusTercatat.size === 1 &&
+                    nota.statusTercatat.has('lunas') &&
+                    !nota.lunasTanpaTanggal &&
+                    nota.periodeLunasTercatat.size === 1;
+
+                if (statusLunasKonsisten) {
+                    hasil.lunas++;
+                    if (typeof tanggalMasukPeriode !== 'function' || tanggalMasukPeriode(nota.tanggalLunasAcuan)) {
+                        // Satu nota unik yang lunas menghasilkan tepat satu poin Admin pada periode Tanggal Lunas.
+                        hasil.poinAdminPeriode++;
+                    }
+                } else if (nota.statusTercatat.size === 1 && nota.statusTercatat.has('belum_lunas')) {
+                    hasil.belumLunas++;
+                } else {
+                    // Nomor transaksi ganda dengan status/periode pelunasan berbeda, status kosong, atau Lunas tanpa tanggal
+                    // sengaja tidak dipaksakan menjadi Lunas/Belum Lunas agar angka dasbor tetap dapat dipercaya.
+                    hasil.perluDiperiksa++;
+                }
+            });
+
+            return hasil;
+        }
+
         function renderDashboard() {
             const dashTekContainer = document.getElementById('dash-tek-content'); dashTekContainer.innerHTML = '';
             const dashSalesContainer = document.getElementById('dash-sales-content'); dashSalesContainer.innerHTML = '';
@@ -4183,6 +4296,12 @@
                 if (isNaN(d.getTime())) return false;
                 return (d.getMonth() + 1 == selBulan) && (d.getFullYear() == selTahun);
             }
+
+            const rekapNotaIpos = rekapStatusNotaIpos_(
+                (globalTickets || []).filter(dataSesuaiCabangAktif_),
+                inPeriode
+            );
+            const labelPeriodePoinAdmin = selBulan === 'all' ? 'Semua Periode' : 'Periode Terpilih';
 
             // DATA STREAM SEPARATION: nominal aktual dan potensi tidak boleh saling menggantikan.
             function nilaiDashboard_(rawValue) {
@@ -4635,7 +4754,9 @@
             let aTotal = statsAdmin.tepat + statsAdmin.telat + statsAdmin.proses; let aRate = aTotal > 0 ? Math.round((statsAdmin.tepat / aTotal) * 100) : 0; let aP1 = aTotal === 0 ? 0 : (statsAdmin.tepat / aTotal) * 100; let aP2 = aTotal === 0 ? 0 : aP1 + (statsAdmin.telat / aTotal) * 100; let aBg = aTotal === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${aP1}%, var(--danger) ${aP1}% ${aP2}%, var(--warning) ${aP2}% 100%)`;
 
             let labelAdminSLA = cabangAktif === 'Raha' ? 'Admin Raha' : 'Admin Kendari';
-            let htmlAdmin = `<h3 class="section-title">Performa ${labelAdminSLA} (SLA Internal)</h3><div class="card" style="border-left-color:#3b82f6;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:#3b82f6; font-size:16px;">SLA 1: Distribusi Tugas Teknisi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 3 Hari (27 Jam Kerja).</p><div class="charts-container"><div class="chart-box" style="flex:1;"><div class="chart-title">DISTRIBUSI TUGAS</div><div class="donut" style="background: ${aBg};"><div class="donut-inner"><span class="donut-val" style="color:${aRate>=80?'var(--success)':(aRate>=50?'var(--warning)':'var(--danger)')}">${aTotal>0?aRate+'%':'-'}</span><span class="donut-label">Sukses</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Cepat</span> <b>${statsAdmin.tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat (>3 Hari)</span> <b>${statsAdmin.telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${statsAdmin.proses}</b></div></div></div></div></div>`;
+            let htmlAdmin = `<h3 class="section-title">Performa ${labelAdminSLA} (SLA Internal)</h3>`;
+            htmlAdmin += `<div class="card" style="border-left-color:#0f766e; margin-bottom:15px;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:#0f766e; font-size:16px;">Rekap Pelunasan Nota iPOS</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Status nota menunjukkan posisi saat ini berdasarkan nomor transaksi unik pada cabang aktif. Poin Admin mengikuti filter periode Dasbor berdasarkan Tanggal Lunas.</p><div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px;"><div style="text-align:center; background:#f8fafc; padding:12px 8px; border-radius:8px; border:1px solid var(--border);"><div style="font-size:24px; font-weight:800; color:#334155;">${rekapNotaIpos.total}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Total Nota Unik</div></div><div style="text-align:center; background:#ecfdf5; padding:12px 8px; border-radius:8px; border:1px solid #a7f3d0;"><div style="font-size:24px; font-weight:800; color:var(--success);">${rekapNotaIpos.lunas}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Nota Lunas</div></div><div style="text-align:center; background:#fef2f2; padding:12px 8px; border-radius:8px; border:1px solid #fecaca;"><div style="font-size:24px; font-weight:800; color:var(--danger);">${rekapNotaIpos.belumLunas}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Belum Lunas</div></div><div style="text-align:center; background:#fffbeb; padding:12px 8px; border-radius:8px; border:1px solid #fde68a;"><div style="font-size:24px; font-weight:800; color:var(--warning);">${rekapNotaIpos.perluDiperiksa}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Perlu Diperiksa</div></div><div style="grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between; gap:12px; background:#eff6ff; padding:12px; border-radius:8px; border:1px solid #bfdbfe;"><div><div style="font-size:11px; color:#1d4ed8; font-weight:700;">⭐ Poin Admin — ${labelPeriodePoinAdmin}</div><div style="font-size:10px; color:var(--text-muted); margin-top:3px;">1 poin untuk setiap nota unik yang lunas pada periode Tanggal Lunas.</div></div><div style="font-size:24px; font-weight:900; color:#1d4ed8; white-space:nowrap;">${rekapNotaIpos.poinAdminPeriode} Poin</div></div></div><p style="font-size:10px; color:var(--text-muted); margin:12px 0 0; line-height:1.5;">Status SLA hanya menentukan hak poin teknisi. Nota dengan pembayaran Lunas tetap dihitung lunas dan memberi 1 poin Admin meskipun poin teknisi hangus karena SLA pengerjaan gagal.</p></div>`;
+            htmlAdmin += `<div class="card" style="border-left-color:#3b82f6;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:#3b82f6; font-size:16px;">SLA 1: Distribusi Tugas Teknisi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 3 Hari (27 Jam Kerja).</p><div class="charts-container"><div class="chart-box" style="flex:1;"><div class="chart-title">DISTRIBUSI TUGAS</div><div class="donut" style="background: ${aBg};"><div class="donut-inner"><span class="donut-val" style="color:${aRate>=80?'var(--success)':(aRate>=50?'var(--warning)':'var(--danger)')}">${aTotal>0?aRate+'%':'-'}</span><span class="donut-label">Sukses</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Cepat</span> <b>${statsAdmin.tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat (>3 Hari)</span> <b>${statsAdmin.telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${statsAdmin.proses}</b></div></div></div></div></div>`;
             htmlAdmin += `<div class="card" style="border-left-color:var(--purple); margin-top:15px;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--purple); font-size:16px;">SLA 2: Pembuatan Nota & Garansi</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Maks 9 Jam Kerja setelah teknisi menyelesaikan tiket.</p><div style="display:flex; justify-content:space-around; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border);"><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--success);">${statsAdminNota.aman}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Tiket Aman</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--danger);">${statsAdminNota.telat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">SLA GAGAL</div></div></div></div>`;
             htmlAdmin += `<div class="card" style="border-left-color:var(--warning); margin-top:15px;"><h3 style="margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:10px; color:var(--warning); font-size:16px;">SLA 3: Serah Terima Barang (Follow-Up)</h3><p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Target SLA: Klien mengambil barang maksimal 3 hari sejak selesai dikerjakan.</p><div style="display:flex; justify-content:space-around; background:#fffbeb; padding:15px; border-radius:8px; border:1px solid #fde68a;"><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--success);">${statsAdminFollowUp.cepat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Diserahkan</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--warning);">${statsAdminFollowUp.proses}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Masa Tunggu</div></div><div style="text-align:center;"><div style="font-size:24px; font-weight:800; color:var(--danger);">${statsAdminFollowUp.telat}</div><div style="font-size:11px; color:var(--text-muted); font-weight:600;">Mengendap >3 Hari</div></div></div></div>`;
 
@@ -4706,9 +4827,39 @@
             });
             tetapkanHtmlAman_(dashSalesContainer, htmlSales);
         }
+
+        function dataMasukPeriodeDaftar_(tanggalData, bulanTerpilih, tahunTerpilih) {
+            const bulan = String(bulanTerpilih == null ? 'all' : bulanTerpilih);
+            const tahun = String(tahunTerpilih == null ? 'all' : tahunTerpilih);
+            if (bulan === 'all' && tahun === 'all') return true;
+            if (!tanggalData) return false;
+
+            const tanggal = parseSafeDate(tanggalData);
+            if (Number.isNaN(tanggal.getTime())) return false;
+
+            const bulanCocok = bulan === 'all' || (tanggal.getMonth() + 1) === Number(bulan);
+            const tahunCocok = tahun === 'all' || tanggal.getFullYear() === Number(tahun);
+            return bulanCocok && tahunCocok;
+        }
+
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = '';
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
+            const filterBulanTiket = document.getElementById('filter-bulan-tiket');
+            const filterTahunTiket = document.getElementById('filter-tahun-tiket');
+            const bulanTiket = filterBulanTiket ? filterBulanTiket.value : 'all';
+            const tahunTiket = filterTahunTiket ? filterTahunTiket.value : 'all';
+            const infoPeriodeTiket = document.getElementById('ticket-period-help');
+            const awalBulanBerjalan = new Date();
+            awalBulanBerjalan.setDate(1);
+            awalBulanBerjalan.setHours(0, 0, 0, 0);
+
+            if (infoPeriodeTiket) {
+                infoPeriodeTiket.textContent = currentTicketFilter === 'aktif'
+                    ? 'Pekerjaan aktif tetap menampilkan seluruh periode agar tiket lama tidak terlewat.'
+                    : 'Riwayat mengikuti Waktu Selesai; tiket batal tanpa waktu selesai memakai Waktu Lapor.';
+            }
+
             let tiketDitampilkan = [];
 
             if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna())) {
@@ -4759,6 +4910,10 @@
 
                 if (currentTicketFilter === 'aktif' && !isAktif) return;
                 if (currentTicketFilter === 'riwayat' && !isRiwayat) return;
+                if (currentTicketFilter === 'riwayat') {
+                    const tanggalRiwayat = ticket['Waktu Selesai'] || ticket['Waktu Lapor'];
+                    if (!dataMasukPeriodeDaftar_(tanggalRiwayat, bulanTiket, tahunTiket)) return;
+                }
 
                 if (searchVal !== '') {
                     let keys = Object.keys(ticket);
@@ -4772,6 +4927,13 @@
                 htmlAda = true;
                 let sc = statusPengerjaanKartu === 'TERLAMBAT' ? 'status-terlambat' : (statusPengerjaanKartu === 'TERPENUHI' ? 'status-terpenuhi' : 'status-aman');
                 let bc = textStatus === 'Selesai' ? 'badge-selesai' : (textStatus === 'Pending' ? 'badge-pending' : (textStatus === 'Outsource' ? 'badge-tunggu' : (textStatus === 'Cancel' ? 'badge-cancel' : 'badge-status')));
+                let tiketAktifLintasBulanHtml = '';
+                if (currentTicketFilter === 'aktif' && isAktif) {
+                    const tanggalLaporAktif = parseSafeDate(ticket['Waktu Lapor']);
+                    if (!Number.isNaN(tanggalLaporAktif.getTime()) && tanggalLaporAktif < awalBulanBerjalan) {
+                        tiketAktifLintasBulanHtml = `<div style="margin:8px 0; padding:7px 10px; background:#fffbeb; border:1px solid #fde68a; border-radius:7px; color:#92400e; font-size:11px; font-weight:700;">📌 Tiket aktif dari bulan sebelumnya</div>`;
+                    }
+                }
 
                 let bRespon = ticket['Status SLA Respon'] === 'GAGAL' ? 'badge-cancel' : (ticket['Status SLA Respon'] === 'TERPENUHI' ? 'badge-selesai' : 'badge-aman');
                 let textSlaPengerjaan = ticket['Status SLA'] === 'TERLAMBAT' ? 'GAGAL' : (ticket['Status SLA'] || '-');
@@ -4929,6 +5091,7 @@
                tambahkanHtmlAman_(container, `<div class="card ${sc}">
                     <h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>
                     ${noTrans}
+                    ${tiketAktifLintasBulanHtml}
                     <p><strong>Klien:</strong> ${ticket['Klien & Lokasi']}</p>
                     ${noWAKlienTeks}
                     <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
@@ -4943,12 +5106,16 @@
                     ${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}${linkTrackBtn}
                 </div>`);
             });
-            if(!htmlAda) container.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket ${currentTicketFilter === 'aktif' ? 'aktif' : 'di riwayat'}.</p>`;
+            if(!htmlAda) container.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:40px;">${currentTicketFilter === 'aktif' ? 'Tidak ada tiket aktif.' : 'Tidak ada tiket di riwayat pada periode atau pencarian terpilih.'}</p>`;
         }
 
         function renderPenjualan() {
             const container = document.getElementById('penjualan-container'); container.innerHTML = '';
             let searchInput = document.getElementById('search-sls'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
+            const filterBulanPenjualan = document.getElementById('filter-bulan-penjualan');
+            const filterTahunPenjualan = document.getElementById('filter-tahun-penjualan');
+            const bulanPenjualan = filterBulanPenjualan ? filterBulanPenjualan.value : 'all';
+            const tahunPenjualan = filterTahunPenjualan ? filterTahunPenjualan.value : 'all';
             let penDitampilkan = [];
 
             if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna())) {
@@ -4960,6 +5127,9 @@
                 if(!p) return;
                 let idP = String(p['ID Penjualan'] || '');
                 if (!idP) return;
+
+                const tanggalPenjualan = p['Tanggal'] || p['Waktu Lapor'] || p['Tanggal Input'];
+                if (!dataMasukPeriodeDaftar_(tanggalPenjualan, bulanPenjualan, tahunPenjualan)) return;
 
                 if (searchVal !== '') {
                     let strCari = `${p['ID Penjualan']} ${p['No Transaksi']} ${p['Nama Pembeli']} ${p['Barang / Jasa']} ${p['Sales']}`.toLowerCase();
@@ -4977,7 +5147,7 @@
 
                 tambahkanHtmlAman_(container, `<div class="card status-terpenuhi"><h3><span>${p['ID Penjualan']}</span><span class="badge badge-sales">Lunas</span></h3>${noTrans}<p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Pembeli:</strong> ${p['Nama Pembeli']}</p><p><strong>Barang:</strong> ${p['Barang / Jasa']}</p><p><strong>Sales:</strong> ${p['Sales']}</p><p style="color:var(--success);"><strong>Nominal Omzet:</strong> ${formatRp(p['Nominal (Rp)'] || p['Nominal'])}</p>${btnHtml}</div>`);
             });
-            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan sesuai pencarian.</p>';
+            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan pada periode atau pencarian terpilih.</p>';
         }
 
         function bukaModalGaransiBaru() { bukaFormGaransi(); }
@@ -7280,14 +7450,32 @@
             document.body.appendChild(overlay);
         }
         // ==========================================
-        // AUTO-SET BULAN & TAHUN DASBOR SAAT DIBUKA
+        // AUTO-SET BULAN & TAHUN FILTER PERIODE SAAT DIBUKA
         // ==========================================
         window.addEventListener('DOMContentLoaded', () => {
             let now = new Date();
-            let elBulan = document.getElementById('filter-bulan-dash');
-            let elTahun = document.getElementById('filter-tahun-dash');
-            if(elBulan) elBulan.value = now.getMonth() + 1;
-            if(elTahun) elTahun.value = now.getFullYear();
+            const filterPeriode = [
+                ['filter-bulan-dash', 'filter-tahun-dash'],
+                ['filter-bulan-tiket', 'filter-tahun-tiket'],
+                ['filter-bulan-penjualan', 'filter-tahun-penjualan']
+            ];
+
+            filterPeriode.forEach(([idBulan, idTahun]) => {
+                const elBulan = document.getElementById(idBulan);
+                const elTahun = document.getElementById(idTahun);
+                if (elBulan) elBulan.value = String(now.getMonth() + 1);
+                if (elTahun) {
+                    const tahunBerjalan = String(now.getFullYear());
+                    const tahunTersedia = Array.from(elTahun.options).some(option => option.value === tahunBerjalan);
+                    if (!tahunTersedia) {
+                        const opsiTahun = document.createElement('option');
+                        opsiTahun.value = tahunBerjalan;
+                        opsiTahun.textContent = tahunBerjalan;
+                        elTahun.appendChild(opsiTahun);
+                    }
+                    elTahun.value = tahunBerjalan;
+                }
+            });
         });
         function bukaModalPoin(idTiket) {
             const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); if(!t) return;
