@@ -1610,6 +1610,18 @@
             return normalisasiCabang(cabang) === 'Raha' ? 'admin_raha' : 'admin';
         }
 
+        function penggunaAdalahAdminCabangTiket_(user, cabang) {
+            const cabangTiket = normalisasiCabang(cabang);
+            if (!user || (cabangTiket !== 'Kendari' && cabangTiket !== 'Raha')) return false;
+
+            const roleTarget = adminSlaSupabase_(cabangTiket);
+            const roleUser = String(user.Role || user.role || '').trim().toLowerCase();
+            if (roleUser !== roleTarget) return false;
+
+            const cabangUser = normalisasiCabang(user.Hak_Akses_Cabang || user.hak_akses_cabang || user.cabang);
+            return cabangUser === cabangTiket || cabangUser === 'Semua';
+        }
+
         function normalisasiNamaCustomerProspek_(nama) {
             return String(nama || '').trim().toLowerCase().replace(/\s+/g, ' ');
         }
@@ -2036,6 +2048,41 @@
                 if (!isNaN(d.getTime())) return d;
             }
             return new Date(NaN);
+        }
+
+        function perbaruiStatusSLAAktualTiket_(ticket, waktuAcuan = new Date()) {
+            if (!ticket) return ticket;
+
+            const sekarang = parseSafeDate(waktuAcuan);
+            const tenggatRespon = parseSafeDate(ticket['Tenggat Respon']);
+            const waktuRespon = parseSafeDate(ticket['Waktu Respon']);
+            const tenggatPengerjaan = parseSafeDate(ticket['Tenggat Waktu']);
+            const waktuSelesai = parseSafeDate(ticket['Waktu Selesai']);
+            const statusTiket = String(ticket.Status || 'Menunggu').trim().toLowerCase();
+            const teknisi = String(ticket.Teknisi || '').trim();
+            const belumDitugaskan = !teknisi || teknisi === '-' || teknisi.toLowerCase() === 'belum ditugaskan';
+
+            if (belumDitugaskan && Number.isNaN(waktuRespon.getTime())) {
+                ticket['Status SLA Respon'] = 'AMAN';
+            } else if (!Number.isNaN(waktuRespon.getTime()) && !Number.isNaN(tenggatRespon.getTime())) {
+                ticket['Status SLA Respon'] = waktuRespon > tenggatRespon ? 'GAGAL' : 'TERPENUHI';
+            } else if (!Number.isNaN(sekarang.getTime()) && !Number.isNaN(tenggatRespon.getTime())) {
+                ticket['Status SLA Respon'] = sekarang > tenggatRespon ? 'GAGAL' : 'AMAN';
+            }
+
+            if (statusTiket === 'pending') ticket['Status SLA'] = 'DIPENDING';
+            else if (statusTiket === 'outsource') ticket['Status SLA'] = 'DIOPOR';
+            else if (statusTiket === 'cancel' || statusTiket === 'batal') ticket['Status SLA'] = 'BATAL';
+            else if (statusTiket === 'selesai') {
+                const acuanSelesai = Number.isNaN(waktuSelesai.getTime()) ? sekarang : waktuSelesai;
+                if (!Number.isNaN(acuanSelesai.getTime()) && !Number.isNaN(tenggatPengerjaan.getTime())) {
+                    ticket['Status SLA'] = acuanSelesai > tenggatPengerjaan ? 'TERLAMBAT' : 'TERPENUHI';
+                }
+            } else if (!Number.isNaN(sekarang.getTime()) && !Number.isNaN(tenggatPengerjaan.getTime())) {
+                ticket['Status SLA'] = sekarang > tenggatPengerjaan ? 'TERLAMBAT' : 'AMAN';
+            }
+
+            return ticket;
         }
         // MESIN OTOMATIS 62 UNTUK WA
         function formatWA(el) {
@@ -3362,18 +3409,7 @@
                                 if (!t["Tenggat Respon"]) t["Tenggat Respon"] = hitungTenggatJamKerja(dtLapor, parseFloat(t["Target SLA Respon (Jam)"]) || 1, t.Cabang);
                             } else { t["Tenggat Respon"] = ""; }
 
-                            let statTkt = String(t["Status"] || '').trim();
-                            if (statTkt === "Pending" || statTkt === "Outsource" || statTkt === "Cancel") {
-                                t["Status SLA"] = statTkt === "Cancel" ? "BATAL" : (statTkt === "Outsource" ? "DIOPOR" : "DIPENDING");
-                            } else if (!t["Status SLA"]) {
-                                t["Status SLA"] = (new Date() > new Date(t["Tenggat Waktu"])) ? "TERLAMBAT" : "AMAN";
-                            }
-
-                            if (!t["Status SLA Respon"]) {
-                                if (t["Teknisi"] === "Belum Ditugaskan" || !t["Teknisi"]) { t["Status SLA Respon"] = "AMAN"; }
-                                else { t["Status SLA Respon"] = t["Waktu Respon"] ? "TERPENUHI" : ((new Date() > new Date(t["Tenggat Respon"])) ? "GAGAL" : "AMAN"); }
-                            }
-                            return t;
+                            return perbaruiStatusSLAAktualTiket_(t);
                         });
 
                         // --- MAP DATA USERS ---
@@ -4941,6 +4977,7 @@
             let htmlAda = false;
             tiketDitampilkan.forEach(ticket => {
                 if(!ticket) return;
+                perbaruiStatusSLAAktualTiket_(ticket);
                 let idTkt = String(ticket['ID Tiket'] || '');
                 if (!idTkt || idTkt.startsWith('SLS-')) return;
 
@@ -6894,13 +6931,14 @@
 
                             const pesanSelesaiAdmin = `✅ *PEKERJAAN SELESAI*\n\nAssalamu'alaikum Admin,\nTiket perbaikan telah diselesaikan oleh Teknisi dan menunggu pembuatan Nota/Garansi:\n\n🎫 *ID Tiket:* ${tId}\n🏢 *Klien:* ${namaKlienSelesai}\n🛠️ *Pekerjaan:* ${jenisPekerjaan}\n👨‍🔧 *Teknisi:* ${teknisiSelesai}\n\nMohon segera diverifikasi dan diproses Nota/Garansinya!\n🌐 https://aplikasisla.vercel.app/`;
 
-                            // Cari semua Admin yang sesuai dengan cabang aktif
-                            const adminUsers = (globalUsers || []).filter(u => {
-                                const r = String(u.Role || u.role || '').toLowerCase();
-                                const c = String(u.Hak_Akses_Cabang || u.cabang || '').toLowerCase();
-                                const cAktif = String(cabangAktif || 'kendari').toLowerCase();
-                                return (r === 'admin' || r === 'admin_raha') && (c === 'semua' || c === cAktif);
-                            }).map(u => u.Username).join(',');
+                            // Admin tujuan selalu ditentukan dari cabang tiket. Untuk Raha,
+                            // hanya role admin_raha yang boleh menerima; Admin Kendari tidak ikut.
+                            const cabangNotifSelesai = normalisasiCabang(tData.Cabang || cabangTiket) || cabangTiket;
+                            const adminUsers = (globalUsers || [])
+                                .filter(u => penggunaAdalahAdminCabangTiket_(u, cabangNotifSelesai))
+                                .map(u => u.Username || u.username)
+                                .filter(Boolean)
+                                .join(',');
 
                             if (adminUsers) {
                                 kirimNotifWAInternal(adminUsers, pesanSelesaiAdmin);
