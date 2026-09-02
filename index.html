@@ -865,8 +865,8 @@
                     <select id="garansi-referensi" onchange="autoFillGaransi()">
                         <option value="">-- Bismillah, Tanpa Referensi (Input Manual) --</option>
                     </select>
-                    <label>No Transaksi / SO (iPOS - Opsional)</label>
-                    <input type="text" id="garansi-notrans" placeholder="Contoh: 0761/KSR/UTM/0826">
+                    <label>No Transaksi / SO (iPOS) <span style="color:var(--danger);">*</span></label>
+                    <input type="text" id="garansi-notrans" required placeholder="Contoh: 0761/KSR/UTM/0826">
                     <label>Nama Pelanggan / Instansi</label>
                     <input type="text" id="garansi-pelanggan" required>
                     <label>Barang / Perangkat yang Digaransi</label>
@@ -1003,8 +1003,8 @@
                 <h3 class="section-title" style="color:var(--purple);">Form Penjualan Langsung</h3>
                 <form id="form-sls" onsubmit="submitData(event, 'sls')">
                     <label>ID Penjualan</label><input type="text" id="input-id-sls" class="input-terkunci" readonly>
-                    <label>No Transaksi (iPOS)</label>
-                    <input type="text" id="input-notrans-sls" required>
+                    <label>No Transaksi (iPOS) <span style="color:var(--danger);">*</span></label>
+                    <input type="text" id="input-notrans-sls" required placeholder="Wajib diisi">
                     <label>Nama Pembeli</label><input type="text" id="input-pembeli-sls" required oninput="deteksiSalesDariProspek(this, 'input-sales-sls-group')">
                     <label style="color:#1e3a8a;">Nomor WhatsApp Pembeli <span style="color:var(--danger);">*</span></label>
                     <input type="tel" id="input-wa-sls" required placeholder="Contoh: 6285123456789" oninput="formatWA(this)">
@@ -3829,6 +3829,12 @@
             return String(cabang || '').trim().toLowerCase() === 'raha' ? 'TKT-R-' : 'TKT-';
         }
 
+        function prefixPenjualanCabang_(cabang) {
+            // Semua fitur referensi mengenali awalan SLS-. Tambahan R hanya
+            // memisahkan primary key Raha dari nomor penjualan Kendari.
+            return normalisasiCabang(cabang) === 'Raha' ? 'SLS-R-' : 'SLS-';
+        }
+
         function nomorUrutSetelahPrefix_(id, prefix) {
             const nomor = String(id || '').substring(String(prefix || '').length);
             return /^\d+$/.test(nomor) ? Number(nomor) : 0;
@@ -3854,7 +3860,15 @@
                     const num = nomorUrutSetelahPrefix_(id, prefixTiket);
                     if (num > maxTkt) maxTkt = num;
                 });
-                (globalPenjualan || []).forEach(p => { let id = String((p && p['ID Penjualan']) || ''); if(id.startsWith('SLS-')) { let num = parseInt(id.split('-')[1]); if (num > maxSls) maxSls = num; } });
+                // Primary key penjualan digunakan bersama kedua cabang. Nomor
+                // Raha memakai SLS-R- agar tidak bertabrakan dengan Kendari.
+                const prefixPenjualan = prefixPenjualanCabang_(cabangAktif);
+                (globalPenjualan || []).forEach(p => {
+                    const id = String((p && p['ID Penjualan']) || '');
+                    if (!id.startsWith(prefixPenjualan)) return;
+                    const num = nomorUrutSetelahPrefix_(id, prefixPenjualan);
+                    if (num > maxSls) maxSls = num;
+                });
                 // Tabel Prospek memakai primary key global. Kendari tetap PRP-xxx;
                 // Raha memakai PRR-xxx agar nomor antar-cabang tidak saling berbenturan.
                 const prefixProspek = normalisasiCabang(cabangAktif) === 'Raha' ? 'PRR-' : 'PRP-';
@@ -3877,7 +3891,7 @@
 
                 if (!modeEditTiket) {
                     let elTkt = document.getElementById('input-id'); if(elTkt) elTkt.value = prefixTiket + String(maxTkt + 1).padStart(3, '0');
-                    let elSls = document.getElementById('input-id-sls'); if(elSls) elSls.value = 'SLS-' + String(maxSls + 1).padStart(3, '0');
+                    let elSls = document.getElementById('input-id-sls'); if(elSls) elSls.value = prefixPenjualan + String(maxSls + 1).padStart(3, '0');
                 }
 
                 let prospekEl = document.getElementById('prospek-id');
@@ -3886,6 +3900,50 @@
                 let garansiEl = document.getElementById('garansi-id');
                 if(garansiEl) { garansiEl.value = prefixGaransi + String(maxGrs + 1).padStart(3, '0'); }
             } catch(e) { console.error("Error setAutoIDs:", e); }
+        }
+
+        async function idPenjualanTerbaruDariServer_() {
+            const prefix = prefixPenjualanCabang_(cabangAktif);
+            let maxNomor = 0;
+            const dataServer = await callSupabase('penjualan?select=id_penjualan');
+            (Array.isArray(dataServer) ? dataServer : []).forEach(item => {
+                const id = String((item && item.id_penjualan) || '');
+                if (!id.startsWith(prefix)) return;
+                const nomor = nomorUrutSetelahPrefix_(id, prefix);
+                if (nomor > maxNomor) maxNomor = nomor;
+            });
+            return prefix + String(maxNomor + 1).padStart(3, '0');
+        }
+
+        function konflikPrimaryKeyPenjualan_(error) {
+            const kode = String((error && error.code) || '').trim();
+            const pesan = String((error && error.message) || '').toLowerCase();
+            return kode === '23505' && (pesan.includes('penjualan_pkey') || pesan.includes('duplicate key'));
+        }
+
+        function idPenjualanCadanganUnik_() {
+            const kodeCabang = normalisasiCabang(cabangAktif) === 'Raha' ? 'R' : 'K';
+            const kodeWaktu = Date.now().toString(36).toUpperCase();
+            const kodeAcak = Math.random().toString(36).slice(2, 5).toUpperCase();
+            return `SLS-${kodeCabang}${kodeWaktu}${kodeAcak}`;
+        }
+
+        async function simpanPenjualanTanpaBentrok_(payload) {
+            try {
+                const hasil = await callSupabase('penjualan', 'POST', payload);
+                return pastikanHasilMutasiSupabase_(hasil, `Penjualan ${payload.id_penjualan}`);
+            } catch (error) {
+                if (!konflikPrimaryKeyPenjualan_(error)) throw error;
+
+                // Menutup celah race condition: jika dua perangkat memperoleh
+                // nomor urut yang sama, percobaan kedua memakai ID unik namun
+                // tetap berawalan SLS- agar seluruh fitur referensi tetap bekerja.
+                payload.id_penjualan = idPenjualanCadanganUnik_();
+                const inputId = document.getElementById('input-id-sls');
+                if (inputId) inputId.value = payload.id_penjualan;
+                const hasilUlang = await callSupabase('penjualan', 'POST', payload);
+                return pastikanHasilMutasiSupabase_(hasilUlang, `Penjualan ${payload.id_penjualan}`);
+            }
         }
 
         function punyaAksesCRM_() {
@@ -5481,6 +5539,8 @@
                 if(!idGrs || idGrs === "") { setAutoIDs(); idGrs = document.getElementById('garansi-id').value; }
 
                 const referensi = document.getElementById('garansi-referensi').value.trim();
+                const noTransaksiGaransi = document.getElementById('garansi-notrans').value.trim();
+                if (!noTransaksiGaransi) throw new Error('No Transaksi / SO wajib diisi pada Garansi.');
                 const durasiHari = Math.max(0, Number.parseInt(document.getElementById('garansi-durasi').value, 10) || 0);
                 const omzetRaw = document.getElementById('garansi-omzet').value;
                 const poinNilaiStr = String(document.getElementById('garansi-poin-nilai').value || '').trim();
@@ -5516,7 +5576,7 @@
                     status: statusGaransi,
                     tanggal_mulai: tanggalMulai,
                     tanggal_habis: tanggalHabis,
-                    no_transaksi: document.getElementById('garansi-notrans').value,
+                    no_transaksi: noTransaksiGaransi,
                     sales: Array.from(document.querySelectorAll('#garansi-sales-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', '),
                     omzet: String(omzetRaw || '').trim() === '' ? null : angkaRupiahSupabase_(omzetRaw, 0),
                     keterangan: document.getElementById('garansi-keterangan').value,
@@ -5536,7 +5596,6 @@
                 pastikanHasilMutasiSupabase_(hasil, `Garansi ${idGrs}`);
 
                 // === SINKRONISASI NO TRANSAKSI KE REFERENSI ===
-                const noTransaksiGaransi = String(payload.no_transaksi || '').trim();
                 if (noTransaksiGaransi !== '') {
                     let hasilSinkronNoTransaksi = null;
                     let namaReferensiNoTransaksi = '';
@@ -6525,14 +6584,15 @@
                     }
 
                     const noTransaksi = document.getElementById('input-notrans-sls').value.trim();
-                    if (noTransaksi) {
-                        const duplikat = await callSupabase(`penjualan?no_transaksi=eq.${encodeURIComponent(noTransaksi)}&select=id_penjualan&limit=1`);
-                        if (Array.isArray(duplikat) && duplikat.length > 0) throw new Error(`No Transaksi / SO '${noTransaksi}' sudah pernah diinput.`);
-                    }
+                    if (!noTransaksi) throw new Error('No Transaksi wajib diisi pada Penjualan.');
+                    const duplikat = await callSupabase(`penjualan?no_transaksi=eq.${encodeURIComponent(noTransaksi)}&select=id_penjualan&limit=1`);
+                    if (Array.isArray(duplikat) && duplikat.length > 0) throw new Error(`No Transaksi / SO '${noTransaksi}' sudah pernah diinput.`);
 
                     const cabangAktual = normalisasiCabang(cabangAktif) || 'Kendari';
+                    const idPenjualanTerbaru = await idPenjualanTerbaruDariServer_();
+                    document.getElementById('input-id-sls').value = idPenjualanTerbaru;
                     const penjualanBaru = {
-                        id_penjualan: document.getElementById('input-id-sls').value,
+                        id_penjualan: idPenjualanTerbaru,
                         no_transaksi: noTransaksi,
                         waktu_lapor: tanggalIsoSupabase_(),
                         nama_pembeli: document.getElementById('input-pembeli-sls').value,
@@ -6542,8 +6602,7 @@
                         cabang: cabangAktual,
                         admin_sla: adminSlaSupabase_(cabangAktual)
                     };
-                    const hasil = await callSupabase('penjualan', 'POST', penjualanBaru);
-                    pastikanHasilMutasiSupabase_(hasil, `Penjualan ${penjualanBaru.id_penjualan}`);
+                    await simpanPenjualanTanpaBentrok_(penjualanBaru);
 
                     const namaPembeliNormal = normalisasiNamaCustomerProspek_(penjualanBaru.nama_pembeli);
                     const prospekPenjualan = (globalProspek || []).slice().reverse().find(prospek =>
