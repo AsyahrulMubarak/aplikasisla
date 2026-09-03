@@ -1764,7 +1764,7 @@
                 return true;
             });
 
-            await Promise.all(prospekPerluDiubah.map(async prospek => {
+            const hasilPembaruan = await Promise.all(prospekPerluDiubah.map(async prospek => {
                 const idProspek = String(prospek.id_prospek).trim();
                 const hasil = await callSupabase(
                     endpointFilterSupabase_('prospek', 'id_prospek', idProspek),
@@ -1781,10 +1781,20 @@
                 const pesanWA = `⚠️ *UPDATE PROSPEK OTOMATIS*\n\nAssalamu'alaikum Sales,\nStatus prospek Anda atas nama *${namaCustomerProspek}* kini berubah menjadi:\n\n${ikon} *${statusProspekTujuan}*\n\nStatus ini disinkronkan otomatis karena Teknisi telah mengubah status tiket perbaikannya. Mohon pantau terus di aplikasi SLA!`;
 
                 const hasilNotifProspek = await kirimNotifWAInternal(prospek.sales_penanggung_jawab, pesanWA);
-                if (hasilNotifProspek.gagal > 0) console.error(`Notif WA Prospek ${idProspek} ke Sales gagal.`);
+                const notifTerkirim = Number(hasilNotifProspek && hasilNotifProspek.terkirim) || 0;
+                const notifGagalDilaporkan = Number(hasilNotifProspek && hasilNotifProspek.gagal) || 0;
+                const notifGagal = notifGagalDilaporkan + (notifTerkirim === 0 && notifGagalDilaporkan === 0 ? 1 : 0);
+                if (notifGagal > 0) console.error(`Notif WA Prospek ${idProspek} ke Sales gagal atau nomor WA Sales tidak ditemukan.`);
+                return { notifTerkirim: notifTerkirim, notifGagal: notifGagal };
             }));
 
-            return { ditemukan: prospekCocok.length, diperbarui: prospekPerluDiubah.length, status: statusProspekTujuan };
+            return {
+                ditemukan: prospekCocok.length,
+                diperbarui: prospekPerluDiubah.length,
+                status: statusProspekTujuan,
+                notifTerkirim: hasilPembaruan.reduce((total, item) => total + item.notifTerkirim, 0),
+                notifGagal: hasilPembaruan.reduce((total, item) => total + item.notifGagal, 0)
+            };
         }
         // =========================================================================
 
@@ -7156,8 +7166,14 @@
 
                 // === SINKRONISASI OTOMATIS KE PROSPEK (SETIAP KALI TIKET BERHASIL DIUPDATE) ===
                 try {
-                    await sinkronkanStatusProspekDariTiket_(statusBaru, (tiketLama && tiketLama['WA Klien']) || '', (tiketLama && tiketLama['Klien & Lokasi']) || '');
+                    const hasilSinkronProspek = await sinkronkanStatusProspekDariTiket_(status, (tiketLama && tiketLama['WA Klien']) || '', (tiketLama && tiketLama['Klien & Lokasi']) || '');
+                    if (hasilSinkronProspek.ditemukan === 0) {
+                        console.warn(`Tidak ada Prospek yang cocok untuk tiket ${idTiket}; sinkronisasi dilewati.`);
+                    } else if (hasilSinkronProspek.notifGagal > 0) {
+                        sinkronProspekGagal = true;
+                    }
                 } catch (errSync) {
+                    sinkronProspekGagal = true;
                     console.error("Gagal sinkronisasi prospek:", errSync);
                 }
 
