@@ -553,6 +553,45 @@
         let urutanLoadPayroll = 0;
         let urutanLoadDataPayroll = 0;
         let currentTab = 'slip';
+        let controllerLoadDataPayroll_ = null;
+        let waktuPwaPayrollDisembunyikan_ = 0;
+        let timerPemulihanPayroll_ = null;
+        let komponenPayrollKotor_ = false;
+        let tunjanganPayrollKotor_ = false;
+
+        const PWA_WORKER_READY_TIMEOUT_MS_ = 5000;
+
+        function tungguWorkerAktif_(worker) {
+            if (!worker || worker.state === 'activated') return Promise.resolve();
+            return new Promise(resolve => {
+                const selesai = () => {
+                    if (worker.state === 'activated' || worker.state === 'redundant') resolve();
+                };
+                worker.addEventListener('statechange', selesai);
+                setTimeout(resolve, PWA_WORKER_READY_TIMEOUT_MS_);
+            });
+        }
+
+        async function siapkanServiceWorkerPWA_() {
+            if (!('serviceWorker' in navigator)) return false;
+            const prosesWorker = (async () => {
+                const registration = await navigator.serviceWorker.register('./sw.js', {
+                    scope: './',
+                    updateViaCache: 'none'
+                });
+                try { await registration.update(); }
+                catch (errorUpdate) { console.warn('Pembaruan service worker ditunda:', errorUpdate); }
+                await tungguWorkerAktif_(registration.installing || registration.waiting);
+                return true;
+            })().catch(error => {
+                console.warn('Service worker PWA tidak dapat disiapkan; payroll tetap memakai jaringan langsung:', error);
+                return false;
+            });
+            return Promise.race([
+                prosesWorker,
+                new Promise(resolve => setTimeout(() => resolve(false), PWA_WORKER_READY_TIMEOUT_MS_))
+            ]);
+        }
 
         function penggunaAdalahTeknisiUjiPayroll_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
@@ -715,8 +754,14 @@
             }, 3500);
         }
 
-        async function fetchJsonDenganTimeout_(url, payload, label, timeoutMs = FETCH_TIMEOUT_MS) {
+        async function fetchJsonDenganTimeout_(url, payload, label, timeoutMs = FETCH_TIMEOUT_MS, opsiRequest = {}) {
             const controller = new AbortController();
+            const sinyalEksternal = opsiRequest && opsiRequest.signal;
+            const batalkanDariLuar = () => controller.abort();
+            if (sinyalEksternal) {
+                if (sinyalEksternal.aborted) controller.abort();
+                else sinyalEksternal.addEventListener('abort', batalkanDariLuar, { once: true });
+            }
             const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
             try {
                 const response = await fetch(url, {
@@ -737,11 +782,18 @@
                 return json;
             } catch (error) {
                 if (error && error.name === 'AbortError') {
+                    if (sinyalEksternal && sinyalEksternal.aborted) {
+                        const errorBatal = new Error(`${label} lama dibatalkan untuk memulai koneksi baru.`);
+                        errorBatal.code = 'REQUEST_ABORTED';
+                        throw errorBatal;
+                    }
                     throw new Error(`${label} melewati batas waktu ${Math.round(timeoutMs / 1000)} detik`);
                 }
+                if (error && error.code === 'REQUEST_ABORTED') throw error;
                 throw new Error(`${label}: ${error.message || error}`);
             } finally {
                 clearTimeout(timeoutId);
+                if (sinyalEksternal) sinyalEksternal.removeEventListener('abort', batalkanDariLuar);
             }
         }
 
@@ -753,11 +805,13 @@
                 pesan.includes('token jwt supabase ditolak');
         }
 
-        async function tarikDataAbsensiDenganPemulihan_(periode) {
+        async function tarikDataAbsensiDenganPemulihan_(periode, opsiRequest = {}) {
             const mintaDataAbsen = () => fetchJsonDenganTimeout_(
                 API_ABSEN,
                 payloadSesiSlip('getAbsen', { periode: periode }),
-                'Database absensi'
+                'Database absensi',
+                FETCH_TIMEOUT_MS,
+                opsiRequest
             );
             try {
                 return await mintaDataAbsen();
@@ -771,6 +825,7 @@
         }
 
         window.onload = async function() {
+            await siapkanServiceWorkerPWA_();
             let now = new Date();
             let m = String(now.getMonth() + 1).padStart(2, '0');
             document.getElementById('pilih-bulan').value = `${now.getFullYear()}-${m}`;
@@ -794,8 +849,19 @@
                 document.getElementById('btn-simpan-variabel').style.display = 'none';
             }
 
-            await tarikSemuaData();
+            await tarikSemuaData(false, { paksaBaru: true });
         };
+
+        document.addEventListener('input', event => {
+            const target = event.target;
+            if (!target || !target.closest) return;
+            if (target.closest('#div-komponen-variabel')) komponenPayrollKotor_ = true;
+            if (target.closest('#dynamic-bonus-section')) tunjanganPayrollKotor_ = true;
+        });
+        document.addEventListener('click', event => {
+            const target = event.target;
+            if (target && target.closest && target.closest('#wadah-bonus .btn-del')) tunjanganPayrollKotor_ = true;
+        }, true);
 
         function normalisasiNamaPayroll(nama) {
             return String(nama || '').trim().toLowerCase();
@@ -966,6 +1032,7 @@
                 globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] = json.data;
                 periodePayrollTermuat = periode;
                 terapkanVariabelPayrollKeForm(namaPegawai);
+                komponenPayrollKotor_ = false;
                 showToast('Alhamdulillah! Komponen payroll ' + periode + ' untuk ' + namaPegawai + ' berhasil disimpan.', 'success');
             } catch (err) {
                 showToast('Afwan, gagal menyimpan komponen payroll: ' + err.message, 'error');
@@ -1053,6 +1120,7 @@
                         if(profil.hasOwnProperty('Bonus Tambahan')) profil['Bonus Tambahan'] = finalStr;
                         else if(profil.hasOwnProperty('Bonus')) profil['Bonus'] = finalStr;
                     }
+                    tunjanganPayrollKotor_ = false;
                     showToast("Alhamdulillah! Tunjangan permanen milik " + namaTarget + " berhasil disimpan ke Database.", "success");
                 } else {
                     showToast("Afwan, gagal: " + json.pesan, "error");
@@ -1097,13 +1165,36 @@
             }, tambahan);
         }
 
-        async function tarikSemuaData(pertahankanPegawai = false) {
+        function buatErrorBatalPayroll_() {
+            const error = new Error('Pengunduhan data payroll lama dibatalkan.');
+            error.code = 'REQUEST_ABORTED';
+            return error;
+        }
+
+        async function jalankanSumberPayrollDenganUlang_(label, jalankan, signal) {
+            try {
+                return await jalankan();
+            } catch (errorAwal) {
+                if ((errorAwal && errorAwal.code === 'REQUEST_ABORTED') || (signal && signal.aborted)) {
+                    throw buatErrorBatalPayroll_();
+                }
+                console.warn(`[PAYROLL] ${label} gagal pada percobaan pertama; mengulang sumber ini saja:`, errorAwal);
+                await new Promise(resolve => setTimeout(resolve, 750));
+                if (signal && signal.aborted) throw buatErrorBatalPayroll_();
+                return await jalankan();
+            }
+        }
+
+        async function tarikSemuaData(pertahankanPegawai = false, opsiMuat = {}) {
             const periode = document.getElementById('pilih-bulan').value;
             if (!/^\d{4}-\d{2}$/.test(String(periode || ''))) {
                 showToast('Pilih periode payroll yang valid.', 'warning');
                 return false;
             }
 
+            if (controllerLoadDataPayroll_) controllerLoadDataPayroll_.abort();
+            const controller = new AbortController();
+            controllerLoadDataPayroll_ = controller;
             const urutanRequest = ++urutanLoadDataPayroll;
             const loading = document.getElementById('loading');
             const namaSebelumnya = pertahankanPegawai ? document.getElementById('pilih-pegawai').value : '';
@@ -1112,16 +1203,31 @@
 
             try {
                 await pastikanTokenSupabaseAktif_();
-                // Kedua deployment GAS dipanggil bersamaan. Backend utama hanya
-                // mengambil users, tiket pada periode aktif, dan komponen payroll.
-                const [dataSLA, dataAbsen] = await Promise.all([
-                    fetchJsonDenganTimeout_(
+                if (controller.signal.aborted) throw buatErrorBatalPayroll_();
+
+                // Kedua sumber tetap paralel, namun kegagalan satu sumber hanya
+                // mengulang sumber tersebut. Data baru di-commit setelah keduanya valid.
+                const hasilSumber = await Promise.allSettled([
+                    jalankanSumberPayrollDenganUlang_('Database payroll', () => fetchJsonDenganTimeout_(
                         apiUrl,
                         payloadSesiSlip('getPayrollData', { periode: periode }),
-                        'Database payroll'
-                    ),
-                    tarikDataAbsensiDenganPemulihan_(periode)
+                        'Database payroll',
+                        FETCH_TIMEOUT_MS,
+                        { signal: controller.signal }
+                    ), controller.signal),
+                    jalankanSumberPayrollDenganUlang_('Database absensi', () => tarikDataAbsensiDenganPemulihan_(
+                        periode,
+                        { signal: controller.signal }
+                    ), controller.signal)
                 ]);
+
+                if (controller.signal.aborted) throw buatErrorBatalPayroll_();
+                const kegagalanSumber = [];
+                if (hasilSumber[0].status === 'rejected') kegagalanSumber.push('Payroll: ' + (hasilSumber[0].reason && hasilSumber[0].reason.message || hasilSumber[0].reason));
+                if (hasilSumber[1].status === 'rejected') kegagalanSumber.push('Absensi: ' + (hasilSumber[1].reason && hasilSumber[1].reason.message || hasilSumber[1].reason));
+                if (kegagalanSumber.length) throw new Error(kegagalanSumber.join(' | '));
+                const dataSLA = hasilSumber[0].value;
+                const dataAbsen = hasilSumber[1].value;
 
                 if (urutanRequest !== urutanLoadDataPayroll || document.getElementById('pilih-bulan').value !== periode) {
                     return false;
@@ -1164,28 +1270,82 @@
                 loadTunjanganPegawai();
                 terapkanVariabelPayrollKeForm(document.getElementById('pilih-pegawai').value);
                 cekKunciBulan();
+                komponenPayrollKotor_ = false;
+                tunjanganPayrollKotor_ = false;
                 return true;
             } catch(e) {
-                if (urutanRequest !== urutanLoadDataPayroll) return false;
+                if (urutanRequest !== urutanLoadDataPayroll || (e && e.code === 'REQUEST_ABORTED')) return false;
                 console.error('Gagal menarik data payroll:', e);
-                globalPayrollBulanan = {};
-                periodePayrollTermuat = '';
-                document.getElementById('input-fee').value = 0;
-                document.getElementById('input-kasbon').value = 0;
-                document.getElementById('input-luar-kota').value = '';
-                const btnSimpan = document.getElementById('btn-simpan-variabel');
-                if (btnSimpan) btnSimpan.disabled = true;
                 const infoKunci = document.getElementById('info-kunci-bulan');
-                if (infoKunci) {
-                    infoKunci.innerText = '⚠️ Data periode gagal dimuat; data lama tidak digunakan.';
-                    infoKunci.style.color = '#b91c1c';
+                const punyaDataLamaLengkap = periodeDataPayrollTermuat === periode
+                    && globalUsers.length > 0 && globalAbsen.length > 0;
+                if (!punyaDataLamaLengkap) {
+                    globalPayrollBulanan = {};
+                    periodePayrollTermuat = '';
+                    document.getElementById('input-fee').value = 0;
+                    document.getElementById('input-kasbon').value = 0;
+                    document.getElementById('input-luar-kota').value = '';
+                    const btnSimpan = document.getElementById('btn-simpan-variabel');
+                    if (btnSimpan) btnSimpan.disabled = true;
+                    if (infoKunci) infoKunci.innerText = '⚠️ Data periode gagal dimuat; data lama tidak digunakan.';
+                } else if (infoKunci) {
+                    infoKunci.innerText = '⚠️ Pembaruan gagal; data lengkap terakhir tetap ditampilkan.';
                 }
+                if (infoKunci) infoKunci.style.color = '#b91c1c';
                 showToast('Gagal menarik data. Detail: ' + e.message, 'error');
                 return false;
             } finally {
+                if (controllerLoadDataPayroll_ === controller) controllerLoadDataPayroll_ = null;
                 if (urutanRequest === urutanLoadDataPayroll) loading.style.display = 'none';
             }
         }
+
+        function payrollBerjalanSebagaiPwa_() {
+            return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+                || window.navigator.standalone === true;
+        }
+
+        function jadwalkanPemulihanPayrollPwa_(alasan) {
+            if (!payrollBerjalanSebagaiPwa_() || !penggunaAktif) return;
+            if (timerPemulihanPayroll_) clearTimeout(timerPemulihanPayroll_);
+            timerPemulihanPayroll_ = setTimeout(async () => {
+                timerPemulihanPayroll_ = null;
+                if (document.visibilityState === 'hidden' || !penggunaAktif) return;
+                if (navigator.onLine === false) {
+                    showToast('Perangkat masih offline. Data payroll terakhir tetap ditampilkan.', 'warning');
+                    return;
+                }
+                if (komponenPayrollKotor_ || tunjanganPayrollKotor_) {
+                    showToast('Ada perubahan payroll yang belum disimpan. Sinkronisasi otomatis ditunda.', 'warning');
+                    return;
+                }
+                console.log('[PWA PAYROLL] Memulihkan koneksi setelah:', alasan);
+                const berhasil = await tarikSemuaData(true, { paksaBaru: true });
+                if (berhasil && alasan === 'online') showToast('Koneksi kembali aktif. Data payroll telah diperbarui.', 'success');
+            }, 250);
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (!payrollBerjalanSebagaiPwa_()) return;
+            if (document.visibilityState === 'hidden') {
+                waktuPwaPayrollDisembunyikan_ = Date.now();
+                return;
+            }
+            const lamaTersembunyi = waktuPwaPayrollDisembunyikan_
+                ? Date.now() - waktuPwaPayrollDisembunyikan_
+                : 0;
+            waktuPwaPayrollDisembunyikan_ = 0;
+            if (lamaTersembunyi >= 30000) jadwalkanPemulihanPayrollPwa_('aplikasi dibuka kembali');
+        });
+        window.addEventListener('pageshow', event => {
+            if (event.persisted) jadwalkanPemulihanPayrollPwa_('halaman dipulihkan');
+        });
+        window.addEventListener('online', () => jadwalkanPemulihanPayrollPwa_('online'));
+        window.addEventListener('offline', () => {
+            if (payrollBerjalanSebagaiPwa_() && penggunaAktif) {
+                showToast('Perangkat sedang offline. Data payroll terakhir tetap ditampilkan.', 'warning');
+            }
+        });
 
         function isiDropdownPegawai(namaPreferensi = '') {
             let select = document.getElementById('pilih-pegawai');

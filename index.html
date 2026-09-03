@@ -613,7 +613,7 @@
                     <textarea id="ba-kritik" rows="2" placeholder="Masukan dari Klien..."></textarea>
                     <!-- BUNGKUS NAMA & TTD KLIEN -->
                     <div id="wadah-ttd-klien" style="display: none; padding-top: 10px; border-top: 1px solid #e2e8f0; margin-top:15px;">
-                    <label>Nama PIC Klien</label>
+                    <label>Nama PIC Klien <span id="status-nama-customer" style="color:var(--success); font-weight:normal; font-size:11px;"></span></label>
                     <input type="text" id="ba-nama-customer" placeholder="Nama penanda tangan">
                     <label>Tanda Tangan <span id="status-ttd" style="color:var(--success); font-weight:normal; font-size:11px;"></span></label>
                     <div class="signature-wrapper"><canvas id="signature-pad"></canvas></div>
@@ -1446,7 +1446,7 @@
             return true;
         }
 
-        async function callSupabase(endpoint, method = "GET", payload = null) {
+        async function callSupabase(endpoint, method = "GET", payload = null, opsiRequest = {}) {
             if (!cabangAktif) throw new Error('Cabang aktif belum dipilih.');
             const url = endpoint.startsWith('http') ? endpoint : `${SUPABASE_URL}/rest/v1/${endpoint}`;
             const jalankanRequest = async (bolehRefreshUlang) => {
@@ -1460,6 +1460,12 @@
                 if (method !== 'GET') headers.Prefer = 'return=representation';
 
                 const controller = new AbortController();
+                const sinyalEksternal = opsiRequest && opsiRequest.signal;
+                const batalkanDariLuar = () => controller.abort();
+                if (sinyalEksternal) {
+                    if (sinyalEksternal.aborted) controller.abort();
+                    else sinyalEksternal.addEventListener('abort', batalkanDariLuar, { once: true });
+                }
                 const timeoutId = setTimeout(() => controller.abort(), SUPABASE_FETCH_TIMEOUT_MS);
                 const options = { method: method, headers: headers, signal: controller.signal };
                 if (payload && ['POST', 'PATCH', 'PUT'].includes(method)) options.body = JSON.stringify(payload);
@@ -1483,6 +1489,11 @@
                     return responseText ? JSON.parse(responseText) : [];
                 } catch (error) {
                     if (error && error.name === 'AbortError') {
+                        if (sinyalEksternal && sinyalEksternal.aborted) {
+                            const cancelError = new Error('Pengunduhan data lama dibatalkan untuk memulai koneksi baru.');
+                            cancelError.code = 'REQUEST_ABORTED';
+                            throw cancelError;
+                        }
                         const timeoutError = new Error(`Supabase tidak merespons dalam ${Math.round(SUPABASE_FETCH_TIMEOUT_MS / 1000)} detik.`);
                         timeoutError.code = 'SUPABASE_TIMEOUT';
                         throw timeoutError;
@@ -1490,6 +1501,7 @@
                     throw error;
                 } finally {
                     clearTimeout(timeoutId);
+                    if (sinyalEksternal) sinyalEksternal.removeEventListener('abort', batalkanDariLuar);
                 }
             };
 
@@ -1778,6 +1790,8 @@
 
         let globalTickets = []; let globalUsers = []; let globalPenjualan = []; let globalProspek = []; let globalKlien = []; let globalGaransi = [];
         let permintaanDataAktif_ = null;
+        let waktuPwaDisembunyikan_ = 0;
+        let timerPemulihanPwa_ = null;
         let buktiProspekTerpilih = null;
         let pilihanBroadcastCRM = new Map();
         let broadcastCRMSedangDikirim = false;
@@ -1843,24 +1857,40 @@
             await promptAktif.userChoice;
         }
 
-        // Service Worker sengaja dinonaktifkan: data operasional dan pre-fetch biometrik harus selalu ke jaringan.
-        // Bersihkan registrasi lama sekali agar perangkat yang pernah memasang PWA tidak tetap dikontrol sw.js.
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(registrations => {
-                if (registrations.length === 0) {
-                    try { sessionStorage.removeItem('swCleanupReloaded'); } catch (error) { /* Storage opsional. */ }
-                    return false;
-                }
-                return Promise.all(registrations.map(registration => registration.unregister()))
-                    .then(hasil => hasil.some(Boolean));
-            }).then(registrasiDihapus => {
-                if (!registrasiDihapus || !navigator.serviceWorker.controller) return;
-                let sudahReload = false;
-                try { sudahReload = sessionStorage.getItem('swCleanupReloaded') === 'true'; } catch (error) { /* Storage opsional. */ }
-                if (sudahReload) return;
-                try { sessionStorage.setItem('swCleanupReloaded', 'true'); } catch (error) { /* Storage opsional. */ }
-                window.location.reload();
-            }).catch(error => console.error('Pembersihan Service Worker gagal:', error));
+        const PWA_WORKER_READY_TIMEOUT_MS_ = 5000;
+
+        function tungguWorkerAktif_(worker) {
+            if (!worker || worker.state === 'activated') return Promise.resolve();
+            return new Promise(resolve => {
+                const selesai = () => {
+                    if (worker.state === 'activated' || worker.state === 'redundant') resolve();
+                };
+                worker.addEventListener('statechange', selesai);
+                setTimeout(resolve, PWA_WORKER_READY_TIMEOUT_MS_);
+            });
+        }
+
+        async function siapkanServiceWorkerPWA_() {
+            if (!('serviceWorker' in navigator)) return false;
+
+            const prosesWorker = (async () => {
+                const registration = await navigator.serviceWorker.register('./sw.js', {
+                    scope: './',
+                    updateViaCache: 'none'
+                });
+                try { await registration.update(); }
+                catch (errorUpdate) { console.warn('Pembaruan service worker ditunda:', errorUpdate); }
+                await tungguWorkerAktif_(registration.installing || registration.waiting);
+                return true;
+            })().catch(error => {
+                console.warn('Service worker PWA tidak dapat disiapkan; aplikasi tetap memakai jaringan langsung:', error);
+                return false;
+            });
+
+            return Promise.race([
+                prosesWorker,
+                new Promise(resolve => setTimeout(() => resolve(false), PWA_WORKER_READY_TIMEOUT_MS_))
+            ]);
         }
         let currentTrackTicket = null;
 
@@ -2375,7 +2405,8 @@
             loading.style.display = 'block';
             loading.innerText = `Mengunduh database Cabang ${cabangAktif}...`;
             try {
-                await ambilSemuaData(true);
+                const berhasil = await ambilSemuaData(true, null, { paksaBaru: true });
+                if (!berhasil) throw new Error(`Database Cabang ${cabangAktif} belum berhasil diunduh.`);
             } finally {
                 loading.style.display = 'none';
                 loading.innerText = 'Sinkronisasi data sistem...';
@@ -3288,26 +3319,55 @@
             }
         }
 
+        async function jalankanSumberDataDenganUlang_(label, jalankan, signal) {
+            try {
+                return await jalankan();
+            } catch (errorAwal) {
+                if ((errorAwal && errorAwal.code === 'REQUEST_ABORTED') || (signal && signal.aborted)) {
+                    const errorBatal = new Error('Pengunduhan data lama dibatalkan.');
+                    errorBatal.code = 'REQUEST_ABORTED';
+                    throw errorBatal;
+                }
+                console.warn(`[DATA DIRECT] ${label} gagal pada percobaan pertama; mengulang sumber ini saja:`, errorAwal);
+                await new Promise(resolve => setTimeout(resolve, 750));
+                if (signal && signal.aborted) {
+                    const errorBatal = new Error('Pengunduhan data lama dibatalkan.');
+                    errorBatal.code = 'REQUEST_ABORTED';
+                    throw errorBatal;
+                }
+                return await jalankan();
+            }
+        }
+
         async function refreshManual() {
             const btn = document.getElementById('btn-refresh');
             const teksAwal = btn.innerText;
             btn.innerText = '⏳ Menyinkronkan...';
             btn.disabled = true;
-            await ambilSemuaData(true);
-            btn.innerText = teksAwal;
-            btn.disabled = false;
-            showToast('Sinkronisasi selesai! Data sudah terupdate.', 'success');
+            try {
+                const berhasil = await ambilSemuaData(true, null, { paksaBaru: true });
+                if (berhasil) showToast('Sinkronisasi selesai! Data sudah terupdate.', 'success');
+            } finally {
+                btn.innerText = teksAwal;
+                btn.disabled = false;
+            }
         }
 
-        async function ambilSemuaData(isSilentRefresh = false, trackId = null) {
+        async function ambilSemuaData(isSilentRefresh = false, trackId = null, opsiMuat = {}) {
             const kunciRequest = `${String(trackId || '').trim() || 'app'}|${cabangAktif || '-'}`;
-            if (permintaanDataAktif_ && permintaanDataAktif_.kunci === kunciRequest) {
+            const paksaBaru = !!(opsiMuat && opsiMuat.paksaBaru);
+            if (permintaanDataAktif_ && permintaanDataAktif_.kunci === kunciRequest && !paksaBaru) {
                 console.log('[DATA DIRECT] Menggunakan request yang masih berjalan:', kunciRequest);
                 return permintaanDataAktif_.promise;
             }
 
-            const promise = ambilSemuaDataInternal_(isSilentRefresh, trackId);
-            permintaanDataAktif_ = { kunci: kunciRequest, promise: promise };
+            if (permintaanDataAktif_ && permintaanDataAktif_.controller) {
+                permintaanDataAktif_.controller.abort();
+            }
+
+            const controller = new AbortController();
+            const promise = ambilSemuaDataInternal_(isSilentRefresh, trackId, { signal: controller.signal });
+            permintaanDataAktif_ = { kunci: kunciRequest, promise: promise, controller: controller };
             try {
                 return await promise;
             } finally {
@@ -3315,12 +3375,20 @@
             }
         }
 
-        async function ambilSemuaDataInternal_(isSilentRefresh = false, trackId = null) {
-            let maxRetries = 2; let berhasil = false; let lastErrorMsg = "";
+        async function ambilSemuaDataInternal_(isSilentRefresh = false, trackId = null, opsiMuat = {}) {
             const trackIdNormal = String(trackId || '').trim();
+            // Tracking publik tetap memakai retry siklus lama. Aplikasi internal
+            // melakukan retry per sumber agar tabel yang sukses tidak diunduh ulang.
+            let maxRetries = trackIdNormal ? 2 : 1; let berhasil = false; let lastErrorMsg = "";
+            const sinyalMuat = opsiMuat && opsiMuat.signal;
 
             for (let i = 0; i < maxRetries; i++) {
                 try {
+                    if (sinyalMuat && sinyalMuat.aborted) {
+                        const errorBatal = new Error('Pengunduhan data lama dibatalkan.');
+                        errorBatal.code = 'REQUEST_ABORTED';
+                        throw errorBatal;
+                    }
                     if (!isSilentRefresh) {
                         document.getElementById('login-loading').innerHTML = i === 0 ? 'Mengunduh data super cepat...' : `<span style="color:var(--warning);">Koneksi lambat. Mencoba ulang... (${i}/${maxRetries})</span>`;
                         document.getElementById('login-loading').style.display = 'block';
@@ -3364,25 +3432,23 @@
 
                         const kolomUsers = 'username,role,nama_asli,email,target_sales_rp,no_wa,gaji_pokok,bonus_tambahan,hak_akses_cabang';
                         let reqs = [
-                            callSupabase(`tiket?select=*&${cabangFilter}&order=id_tiket.desc`),
-                            callSupabase(`users?select=${kolomUsers}`)
+                            jalankanSumberDataDenganUlang_('Tiket', () => callSupabase(`tiket?select=*&${cabangFilter}&order=id_tiket.desc`, 'GET', null, { signal: sinyalMuat }), sinyalMuat),
+                            jalankanSumberDataDenganUlang_('User', () => callSupabase(`users?select=${kolomUsers}`, 'GET', null, { signal: sinyalMuat }), sinyalMuat)
                         ];
 
                         if (isManajemen || isSales) {
-                            reqs.push(callSupabase(`penjualan?select=*&${cabangFilter}&order=id_penjualan.desc`));
-                            reqs.push(callSupabase(`prospek?select=*&${cabangFilter}&order=id_prospek.desc`));
+                            reqs.push(jalankanSumberDataDenganUlang_('Penjualan', () => callSupabase(`penjualan?select=*&${cabangFilter}&order=id_penjualan.desc`, 'GET', null, { signal: sinyalMuat }), sinyalMuat));
+                            reqs.push(jalankanSumberDataDenganUlang_('Prospek', () => callSupabase(`prospek?select=*&${cabangFilter}&order=id_prospek.desc`, 'GET', null, { signal: sinyalMuat }), sinyalMuat));
                         } else {
                             reqs.push(Promise.resolve([])); reqs.push(Promise.resolve([]));
                         }
 
-                        // Garansi dan CRM tidak boleh menahan tampilan Dasbor utama.
-                        // Request tetap dimulai paralel, tetapi kegagalannya diisolasi.
-                        const promiseTambahan = Promise.allSettled(isManajemen ? [
-                            callSupabase(`garansi?select=*&${cabangFilter}&order=id_garansi.desc`),
-                            callSupabase(`database_klien?select=*&${cabangFilter}`)
-                        ] : [Promise.resolve([]), Promise.resolve([])]);
-
                         const [dbTiket, dbUsers, dbPenjualan, dbProspek] = await Promise.all(reqs);
+                        if (sinyalMuat && sinyalMuat.aborted) {
+                            const errorBatal = new Error('Pengunduhan data lama dibatalkan.');
+                            errorBatal.code = 'REQUEST_ABORTED';
+                            throw errorBatal;
+                        }
                         let dbGaransi = [];
                         let dbKlien = [];
 
@@ -3442,6 +3508,11 @@
 
                         // Dasbor, tiket, penjualan, dan prospek sudah dapat dipakai
                         // tanpa menunggu dua dataset pendukung selesai.
+                        if (sinyalMuat && sinyalMuat.aborted) {
+                            const errorBatal = new Error('Pengunduhan data lama dibatalkan.');
+                            errorBatal.code = 'REQUEST_ABORTED';
+                            throw errorBatal;
+                        }
                         if (isSilentRefresh && penggunaAktif) {
                             renderDashboard();
                             renderTickets();
@@ -3449,7 +3520,17 @@
                             renderProspek();
                         }
 
-                        const hasilTambahan = await promiseTambahan;
+                        // Mulai dataset pendukung setelah data utama selesai. Ini
+                        // mengurangi lonjakan koneksi di PWA tanpa mengubah isi data.
+                        const hasilTambahan = await Promise.allSettled(isManajemen ? [
+                            callSupabase(`garansi?select=*&${cabangFilter}&order=id_garansi.desc`, 'GET', null, { signal: sinyalMuat }),
+                            callSupabase(`database_klien?select=*&${cabangFilter}`, 'GET', null, { signal: sinyalMuat })
+                        ] : [Promise.resolve([]), Promise.resolve([])]);
+                        if (sinyalMuat && sinyalMuat.aborted) {
+                            const errorBatal = new Error('Pengunduhan data lama dibatalkan.');
+                            errorBatal.code = 'REQUEST_ABORTED';
+                            throw errorBatal;
+                        }
                         if (hasilTambahan[0].status === 'fulfilled') dbGaransi = hasilTambahan[0].value || [];
                         else console.warn('[DATA DIRECT] Garansi gagal dimuat tanpa menahan Dasbor:', hasilTambahan[0].reason);
                         if (hasilTambahan[1].status === 'fulfilled') dbKlien = hasilTambahan[1].value || [];
@@ -3481,19 +3562,20 @@
                     berhasil = true; break;
 
                 } catch (error) {
+                    if (error && error.code === 'REQUEST_ABORTED') return false;
                     lastErrorMsg = error.message;
                     const errorAutentikasi = error && (error.code === 'AUTH_EXPIRED' || error.status === 401 || error.status === 403);
                     if (errorAutentikasi || i === maxRetries - 1) {
                         if (!isSilentRefresh) { tetapkanHtmlAman_(document.getElementById('login-loading'), `<span style="color:var(--danger); font-weight:bold; font-size:12px;">Error: ${amanTeks_(lastErrorMsg)}</span><br><br><button class="btn-outline-cancel" onclick="window.location.reload()">Silakan muat ulang halaman</button>`); }
                         else showToast('Gagal mengunduh data: ' + lastErrorMsg, 'error');
-                        return;
+                        return false;
                     }
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
-            if (!berhasil) return;
+            if (!berhasil) return false;
 
-            if (trackIdNormal) { renderClientTracking(trackIdNormal); return; }
+            if (trackIdNormal) { renderClientTracking(trackIdNormal); return true; }
 
             try {
                 if(!penggunaAktif) {
@@ -3514,8 +3596,49 @@
                     // yang sudah tervalidasi tanpa mengubah alur login/simpan.
                     mulaiRealtimeSLA_().catch(error => console.warn('[SUPABASE REALTIME] Inisialisasi dilewati:', error));
                 }
-            } catch(e) { console.error("Error App:", e); showToast("Afwan, Error merender aplikasi: " + e.message, "error"); }
+            } catch(e) { console.error("Error App:", e); showToast("Afwan, Error merender aplikasi: " + e.message, "error"); return false; }
+            return true;
         }
+
+        function aplikasiBerjalanSebagaiPwa_() {
+            return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+                || window.navigator.standalone === true;
+        }
+
+        function jadwalkanPemulihanPwa_(alasan) {
+            if (!aplikasiBerjalanSebagaiPwa_() || !penggunaAktif || !cabangAktif) return;
+            if (modeEditTiket || modeEditUser || modeEditProspek) {
+                console.log('[PWA] Pemulihan otomatis ditunda karena form edit sedang aktif.');
+                return;
+            }
+            if (timerPemulihanPwa_) clearTimeout(timerPemulihanPwa_);
+            timerPemulihanPwa_ = setTimeout(async () => {
+                timerPemulihanPwa_ = null;
+                if (document.visibilityState === 'hidden' || !penggunaAktif || !cabangAktif) return;
+                console.log('[PWA] Memulihkan koneksi setelah:', alasan);
+                const berhasil = await ambilSemuaData(true, null, { paksaBaru: true });
+                if (berhasil && alasan === 'online') showToast('Koneksi kembali aktif. Data telah diperbarui.', 'success');
+            }, 250);
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (!aplikasiBerjalanSebagaiPwa_()) return;
+            if (document.visibilityState === 'hidden') {
+                waktuPwaDisembunyikan_ = Date.now();
+                return;
+            }
+            const lamaTersembunyi = waktuPwaDisembunyikan_ ? Date.now() - waktuPwaDisembunyikan_ : 0;
+            waktuPwaDisembunyikan_ = 0;
+            if (lamaTersembunyi >= 30000) jadwalkanPemulihanPwa_('aplikasi dibuka kembali');
+        });
+
+        window.addEventListener('pageshow', event => {
+            if (event.persisted) jadwalkanPemulihanPwa_('halaman dipulihkan');
+        });
+        window.addEventListener('online', () => jadwalkanPemulihanPwa_('online'));
+        window.addEventListener('offline', () => {
+            if (aplikasiBerjalanSebagaiPwa_() && penggunaAktif) showToast('Perangkat sedang offline. Data lama tetap ditampilkan.', 'warning');
+        });
 
         async function prosesLogin(e) {
             e.preventDefault();
@@ -6473,7 +6596,12 @@
                                 admin_sla: adminSlaSupabase_(cabangTiket)
                             };
 
-                            if (tandaTangan) tiketPatch.tanda_tangan = tandaTangan;
+                            if (tandaTangan) {
+                                tiketPatch.tanda_tangan = tandaTangan;
+                                // TTD awal selalu dipasangkan dengan nama klien. Untuk tiket lama
+                                // yang sudah memiliki nama PIC, pertahankan nama tersebut.
+                                tiketPatch.nama_customer = String(tiketLama['Nama Customer'] || document.getElementById('input-klien').value || '').trim();
+                            }
                             if ((!teknisiLama || teknisiLama === 'Belum Ditugaskan') && teknisiFinal !== 'Belum Ditugaskan') {
                                 tiketPatch.tenggat_respon = tanggalIsoSupabase_(hitungTenggatJamKerja(sekarang, targetRespon, cabangTiket));
                             }
@@ -6529,6 +6657,7 @@
                                 status_sla_respon: 'AMAN',
                                 status_peringatan: '',
                                 tanda_tangan: tandaTangan || '',
+                                nama_customer: tandaTangan ? String(document.getElementById('input-klien').value || '').trim() : '',
                                 nilai_penjualan: nilaiPenjualan,
                                 no_wa_klien: waKlien,
                                 veto_admin: 'Tidak',
@@ -6836,8 +6965,13 @@
         }
 
         function toggleBAT() { const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); if (baSection.style.display === 'none' || baSection.style.display === '') { baSection.style.display = 'block'; btnToggle.innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 50); } else { baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; } }
-        function bukaModalUpdate(id) { const t = (globalTickets || []).find(x => x && x['ID Tiket'] === id); if(!t) return; document.getElementById('update-id').value = id; const statusElement = document.getElementById('update-status'); statusElement.value = t['Status'] || 'Menunggu'; document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat.'; document.getElementById('update-keterangan').value = ''; document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || ''; document.getElementById('ba-nama-customer').value = t['Nama Customer'] || ''; document.getElementById('ba-kritik').value = t['Kritik & Saran'] || '';
-        const valTTD = String(t['Tanda Tangan'] || ''); const hasExistingTTD = valTTD.length > 50; const canvasContainer = canvas.parentElement; const btnClearTTD = document.getElementById('btn-clear-signature'); const previewContainer = document.getElementById('ttd-update-preview-container'); const previewImg = document.getElementById('ttd-update-preview-img'); document.getElementById('status-ttd').innerText = hasExistingTTD ? '(Tersimpan)' : ''; clearSignature();
+        function bukaModalUpdate(id) { const t = (globalTickets || []).find(x => x && x['ID Tiket'] === id); if(!t) return; document.getElementById('update-id').value = id; const statusElement = document.getElementById('update-status'); statusElement.value = t['Status'] || 'Menunggu'; document.getElementById('tracking-history').innerText = t['Keterangan'] || 'Belum ada riwayat.'; document.getElementById('update-keterangan').value = ''; document.getElementById('ba-deskripsi').value = t['Deskripsi Pekerjaan (BA)'] || ''; document.getElementById('ba-kritik').value = t['Kritik & Saran'] || '';
+        const valTTD = String(t['Tanda Tangan'] || ''); const hasExistingTTD = valTTD.length > 50; const namaCustomerInput = document.getElementById('ba-nama-customer'); const namaCustomerTersimpan = String(t['Nama Customer'] || '').trim(); const namaCustomerTiket = namaCustomerTersimpan || String(t['Klien & Lokasi'] || '').trim(); const statusNamaCustomer = document.getElementById('status-nama-customer'); const canvasContainer = canvas.parentElement; const btnClearTTD = document.getElementById('btn-clear-signature'); const previewContainer = document.getElementById('ttd-update-preview-container'); const previewImg = document.getElementById('ttd-update-preview-img'); document.getElementById('status-ttd').innerText = hasExistingTTD ? '(Tersimpan & terkunci)' : ''; clearSignature();
+        namaCustomerInput.value = hasExistingTTD ? namaCustomerTiket : namaCustomerTersimpan;
+        namaCustomerInput.readOnly = hasExistingTTD;
+        namaCustomerInput.classList.toggle('input-terkunci', hasExistingTTD);
+        namaCustomerInput.title = hasExistingTTD ? 'Nama dikunci karena tanda tangan klien sudah tersimpan pada tiket.' : '';
+        if (statusNamaCustomer) statusNamaCustomer.innerText = hasExistingTTD ? '(Tersimpan & terkunci)' : '';
         if (hasExistingTTD) { canvasContainer.style.display = 'none'; if (btnClearTTD) btnClearTTD.style.display = 'none'; previewContainer.style.display = 'block'; previewImg.src = valTTD; } else { canvasContainer.style.display = 'block'; if (btnClearTTD) btnClearTTD.style.display = 'block'; previewContainer.style.display = 'none'; previewImg.src = ''; setTimeout(resizeCanvas, 100); }
 
         // Panggil fungsi penampil berdasarkan status saat ini.
@@ -6861,14 +6995,22 @@
     }
 
     document.getElementById('update-keterangan').style.display = 'none'; document.getElementById('label-keterangan').style.display = 'none'; document.getElementById('btn-submit-update').innerHTML = 'Simpan Revisi'; document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').style.display = 'none'; setTimeout(resizeCanvas, 100); } else { document.getElementById('update-title').innerText = 'Update: ' + id; statusElement.disabled = false; statusElement.classList.remove('input-terkunci'); document.getElementById('update-keterangan').style.display = 'block'; document.getElementById('label-keterangan').style.display = 'block'; document.getElementById('btn-submit-update').innerHTML = 'Update Tiket'; if (t['Deskripsi Pekerjaan (BA)']) { document.getElementById('berita-acara-section').style.display = 'block'; document.getElementById('btn-toggle-bat').innerHTML = "Tutup Form Berita Acara"; setTimeout(resizeCanvas, 100); } } document.getElementById('modal-update').style.display = 'flex'; }
-        function bersihkanTtdUpdate() { clearSignature(); }
+        function bersihkanTtdUpdate() {
+            const idTiket = document.getElementById('update-id').value;
+            const tiket = (globalTickets || []).find(item => item && String(item['ID Tiket']) === String(idTiket));
+            if (String((tiket && tiket['Tanda Tangan']) || '').length > 50) {
+                showToast('Tanda tangan klien sudah tersimpan dan dikunci pada tiket.', 'warning');
+                return;
+            }
+            clearSignature();
+        }
         function simpanUpdateTiket() {
             const formUpdate = document.getElementById('form-update');
             if (formUpdate.requestSubmit) formUpdate.requestSubmit();
             else formUpdate.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
         }
         function tutupModal(modalId) { document.getElementById(modalId || 'modal-update').style.display = 'none'; }
-        function cekKeterangan() { const status = document.getElementById('update-status').value; const ket = document.getElementById('update-keterangan'); const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); const baDesk = document.getElementById('ba-deskripsi'); const baNama = document.getElementById('ba-nama-customer'); const infoText = document.getElementById('info-wajib-text'); if (status === 'Pending' || status === 'Cancel' || status === 'Outsource') { ket.placeholder = "Wajib diisi! Masukkan alasan / info bengkel rekanan di sini..."; } else { ket.placeholder = "Ketik update kegiatan di sini..."; } if (status === 'Selesai') { btnToggle.style.display = 'none'; baSection.style.display = 'block'; baDesk.required = true; baNama.required = true; infoText.innerText = "*Wajib diisi beserta Tanda Tangan Customer"; setTimeout(resizeCanvas, 50); } else if (status === 'On Progress' || status === 'Pending') { btnToggle.style.display = 'block'; baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; baDesk.required = false; baNama.required = false; infoText.innerText = "*Bisa dicicil tanpa harus Tanda Tangan"; } else { btnToggle.style.display = 'none'; baSection.style.display = 'none'; baDesk.required = false; baNama.required = false; } }
+        function cekKeterangan() { const status = document.getElementById('update-status').value; const ket = document.getElementById('update-keterangan'); const baSection = document.getElementById('berita-acara-section'); const btnToggle = document.getElementById('btn-toggle-bat'); const baDesk = document.getElementById('ba-deskripsi'); const baNama = document.getElementById('ba-nama-customer'); const infoText = document.getElementById('info-wajib-text'); const idTiket = document.getElementById('update-id').value; const tiket = (globalTickets || []).find(item => item && String(item['ID Tiket']) === String(idTiket)); const identitasKlienTerkunci = String((tiket && tiket['Tanda Tangan']) || '').length > 50; if (status === 'Pending' || status === 'Cancel' || status === 'Outsource') { ket.placeholder = "Wajib diisi! Masukkan alasan / info bengkel rekanan di sini..."; } else { ket.placeholder = "Ketik update kegiatan di sini..."; } if (status === 'Selesai') { btnToggle.style.display = 'none'; baSection.style.display = 'block'; baDesk.required = true; baNama.required = true; infoText.innerText = identitasKlienTerkunci ? "*Nama PIC dan tanda tangan sudah tersimpan & terkunci; lengkapi rincian pekerjaan" : "*Wajib diisi beserta Tanda Tangan Customer"; setTimeout(resizeCanvas, 50); } else if (status === 'On Progress' || status === 'Pending') { btnToggle.style.display = 'block'; baSection.style.display = 'none'; btnToggle.innerHTML = "Buka / Cicil Berita Acara"; baDesk.required = false; baNama.required = false; infoText.innerText = "*Bisa dicicil tanpa harus Tanda Tangan"; } else { btnToggle.style.display = 'none'; baSection.style.display = 'none'; baDesk.required = false; baNama.required = false; } }
 
         async function submitUpdate(e) {
             e.preventDefault();
@@ -6882,6 +7024,11 @@
                 return;
             }
             let ttdBase64 = String((t && t['Tanda Tangan']) || "");
+            const hasExistingTTD = ttdBase64.length > 50;
+            const namaCustomerTersimpan = String(t['Nama Customer'] || '').trim();
+            const namaCustomerBA = hasExistingTTD
+                ? (namaCustomerTersimpan || String(t['Klien & Lokasi'] || '').trim())
+                : document.getElementById('ba-nama-customer').value.trim();
 
             if ((status === 'Pending' || status === 'Cancel' || status === 'Outsource') && catatanBaru === "")  {
                 showToast("Afwan, Catatan baru WAJIB diisi untuk status ini!", "warning"); return;
@@ -6891,9 +7038,6 @@
                 const namaKlienBA = String(t['Klien & Lokasi'] || '').trim();
                 const teknisiBA = daftarTeknisiUnikTiket_(t['Teknisi']);
                 const deskripsiBA = document.getElementById('ba-deskripsi').value.trim();
-                const namaCustomerBA = document.getElementById('ba-nama-customer').value.trim();
-                const hasExistingTTD = String(t['Tanda Tangan'] || '').length > 50;
-
                 if (!String(idTiket || '').trim()) dataWajibBelumLengkap.push('ID Tiket');
                 if (!namaKlienBA) dataWajibBelumLengkap.push('Nama Klien / Lokasi');
                 if (teknisiBA.length === 0) dataWajibBelumLengkap.push('Teknisi Pelaksana');
@@ -6913,7 +7057,8 @@
                 }
             }
 
-            if (isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); }
+            // TTD yang sudah ada tidak boleh ditimpa dari form penyelesaian tiket.
+            if (!hasExistingTTD && isCanvasDrawn) { ttdBase64 = canvas.toDataURL('image/png'); }
 
             const btn = document.getElementById('btn-submit-update');
             btn.innerText = 'Menyimpan...'; btn.disabled = true;
@@ -6942,7 +7087,7 @@
                 status: status,
                 keterangan: keteranganFinal || '-',
                 deskripsi_pekerjaan_ba: document.getElementById('ba-deskripsi').value,
-                nama_customer: document.getElementById('ba-nama-customer').value,
+                nama_customer: namaCustomerBA,
                 kritik_saran: document.getElementById('ba-kritik').value,
                 tanda_tangan: ttdBase64,
                 cabang: cabangTiket,
@@ -7348,6 +7493,8 @@
             console.log('[INIT] API_KEY:', API_KEY ? 'ada' : 'kosong');
             console.log('[INIT] API_URL_KENDARI:', API_URL_KENDARI);
 
+            await siapkanServiceWorkerPWA_();
+
             if (trackParam && trackParam.trim() !== "") {
                 console.log('[INIT] Mode tracking, langsung load data...');
                 await ambilSemuaData(false, trackParam.trim());
@@ -7405,7 +7552,7 @@
                 }
             }
             if (tujuanSesiAwal === 'sla') {
-                ambilSemuaData(false);
+                await ambilSemuaData(false, null, { paksaBaru: true });
             } else if (tujuanSesiAwal === 'lobby') {
                 masukKeAplikasi();
             } else {
