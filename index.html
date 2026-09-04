@@ -334,9 +334,9 @@
             <p id="track-id-text" style="font-size:14px; font-weight:bold; color:var(--text-main); margin-top:0; border-bottom:1px solid var(--border); padding-bottom:10px;"></p>
 
             <div id="track-auth-section">
-                <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px; line-height:1.5;">Demi keamanan data, gunakan salah satu identitas yang terdaftar pada tiket perbaikan.</p>
-                <label for="track-keyword" style="display:block; font-size:12px; font-weight:600; color:var(--text-main); margin-bottom:6px;">Masukkan No. WA / Nama / Nomor Tiket</label>
-                <input type="text" id="track-keyword" placeholder="Masukkan No. WA / Nama / Nomor Tiket" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px; box-sizing:border-box;">
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px; line-height:1.5;">Demi keamanan data, masukkan identitas pelanggan yang terdaftar pada tiket. Verifikasi dilakukan oleh server sebelum data tiket dikirim.</p>
+                <label for="track-keyword" style="display:block; font-size:12px; font-weight:600; color:var(--text-main); margin-bottom:6px;">Nomor WhatsApp atau nama lengkap pelanggan</label>
+                <input type="text" id="track-keyword" placeholder="Contoh: 0812... atau nama lengkap" autocomplete="off" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border); margin-bottom:15px; box-sizing:border-box;">
                 <button class="btn-solid-primary" style="background:#10b981;" onclick="verifyClientTracking()">Buka Data Tiket</button>
             </div>
 
@@ -642,6 +642,7 @@
             <div class="active-user-summary">
                 <span id="nama-login">User</span>
                 <span id="cabang-aktif-badge" aria-label="Cabang aktif"></span>
+                <span id="realtime-status-badge" aria-live="polite" title="Status sinkronisasi langsung" style="font-size:11px; font-weight:700; color:#64748b;">● Realtime belum aktif</span>
             </div>
             <div class="top-bar-buttons" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; margin-top: 15px;">
                 <button id="btn-kembali-lobby" onclick="kembaliKeLobby()" class="btn-outline-lobby" style="display:none; padding: 10px; font-size: 13px;">🏠 Kembali ke Lobby</button>
@@ -1117,12 +1118,19 @@
         const SUPABASE_REFRESH_MARGIN_MS = 60000;
         const SUPABASE_REALTIME_REFRESH_DELAY_MS = 700;
         const SUPABASE_REALTIME_TOKEN_CHECK_MS = 5 * 60 * 1000;
+        const SUPABASE_REALTIME_RECONNECT_MIN_MS = 2000;
+        const SUPABASE_REALTIME_RECONNECT_MAX_MS = 30000;
+        const SUPABASE_REALTIME_TABLES = Object.freeze([
+            'tiket', 'users', 'penjualan', 'prospek', 'database_klien', 'garansi'
+        ]);
         let promiseRefreshSupabase_ = null;
         let supabaseRealtimeClient_ = null;
         let kanalRealtimeSLA_ = null;
         let kunciKanalRealtimeSLA_ = '';
         let timerMuatUlangRealtime_ = null;
         let intervalTokenRealtime_ = null;
+        let timerHubungkanUlangRealtime_ = null;
+        let percobaanHubungkanUlangRealtime_ = 0;
 
         function waktuKedaluwarsaJwt_(token) {
             try {
@@ -1272,11 +1280,14 @@
             }
         }
 
-        // Tracking pelanggan tidak memakai aksi POST maupun sesi login. Endpoint
-        // GAS menerima GET dengan trackId dan mengembalikan `tickets`.
-        async function ambilTrackingPublik_(idTiket) {
+        // Tracking pelanggan memakai POST tanpa sesi login agar identitas pelanggan
+        // tidak tercatat pada URL. Backend memverifikasi identitas sebelum mengirim
+        // data publik dari tepat satu tiket.
+        async function ambilTrackingPublik_(idTiket, kunciVerifikasi) {
             const id = idAman_(idTiket);
             if (!id) throw new Error('Format ID tiket pada tautan tracking tidak valid.');
+            const trackKey = String(kunciVerifikasi || '').trim();
+            if (!trackKey) throw new Error('Nomor WhatsApp atau nama pelanggan wajib diisi.');
 
             const daftarApi = [API_URL_KENDARI, API_URL_RAHA];
             const daftarError = [];
@@ -1286,13 +1297,15 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 25000);
                 try {
-                    const url = new URL(endpoint);
-                    url.searchParams.set('apiKey', API_KEY);
-                    url.searchParams.set('trackId', id);
-
-                    const response = await fetch(url.toString(), {
-                        method: 'GET', redirect: 'follow', signal: controller.signal,
-                        credentials: 'omit'
+                    const response = await fetch(endpoint, {
+                        method: 'POST', redirect: 'follow', signal: controller.signal,
+                        credentials: 'omit',
+                        body: JSON.stringify({
+                            apiKey: API_KEY,
+                            action: 'trackTicketPublic',
+                            trackId: id,
+                            trackKey: trackKey
+                        })
                     });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -1328,15 +1341,39 @@
         // =========================================================================
         // 🔴 SUPABASE REALTIME — Sinkronisasi perubahan dari perangkat lain
         // =========================================================================
-        // Satu listener pada schema public sengaja dipakai agar setiap tabel
-        // operasional yang dipublikasikan ke supabase_realtime dapat diperbarui
-        // tanpa menambah polling data. RLS Supabase tetap memfilter event menurut
-        // JWT pengguna yang sedang login.
+        // Listener dibatasi pada tabel yang benar-benar dipakai aplikasi SLA.
+        // RLS Supabase tetap memfilter event menurut JWT pengguna yang login.
         function buatKunciRealtimeSLA_() {
             const cabang = normalisasiCabang(cabangAktif);
             const username = String(penggunaAktif && penggunaAktif.Username || '')
                 .trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
             return cabang && username ? `${cabang.toLowerCase()}-${username}` : '';
+        }
+
+        function tampilkanStatusRealtimeSLA_(status) {
+            const badge = document.getElementById('realtime-status-badge');
+            if (!badge) return;
+            const konfigurasi = {
+                menghubungkan: ['● Menghubungkan Realtime', '#d97706'],
+                terhubung: ['● Realtime terhubung', '#059669'],
+                terputus: ['● Realtime terputus', '#dc2626'],
+                nonaktif: ['● Realtime belum aktif', '#64748b']
+            };
+            const nilai = konfigurasi[status] || konfigurasi.nonaktif;
+            badge.textContent = nilai[0];
+            badge.style.color = nilai[1];
+        }
+
+        function daftarTabelRealtimeSLA_() {
+            const role = String(penggunaAktif && penggunaAktif.Role || '').toLowerCase();
+            const tabel = ['tiket', 'users'];
+            if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(role)) {
+                tabel.push('penjualan', 'prospek');
+            }
+            if (['admin', 'admin_raha', 'manager', 'direktur'].includes(role)) {
+                tabel.push('database_klien', 'garansi');
+            }
+            return tabel.filter(namaTabel => SUPABASE_REALTIME_TABLES.includes(namaTabel));
         }
 
         function recordRealtimeSesuaiCabang_(payload) {
@@ -1351,16 +1388,162 @@
             return cabangRecord === normalisasiCabang(cabangAktif);
         }
 
+        function upsertRecordRealtime_(daftar, namaKunci, nilaiKunci, recordBaru) {
+            const target = Array.isArray(daftar) ? daftar : [];
+            const nilaiNormal = String(nilaiKunci || '').trim().toLowerCase();
+            if (!nilaiNormal) return target;
+            const index = target.findIndex(item =>
+                String(item && item[namaKunci] || '').trim().toLowerCase() === nilaiNormal
+            );
+            if (index >= 0) target[index] = recordBaru;
+            else target.unshift(recordBaru);
+            return target;
+        }
+
+        function terapkanPerubahanRealtimeLokal_(payload) {
+            if (!payload || !['INSERT', 'UPDATE'].includes(String(payload.eventType || '').toUpperCase())) return false;
+            const row = payload.new && typeof payload.new === 'object' ? payload.new : null;
+            if (!row || !Object.keys(row).length) return false;
+            const tabel = String(payload.table || '');
+            const roleAktif = String(penggunaAktif && penggunaAktif.Role || '').toLowerCase();
+            const isManajemen = ['admin', 'admin_raha', 'manager', 'direktur'].includes(roleAktif);
+            const isSales = roleAktif === 'sales';
+
+            if (tabel === 'tiket') {
+                const waktuLapor = row.waktu_lapor ? new Date(row.waktu_lapor) : new Date();
+                const record = {
+                    "ID Tiket": row.id_tiket, "No Transaksi": row.no_transaksi || '', "Waktu Lapor": row.waktu_lapor,
+                    "Target SLA (Jam)": row.target_sla_jam, "Tenggat Waktu": row.tenggat_waktu, "Klien & Lokasi": row.klien_lokasi,
+                    "Jenis Pekerjaan": row.jenis_pekerjaan, "Teknisi": row.teknisi, "Status": row.status, "Waktu Selesai": row.waktu_selesai,
+                    "Status SLA": row.status_sla, "Poin Performa": row.poin_performa, "Sales": row.sales, "Keterangan": row.keterangan,
+                    "Target SLA Respon (Jam)": row.target_sla_respon_jam, "Tenggat Respon": row.tenggat_respon, "Waktu Respon": row.waktu_respon,
+                    "Status SLA Respon": row.status_sla_respon, "Status Peringatan": row.status_peringatan,
+                    "Deskripsi Pekerjaan (BA)": row.deskripsi_pekerjaan_ba, "Nama Customer": row.nama_customer,
+                    "Kritik & Saran": row.kritik_saran, "Tanda Tangan": row.tanda_tangan, "Status Banding": row.status_banding,
+                    "Sales Pengaju": row.sales_pengaju, "Bukti Banding": row.bukti_banding, "Keterangan Sales": row.keterangan_sales,
+                    "Alasan Admin": row.alasan_admin, "Nilai Penjualan": row.nilai_penjualan, "Link PDF BA": row.link_pdf_ba,
+                    "No WA Klien": row.no_wa_klien, "Bobot Poin": row.bobot_poin, "Veto Admin": row.veto_admin,
+                    "Status Pembayaran": row.status_pembayaran, "Tanggal Lunas": row.tanggal_lunas,
+                    "Teknisi Sebelumnya": row.teknisi_sebelumnya, "Penalti Teknisi Lama": row.penalti_teknisi_lama,
+                    "Tenggat Pengganti": row.tenggat_pengganti, "Cabang": row.cabang || cabangAktif, "Admin SLA": row.admin_sla
+                };
+                if (!record["Tenggat Waktu"]) {
+                    record["Tenggat Waktu"] = hitungTenggatJamKerja(waktuLapor, parseFloat(record["Target SLA (Jam)"]) || 24, record.Cabang);
+                }
+                if (record.Teknisi !== 'Belum Ditugaskan' && record.Teknisi !== '' && !record["Tenggat Respon"]) {
+                    record["Tenggat Respon"] = hitungTenggatJamKerja(waktuLapor, parseFloat(record["Target SLA Respon (Jam)"]) || 1, record.Cabang);
+                }
+                globalTickets = upsertRecordRealtime_(globalTickets, 'ID Tiket', row.id_tiket, perbaruiStatusSLAAktualTiket_(record));
+                renderDashboard();
+                renderTickets();
+                return true;
+            }
+
+            if (tabel === 'users') {
+                const userSendiri = String(row.username || '').toLowerCase() === String(penggunaAktif && penggunaAktif.Username || '').toLowerCase();
+                const bolehLihatKeuangan = isManajemen || userSendiri;
+                const record = {
+                    "Username": row.username, "Role": row.role, "Nama Asli": row.nama_asli, "Email": row.email,
+                    "Target Sales (Rp)": row.target_sales_rp, "No WA": row.no_wa,
+                    "Hak_Akses_Cabang": row.hak_akses_cabang || row.cabang,
+                    "Gaji Pokok": bolehLihatKeuangan ? row.gaji_pokok : null,
+                    "Bonus Tambahan": bolehLihatKeuangan ? row.bonus_tambahan : null
+                };
+                globalUsers = upsertRecordRealtime_(globalUsers, 'Username', row.username, record);
+                renderDashboard();
+                renderTabelUser();
+                if (currentTabId !== 'input') {
+                    renderDynamicInputs();
+                    togglePenjualanInput();
+                }
+                return true;
+            }
+
+            if (tabel === 'penjualan') {
+                if (!isManajemen && !isSales) return true;
+                const record = {
+                    "ID Penjualan": row.id_penjualan, "No Transaksi": row.no_transaksi, "Waktu Lapor": row.waktu_lapor,
+                    "Nama Pembeli": row.nama_pembeli, "Barang / Jasa": row.barang_jasa, "Sales": row.sales,
+                    "Nominal (Rp)": row.nominal_rp, "Cabang": row.cabang || 'Kendari'
+                };
+                globalPenjualan = upsertRecordRealtime_(globalPenjualan, 'ID Penjualan', row.id_penjualan, record);
+                renderDashboard();
+                renderPenjualan();
+                return true;
+            }
+
+            if (tabel === 'prospek') {
+                if (!isManajemen && !isSales) return true;
+                const record = {
+                    "ID Prospek": row.id_prospek, "Tanggal Input": row.tanggal_input,
+                    "Nama Calon Customer": row.nama_calon_customer, "Kebutuhan": row.kebutuhan,
+                    "Status Prospek": row.status_prospek, "Sales Penanggung Jawab": row.sales_penanggung_jawab,
+                    "Estimasi (Rp)": row.estimasi_rp, "Bukti Chat": row.bukti_chat, "Surat Penawaran": row.surat_penawaran,
+                    "No WA": row.no_wa, "Waktu Follow Up Terakhir": row.waktu_follow_up_terakhir,
+                    "Riwayat Follow Up": row.riwayat_follow_up, "Waktu Peringatan CRM Terakhir": row.waktu_peringatan_crm_terakhir,
+                    "Waktu Minta Penawaran": row.waktu_minta_penawaran, "Waktu Selesai Penawaran": row.waktu_selesai_penawaran,
+                    "Target SLA Penawaran (Jam)": row.target_sla_penawaran_jam, "Cabang": row.cabang || 'Kendari'
+                };
+                globalProspek = upsertRecordRealtime_(globalProspek, 'ID Prospek', row.id_prospek, record);
+                renderDashboard();
+                renderProspek();
+                return true;
+            }
+
+            if (tabel === 'database_klien') {
+                if (!isManajemen) return true;
+                const record = {
+                    "ID Klien": row.id_klien, "Nama Klien": row.nama_klien, "No WA": row.no_wa,
+                    "Kategori": row.kategori, "Total Transaksi": row.total_transaksi,
+                    "Transaksi Terakhir": row.transaksi_terakhir, "Sumber": row.sumber,
+                    "Tag Produk": row.tag_produk, "Cabang": row.cabang || 'Kendari'
+                };
+                globalKlien = upsertRecordRealtime_(globalKlien, 'ID Klien', row.id_klien, record);
+                renderKlien();
+                const inputWa = document.getElementById('input-wa-klien');
+                if (inputWa) tampilkanInfoKlienCRM_(inputWa.value);
+                return true;
+            }
+
+            if (tabel === 'garansi') {
+                if (!isManajemen) return true;
+                const record = {
+                    "ID Garansi": row.id_garansi, "Referensi (Tiket/Nota)": row.referensi_tiket_nota,
+                    "Nama Pelanggan": row.nama_pelanggan, "Barang / Jasa": row.barang_jasa,
+                    "Durasi (Hari)": row.durasi_hari, "Status": row.status, "Tanggal Mulai": row.tanggal_mulai,
+                    "Tanggal Habis": row.tanggal_habis, "No Transaksi": row.no_transaksi, "Sales": row.sales,
+                    "Omzet": row.omzet, "Keterangan": row.keterangan,
+                    "Follow Up After-Sales Terkirim": row.follow_up_after_sales_terkirim,
+                    "Cabang": row.cabang, "Admin SLA": row.admin_sla
+                };
+                if (String(record.Status).trim() === 'Aktif' && record["Tanggal Habis"]) {
+                    const tanggalHabis = new Date(record["Tanggal Habis"]);
+                    if (!isNaN(tanggalHabis.getTime()) && new Date() > tanggalHabis) record.Status = 'Habis (Expired)';
+                }
+                globalGaransi = upsertRecordRealtime_(globalGaransi, 'ID Garansi', row.id_garansi, record);
+                renderGaransi();
+                return true;
+            }
+
+            return false;
+        }
+
         function jadwalkanMuatUlangRealtime_(payload, cabangSaatEvent) {
             if (!penggunaAktif || cabangSaatEvent !== normalisasiCabang(cabangAktif)) return;
             if (!recordRealtimeSesuaiCabang_(payload)) return;
+            if (terapkanPerubahanRealtimeLokal_(payload)) {
+                console.log('[SUPABASE REALTIME] Record lokal diperbarui:', payload.table, payload.eventType);
+                return;
+            }
             if (timerMuatUlangRealtime_) return;
 
             timerMuatUlangRealtime_ = setTimeout(async () => {
                 timerMuatUlangRealtime_ = null;
                 if (!penggunaAktif || cabangSaatEvent !== normalisasiCabang(cabangAktif)) return;
                 try {
-                    await ambilSemuaData(true);
+                    // Jangan memakai ulang request yang mungkin dimulai sebelum
+                    // event database diterima, karena hasilnya dapat sudah usang.
+                    await ambilSemuaData(true, null, { paksaBaru: true });
                     console.log('[SUPABASE REALTIME] Tampilan diperbarui:', payload && payload.table, payload && payload.eventType);
                 } catch (error) {
                     // Kegagalan listener tidak boleh mengganggu proses simpan yang
@@ -1370,13 +1553,37 @@
             }, SUPABASE_REALTIME_REFRESH_DELAY_MS);
         }
 
-        function perbaruiTokenRealtimeSupabase_(token) {
+        async function perbaruiTokenRealtimeSupabase_(token) {
             if (!supabaseRealtimeClient_ || !token) return;
             try {
-                supabaseRealtimeClient_.realtime.setAuth(String(token));
+                await supabaseRealtimeClient_.realtime.setAuth(String(token));
             } catch (error) {
                 console.warn('[SUPABASE REALTIME] Token kanal belum dapat diperbarui:', error);
             }
+        }
+
+        function jadwalkanHubungUlangRealtime_(alasan) {
+            if (timerHubungkanUlangRealtime_ || !penggunaAktif || !cabangAktif) return;
+            const kunciSaatDijadwalkan = buatKunciRealtimeSLA_();
+            if (!kunciSaatDijadwalkan) return;
+            const pangkat = Math.min(percobaanHubungkanUlangRealtime_, 4);
+            const jeda = Math.min(
+                SUPABASE_REALTIME_RECONNECT_MAX_MS,
+                SUPABASE_REALTIME_RECONNECT_MIN_MS * Math.pow(2, pangkat)
+            );
+            percobaanHubungkanUlangRealtime_++;
+            console.warn('[SUPABASE REALTIME] Menjadwalkan koneksi ulang:', alasan, `${jeda}ms`);
+            timerHubungkanUlangRealtime_ = setTimeout(async () => {
+                timerHubungkanUlangRealtime_ = null;
+                if (!penggunaAktif || buatKunciRealtimeSLA_() !== kunciSaatDijadwalkan) return;
+                hentikanRealtimeSLA_();
+                try {
+                    await mulaiRealtimeSLA_();
+                } catch (error) {
+                    console.warn('[SUPABASE REALTIME] Koneksi ulang gagal:', error);
+                    jadwalkanHubungUlangRealtime_('percobaan sebelumnya gagal');
+                }
+            }, jeda);
         }
 
         function hentikanRealtimeSLA_() {
@@ -1388,11 +1595,16 @@
                 clearInterval(intervalTokenRealtime_);
                 intervalTokenRealtime_ = null;
             }
+            if (timerHubungkanUlangRealtime_) {
+                clearTimeout(timerHubungkanUlangRealtime_);
+                timerHubungkanUlangRealtime_ = null;
+            }
             const client = supabaseRealtimeClient_;
             const kanal = kanalRealtimeSLA_;
             kanalRealtimeSLA_ = null;
             kunciKanalRealtimeSLA_ = '';
             supabaseRealtimeClient_ = null;
+            tampilkanStatusRealtimeSLA_('nonaktif');
             if (!client || !kanal) return;
             try {
                 const hasilLepas = client.removeChannel(kanal);
@@ -1408,29 +1620,45 @@
             if (!cabangSaatIni || !kunciKanal || !penggunaAktif) return false;
             if (!window.supabase || typeof window.supabase.createClient !== 'function') {
                 console.warn('[SUPABASE REALTIME] Library belum termuat; fungsi aplikasi lain tetap berjalan.');
+                tampilkanStatusRealtimeSLA_('terputus');
                 return false;
             }
 
             const token = await pastikanTokenSupabaseAktif_();
             if (kanalRealtimeSLA_ && supabaseRealtimeClient_ && kunciKanalRealtimeSLA_ === kunciKanal) {
-                perbaruiTokenRealtimeSupabase_(token);
-                return true;
+                const statusKanal = String(kanalRealtimeSLA_.state || '').toLowerCase();
+                if (statusKanal === 'joined' || statusKanal === 'joining') {
+                    await perbaruiTokenRealtimeSupabase_(token);
+                    return true;
+                }
             }
 
             hentikanRealtimeSLA_();
             const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
             });
-            client.realtime.setAuth(token);
-            const kanal = client
-                .channel(`sla-data-${kunciKanal}`)
-                .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
+            await client.realtime.setAuth(token);
+            tampilkanStatusRealtimeSLA_('menghubungkan');
+            const kanal = client.channel(`sla-data-${kunciKanal}`);
+            daftarTabelRealtimeSLA_().forEach(namaTabel => {
+                kanal.on('postgres_changes', { event: '*', schema: 'public', table: namaTabel }, payload => {
                     jadwalkanMuatUlangRealtime_(payload, cabangSaatIni);
-                })
-                .subscribe((status, error) => {
-                    if (status === 'SUBSCRIBED') console.log('[SUPABASE REALTIME] Terhubung untuk Cabang ' + cabangSaatIni + '.');
-                    else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('[SUPABASE REALTIME] Status kanal:', status, error || '');
                 });
+            });
+            kanal.subscribe((status, error) => {
+                if (kanalRealtimeSLA_ !== kanal) return;
+                if (status === 'SUBSCRIBED') {
+                    percobaanHubungkanUlangRealtime_ = 0;
+                    tampilkanStatusRealtimeSLA_('terhubung');
+                    console.log('[SUPABASE REALTIME] Terhubung untuk Cabang ' + cabangSaatIni + '.');
+                    return;
+                }
+                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                    tampilkanStatusRealtimeSLA_('terputus');
+                    console.warn('[SUPABASE REALTIME] Status kanal:', status, error || '');
+                    jadwalkanHubungUlangRealtime_(status);
+                }
+            });
 
             supabaseRealtimeClient_ = client;
             kanalRealtimeSLA_ = kanal;
@@ -1438,7 +1666,7 @@
             intervalTokenRealtime_ = setInterval(async () => {
                 if (!supabaseRealtimeClient_ || !penggunaAktif) return;
                 try {
-                    perbaruiTokenRealtimeSupabase_(await pastikanTokenSupabaseAktif_());
+                    await perbaruiTokenRealtimeSupabase_(await pastikanTokenSupabaseAktif_());
                 } catch (error) {
                     console.warn('[SUPABASE REALTIME] Sesi kanal perlu login ulang:', error);
                 }
@@ -1902,7 +2130,11 @@
                 new Promise(resolve => setTimeout(() => resolve(false), PWA_WORKER_READY_TIMEOUT_MS_))
             ]);
         }
+        const TRACKING_REFRESH_INTERVAL_MS_ = 60 * 1000;
         let currentTrackTicket = null;
+        let currentTrackVerificationKey_ = '';
+        let intervalTrackingPublik_ = null;
+        let trackingPublikSedangMuat_ = false;
 
         function jamSelesaiOperasional_(cabang = cabangAktif) {
             return String(cabang || '').trim().toLowerCase() === 'raha' ? 20 : 17;
@@ -2907,45 +3139,102 @@
         // FUNGSI MODE TRACKING KLIEN (AMAN DARI KEBOCORAN)
         // ===============================================
         function renderClientTracking(id) {
+            if (intervalTrackingPublik_) {
+                clearInterval(intervalTrackingPublik_);
+                intervalTrackingPublik_ = null;
+            }
             currentTrackTicket = id;
+            currentTrackVerificationKey_ = '';
+            globalTickets = [];
+            globalGaransi = [];
+            globalUsers = [];
+            globalPenjualan = [];
+            globalProspek = [];
+            globalKlien = [];
             document.getElementById('login-wrapper').style.display = 'none';
             document.getElementById('app-wrapper').style.display = 'none';
             document.getElementById('client-tracking-wrapper').style.display = 'flex';
             document.getElementById('track-id-text').innerText = "ID Tiket Perbaikan: " + id;
+            document.getElementById('track-auth-section').style.display = 'block';
+            document.getElementById('track-result-section').style.display = 'none';
             document.getElementById('loading').style.display = 'none';
         }
 
-        function verifyClientTracking() {
-            let keywordRaw = document.getElementById('track-keyword').value.toLowerCase().trim();
-            if(keywordRaw === "") { showToast("Bismillah, harap masukkan Nomor WhatsApp, Nama, atau Nomor Tiket!", "warning"); return; }
+        function terapkanHasilTrackingPublik_(hasil) {
+            const tiket = Array.isArray(hasil && (hasil.tickets || hasil.tiket))
+                ? (hasil.tickets || hasil.tiket) : [];
+            const garansi = Array.isArray(hasil && hasil.garansi) ? hasil.garansi : [];
+            globalTickets = tiket.map(r => ({
+                "ID Tiket": r["ID Tiket"] || r.id_tiket,
+                "Waktu Lapor": r["Waktu Lapor"] || r.waktu_lapor,
+                "Klien & Lokasi": r["Klien & Lokasi"] || r.klien_lokasi || r.nama_customer || '',
+                "Jenis Pekerjaan": r["Jenis Pekerjaan"] || r.jenis_pekerjaan,
+                "Teknisi": r.Teknisi || r.teknisi,
+                "Status": r.Status || r.status,
+                "Link PDF BA": r["Link PDF BA"] || r.link_pdf_ba
+            }));
+            globalGaransi = garansi.map(g => ({
+                "ID Garansi": g["ID Garansi"] || g.id_garansi,
+                "Referensi (Tiket/Nota)": g["Referensi (Tiket/Nota)"] || g.referensi_tiket_nota,
+                "Barang / Jasa": g["Barang / Jasa"] || g.barang_jasa,
+                "Durasi (Hari)": g["Durasi (Hari)"] || g.durasi_hari,
+                "Status": g.Status || g.status,
+                "Tanggal Mulai": g["Tanggal Mulai"] || g.tanggal_mulai,
+                "Tanggal Habis": g["Tanggal Habis"] || g.tanggal_habis,
+                "Keterangan": g.Keterangan || g.keterangan
+            }));
+            const idTarget = String(currentTrackTicket || '').trim().toLowerCase();
+            return globalTickets.find(t => String(t && t['ID Tiket'] || '').trim().toLowerCase() === idTarget) || null;
+        }
 
-            let inputWa = keywordRaw.replace(/\D/g, '');
-            if (inputWa.startsWith('0')) inputWa = '62' + inputWa.substring(1);
+        async function muatUlangTrackingPublik_(tampilkanKesalahan = false) {
+            if (trackingPublikSedangMuat_ || !currentTrackTicket || !currentTrackVerificationKey_) return false;
+            trackingPublikSedangMuat_ = true;
+            try {
+                const hasil = await ambilTrackingPublik_(currentTrackTicket, currentTrackVerificationKey_);
+                const tiket = terapkanHasilTrackingPublik_(hasil);
+                if (!tiket) throw new Error('Tiket tidak ditemukan.');
+                currentTrackTicket = tiket['ID Tiket'];
+                document.getElementById('track-id-text').innerText = "ID Tiket Perbaikan: " + currentTrackTicket;
+                tampilkanDataPelacakanKlien(tiket);
+                return true;
+            } catch (error) {
+                console.warn('[TRACKING] Pembaruan tiket gagal:', error);
+                if (tampilkanKesalahan) showToast('Identitas tidak cocok atau tiket tidak tersedia.', 'error');
+                return false;
+            } finally {
+                trackingPublikSedangMuat_ = false;
+            }
+        }
 
-            // Izinkan pencarian menggunakan No. WA, Nama, atau Nomor Tiket langsung.
-            let tiketDitemukan = (globalTickets || []).filter(t => {
-                if (!t) return false;
-                let waKey = Object.keys(t).find(k => k && k.toLowerCase().includes('wa klien'));
-                let noWaAsli = (waKey && t[waKey]) ? String(t[waKey]).replace(/\D/g, '') : '';
-                if (noWaAsli.startsWith('0')) noWaAsli = '62' + noWaAsli.substring(1);
+        function mulaiPenyegaranTrackingPublik_() {
+            if (intervalTrackingPublik_) clearInterval(intervalTrackingPublik_);
+            intervalTrackingPublik_ = setInterval(() => {
+                if (document.visibilityState !== 'hidden') muatUlangTrackingPublik_(false);
+            }, TRACKING_REFRESH_INTERVAL_MS_);
+        }
 
-                let namaKlien = String(t['Nama Klien'] || t['Klien & Lokasi'] || '').toLowerCase();
-                let idTiket = String(t['ID Tiket'] || '').toLowerCase();
-                return (noWaAsli !== '' && noWaAsli === inputWa) ||
-                    namaKlien.includes(keywordRaw) ||
-                    idTiket === keywordRaw;
-            });
-
-            // Pada tautan tracking, prioritaskan tiket yang tercantum pada URL.
-            let t = tiketDitemukan.find(x => String(x['ID Tiket'] || '') === String(currentTrackTicket || '')) ||
-                tiketDitemukan.find(x => String(x['ID Tiket'] || '').toLowerCase() === keywordRaw) ||
-                tiketDitemukan[0];
-
-            if (!t) { showToast("Afwan, No. WA, Nama, atau Nomor Tiket tidak cocok.", "error"); return; }
-
-            currentTrackTicket = t['ID Tiket'];
-            document.getElementById('track-id-text').innerText = "ID Tiket Perbaikan: " + currentTrackTicket;
-            tampilkanDataPelacakanKlien(t);
+        async function verifyClientTracking() {
+            const input = document.getElementById('track-keyword');
+            const keywordRaw = String(input && input.value || '').trim();
+            if (!keywordRaw) {
+                showToast('Bismillah, harap masukkan Nomor WhatsApp atau nama lengkap pelanggan.', 'warning');
+                return;
+            }
+            const tombol = document.querySelector('#track-auth-section button');
+            const teksAwal = tombol ? tombol.innerText : 'Buka Data Tiket';
+            if (tombol) {
+                tombol.disabled = true;
+                tombol.innerText = 'Memverifikasi...';
+            }
+            currentTrackVerificationKey_ = keywordRaw;
+            const berhasil = await muatUlangTrackingPublik_(true);
+            if (berhasil) mulaiPenyegaranTrackingPublik_();
+            else currentTrackVerificationKey_ = '';
+            if (tombol) {
+                tombol.disabled = false;
+                tombol.innerText = teksAwal;
+            }
         }
         function tampilkanDataPelacakanKlien(t) {
             document.getElementById('track-auth-section').style.display = 'none';
@@ -3405,32 +3694,9 @@
                     }
 
                     if (trackIdNormal) {
-                        // Jalur tracking publik menggunakan GET `trackId`, bukan
-                        // action POST yang hanya tersedia untuk aplikasi internal.
-                        const hasilTracking = await ambilTrackingPublik_(trackIdNormal);
-                        let rawTiket = Array.isArray(hasilTracking.tiket) ? hasilTracking.tiket : [];
-                        globalTickets = rawTiket.map(r => ({
-                            "ID Tiket": r["ID Tiket"] || r.id_tiket, "Status": r.Status || r.status,
-                            "Klien & Lokasi": r["Klien & Lokasi"] || r.klien_lokasi,
-                            "Jenis Pekerjaan": r["Jenis Pekerjaan"] || r.jenis_pekerjaan,
-                            "Teknisi": r.Teknisi || r.teknisi, "Waktu Lapor": r["Waktu Lapor"] || r.waktu_lapor,
-                            "WA Klien": r["No WA Klien"] || r["WA Klien"] || r.no_wa_klien,
-                            "Link PDF BA": r["Link PDF BA"] || r.link_pdf_ba,
-                            "Deskripsi Pekerjaan (BA)": r["Deskripsi Pekerjaan (BA)"] || r.deskripsi_pekerjaan_ba,
-                            "Kritik & Saran": r["Kritik & Saran"] || r.kritik_saran,
-                            "Nama Customer": r["Nama Customer"] || r.nama_customer,
-                            "Keterangan": r.Keterangan || r.keterangan,
-                            "No Transaksi": r["No Transaksi"] || r.no_transaksi,
-                            "Cabang": r.Cabang || r.cabang
-                        }));
-                        let rawGaransi = Array.isArray(hasilTracking.garansi) ? hasilTracking.garansi : [];
-                        globalGaransi = rawGaransi.map(g => ({
-                            "Referensi (Tiket/Nota)": g["Referensi (Tiket/Nota)"] || g.referensi_tiket_nota,
-                            "Status": g.Status || g.status, "Tanggal Habis": g["Tanggal Habis"] || g.tanggal_habis,
-                            "Barang / Jasa": g["Barang / Jasa"] || g.barang_jasa,
-                            "Durasi (Hari)": g["Durasi (Hari)"] || g.durasi_hari,
-                            "Keterangan": g.Keterangan || g.keterangan, "Cabang": g.Cabang || g.cabang
-                        }));
+                        if (!currentTrackVerificationKey_) throw new Error('Verifikasi pelanggan diperlukan.');
+                        const hasilTracking = await ambilTrackingPublik_(trackIdNormal, currentTrackVerificationKey_);
+                        if (!terapkanHasilTrackingPublik_(hasilTracking)) throw new Error('Tiket tidak ditemukan.');
                         globalUsers = []; globalPenjualan = []; globalProspek = []; globalKlien = [];
                     } else {
                         // 🚀 JALUR DIRECT SUPABASE - FETCH SEMUA DATA LANGSUNG
@@ -3632,6 +3898,15 @@
         }
 
         document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && currentTrackTicket && currentTrackVerificationKey_) {
+                muatUlangTrackingPublik_(false);
+            }
+            if (document.visibilityState === 'visible' && penggunaAktif && cabangAktif) {
+                mulaiRealtimeSLA_().catch(error => {
+                    console.warn('[SUPABASE REALTIME] Pemulihan saat aplikasi aktif gagal:', error);
+                    jadwalkanHubungUlangRealtime_('aplikasi kembali aktif');
+                });
+            }
             if (!aplikasiBerjalanSebagaiPwa_()) return;
             if (document.visibilityState === 'hidden') {
                 waktuPwaDisembunyikan_ = Date.now();
@@ -3645,7 +3920,10 @@
         window.addEventListener('pageshow', event => {
             if (event.persisted) jadwalkanPemulihanPwa_('halaman dipulihkan');
         });
-        window.addEventListener('online', () => jadwalkanPemulihanPwa_('online'));
+        window.addEventListener('online', () => {
+            jadwalkanPemulihanPwa_('online');
+            jadwalkanHubungUlangRealtime_('jaringan kembali online');
+        });
         window.addEventListener('offline', () => {
             if (aplikasiBerjalanSebagaiPwa_() && penggunaAktif) showToast('Perangkat sedang offline. Data lama tetap ditampilkan.', 'warning');
         });
@@ -7512,8 +7790,8 @@
             await siapkanServiceWorkerPWA_();
 
             if (trackParam && trackParam.trim() !== "") {
-                console.log('[INIT] Mode tracking, langsung load data...');
-                await ambilSemuaData(false, trackParam.trim());
+                console.log('[INIT] Mode tracking, menunggu verifikasi pelanggan...');
+                renderClientTracking(trackParam.trim());
                 return;
             }
 
