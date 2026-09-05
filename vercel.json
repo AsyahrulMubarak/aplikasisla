@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "node scripts/build-public.cjs",
+  "outputDirectory": "public",
+  "functions": { "api/pts.js": { "maxDuration": 30 } },
+  "headers": [
+    { "source": "/pts.html", "headers": [
+      { "key": "Cache-Control", "value": "no-store" },
+      { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "X-Frame-Options", "value": "DENY" },
+      { "key": "Referrer-Policy", "value": "no-referrer" }
+    ] },
+    { "source": "/assets/pts-session.js", "headers": [
+      { "key": "Cache-Control", "value": "no-cache" },
+      { "key": "X-Content-Type-Options", "value": "nosniff" }
+    ] }
+  ]
+}

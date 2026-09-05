@@ -1,0 +1,10 @@
+{
+  "name": "alfacom-portal",
+  "private": true,
+  "version": "1.0.0",
+  "engines": { "node": "22.x" },
+  "scripts": {
+    "build": "node scripts/build-public.cjs",
+    "test": "node --test tests/pts-*.test.cjs"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "baseCommit": "92d05b62eb13e21c853ffe0a8340364d59cb0d80",
+  "portalFunctions": {
+    "prosesLogin": "c90b16ed77b3324ebcb0f7a03bda181b182fab024f6a2d6b37aa4a3c8015f367",
+    "selesaikanLoginBerhasil": "bb423be428a8403df86b23023dc76833c9b820bb66d57b5636b149f9847e6d33",
+    "prosesLoginBiometrik": "6d4406b0c62ee7cdf04984efd1615bf130379932444cd2d0c78a5467544033d5",
+    "pastikanTokenSupabaseAktif_": "370311ba1a93848412f0ac1c9d99a481cea4e8e6bc0a82274f1f342752888a49",
+    "pilihCabangSLA": "761e3ac86dcb1fd702fccd935b023a5bb602ccad94dad8bc03332f3b41a24501",
+    "aktifkanCabangDanMuat": "723b91cd47b78b2e219a8ed176c8f8a0571490b8cf6fb24d79a61d7a93afa9c4",
+    "bukaModulPendukung": "8674e3a1efad09356aa70104cd567afc30e700621384bcb0c88415ec95e81bed",
+    "simpanSesiAktif": "6291d7fd2240c3e6042fa8a4bc6819cf2432cd7b8ef1ab4350f86926646cf1b0",
+    "simpanSesiLobby": "d21c5fa2cc0d22d3ea5fcd11f18fabeab40bcf9950ca6caa5488f1f61fd1d47b",
+    "punyaAksesLobby": "476a9efba41eeeb04ccc9d6b00c4b8c95e6d4ffb777bbb7559b3ad5de72ee190"
+  },
+  "ptsFunctions": {
+    "calculateTarget": "c4436395dd4af8be3772bc76c6aa7b530ce8900d6863fc6f43bff4ce4582d399",
+    "calculateTieredBonus": "0b7bedb697580dd668193ab011767dfe2ae4860baee751161f1c25e810055b98",
+    "calculateCommission": "f01b036a3131aefd08386cd90b2b4d890e5f7a8cbe43e80c841d4141f36f7a85",
+    "buildScenarioPayload": "37a1999360f75dc6fe8bfd850522ead04d84b19baba84d42b66960829420d7ca"
+  },
+  "existingFiles": {
+    "absen.html": "a3fd0c76cf11a97af6b69b18d9618f7b2d436127f936e29225423710377b3485",
+    "slipgaji.html": "9b4640d5ba18cc1a9d6ea8d7d876da09d52693d7298d29cd9e2279e1c9c3d379",
+    "sw.js": "8477b3ac18b0da7fd297a81815b7ae3beaa6d65525a87844625732fae7e82d90",
+    "manifest.json": "aa1d9ede08ebb7fd8b54a64d1b23bd2f604fc79df36fb54d7e2f128734d6eee6",
+    "depan_001.png": "85959df65a0c26595658c630ad6f416fee839cb96c1360f81b3247ba8bb95689"
+  }
+}

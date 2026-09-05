@@ -525,6 +525,10 @@
                     <span aria-hidden="true">🧾</span>Slip Gaji Digital
                     <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Manajemen & Asyahrul (Uji)</strong>
                 </button>
+                <button type="button" id="btn-lobby-pts" class="main-lobby-option" onclick="bukaPTS()" style="display:none;">
+                    <span aria-hidden="true">📊</span>Sales Target Planner (PTS)
+                    <strong style="display:block; margin-top:8px; font-size:10px;">Admin, Manager &amp; Direktur</strong>
+                </button>
             </div>
             <p class="main-lobby-note">Untuk saat ini, Absensi dan Slip Gaji dapat dibuka oleh Admin, Manager, Direktur, serta Asyahrul untuk uji coba. Slip Gaji Asyahrul hanya menampilkan data miliknya sendiri.</p>
             <div id="main-lobby-status" role="status" aria-live="polite"></div>
@@ -2602,6 +2606,7 @@
             document.getElementById('main-lobby-user').innerText = `Selamat datang, ${nama}. Pilih cabang SLA atau modul yang ingin dibuka.`;
             document.getElementById('main-lobby-status').innerText = '';
 
+            document.getElementById('btn-lobby-pts').style.display = roleAdalahManajemenUtama_() ? 'block' : 'none';
             const hakAkses = hakAksesCabangPengguna();
             const isManajemenUtama = roleAdalahManajemenUtama_();
             const bolehAbsensi = penggunaBolehMengaksesAbsensi_();
@@ -4031,6 +4036,21 @@
             }
 
             tampilkanLobbyUtama();
+        }
+
+        async function bukaPTS() {
+            if (!punyaAksesLobby() || !roleAdalahManajemenUtama_()) {
+                showToast('PTS hanya untuk Admin, Manager, dan Direktur.', 'warning');
+                return;
+            }
+            const tombol = document.getElementById('btn-lobby-pts');
+            tombol.disabled = true;
+            try {
+                await pastikanTokenSupabaseAktif_();
+                window.location.assign('pts.html');
+            } catch(error) {
+                showToast(error.message || 'Sesi belum dapat diperiksa.', 'error');
+            } finally { tombol.disabled = false; }
         }
 
         async function bukaModulPendukung(namaModul) {
