@@ -1,0 +1,54 @@
+diff --git a/Kode.gs b/Kode.gs
+index 4bde98a..deee10c 100644
+--- a/Kode.gs
++++ b/Kode.gs
+@@ -1934,6 +1934,16 @@ function verifikasiIdentitasTracking_(tiket, kunci) {
+   });
+ }
+ 
++// Hitung status untuk respons/tampilan tanpa mengubah riwayat garansi.
++function statusGaransiEfektif_(status, tanggalHabis, waktuSekarang) {
++    var statusTersimpan = String(status || '').trim();
++    if (statusTersimpan !== 'Aktif' || !tanggalHabis) return statusTersimpan;
++    var akhir = new Date(tanggalHabis);
++    var sekarang = waktuSekarang == null ? new Date() : new Date(waktuSekarang);
++    return !isNaN(akhir.getTime()) && sekarang.getTime() > akhir.getTime()
++        ? 'Habis (Expired)' : statusTersimpan;
++}
++
+ function responsTrackingPublikGagal_() {
+   return ContentService.createTextOutput(JSON.stringify({
+     status: 'gagal',
+@@ -2146,13 +2156,14 @@ function prosesGetAllData_(parameter, ss, identitasSesi) {
+     // === 6. PROSES GARANSI ===
+     for (var i = 0; i < dbGaransi.length; i++) {
+        if (reqTrackId && String(dbGaransi[i].referensi_tiket_nota).toLowerCase() !== reqTrackId) continue;
++       var statusGaransiEfektif = statusGaransiEfektif_(dbGaransi[i].status, dbGaransi[i].tanggal_habis);
+        if (reqTrackId) {
+          resultGaransi.push({
+            "ID Garansi": dbGaransi[i].id_garansi,
+            "Referensi (Tiket/Nota)": dbGaransi[i].referensi_tiket_nota,
+            "Barang / Jasa": dbGaransi[i].barang_jasa,
+            "Durasi (Hari)": dbGaransi[i].durasi_hari,
+-           "Status": dbGaransi[i].status,
++           "Status": statusGaransiEfektif,
+            "Tanggal Mulai": dbGaransi[i].tanggal_mulai,
+            "Tanggal Habis": dbGaransi[i].tanggal_habis,
+            "Keterangan": dbGaransi[i].keterangan
+@@ -2161,15 +2172,11 @@ function prosesGetAllData_(parameter, ss, identitasSesi) {
+        }
+        var recordGaransi = {
+          "ID Garansi": dbGaransi[i].id_garansi, "Referensi (Tiket/Nota)": dbGaransi[i].referensi_tiket_nota, "Nama Pelanggan": dbGaransi[i].nama_pelanggan,
+-         "Barang / Jasa": dbGaransi[i].barang_jasa, "Durasi (Hari)": dbGaransi[i].durasi_hari, "Status": dbGaransi[i].status, "Tanggal Mulai": dbGaransi[i].tanggal_mulai,
++         "Barang / Jasa": dbGaransi[i].barang_jasa, "Durasi (Hari)": dbGaransi[i].durasi_hari, "Status": statusGaransiEfektif, "Tanggal Mulai": dbGaransi[i].tanggal_mulai,
+          "Tanggal Habis": dbGaransi[i].tanggal_habis, "No Transaksi": dbGaransi[i].no_transaksi, "Sales": dbGaransi[i].sales, "Omzet": dbGaransi[i].omzet,
+          "Keterangan": dbGaransi[i].keterangan, "Follow Up After-Sales Terkirim": dbGaransi[i].follow_up_after_sales_terkirim, "Cabang": dbGaransi[i].cabang, "Admin SLA": dbGaransi[i].admin_sla
+        };
+        
+-       if (String(recordGaransi.Status).trim() === 'Aktif' && recordGaransi["Tanggal Habis"]) {
+-           var tglHabis = new Date(recordGaransi["Tanggal Habis"]);
+-           if (!isNaN(tglHabis.getTime()) && new Date() > tglHabis) { recordGaransi.Status = 'Habis (Expired)'; }
+-       }
+        resultGaransi.push(recordGaransi);
+     }
+ 
