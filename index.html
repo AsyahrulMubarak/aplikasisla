@@ -1516,10 +1516,7 @@
                     "Follow Up After-Sales Terkirim": row.follow_up_after_sales_terkirim,
                     "Cabang": row.cabang, "Admin SLA": row.admin_sla
                 };
-                if (String(record.Status).trim() === 'Aktif' && record["Tanggal Habis"]) {
-                    const tanggalHabis = new Date(record["Tanggal Habis"]);
-                    if (!isNaN(tanggalHabis.getTime()) && new Date() > tanggalHabis) record.Status = 'Habis (Expired)';
-                }
+                record.Status = statusGaransiEfektif_(record.Status, record["Tanggal Habis"]);
                 globalGaransi = upsertRecordRealtime_(globalGaransi, 'ID Garansi', row.id_garansi, record);
                 renderGaransi();
                 return true;
@@ -1844,6 +1841,16 @@
         function tanggalIsoSupabase_(nilai = new Date()) {
             const tanggal = nilai instanceof Date ? nilai : new Date(nilai);
             return Number.isNaN(tanggal.getTime()) ? null : tanggal.toISOString();
+        }
+
+        // Hitung status untuk respons/tampilan tanpa mengubah riwayat garansi.
+        function statusGaransiEfektif_(status, tanggalHabis, waktuSekarang) {
+            var statusTersimpan = String(status || '').trim();
+            if (statusTersimpan !== 'Aktif' || !tanggalHabis) return statusTersimpan;
+            var akhir = new Date(tanggalHabis);
+            var sekarang = waktuSekarang == null ? new Date() : new Date(waktuSekarang);
+            return !isNaN(akhir.getTime()) && sekarang.getTime() > akhir.getTime()
+                ? 'Habis (Expired)' : statusTersimpan;
         }
 
         function adminSlaSupabase_(cabang) {
@@ -3178,7 +3185,7 @@
                 "Referensi (Tiket/Nota)": g["Referensi (Tiket/Nota)"] || g.referensi_tiket_nota,
                 "Barang / Jasa": g["Barang / Jasa"] || g.barang_jasa,
                 "Durasi (Hari)": g["Durasi (Hari)"] || g.durasi_hari,
-                "Status": g.Status || g.status,
+                "Status": statusGaransiEfektif_(g.Status || g.status, g["Tanggal Habis"] || g.tanggal_habis),
                 "Tanggal Mulai": g["Tanggal Mulai"] || g.tanggal_mulai,
                 "Tanggal Habis": g["Tanggal Habis"] || g.tanggal_habis,
                 "Keterangan": g.Keterangan || g.keterangan
@@ -3291,7 +3298,7 @@
             if (refsDiGaransi.length > 0) {
                 htmlGaransi = `<h4 style="margin:25px 0 10px 0; color:#3b82f6; border-bottom:1px solid var(--border); padding-bottom:5px;">🛡️ Status Garansi & Barang</h4>`;
                 refsDiGaransi.forEach(g => {
-                    let statGrs = String(g['Status'] || 'Masa Tunggu').trim();
+                    let statGrs = statusGaransiEfektif_(g['Status'], g['Tanggal Habis']) || 'Masa Tunggu';
                     let scG = 'status-aman'; let bcG = 'badge-tunggu';
                     if (statGrs === 'Aktif') { scG = 'status-terpenuhi'; bcG = 'badge-aktif'; }
                     else if (statGrs.includes('Habis') || statGrs.includes('Hangus') || statGrs.includes('Diklaim')) { scG = 'status-terlambat'; bcG = 'badge-habis'; }
@@ -3820,10 +3827,7 @@
                                 "Tanggal Habis": g.tanggal_habis, "No Transaksi": g.no_transaksi, "Sales": g.sales, "Omzet": g.omzet,
                                 "Keterangan": g.keterangan, "Follow Up After-Sales Terkirim": g.follow_up_after_sales_terkirim, "Cabang": g.cabang, "Admin SLA": g.admin_sla
                             };
-                            if (String(rec.Status).trim() === 'Aktif' && rec["Tanggal Habis"]) {
-                                var tglHabis = new Date(rec["Tanggal Habis"]);
-                                if (!isNaN(tglHabis.getTime()) && new Date() > tglHabis) { rec.Status = 'Habis (Expired)'; }
-                            }
+                            rec.Status = statusGaransiEfektif_(rec.Status, rec["Tanggal Habis"]);
                             return rec;
                         });
 
