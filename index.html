@@ -1952,6 +1952,73 @@
             return hasil.data;
         }
 
+        function statusProspekAktifUntukSinkron_(statusProspek) {
+            const statusNormal = String(statusProspek || '').trim().toLowerCase();
+            return statusNormal === 'tahap penawaran' || statusNormal === 'kunjungan toko';
+        }
+
+        async function sinkronkanStatusProspekOtomatis_(statusProspekTujuan, noWaCustomer, namaCustomer, sumberPerubahan) {
+            const statusTujuan = String(statusProspekTujuan || '').trim();
+            if (!statusTujuan) return { ditemukan: 0, diperbarui: 0, status: '' };
+
+            // Nama dan WA wajib sama-sama cocok. Ini mencegah customer yang namanya
+            // kebetulan sama, atau nomor WA yang dipakai bersama, tertutup otomatis.
+            const waTarget = normalisasiWASementara_(noWaCustomer);
+            const namaTarget = normalisasiNamaCustomerProspek_(namaCustomer);
+            if (!/^628\d{7,12}$/.test(waTarget) || !namaTarget) {
+                return { ditemukan: 0, diperbarui: 0, status: statusTujuan };
+            }
+
+            const daftarProspek = await callSupabase('prospek?select=id_prospek,no_wa,nama_calon_customer,status_prospek,sales_penanggung_jawab');
+            if (!Array.isArray(daftarProspek)) throw new Error('Respons pencarian Prospek tidak valid.');
+
+            const idSudahDiproses = new Set();
+            const prospekCocok = daftarProspek.filter(prospek => {
+                if (!prospek || !prospek.id_prospek || !statusProspekAktifUntukSinkron_(prospek.status_prospek)) return false;
+                const cocokWa = normalisasiWASementara_(prospek.no_wa) === waTarget;
+                const cocokNama = normalisasiNamaCustomerProspek_(prospek.nama_calon_customer) === namaTarget;
+                if (!cocokWa || !cocokNama) return false;
+                const idProspek = String(prospek.id_prospek).trim();
+                if (idSudahDiproses.has(idProspek)) return false;
+                idSudahDiproses.add(idProspek);
+                return true;
+            });
+
+            const hasilPembaruan = await Promise.all(prospekCocok.map(async prospek => {
+                const idProspek = String(prospek.id_prospek).trim();
+                const hasil = await callSupabase(
+                    endpointFilterSupabase_('prospek', 'id_prospek', idProspek),
+                    'PATCH',
+                    { status_prospek: statusTujuan }
+                );
+                pastikanHasilMutasiSupabase_(hasil, `Prospek ${idProspek}`);
+                const prospekLokal = (globalProspek || []).find(item => item && String(item['ID Prospek']).trim() === idProspek);
+                if (prospekLokal) prospekLokal['Status Prospek'] = statusTujuan;
+
+                const namaCustomerProspek = String(prospek.nama_calon_customer || namaCustomer || '-').trim();
+                const ikon = statusTujuan === 'Closing / Deal' ? '✅' : (statusTujuan === 'Batal' ? '❌' : (statusTujuan === 'Pending' ? '⏳' : '⚙️'));
+                const pemicu = sumberPerubahan === 'penjualan langsung'
+                    ? 'Penjualan langsung dengan nama dan nomor WA yang sama telah tersimpan.'
+                    : 'Status tiket dengan nama dan nomor WA yang sama telah diperbarui.';
+                const pesanWA = `⚠️ *UPDATE PROSPEK OTOMATIS*\n\nAssalamu'alaikum Sales,\nStatus prospek Anda atas nama *${namaCustomerProspek}* kini berubah menjadi:\n\n${ikon} *${statusTujuan}*\n\n${pemicu} Mohon pantau terus di aplikasi SLA!`;
+
+                const hasilNotifProspek = await kirimNotifWAInternal(prospek.sales_penanggung_jawab, pesanWA);
+                const notifTerkirim = Number(hasilNotifProspek && hasilNotifProspek.terkirim) || 0;
+                const notifGagalDilaporkan = Number(hasilNotifProspek && hasilNotifProspek.gagal) || 0;
+                const notifGagal = notifGagalDilaporkan + (notifTerkirim === 0 && notifGagalDilaporkan === 0 ? 1 : 0);
+                if (notifGagal > 0) console.error(`Notif WA Prospek ${idProspek} ke Sales gagal atau nomor WA Sales tidak ditemukan.`);
+                return { notifTerkirim: notifTerkirim, notifGagal: notifGagal };
+            }));
+
+            return {
+                ditemukan: prospekCocok.length,
+                diperbarui: prospekCocok.length,
+                status: statusTujuan,
+                notifTerkirim: hasilPembaruan.reduce((total, item) => total + item.notifTerkirim, 0),
+                notifGagal: hasilPembaruan.reduce((total, item) => total + item.notifGagal, 0)
+            };
+        }
+
         async function sinkronkanStatusProspekDariTiket_(statusTiket, noWaCustomer, namaCustomer) {
             const statusTiketNormal = String(statusTiket || '').trim().toLowerCase();
             let statusProspekTujuan = '';
@@ -1970,66 +2037,11 @@
                 return { ditemukan: 0, diperbarui: 0, status: '' };
             }
 
-            const waTarget = normalisasiWASementara_(noWaCustomer);
-            const namaTarget = normalisasiNamaCustomerProspek_(namaCustomer);
-            const waLayakDicocokkan = waTarget.length >= 8;
-            if (!waLayakDicocokkan && !namaTarget) return { ditemukan: 0, diperbarui: 0, status: statusProspekTujuan };
+            return sinkronkanStatusProspekOtomatis_(statusProspekTujuan, noWaCustomer, namaCustomer, 'tiket');
+        }
 
-            const daftarProspek = await callSupabase('prospek?select=id_prospek,no_wa,nama_calon_customer,status_prospek,sales_penanggung_jawab');
-            if (!Array.isArray(daftarProspek)) throw new Error('Respons pencarian Prospek tidak valid.');
-
-            const idSudahDiproses = new Set();
-            const prospekCocok = daftarProspek.filter(prospek => {
-                if (!prospek || !prospek.id_prospek) return false;
-                const cocokWa = waLayakDicocokkan && normalisasiWASementara_(prospek.no_wa) === waTarget;
-                const cocokNama = !!namaTarget && normalisasiNamaCustomerProspek_(prospek.nama_calon_customer) === namaTarget;
-                if (!cocokWa && !cocokNama) return false;
-                const idProspek = String(prospek.id_prospek).trim();
-                if (idSudahDiproses.has(idProspek)) return false;
-                idSudahDiproses.add(idProspek);
-                return true;
-            });
-
-            const prospekPerluDiubah = prospekCocok.filter(prospek => {
-                const statusSaatIni = String(prospek.status_prospek || '').trim().toLowerCase();
-                // Jika statusnya sudah sama, abaikan
-                if (statusSaatIni === statusProspekTujuan.toLowerCase()) return false;
-                // Cegah status mundur (Misal: dari Closing/Deal kembali ke On Progress)
-                if (statusSaatIni === 'closing / deal' || statusSaatIni === 'batal') return false;
-                return true;
-            });
-
-            const hasilPembaruan = await Promise.all(prospekPerluDiubah.map(async prospek => {
-                const idProspek = String(prospek.id_prospek).trim();
-                const hasil = await callSupabase(
-                    endpointFilterSupabase_('prospek', 'id_prospek', idProspek),
-                    'PATCH',
-                    { status_prospek: statusProspekTujuan }
-                );
-                pastikanHasilMutasiSupabase_(hasil, `Prospek ${idProspek}`);
-                const prospekLokal = (globalProspek || []).find(item => item && String(item['ID Prospek']).trim() === idProspek);
-                if (prospekLokal) prospekLokal['Status Prospek'] = statusProspekTujuan;
-
-                const namaCustomerProspek = String(prospek.nama_calon_customer || namaCustomer || '-').trim();
-                let ikon = statusProspekTujuan === 'Closing / Deal' ? '✅' : (statusProspekTujuan === 'Batal' ? '❌' : (statusProspekTujuan === 'Pending' ? '⏳' : '⚙️'));
-
-                const pesanWA = `⚠️ *UPDATE PROSPEK OTOMATIS*\n\nAssalamu'alaikum Sales,\nStatus prospek Anda atas nama *${namaCustomerProspek}* kini berubah menjadi:\n\n${ikon} *${statusProspekTujuan}*\n\nStatus ini disinkronkan otomatis karena Teknisi telah mengubah status tiket perbaikannya. Mohon pantau terus di aplikasi SLA!`;
-
-                const hasilNotifProspek = await kirimNotifWAInternal(prospek.sales_penanggung_jawab, pesanWA);
-                const notifTerkirim = Number(hasilNotifProspek && hasilNotifProspek.terkirim) || 0;
-                const notifGagalDilaporkan = Number(hasilNotifProspek && hasilNotifProspek.gagal) || 0;
-                const notifGagal = notifGagalDilaporkan + (notifTerkirim === 0 && notifGagalDilaporkan === 0 ? 1 : 0);
-                if (notifGagal > 0) console.error(`Notif WA Prospek ${idProspek} ke Sales gagal atau nomor WA Sales tidak ditemukan.`);
-                return { notifTerkirim: notifTerkirim, notifGagal: notifGagal };
-            }));
-
-            return {
-                ditemukan: prospekCocok.length,
-                diperbarui: prospekPerluDiubah.length,
-                status: statusProspekTujuan,
-                notifTerkirim: hasilPembaruan.reduce((total, item) => total + item.notifTerkirim, 0),
-                notifGagal: hasilPembaruan.reduce((total, item) => total + item.notifGagal, 0)
-            };
+        async function sinkronkanStatusProspekDariPenjualan_(noWaCustomer, namaCustomer) {
+            return sinkronkanStatusProspekOtomatis_('Closing / Deal', noWaCustomer, namaCustomer, 'penjualan langsung');
         }
         // =========================================================================
 
@@ -6417,10 +6429,7 @@
                 }
 
                 if (canSeeUpdateForm) {
-                    let adminOptions = '';
-                    if (roleAdalahAdminOperasional_()) {
-                        adminOptions = `<option value="Batal" ${textStatus.includes('Batal')?'selected':''}>❌ Batal</option><option value="Tanpa Keterangan" ${textStatus.includes('Tanpa Keterangan')?'selected':''}>❓ Tanpa Keterangan</option>`;
-                    }
+                    const statusAkhirOptions = `<option value="Batal" ${textStatus.includes('Batal')?'selected':''}>❌ Batal</option><option value="Tanpa Keterangan" ${textStatus.includes('Tanpa Keterangan')?'selected':''}>❓ Tanpa Keterangan</option>`;
 
                     btnHtml += `<div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px dashed var(--border); border-radius:8px;">
                         <label style="font-size:11px; margin-top:0;">Update Status Prospek:</label>
@@ -6429,7 +6438,7 @@
                                 <option value="Tahap Penawaran" ${textStatus.includes('Penawaran')?'selected':''}>Tahap Penawaran</option>
                                 <option value="Kunjungan Toko" ${textStatus.includes('Kunjungan')?'selected':''}>Kunjungan Toko</option>
                                 <option value="Closing / Deal" ${textStatus.includes('Closing')?'selected':''}>Closing / Deal</option>
-                                ${adminOptions}
+                                ${statusAkhirOptions}
                             </select>
                             <button class="btn-solid-primary" style="margin:0; width:auto; padding:6px 12px; font-size:11px;" onclick="updateStatusProspek('${p['ID Prospek']}')">Simpan</button>
                         </div>
@@ -6680,11 +6689,24 @@
 
         async function updateStatusProspek(id) {
             const newVal = document.getElementById('update-prospek-'+id).value;
+            const prospek = (globalProspek || []).find(item => item && String(item['ID Prospek'] || '').trim() === String(id || '').trim());
+            const statusDiizinkan = new Set(['Tahap Penawaran', 'Kunjungan Toko', 'Closing / Deal', 'Batal', 'Tanpa Keterangan']);
+            if (!prospek || !statusDiizinkan.has(newVal)) {
+                showToast('Afwan, Prospek atau status yang dipilih tidak valid.', 'error');
+                return;
+            }
+            if (rolePengguna() === 'sales') {
+                const namaSalesAktif = String((penggunaAktif && penggunaAktif['Nama Asli']) || '').trim().toLowerCase();
+                const salesProspek = String(prospek['Sales Penanggung Jawab'] || '').split(',').map(nama => nama.trim().toLowerCase());
+                if (!namaSalesAktif || !salesProspek.includes(namaSalesAktif)) {
+                    showToast('Afwan, Anda hanya dapat memperbarui Prospek yang menjadi tanggung jawab Anda.', 'error');
+                    return;
+                }
+            }
             let nominalUpdate = undefined;
 
             if (newVal.includes('Closing')) {
-                const p = (globalProspek || []).find(x => x && x['ID Prospek'] === id);
-                let estimasiLama = p ? p['Estimasi (Rp)'] || '' : '';
+                let estimasiLama = prospek['Estimasi (Rp)'] || '';
 
                 if (!estimasiLama || angkaRupiahSupabase_(estimasiLama, 0) <= 0) {
                     nominalUpdate = await showPrompt("Bismillah, Prospek Deal! Silakan masukkan Nominal / Nilai Proyek (Rp) yang disepakati:");
@@ -7025,12 +7047,15 @@
                     };
                     await simpanPenjualanTanpaBentrok_(penjualanBaru);
 
-                    const namaPembeliNormal = normalisasiNamaCustomerProspek_(penjualanBaru.nama_pembeli);
-                    const prospekPenjualan = (globalProspek || []).slice().reverse().find(prospek =>
-                        prospek && normalisasiNamaCustomerProspek_(prospek['Nama Calon Customer']) === namaPembeliNormal
-                    );
                     const noWaDiisi = document.getElementById('input-wa-sls').value;
-                    const noWaPenjualanCRM = noWaDiisi || (prospekPenjualan ? (prospekPenjualan['No WA'] || '') : '');
+                    const noWaPenjualanCRM = normalisasiWASementara_(noWaDiisi);
+                    let sinkronProspekPenjualanGagal = false;
+                    try {
+                        await sinkronkanStatusProspekDariPenjualan_(noWaPenjualanCRM, penjualanBaru.nama_pembeli);
+                    } catch (errorProspek) {
+                        console.error(`Sinkronisasi Prospek penjualan ${penjualanBaru.id_penjualan} gagal:`, errorProspek);
+                        sinkronProspekPenjualanGagal = true;
+                    }
                     let crmPenjualanGagal = false;
                     try {
                         await sinkronkanDatabaseKlienSupabase_(penjualanBaru.nama_pembeli, noWaPenjualanCRM, 'Penjualan', penjualanBaru.barang_jasa || '', penjualanBaru.id_penjualan);
@@ -7039,7 +7064,12 @@
                         crmPenjualanGagal = true;
                     }
 
-                    showToast(crmPenjualanGagal ? 'Penjualan tersimpan, tetapi sinkronisasi CRM perlu dicoba ulang.' : 'Alhamdulillah! Data berhasil disimpan.', crmPenjualanGagal ? 'warning' : 'success');
+                    const adaPeringatanPenjualan = sinkronProspekPenjualanGagal || crmPenjualanGagal;
+                    let pesanPenjualan = 'Alhamdulillah! Data berhasil disimpan.';
+                    if (sinkronProspekPenjualanGagal && crmPenjualanGagal) pesanPenjualan = 'Penjualan tersimpan, tetapi sinkronisasi Prospek dan CRM perlu dicoba ulang.';
+                    else if (sinkronProspekPenjualanGagal) pesanPenjualan = 'Penjualan tersimpan, tetapi sinkronisasi Prospek perlu dicoba ulang.';
+                    else if (crmPenjualanGagal) pesanPenjualan = 'Penjualan tersimpan, tetapi sinkronisasi CRM perlu dicoba ulang.';
+                    showToast(pesanPenjualan, adaPeringatanPenjualan ? 'warning' : 'success');
                     document.getElementById('form-sls').reset(); switchTab('penjualan');
                     await ambilSemuaData(true);
                 }
