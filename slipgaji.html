@@ -443,7 +443,7 @@
                             <li><span style="display:inline-block; width:12px; height:12px; background:#fbcfe8; margin-right:5px; border-radius:2px;"></span> <strong>Pink:</strong> Koreksi Absen</li>
                             <li><span style="display:inline-block; width:12px; height:12px; background:#fef08a; margin-right:5px; border-radius:2px;"></span> <strong>Kuning:</strong> Terlambat Masuk Pagi</li>
                             <li><span style="display:inline-block; width:12px; height:12px; background:#e0f2fe; margin-right:5px; border-radius:2px;"></span> <strong>Biru Muda:</strong> Lupa absen keluar</li>
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#e2e8f0; margin-right:5px; border-radius:2px;"></span> <strong>Abu-abu:</strong> Kuota Sakit / Lupa Pulang Habis</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#e2e8f0; margin-right:5px; border-radius:2px;"></span> <strong>Abu-abu:</strong> Kuota Lupa Pulang Habis</li>
                         </ul>
                     </div>
             
@@ -452,7 +452,7 @@
                         <h4 style="margin:0 0 10px 0; color:#059669; border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">⚖️ Aturan Hak & Toleransi</h4>
                         <ul style="padding-left:15px; margin:0; font-size:11px; line-height:1.7;">
                             <li><strong>Keterlambatan Masuk:</strong> Kendari dan Admin Raha ditandai telat setelah 08:45; pegawai Raha setelah 09:45.</li>
-                            <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari disetujui dibayar penuh. Setelah kuota habis, hari sakit tetap terisi dengan potongan 1 jam 30 menit dan penanda abu-abu.</li>
+                            <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari disetujui per bulan dibayar penuh. Setelah kuota habis, kolom jam tetap kosong dengan latar biru sampai pegawai absen masuk. Upah kemudian mengikuti waktu kehadiran yang tercatat.</li>
                             <li><strong>Lupa Pulang:</strong> Tiga kali pertama per bulan ditutup otomatis pada 17:00 / 20:00 sesuai jadwal. Kejadian berikutnya dipotong 90 menit dan ditandai abu-abu. Penutupan disimpan setelah batas lembur 06:00 WITA hari berikutnya.</li>
                             <li><strong>Koreksi Absen:</strong> Dapat digunakan bila terjadi kendala sistem (Maksimal 7x per bulan).</li>
                         </ul>
@@ -1505,7 +1505,7 @@
                 // Izin dihitung satu kali per hari kerja untuk evaluasi kedisiplinan.
                 if (isIzinExplicit && !isAhad && !isFutureDate) countIzin++;
 
-                let applySakitFull = false; let applySakitPotongan = false;
+                let applySakitFull = false; let applySakitKosong = false;
                 // Hari izin yang memiliki absen fisik tetap mengikuti sesi kerja nyata.
                 let applyIzin = isIzinExplicit && !adaAbsenFisik;
 
@@ -1520,11 +1520,13 @@
                     if (kuotaSakitTerpakai < 3) {
                         applySakitFull = true; kuotaSakitTerpakai++;
                     } else {
-                        applySakitPotongan = true; kuotaSakitTerpakai++;
+                        applySakitKosong = true; kuotaSakitTerpakai++;
                     }
                 }
 
-                if (applySakitFull || applySakitPotongan) {
+                if (applySakitKosong) ketList.push('Sakit (Kuota Habis, Upah Mengikuti Kehadiran)');
+
+                if (applySakitFull) {
                     const eventsUrut = [...events].sort((a,b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen']));
                     const formatEventSakit = (event) => {
                         const tanggalEvent = new Date(event['Waktu Absen']);
@@ -1565,13 +1567,7 @@
                             if (keteranganEvent.toLowerCase().includes('pokok x2')) isPokok2x = true;
                         }
                     });
-                    if (applySakitPotongan) {
-                        potHariIni += 90 * upahPerMenit;
-                        totJam = Math.max(0, totJam - 1.5);
-                        ketList.push("Sakit (Kuota Habis, Potongan 1 Jam 30 Menit)");
-                    } else {
-                        ketList.push("Sakit (Kuota Tersedia)");
-                    }
+                    ketList.push("Sakit (Kuota Tersedia)");
 
                     // Penutupan dari backend tetap memakai kuota lupa keluar sendiri.
                     // Upah dasar sakit belum dipangkas oleh waktu keluar, sehingga
@@ -1613,6 +1609,13 @@
                         lemHariIni += menitLemburSakit * (5000 / 60);
                         txtLemburJam = (menitLemburSakit / 60).toFixed(2) + 'j';
                     }
+                } else if (applySakitKosong && !adaAbsenFisik) {
+                    // Kuota sakit habis: tidak memberi jam atau upah otomatis.
+                    // Ketika ada absen fisik, gunakan perhitungan sesi biasa di bawah.
+                    events.forEach(event => {
+                        const ket = String(event['Keterangan'] || '').trim();
+                        if (ket && ket !== '-') ketList.push(ket);
+                    });
                 } else if (applyIzin) {
                     ketList.push(isIzinExplicit ? "Izin" : "Izin (Auto)");
                 } else if (events.length > 0) {
@@ -1804,8 +1807,6 @@
                 if (!isAhad) {
                     if (isAlpa) {
                         bgWaktuKhusus = "background-color:#1e293b; color:#ffffff;"; // Hitam, teks putih.
-                    } else if (applySakitPotongan) {
-                        bgWaktuKhusus = "background-color:#e2e8f0; color:#334155;"; // Abu-abu kuota sakit habis.
                     } else if (isSakitExplicit) {
                         bgWaktuKhusus = "background-color:#bfdbfe; color:#1e3a8a;"; // Biru.
                     } else if (isIzinExplicit) {
