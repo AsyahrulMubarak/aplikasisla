@@ -452,7 +452,7 @@
                         <h4 style="margin:0 0 10px 0; color:#059669; border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">⚖️ Aturan Hak & Toleransi</h4>
                         <ul style="padding-left:15px; margin:0; font-size:11px; line-height:1.7;">
                             <li><strong>Keterlambatan Masuk:</strong> Kendari dan Admin Raha ditandai telat setelah 08:45; pegawai Raha setelah 09:45.</li>
-                            <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari disetujui dibayar penuh. Hari berikutnya tetap biru namun tanpa upah.</li>
+                            <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari disetujui dibayar penuh. Setelah kuota habis, hari sakit tetap terisi dengan potongan 1 jam 30 menit dan penanda abu-abu.</li>
                             <li><strong>Lupa Pulang:</strong> Maksimal 3x per bulan, sistem menutup saat absen masuk berikutnya pada jam kerja maksimal pegawai.</li>
                             <li><strong>Koreksi Absen:</strong> Dapat digunakan bila terjadi kendala sistem (Maksimal 7x per bulan).</li>
                         </ul>
@@ -1505,7 +1505,7 @@
                 // Izin dihitung satu kali per hari kerja untuk evaluasi kedisiplinan.
                 if (isIzinExplicit && !isAhad && !isFutureDate) countIzin++;
 
-                let applySakitFull = false; let applySakitKosong = false;
+                let applySakitFull = false; let applySakitPotongan = false;
                 // Absen fisik pada hari izin/sakit selalu ditampilkan sebagai absensi nyata.
                 let applyIzin = isIzinExplicit && !adaAbsenFisik;
 
@@ -1516,21 +1516,59 @@
                 let isLupaKeluarParah = false; let isLupaKeluarBiasa = false; let isPokok2x = false; let isAlpa = false;
                 let txtLemburJam = "";
 
-                if (!isAhad && !isFutureDate && isSakitExplicit && !adaAbsenFisik) {
+                if (!isAhad && !isFutureDate && isSakitExplicit) {
                     if (kuotaSakitTerpakai < 3) {
                         applySakitFull = true; kuotaSakitTerpakai++;
                     } else {
-                        applySakitKosong = true;
+                        applySakitPotongan = true; kuotaSakitTerpakai++;
                     }
                 }
 
-                if (applySakitFull) {
-                    msk1 = "08:00"; msk2 = "13:30"; klr2 = formatJamMenitPayroll(kebijakanKerja.selesaiMenit);
+                if (applySakitFull || applySakitPotongan) {
+                    const eventsUrut = [...events].sort((a,b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen']));
+                    const formatEventSakit = (event) => {
+                        const tanggalEvent = new Date(event['Waktu Absen']);
+                        let hasil = String(tanggalEvent.getHours()).padStart(2,'0') + ':' +
+                            String(tanggalEvent.getMinutes()).padStart(2,'0') + ':' +
+                            String(tanggalEvent.getSeconds()).padStart(2,'0');
+                        if (event['isOvernight']) hasil += ' (+1)';
+                        return hasil;
+                    };
+                    const masukSiangNyata = eventsUrut.find(event => {
+                        const tipeEvent = String(event['Tipe Absen'] || '');
+                        const tanggalEvent = new Date(event['Waktu Absen']);
+                        return tipeEvent.includes('Masuk') && tanggalEvent.getHours() >= 12;
+                    });
+                    const keluarNyata = [...eventsUrut].reverse().find(event => {
+                        const tipeEvent = String(event['Tipe Absen'] || '');
+                        return tipeEvent.includes('Keluar') || tipeEvent.includes('Pulang');
+                    });
+
+                    // Persetujuan sakit mengisi jadwal dasar. Jika pegawai datang
+                    // siang, waktu fisiknya menggantikan checkpoint siang saja.
+                    msk1 = "08:00";
+                    msk2 = masukSiangNyata ? formatEventSakit(masukSiangNyata) : "13:30";
+                    klr2 = formatJamMenitPayroll(kebijakanKerja.selesaiMenit);
+                    if (keluarNyata) {
+                        const tanggalKeluar = new Date(keluarNyata['Waktu Absen']);
+                        const jamKeluar = tanggalKeluar.getHours() + tanggalKeluar.getMinutes() / 60;
+                        if (!keluarNyata['isOvernight'] && jamKeluar <= 14) klr1 = formatEventSakit(keluarNyata);
+                        else klr2 = formatEventSakit(keluarNyata);
+                    }
+
                     totJam = kebijakanKerja.durasiMenit / 60; isHadir = true; countKehadiran++;
                     upahRegulerHariIni = upahPerHari;
-                    ketList.push(isSakitExplicit ? "Sakit" : "Sakit (Auto)");
-                } else if (applySakitKosong) {
-                    ketList.push(isSakitExplicit ? "Sakit (Non Upah)" : "Sakit (Auto - Non Upah)");
+                    eventsUrut.forEach(event => {
+                        const keteranganEvent = String(event['Keterangan'] || '').trim();
+                        if (keteranganEvent && keteranganEvent !== '-') ketList.push(keteranganEvent);
+                    });
+                    if (applySakitPotongan) {
+                        potHariIni += 90 * upahPerMenit;
+                        totJam = Math.max(0, totJam - 1.5);
+                        ketList.push("Sakit (Kuota Habis, Potongan 1 Jam 30 Menit)");
+                    } else {
+                        ketList.push("Sakit (Kuota Tersedia)");
+                    }
                 } else if (applyIzin) {
                     ketList.push(isIzinExplicit ? "Izin" : "Izin (Auto)");
                 } else if (events.length > 0) {
@@ -1723,6 +1761,8 @@
                 if (!isAhad) {
                     if (statusLower.includes('alpa')) {
                         bgWaktuKhusus = "background-color:#1e293b; color:#ffffff;"; // Hitam, teks putih.
+                    } else if (statusLower.includes('kuota habis')) {
+                        bgWaktuKhusus = "background-color:#e2e8f0; color:#334155;"; // Abu-abu kuota sakit habis.
                     } else if (statusLower.includes('izin')) {
                         bgWaktuKhusus = "background-color:#bbf7d0; color:#166534;"; // Hijau.
                     } else if (statusLower.includes('sakit')) {
