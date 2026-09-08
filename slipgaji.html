@@ -399,7 +399,7 @@
                         <div class="sum-val minus" id="sum-potongan">Rp 0</div>
                     </div>
                     <div class="sum-card">
-                        <div class="sum-title">Bonus Lembur (>17:00)</div>
+                        <div class="sum-title">Bonus Lembur</div>
                         <div class="sum-val plus" id="sum-lembur">Rp 0</div>
                     </div>
                     <div class="sum-card">
@@ -464,7 +464,7 @@
                         <ul style="padding-left:15px; margin:0; font-size:11px; line-height:1.7;">
                             <li><strong>Lupa Absen Pagi:</strong> Sistem otomatis mengisi masuk jam 13:00 dengan penanda kuning.</li>
                             <li><strong>Telat Masuk Setelah Istirahat (>13:00):</strong> Potongan berjalan per menit, maksimal 90 menit.</li>
-                            <li><strong>Argo Upah:</strong> Upah reguler mengikuti menit antara masuk dan keluar; jam setelah batas kerja dihitung sebagai lembur.</li>
+                            <li><strong>Argo Upah:</strong> Upah pokok mengikuti akumulasi sesi kerja sampai 9 jam (jadwal pulang 17:00) / 12 jam (jadwal pulang 20:00), paling lambat 20:00 / 22:00. Setelah itu, waktu kerja dihitung sebagai lembur. Jeda setelah absen keluar sampai masuk kembali tidak dihitung.</li>
                             <li><strong>Lupa Pulang > 3x:</strong> Sistem mengisi keluar 90 menit sebelum batas kerja dan menandainya abu-abu.</li>
                             <li><strong>Lupa Absen Istirahat:</strong> Mendapat hukuman sistem otomatis (Potongan 1.5 jam).</li>
                         </ul>
@@ -1411,6 +1411,7 @@
                 cabang: memakaiRaha ? 'Raha' : 'Kendari',
                 mulaiMenit: 8 * 60,
                 selesaiMenit: selesaiMenit,
+                batasRegulerMenit: memakaiRaha ? 22 * 60 : 20 * 60,
                 batasTelatMenit: memakaiRaha ? 9 * 60 + 45 : 8 * 60 + 45,
                 durasiMenit: selesaiMenit - 8 * 60
             };
@@ -1650,7 +1651,8 @@
                         }
 
                         let jamFloat = ed.getHours() + (ed.getMinutes() / 60) + (ed.getSeconds() / 3600);
-                        let menitEvent = Math.floor(jamFloat * 60);
+                        // Ambil menit langsung agar 08:25 tidak menjadi 08:24 akibat presisi desimal.
+                        let menitEvent = ed.getHours() * 60 + ed.getMinutes();
                         let jamStr = String(ed.getHours()).padStart(2,'0') + ":" + String(ed.getMinutes()).padStart(2,'0') + ":" + String(ed.getSeconds()).padStart(2,'0');
                         if (e['isOvernight']) {
                             jamFloat += 24; // Agar 02:00 pagi dibaca sebagai 26:00
@@ -1719,7 +1721,6 @@
                             menitKeluarTerakhir = menitSaatIni;
                             klr2 = formatJamMenitPayroll(menitSaatIni) + ' (Berjalan)';
                             sesiKerjaHariIni.push({ mulai: menitSesiTerbuka, selesai: menitSaatIni });
-                            ketList.push(menitSaatIni > kebijakanKerja.selesaiMenit ? 'Lembur berjalan sampai absen keluar' : 'Jam kerja berjalan sampai absen keluar');
                         }
                     }
 
@@ -1729,11 +1730,14 @@
                         let totalMenitArgo = 0;
 
                         sesiKerjaHariIni.forEach((sesi, indexSesi) => {
-                            const awalReguler = Math.max(sesi.mulai, kebijakanKerja.mulaiMenit);
-                            const akhirReguler = Math.min(sesi.selesai, kebijakanKerja.selesaiMenit);
-                            const menitRegulerSesi = Math.max(0, akhirReguler - awalReguler);
-                            const awalLembur = Math.max(sesi.mulai, kebijakanKerja.selesaiMenit);
-                            const menitLemburSesi = Math.max(0, sesi.selesai - awalLembur);
+                            const awalArgo = Math.max(sesi.mulai, kebijakanKerja.mulaiMenit);
+                            const menitSesi = Math.max(0, sesi.selesai - awalArgo);
+                            // Kuota upah pokok dipakai bersama oleh seluruh sesi hari ini.
+                            // Jeda keluar tidak dihitung; batas 20:00/22:00 tetap mutlak.
+                            const sisaMenitReguler = Math.max(0, kebijakanKerja.durasiMenit - totalMenitReguler);
+                            const menitSebelumBatas = Math.max(0, Math.min(sesi.selesai, kebijakanKerja.batasRegulerMenit) - awalArgo);
+                            const menitRegulerSesi = Math.min(sisaMenitReguler, menitSebelumBatas);
+                            const menitLemburSesi = menitSesi - menitRegulerSesi;
                             totalMenitReguler += menitRegulerSesi;
                             totalMenitLembur += menitLemburSesi;
                             totalMenitArgo += menitRegulerSesi + menitLemburSesi;
@@ -1746,6 +1750,12 @@
 
                         totJam = totalMenitArgo / 60;
                         upahRegulerHariIni = totalMenitReguler * upahPerMenit;
+
+                        if (menitSesiTerbuka !== null && dateKey === tanggalHariIni && menitKeluarTerakhir > menitSesiTerbuka) {
+                            const mulaiLembur = totalMenitReguler >= kebijakanKerja.durasiMenit ||
+                                menitKeluarTerakhir >= kebijakanKerja.batasRegulerMenit;
+                            ketList.push(mulaiLembur ? 'Lembur berjalan sampai absen keluar' : 'Jam kerja berjalan sampai absen keluar');
+                        }
 
                         if (menitMasukPertama > kebijakanKerja.batasTelatMenit) countTelatPagi++;
                         if (potonganCheckpointIstirahat > 0) {
