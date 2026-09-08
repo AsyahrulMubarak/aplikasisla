@@ -443,7 +443,7 @@
                             <li><span style="display:inline-block; width:12px; height:12px; background:#fbcfe8; margin-right:5px; border-radius:2px;"></span> <strong>Pink:</strong> Koreksi Absen</li>
                             <li><span style="display:inline-block; width:12px; height:12px; background:#fef08a; margin-right:5px; border-radius:2px;"></span> <strong>Kuning:</strong> Terlambat Masuk Pagi</li>
                             <li><span style="display:inline-block; width:12px; height:12px; background:#e0f2fe; margin-right:5px; border-radius:2px;"></span> <strong>Biru Muda:</strong> Lupa absen keluar</li>
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#e2e8f0; margin-right:5px; border-radius:2px;"></span> <strong>Abu-abu:</strong> Penalti Lupa Pulang (Lebih dari 3x)</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background:#e2e8f0; margin-right:5px; border-radius:2px;"></span> <strong>Abu-abu:</strong> Kuota Sakit / Lupa Pulang Habis</li>
                         </ul>
                     </div>
             
@@ -453,7 +453,7 @@
                         <ul style="padding-left:15px; margin:0; font-size:11px; line-height:1.7;">
                             <li><strong>Keterlambatan Masuk:</strong> Kendari dan Admin Raha ditandai telat setelah 08:45; pegawai Raha setelah 09:45.</li>
                             <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari disetujui dibayar penuh. Setelah kuota habis, hari sakit tetap terisi dengan potongan 1 jam 30 menit dan penanda abu-abu.</li>
-                            <li><strong>Lupa Pulang:</strong> Maksimal 3x per bulan, sistem menutup saat absen masuk berikutnya pada jam kerja maksimal pegawai.</li>
+                            <li><strong>Lupa Pulang:</strong> Tiga kali pertama per bulan ditutup otomatis pada 17:00 / 20:00 sesuai jadwal. Kejadian berikutnya dipotong 90 menit dan ditandai abu-abu. Penutupan disimpan setelah batas lembur 06:00 WITA hari berikutnya.</li>
                             <li><strong>Koreksi Absen:</strong> Dapat digunakan bila terjadi kendala sistem (Maksimal 7x per bulan).</li>
                         </ul>
                     </div>
@@ -1506,7 +1506,7 @@
                 if (isIzinExplicit && !isAhad && !isFutureDate) countIzin++;
 
                 let applySakitFull = false; let applySakitPotongan = false;
-                // Absen fisik pada hari izin/sakit selalu ditampilkan sebagai absensi nyata.
+                // Hari izin yang memiliki absen fisik tetap mengikuti sesi kerja nyata.
                 let applyIzin = isIzinExplicit && !adaAbsenFisik;
 
                 let msk1 = "-", klr1 = "-", msk2 = "-", klr2 = "-";
@@ -1560,7 +1560,10 @@
                     upahRegulerHariIni = upahPerHari;
                     eventsUrut.forEach(event => {
                         const keteranganEvent = String(event['Keterangan'] || '').trim();
-                        if (keteranganEvent && keteranganEvent !== '-') ketList.push(keteranganEvent);
+                        if (keteranganEvent && keteranganEvent !== '-') {
+                            ketList.push(keteranganEvent);
+                            if (keteranganEvent.toLowerCase().includes('pokok x2')) isPokok2x = true;
+                        }
                     });
                     if (applySakitPotongan) {
                         potHariIni += 90 * upahPerMenit;
@@ -1568,6 +1571,47 @@
                         ketList.push("Sakit (Kuota Habis, Potongan 1 Jam 30 Menit)");
                     } else {
                         ketList.push("Sakit (Kuota Tersedia)");
+                    }
+
+                    // Penutupan dari backend tetap memakai kuota lupa keluar sendiri.
+                    // Upah dasar sakit belum dipangkas oleh waktu keluar, sehingga
+                    // potongan ini diterapkan sekali di sini dan ditandai pada sel keluar.
+                    const statusKeluar = String(keluarNyata && keluarNyata['Status Disiplin'] || '');
+                    if (statusKeluar.includes('Auto Keluar')) {
+                        if (statusKeluar.includes('Penalti')) {
+                            potHariIni += 90 * upahPerMenit;
+                            totJam = Math.max(0, totJam - 1.5);
+                            bgK2 = 'background:#e2e8f0; color:#334155;';
+                            ketList.push('Lupa Keluar (Kuota Habis, Potongan 1 Jam 30 Menit)');
+                        } else {
+                            bgK2 = 'background:#e0f2fe; color:#0369a1;';
+                        }
+                    } else if (!keluarNyata) {
+                        ketList.push('Keluar terisi sesuai jadwal; absen keluar nyata tetap dapat dicatat.');
+                    }
+
+                    // Hak sakit tidak menghapus lembur yang benar-benar tercatat.
+                    // Hitung hanya sesi fisik yang sudah ditutup, tanpa lembur dari autofill.
+                    let awalSesiFisik = null;
+                    let menitLemburSakit = 0;
+                    eventsUrut.forEach(event => {
+                        const tipeEvent = String(event['Tipe Absen'] || '');
+                        const tanggalEvent = new Date(event['Waktu Absen']);
+                        const menitEvent = tanggalEvent.getHours() * 60 + tanggalEvent.getMinutes() +
+                            (event['isOvernight'] ? 24 * 60 : 0);
+                        if (tipeEvent.includes('Masuk')) {
+                            if (awalSesiFisik === null) awalSesiFisik = menitEvent;
+                        } else if (tipeEvent.includes('Keluar') || tipeEvent.includes('Pulang')) {
+                            if (awalSesiFisik !== null && !String(event['Status Disiplin'] || '').includes('Auto Keluar')) {
+                                menitLemburSakit += Math.max(0, menitEvent - Math.max(awalSesiFisik, kebijakanKerja.selesaiMenit));
+                            }
+                            awalSesiFisik = null;
+                        }
+                    });
+                    if (menitLemburSakit > 0) {
+                        totJam += menitLemburSakit / 60;
+                        lemHariIni += menitLemburSakit * (5000 / 60);
+                        txtLemburJam = (menitLemburSakit / 60).toFixed(2) + 'j';
                     }
                 } else if (applyIzin) {
                     ketList.push(isIzinExplicit ? "Izin" : "Izin (Auto)");
@@ -1754,19 +1798,18 @@
 
                 // 1. Standarkan teks kolom status agar normal (tanpa warna-warni teks).
                 let statusTextStyle = "font-size:11px; text-align:left; line-height:1.4;";
-                let statusLower = uniqueKet.join(' ').toLowerCase();
 
                 // 2. Siapkan warna khusus untuk keempat kolom waktu.
                 let bgWaktuKhusus = "";
                 if (!isAhad) {
-                    if (statusLower.includes('alpa')) {
+                    if (isAlpa) {
                         bgWaktuKhusus = "background-color:#1e293b; color:#ffffff;"; // Hitam, teks putih.
-                    } else if (statusLower.includes('kuota habis')) {
+                    } else if (applySakitPotongan) {
                         bgWaktuKhusus = "background-color:#e2e8f0; color:#334155;"; // Abu-abu kuota sakit habis.
-                    } else if (statusLower.includes('izin')) {
-                        bgWaktuKhusus = "background-color:#bbf7d0; color:#166534;"; // Hijau.
-                    } else if (statusLower.includes('sakit')) {
+                    } else if (isSakitExplicit) {
                         bgWaktuKhusus = "background-color:#bfdbfe; color:#1e3a8a;"; // Biru.
+                    } else if (isIzinExplicit) {
+                        bgWaktuKhusus = "background-color:#bbf7d0; color:#166534;"; // Hijau.
                     }
                 }
 
@@ -1774,7 +1817,7 @@
                 let finalBgM1 = isAhad ? "" : (bgWaktuKhusus || bgM1 || globalCellBg);
                 let finalBgK1 = isAhad ? "" : (bgWaktuKhusus || bgK1 || globalCellBg);
                 let finalBgM2 = isAhad ? "" : (bgWaktuKhusus || bgM2 || globalCellBg);
-                let finalBgK2 = isAhad ? "" : (bgWaktuKhusus || bgK2 || globalCellBg);
+                let finalBgK2 = isAhad ? "" : (bgK2 || bgWaktuKhusus || globalCellBg);
 
                 barisHTML += `<tr style="${rowBg}">
                     <td><strong>${namaHari}, ${String(i).padStart(2,'0')}/${blnPilih}/${thnPilih}</strong></td>
