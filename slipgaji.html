@@ -1512,6 +1512,7 @@
 
                 let msk1 = "-", klr1 = "-", msk2 = "-", klr2 = "-";
                 let bgM1 = "", bgK1 = "", bgM2 = "", bgK2 = ""; // Penyimpan warna per sel
+                let msk2DariAbsenFisik = false;
 
                 let ketList = []; let potHariIni = 0; let lemHariIni = 0; let totJam = 0; let upahRegulerHariIni = 0; let isHadir = false;
                 let isLupaKeluarParah = false; let isLupaKeluarBiasa = false; let isPokok2x = false; let isAlpa = false;
@@ -1551,6 +1552,10 @@
                     // siang, waktu fisiknya menggantikan checkpoint siang saja.
                     msk1 = "08:00";
                     msk2 = masukSiangNyata ? formatEventSakit(masukSiangNyata) : "13:30";
+                    msk2DariAbsenFisik = !!masukSiangNyata &&
+                        !String(masukSiangNyata['Status Disiplin'] || '').includes('Lupa Absen Masuk') &&
+                        String(masukSiangNyata['Status Disiplin'] || '') !== 'Koreksi Manual' &&
+                        !String(masukSiangNyata['Tipe Absen'] || '').includes('Koreksi');
                     klr2 = formatJamMenitPayroll(kebijakanKerja.selesaiMenit);
                     if (keluarNyata) {
                         const tanggalKeluar = new Date(keluarNyata['Waktu Absen']);
@@ -1670,6 +1675,7 @@
                                 else if (isAutoMasuk || menitEvent > kebijakanKerja.batasTelatMenit) bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Telat / Lupa Masuk
                             } else if (msk2 === "-") {
                                 msk2 = jamStr;
+                                msk2DariAbsenFisik = !isAutoMasuk && !isKoreksi && jamFloat >= 12;
                                 if (isKoreksi) bgM2 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
                             } else if (tipe.includes('Setelah Istirahat')) {
                                 ketList.push('Checkpoint Setelah Istirahat: ' + jamStr);
@@ -1829,6 +1835,11 @@
                 let finalBgK1 = isAhad ? "" : (bgWaktuKhusus || bgK1 || globalCellBg);
                 let finalBgM2 = isAhad ? "" : (bgWaktuKhusus || bgM2 || globalCellBg);
                 let finalBgK2 = isAhad ? "" : (bgK2 || bgWaktuKhusus || globalCellBg);
+                // Kehadiran siang nyata kembali putih; kolom pagi tetap mencatat izin/sakit.
+                // Autofill, koreksi, dan penanda khusus keluar mengikuti warna sebelumnya.
+                if (!isAhad && (isSakitExplicit || isIzinExplicit) && msk2DariAbsenFisik) {
+                    finalBgM2 = 'background-color:#ffffff;';
+                }
 
                 barisHTML += `<tr style="${rowBg}">
                     <td><strong>${namaHari}, ${String(i).padStart(2,'0')}/${blnPilih}/${thnPilih}</strong></td>

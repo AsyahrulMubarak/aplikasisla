@@ -23,7 +23,8 @@ function calculate(events, branch = 'Kendari', role = 'teknisi', now = '2026-09-
   const result = context.kalkulasiGajiPegawai(name, '2026-09', 26);
   const row = result.barisHTML.split('<tr ').find(row => row.includes('08/09/2026'));
   const cells = [...row.matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/g)].map(match => match[1]);
-  return { result, row, cells };
+  const styles = [...row.matchAll(/<td(?:\s([^>]*))?>/g)].map(match => match[1] || '');
+  return { result, row, cells, styles };
 }
 const sickDay = () => [event('08', '08:00:00', 'Sakit', 'Pengajuan Disetujui', approval), event('08', '12:36:26', 'Masuk Setelah Istirahat')];
 test('Alasan sakit berisi kata izin tetap biru dan mempertahankan waktu masuk siang', () => {
@@ -112,4 +113,65 @@ test('Kata sakit atau kuota habis pada catatan biasa tidak mengubah status warna
 test('Kuota sakit bulan sebelumnya tidak menghabiskan kuota bulan yang dipilih', () => {
   const earlier = ['01', '02', '03'].map(day => ({...event(day, '08:00:00', 'Sakit'), 'Waktu Absen': `2026-08-${day}T08:00:00+08:00`}));
   assert.equal(calculate([...earlier, ...sickDay()]).cells[9], '- Rp 0');
+});
+
+test('Sakit pagi: masuk siang nyata putih, autofill pagi biru, penalti keluar tetap abu-abu', () => {
+  const { cells, styles } = calculate([...sickDay(), event('08', '15:30:00', 'Keluar', 'Auto Keluar Penalti (Potongan 90 Menit)')]);
+  assert.equal(cells[1], '08:00');
+  assert.match(styles[1], /background-color:#bfdbfe/);
+  assert.equal(cells[3], '12:36:26');
+  assert.match(styles[3], /background-color:#ffffff/);
+  assert.match(styles[4], /background:#e2e8f0/);
+  assert.equal(cells[5], '<strong>7.50h</strong>');
+  assert.equal(cells[9], '- Rp 6410');
+});
+
+test('Izin pagi dan masuk siang hari berjalan: pagi kosong hijau, masuk siang putih', () => {
+  const { cells, styles } = calculate([
+    event('08', '08:00:00', 'Izin', 'Pengajuan Disetujui'),
+    event('08', '12:21:27', 'Masuk Setelah Istirahat')
+  ], 'Kendari', 'teknisi', '2026-09-08T12:23:00+08:00');
+  assert.equal(cells[1], '-');
+  assert.match(styles[1], /background-color:#bbf7d0/);
+  assert.equal(cells[3], '12:21:27');
+  assert.match(styles[3], /background-color:#ffffff/);
+  assert.equal(cells[4], '12:23 (Berjalan)');
+  assert.equal(cells[5], '<strong>0.03h</strong>');
+});
+
+test('Kuota sakit habis: pagi tetap kosong biru, masuk siang nyata putih tanpa autofill pagi', () => {
+  const earlier = ['01', '02', '03'].map(day => event(day, '08:00:00', 'Sakit'));
+  const { cells, styles } = calculate([...earlier, ...sickDay(), event('08', '17:00:00', 'Keluar')]);
+  assert.equal(cells[1], '-');
+  assert.match(styles[1], /background-color:#bfdbfe/);
+  assert.match(styles[3], /background-color:#ffffff/);
+  assert.equal(cells[5], '<strong>4.40h</strong>');
+  assert.equal(cells[6], 'Rp 18803');
+});
+
+test('Tanpa kehadiran siang nyata: autofill sakit tetap biru dan izin tetap hijau', () => {
+  const sick = calculate(sickDay().slice(0, 1));
+  assert.equal(sick.cells[3], '13:30');
+  sick.styles.slice(1, 5).forEach(style => assert.match(style, /background-color:#bfdbfe/));
+  const leave = calculate([event('08', '08:00:00', 'Izin')]);
+  assert.deepEqual(leave.cells.slice(1, 5), ['-', '-', '-', '-']);
+  leave.styles.slice(1, 5).forEach(style => assert.match(style, /background-color:#bbf7d0/));
+  const auto = calculate([event('08', '08:00:00', 'Sakit'), event('08', '13:00:00', 'Masuk', 'Lupa Absen Masuk (Auto)')]);
+  assert.match(auto.styles[3], /background-color:#bfdbfe/);
+});
+
+test('Kehadiran siang Raha putih dengan jadwal autofill dan warna keluar yang tetap berlaku', () => {
+  const { cells, styles } = calculate(sickDay(), 'Raha');
+  assert.match(styles[1], /background-color:#bfdbfe/);
+  assert.match(styles[3], /background-color:#ffffff/);
+  assert.equal(cells[4], '20:00');
+  assert.match(styles[4], /background-color:#bfdbfe/);
+  assert.equal(cells[5], '<strong>12.00h</strong>');
+});
+
+test('Hari biasa dan koreksi manual tetap memakai warna aslinya', () => {
+  const regular = calculate([event('08', '08:00:00', 'Masuk'), event('08', '12:30:00', 'Masuk Setelah Istirahat'), event('08', '17:00:00', 'Keluar')]);
+  assert.equal(regular.styles[3], 'style=""');
+  const corrected = calculate([event('08', '08:00:00', 'Masuk'), event('08', '13:30:00', 'Masuk Setelah Istirahat', 'Koreksi Manual'), event('08', '17:00:00', 'Keluar')]);
+  assert.match(corrected.styles[3], /background:#fbcfe8/);
 });
