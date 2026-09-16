@@ -56,6 +56,25 @@ test('open-ended sickness grows through today only, never pre-fills future dates
   assert.equal(markers(project([], [p], '2026-10-01','2026-10-31')).length, 0);
 });
 
+test('legacy sickness continues past its old end date until a real return', () => {
+  const p=leave({jenis:'Sakit',tanggal_mulai:'2026-09-12',tanggal_selesai:'2026-09-12'});
+  const ongoing=project([], [p], '2026-09-01','2026-09-30','2026-09-16T15:00:00+08:00');
+  assert.deepEqual(markers(ongoing).map(r=>dayKey(r.waktu_absen)),['2026-09-12','2026-09-13','2026-09-14','2026-09-15','2026-09-16']);
+  const returned=project([entry('2026-09-15','08:00:00')],[p],'2026-09-01','2026-09-30','2026-09-16T15:00:00+08:00');
+  assert.deepEqual(markers(returned).map(r=>dayKey(r.waktu_absen)),['2026-09-12','2026-09-13','2026-09-14']);
+  assert.equal(p.tanggal_selesai,'2026-09-12');
+});
+
+test('legacy illness continues across months, without future autofill', () => {
+  const p=leave({jenis:'Sakit',tanggal_mulai:'2026-08-29',tanggal_selesai:'2026-08-31'});
+  assert.equal(markers(project([], [p])).length,10);
+  assert.equal(markers(project([], [{...p,kembali_bekerja_pada:'2026-08-31T08:00:00+08:00'}])).length,0);
+  let query=''; const cx=vm.createContext({SUPABASE_URL:'https://example.invalid/',Date,callSupabase_:url=>{query=url;return []},formatKunciTanggal_:dayKey});
+  vm.runInContext(helpers,cx);cx.bacaAbsensiEfektifPengajuan_([], '2026-09-01','2026-09-30',name);
+  assert.match(query,/or=\(jenis.eq.Sakit,tanggal_selesai.is.null/);
+  assert.ok(query.includes('nama_pegawai=eq.'+encodeURIComponent(name)));
+});
+
 test('open-ended sickness closes on real attendance and keeps only earlier illness', () => {
   const p = leave({ jenis:'Sakit', tanggal_selesai:null });
   const result = project([entry('2026-09-10','12:30:00','Masuk Setelah Istirahat')], [p]);
@@ -123,6 +142,20 @@ test('sickness retains blue before return and preserves the existing auto-exit p
   const rows=project([entry('2026-09-09','12:30:00','Masuk Setelah Istirahat'),entry('2026-09-09','15:30:00','Keluar',{status_disiplin:'Auto Keluar Penalti (Potongan 90 Menit)'})],[leave({jenis:'Sakit',tanggal_selesai:null})]);
   const r=calculate(rows); assert.match(r.styles('09')[1],/#bfdbfe/); assert.match(r.styles('09')[3],/#ffffff/); assert.match(r.styles('09')[4],/#e2e8f0/);
   assert.doesNotMatch(r.row('10'),/#bfdbfe/);
+});
+
+test('old overlapping sick requests remain blue with empty times after the three-day autofill quota', () => {
+  const requests=[leave({id_pengajuan:'PGJ-EARLIER',jenis:'Sakit',tanggal_mulai:'2026-09-08',tanggal_selesai:'2026-09-08',kembali_bekerja_pada:'2026-09-08T12:36:00+08:00'}),leave({id_pengajuan:'PGJ-12',jenis:'Sakit',tanggal_mulai:'2026-09-12',tanggal_selesai:'2026-09-12'}),leave({id_pengajuan:'PGJ-14',jenis:'Sakit',tanggal_mulai:'2026-09-14',tanggal_selesai:'2026-09-14'})];
+  const rows=project([],requests,'2026-09-01','2026-09-30','2026-09-16T15:00:00+08:00');
+  const r=calculate(rows,'2026-09-16T15:00:00+08:00');
+  for(const d of ['12','14']) assert.match(r.row(d),/>08:00</);
+  for(const d of ['15','16']){
+    assert.ok(r.styles(d).slice(1,5).every(s=>s.includes('#bfdbfe')));
+    const cells=[...r.row(d).matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/g)].map(m=>m[1]);
+    assert.deepEqual(cells.slice(1,5),['-','-','-','-']);
+    assert.equal(cells[6],'-');assert.match(r.row(d),/Sakit \(Kuota Habis/);assert.doesNotMatch(r.row(d),/Alpa|#1e293b/);
+  }
+  assert.match(r.row('13'),/#fecdd3/);assert.doesNotMatch(r.row('17'),/08:00|Alpa|Kuota/);
 });
 
 test('form toggles end-date visibility and validation only for Sakit', () => {

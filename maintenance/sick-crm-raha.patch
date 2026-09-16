@@ -1,0 +1,44 @@
+diff --git a/coderaha.js.txt b/coderaha.js.txt
+index c5b6b86..92b1826 100644
+--- a/coderaha.js.txt
++++ b/coderaha.js.txt
+@@ -471,0 +472,22 @@ function kirimNotifWAProspekDenganJeda_(nomorTujuan, pesan) {
++function statusProspekMenghentikanReminder_(status) {
++  var nilai = String(status || '').trim().toLowerCase().replace(/\s+/g, ' ');
++  return !nilai || /closing|batal|proses servis|tanpa keterangan/.test(nilai);
++}
++
++// Sheet dipakai scanner lama, sedangkan perubahan status aplikasi berada di Supabase.
++// Verifikasi tepat sebelum peringatan/penutupan agar status lama tidak memicu pesan.
++function bolehKirimReminderProspek_(idProspek, cabang) {
++  var id = String(idProspek || '').trim();
++  if (!id) return false;
++  var filterCabang = cabang === 'Raha' ? '&cabang=eq.Raha' : '&or=(cabang.eq.Kendari,cabang.is.null)';
++  try {
++    var rows = callSupabaseServiceRole_('prospek?select=id_prospek,status_prospek,cabang&id_prospek=eq.' +
++      encodeURIComponent(id) + filterCabang + '&limit=1');
++    return Array.isArray(rows) && rows.length === 1 && String(rows[0].id_prospek) === id &&
++      !statusProspekMenghentikanReminder_(rows[0].status_prospek);
++  } catch (errorStatus) {
++    console.error('Reminder prospek dilewati: status terbaru tidak dapat diverifikasi.');
++    return false;
++  }
++}
++
+@@ -482,0 +505,2 @@ function jalankanScannerProspek_(ss, usersData, now) {
++  var colIdProspek = headerProspek.indexOf("ID Prospek");
++  var cabangReminder = cabangOperasional_();
+@@ -491 +515 @@ function jalankanScannerProspek_(ss, usersData, now) {
+-  if (colNamaUser === -1 || colWaUser === -1 || colStatusProspek === -1 ||
++  if (colIdProspek === -1 || colNamaUser === -1 || colWaUser === -1 || colStatusProspek === -1 ||
+@@ -520,5 +544 @@ function jalankanScannerProspek_(ss, usersData, now) {
+-    var statusProspekLower = statusProspek.toLowerCase();
+-    if (statusProspekLower.indexOf('closing') !== -1 ||
+-        statusProspekLower.indexOf('batal') !== -1 ||
+-        statusProspekLower.indexOf('proses servis') !== -1 ||
+-        statusProspekLower.indexOf('tanpa keterangan') !== -1) continue;
++    if (statusProspekMenghentikanReminder_(statusProspek)) continue;
+@@ -539,0 +560,3 @@ function jalankanScannerProspek_(ss, usersData, now) {
++    // Pertahankan jadwal yang berlaku; sumber status terbaru wajib menyetujui pengiriman.
++    if ((bedaHari >= 30 || (bedaHari > 0 && bedaHari % 3 === 0)) &&
++        !bolehKirimReminderProspek_(rowProspek[colIdProspek], cabangReminder)) continue;

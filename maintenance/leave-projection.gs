@@ -18,15 +18,15 @@ function proyeksikanAbsensiPengajuan_(rows, pengajuan, mulai, selesai, sekarang)
   daftar.forEach(function(p) {
     var batasAwal = String(p.tanggal_mulai || '').slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(batasAwal)) return;
-    var batasAkhir = p.tanggal_selesai ? String(p.tanggal_selesai).slice(0, 10) : hariIni;
-    if (p.jenis === 'Sakit' && batasAkhir > hariIni) batasAkhir = hariIni;
+    // Sakit lama juga berlangsung sampai masuk kembali; tanggal akhir asli hanya riwayat.
+    var batasAkhir = p.jenis === 'Sakit' ? hariIni : (p.tanggal_selesai ? String(p.tanggal_selesai).slice(0, 10) : hariIni);
     var kembali = p.kembali_bekerja_pada ? new Date(p.kembali_bekerja_pada) : null;
     if (kembali && isNaN(kembali.getTime())) kembali = null;
     // Cadangan untuk pembacaan yang bertepatan dengan transaksi absen masuk.
     (rows || []).forEach(function(row) {
       if (row.nama_pegawai !== p.nama_pegawai || !adalahMasukNyataPengajuan_(row)) return;
       var waktu = new Date(row.waktu_absen), hari = formatKunciTanggal_(waktu);
-      if (hari < batasAwal || (p.tanggal_selesai && hari > String(p.tanggal_selesai).slice(0, 10))) return;
+      if (hari < batasAwal || (p.jenis !== 'Sakit' && p.tanggal_selesai && hari > String(p.tanggal_selesai).slice(0, 10))) return;
       if (!isNaN(waktu.getTime()) && (!kembali || waktu < kembali)) kembali = waktu;
     });
     var hariKembali = kembali ? formatKunciTanggal_(kembali) : '';
@@ -57,7 +57,7 @@ function proyeksikanAbsensiPengajuan_(rows, pengajuan, mulai, selesai, sekarang)
 
 function bacaAbsensiEfektifPengajuan_(rows, mulai, selesai, namaPegawai) {
   var query = 'pengajuan_cuti?status=eq.Disetujui&tanggal_mulai=lte.' + encodeURIComponent(selesai) +
-    '&or=(tanggal_selesai.is.null,tanggal_selesai.gte.' + encodeURIComponent(mulai) + ')' + '&order=tanggal_mulai.asc';
+    '&or=(jenis.eq.Sakit,tanggal_selesai.is.null,tanggal_selesai.gte.' + encodeURIComponent(mulai) + ')' + '&order=tanggal_mulai.asc';
   if (namaPegawai) query += '&nama_pegawai=eq.' + encodeURIComponent(namaPegawai);
   var pengajuan = callSupabase_(SUPABASE_URL + query);
   return proyeksikanAbsensiPengajuan_(rows, pengajuan, mulai, selesai, new Date());

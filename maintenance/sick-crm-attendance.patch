@@ -1,0 +1,17 @@
+diff --git a/codeabsensi.txt b/codeabsensi.txt
+index cf02dd7..df54414 100644
+--- a/codeabsensi.txt
++++ b/codeabsensi.txt
+@@ -73,2 +73,2 @@ function proyeksikanAbsensiPengajuan_(rows, pengajuan, mulai, selesai, sekarang)
+-    var batasAkhir = p.tanggal_selesai ? String(p.tanggal_selesai).slice(0, 10) : hariIni;
+-    if (p.jenis === 'Sakit' && batasAkhir > hariIni) batasAkhir = hariIni;
++    // Sakit lama juga berlangsung sampai masuk kembali; tanggal akhir asli hanya riwayat.
++    var batasAkhir = p.jenis === 'Sakit' ? hariIni : (p.tanggal_selesai ? String(p.tanggal_selesai).slice(0, 10) : hariIni);
+@@ -81 +81 @@ function proyeksikanAbsensiPengajuan_(rows, pengajuan, mulai, selesai, sekarang)
+-      if (hari < batasAwal || (p.tanggal_selesai && hari > String(p.tanggal_selesai).slice(0, 10))) return;
++      if (hari < batasAwal || (p.jenis !== 'Sakit' && p.tanggal_selesai && hari > String(p.tanggal_selesai).slice(0, 10))) return;
+@@ -112 +112 @@ function bacaAbsensiEfektifPengajuan_(rows, mulai, selesai, namaPegawai) {
+-    '&or=(tanggal_selesai.is.null,tanggal_selesai.gte.' + encodeURIComponent(mulai) + ')' + '&order=tanggal_mulai.asc';
++    '&or=(jenis.eq.Sakit,tanggal_selesai.is.null,tanggal_selesai.gte.' + encodeURIComponent(mulai) + ')' + '&order=tanggal_mulai.asc';
+@@ -118 +117,0 @@ function bacaAbsensiEfektifPengajuan_(rows, mulai, selesai, namaPegawai) {
+-
