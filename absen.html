@@ -268,7 +268,7 @@
                 <div class="form-grid">
                     <div class="form-field full">
                         <label for="pengajuan-jenis">Jenis Pengajuan</label>
-                        <select id="pengajuan-jenis" class="form-control" required>
+                        <select id="pengajuan-jenis" class="form-control" required onchange="sinkronTanggalPengajuan()">
                             <option value="" disabled selected>-- Pilih Sakit atau Izin --</option>
                             <option value="Sakit">🏥 Sakit</option>
                             <option value="Izin">📝 Izin / Cuti</option>
@@ -278,10 +278,11 @@
                         <label for="pengajuan-mulai">Tanggal Mulai</label>
                         <input type="date" id="pengajuan-mulai" class="form-control" required onchange="sinkronTanggalPengajuan()">
                     </div>
-                    <div class="form-field">
+                    <div class="form-field" id="pengajuan-selesai-field">
                         <label for="pengajuan-selesai">Tanggal Selesai</label>
                         <input type="date" id="pengajuan-selesai" class="form-control" required>
                     </div>
+                    <div id="pengajuan-sakit-info" class="form-field full" style="display:none;"><span class="field-help">Sakit berlaku sejak tanggal mulai sampai Anda kembali absen masuk. Tidak perlu menentukan tanggal sembuh.</span></div>
                     <div class="form-field full">
                         <label for="pengajuan-alasan">Alasan</label>
                         <textarea id="pengajuan-alasan" class="form-control" maxlength="2000" required placeholder="Jelaskan alasan sakit atau izin dengan ringkas dan jelas..."></textarea>
@@ -891,6 +892,11 @@
         function sinkronTanggalPengajuan() {
             const mulai = document.getElementById('pengajuan-mulai').value;
             const selesai = document.getElementById('pengajuan-selesai');
+            const sakit = document.getElementById('pengajuan-jenis').value === 'Sakit';
+            document.getElementById('pengajuan-selesai-field').style.display = sakit ? 'none' : '';
+            document.getElementById('pengajuan-sakit-info').style.display = sakit ? '' : 'none';
+            selesai.required = !sakit;
+            selesai.disabled = sakit;
             selesai.min = mulai || '';
             if (mulai && (!selesai.value || selesai.value < mulai)) selesai.value = mulai;
         }
@@ -929,13 +935,13 @@
 
             const jenis = document.getElementById('pengajuan-jenis').value;
             const tanggalMulai = document.getElementById('pengajuan-mulai').value;
-            const selesai = document.getElementById('pengajuan-selesai').value;
+            const selesai = jenis === 'Sakit' ? null : document.getElementById('pengajuan-selesai').value;
             const alasan = document.getElementById('pengajuan-alasan').value.trim();
             const inputFoto = document.getElementById('pengajuan-foto');
-            if (!jenis || !tanggalMulai || !selesai || !alasan || inputFoto.files.length === 0) {
+            if (!jenis || !tanggalMulai || (jenis === 'Izin' && !selesai) || !alasan || inputFoto.files.length === 0) {
                 return showToast('Lengkapi jenis, tanggal, alasan, dan bukti foto.', true);
             }
-            if (selesai < tanggalMulai) return showToast('Tanggal selesai tidak boleh lebih awal dari tanggal mulai.', true);
+            if (jenis === 'Izin' && selesai < tanggalMulai) return showToast('Tanggal selesai tidak boleh lebih awal dari tanggal mulai.', true);
 
             const btn = document.getElementById('btn-kirim-pengajuan');
             const overlay = document.getElementById('loading-overlay');
@@ -1040,7 +1046,7 @@
                         </div>
                         <div class="approval-meta">
                             <div class="meta-box">Tanggal Mulai<strong>${formatTanggalTampil(item['Tanggal Mulai'])}</strong></div>
-                            <div class="meta-box">Tanggal Selesai<strong>${formatTanggalTampil(item.Selesai)}</strong></div>
+                            <div class="meta-box">Tanggal Selesai<strong>${item.Selesai ? formatTanggalTampil(item.Selesai) : 'Sampai kembali bekerja'}</strong></div>
                             <div class="meta-box" style="grid-column:1 / -1;">Diajukan<strong>${formatTanggalTampil(item['Waktu Pengajuan'], true)}</strong></div>
                         </div>
                         <p class="approval-reason"><strong>Alasan:</strong> ${escapeHTML(item.Alasan || '-')}</p>
@@ -1105,12 +1111,13 @@
                         </div>
                         <div class="approval-meta">
                             <div class="meta-box">Tanggal Mulai<strong>${formatTanggalTampil(item['Tanggal Mulai'])}</strong></div>
-                            <div class="meta-box">Tanggal Selesai<strong>${formatTanggalTampil(item['Selesai'])}</strong></div>
+                            <div class="meta-box">Tanggal Selesai<strong>${item.Selesai ? formatTanggalTampil(item.Selesai) : 'Sampai kembali bekerja'}</strong></div>
                         </div>
                         <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-top:12px; font-size:11px; color:#475569; border:1px solid #e2e8f0;">
                             <div style="margin-bottom:6px;"><strong>Alasan Pegawai:</strong> <i>"${escapeHTML(item.Alasan || '-')}"</i></div>
                             <div style="margin-bottom:4px; padding-top:6px; border-top:1px dashed #cbd5e1;"><strong>Dieksekusi Oleh:</strong> <span style="color:#1e3a8a; font-weight:bold;">${disetujuiOleh}</span></div>
                             <div><strong>Waktu Eksekusi:</strong> ${waktuAcc}</div>
+                            ${item['Kembali Bekerja'] ? '<div style="margin-top:6px;"><strong>Berakhir otomatis:</strong> Kembali masuk pada ' + formatTanggalTampil(item['Kembali Bekerja'], true) + '</div>' : (jenis === 'Sakit' && !item.Selesai && status === 'Disetujui' ? '<div style="margin-top:6px;">Sedang sakit — sampai kembali bekerja.</div>' : '')}
                         </div>
                     </article>`;
                 }).join('');

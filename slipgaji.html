@@ -1501,6 +1501,9 @@
                 let events = rekapanMentah[dateKey] || [];
                 let isSakitExplicit = events.some(e => String(e['Tipe Absen']).includes('Sakit'));
                 let isIzinExplicit = events.some(e => String(e['Tipe Absen']).includes('Izin'));
+                const waktuKembaliPengajuan = events.map(e => new Date(e['Kembali Bekerja'] || NaN))
+                    .filter(d => !isNaN(d.getTime()) && d.getFullYear() === currDate.getFullYear() && d.getMonth() === currDate.getMonth() && d.getDate() === currDate.getDate())
+                    .sort((a,b) => a - b)[0] || null;
                 let adaAbsenFisik = events.some(e => String(e['Tipe Absen']).includes('Masuk') || String(e['Tipe Absen']).includes('Keluar') || String(e['Tipe Absen']).includes('Pulang'));
 
                 // Izin dihitung satu kali per hari kerja untuk evaluasi kedisiplinan.
@@ -1839,6 +1842,21 @@
                 // Autofill, koreksi, dan penanda khusus keluar mengikuti warna sebelumnya.
                 if (!isAhad && (isSakitExplicit || isIzinExplicit) && msk2DariAbsenFisik) {
                     finalBgM2 = 'background-color:#ffffff;';
+                }
+
+                if (!isAhad && waktuKembaliPengajuan && (isSakitExplicit || isIzinExplicit)) {
+                    const menitKembali = waktuKembaliPengajuan.getHours() * 60 + waktuKembaliPengajuan.getMinutes();
+                    // Warna izin/sakit hanya sebelum masuk kembali. Penanda koreksi,
+                    // keterlambatan, dan auto keluar tetap mengikuti aturan sebelumnya.
+                    if (menitKembali < 12 * 60) {
+                        finalBgM1 = bgM1 || 'background-color:#ffffff;';
+                        finalBgK1 = bgK1 || 'background-color:#ffffff;';
+                    } else if (klr1 !== '-' && /^\d{2}:\d{2}/.test(klr1)) {
+                        const bagianKeluar = klr1.split(':');
+                        if (Number(bagianKeluar[0]) * 60 + Number(bagianKeluar[1]) >= menitKembali) finalBgK1 = bgK1 || 'background-color:#ffffff;';
+                    }
+                    finalBgM2 = bgM2 || 'background-color:#ffffff;';
+                    finalBgK2 = bgK2 || 'background-color:#ffffff;';
                 }
 
                 barisHTML += `<tr style="${rowBg}">

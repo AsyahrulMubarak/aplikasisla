@@ -1,0 +1,116 @@
+diff --git a/codeabsensi.txt b/codeabsensi.txt
+index de85cf7..cf02dd7 100644
+--- a/codeabsensi.txt
++++ b/codeabsensi.txt
+@@ -52,0 +53,66 @@ function callSupabase_(endpoint, method, payload) {
++// Pengajuan disimpan sebagai rentang; absensi otomatis lama hanya diproyeksikan
++// saat dibaca. Riwayat asli dan seluruh absensi nyata tidak dihapus.
++function adalahMasukNyataPengajuan_(row) {
++  return ['Masuk', 'Masuk Setelah Istirahat'].indexOf(String(row.tipe_absen || '')) !== -1 &&
++    !/Lupa Absen Masuk|Koreksi|Auto/i.test(String(row.status_disiplin || ''));
++}
++
++function proyeksikanAbsensiPengajuan_(rows, pengajuan, mulai, selesai, sekarang) {
++  var hariIni = formatKunciTanggal_(sekarang || new Date());
++  var daftar = (pengajuan || []).filter(function(p) { return p.status === 'Disetujui' && ['Sakit', 'Izin'].indexOf(p.jenis) !== -1; });
++  var idTerproyeksi = {};
++  daftar.forEach(function(p) { idTerproyeksi[String(p.id_pengajuan)] = true; });
++  var hasil = (rows || []).filter(function(row) {
++    if (['Sakit', 'Izin'].indexOf(String(row.tipe_absen || '')) === -1 || row.status_disiplin !== 'Pengajuan Disetujui') return true;
++    var cocok = String(row.id_absen || '').match(/^ABS-(PGJ-[A-Za-z0-9_-]+)-\d{8}$/);
++    return !(cocok && idTerproyeksi[cocok[1]]);
++  });
++  daftar.forEach(function(p) {
++    var batasAwal = String(p.tanggal_mulai || '').slice(0, 10);
++    if (!/^\d{4}-\d{2}-\d{2}$/.test(batasAwal)) return;
++    var batasAkhir = p.tanggal_selesai ? String(p.tanggal_selesai).slice(0, 10) : hariIni;
++    if (p.jenis === 'Sakit' && batasAkhir > hariIni) batasAkhir = hariIni;
++    var kembali = p.kembali_bekerja_pada ? new Date(p.kembali_bekerja_pada) : null;
++    if (kembali && isNaN(kembali.getTime())) kembali = null;
++    // Cadangan untuk pembacaan yang bertepatan dengan transaksi absen masuk.
++    (rows || []).forEach(function(row) {
++      if (row.nama_pegawai !== p.nama_pegawai || !adalahMasukNyataPengajuan_(row)) return;
++      var waktu = new Date(row.waktu_absen), hari = formatKunciTanggal_(waktu);
++      if (hari < batasAwal || (p.tanggal_selesai && hari > String(p.tanggal_selesai).slice(0, 10))) return;
++      if (!isNaN(waktu.getTime()) && (!kembali || waktu < kembali)) kembali = waktu;
++    });
++    var hariKembali = kembali ? formatKunciTanggal_(kembali) : '';
++    if (hariKembali && hariKembali < batasAkhir) batasAkhir = hariKembali;
++    if (batasAkhir > selesai) batasAkhir = selesai;
++    var awal = batasAwal > mulai ? batasAwal : mulai;
++    if (awal > batasAkhir) return;
++    var cursor = buatTanggalMakassar_(awal, 8 * 60);
++    while (formatKunciTanggal_(cursor) <= batasAkhir) {
++      var hari = formatKunciTanggal_(cursor);
++      // Masuk sebelum/pada awal jam kerja berarti tidak ada waktu izin hari itu.
++      if (!kembali || hari !== hariKembali || kembali.getTime() > cursor.getTime()) {
++        var note = '[ID Pengajuan: ' + p.id_pengajuan + '] Disetujui oleh ' + (p.disetujui_oleh || '-') + '. Alasan: ' + (p.alasan || '-');
++        if (kembali) note += '\nBerakhir otomatis karena kembali masuk pada ' + Utilities.formatDate(kembali, 'Asia/Makassar', 'dd/MM/yyyy HH:mm:ss') + '.';
++        hasil.push({
++          id_absen: 'ABS-' + p.id_pengajuan + '-' + hari.replace(/-/g, ''),
++          waktu_absen: cursor.toISOString(), nama_pegawai: p.nama_pegawai, role: p.role,
++          tipe_absen: p.jenis, status_disiplin: 'Pengajuan Disetujui', keterangan: note,
++          lokasi_maps: '-', bukti_foto: p.bukti_foto || '-',
++          kembali_bekerja_pada: kembali ? kembali.toISOString() : ''
++        });
++      }
++      cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
++    }
++  });
++  return hasil.sort(function(a, b) { return new Date(a.waktu_absen) - new Date(b.waktu_absen); });
++}
++
++function bacaAbsensiEfektifPengajuan_(rows, mulai, selesai, namaPegawai) {
++  var query = 'pengajuan_cuti?status=eq.Disetujui&tanggal_mulai=lte.' + encodeURIComponent(selesai) +
++    '&or=(tanggal_selesai.is.null,tanggal_selesai.gte.' + encodeURIComponent(mulai) + ')' + '&order=tanggal_mulai.asc';
++  if (namaPegawai) query += '&nama_pegawai=eq.' + encodeURIComponent(namaPegawai);
++  var pengajuan = callSupabase_(SUPABASE_URL + query);
++  return proyeksikanAbsensiPengajuan_(rows, pengajuan, mulai, selesai, new Date());
++}
++
++
+@@ -427 +493 @@ function doPost(e) {
+-      var queryAbsen = 'absensi?select=waktu_absen,nama_pegawai,tipe_absen,keterangan,status_disiplin' +
++      var queryAbsen = 'absensi?select=id_absen,waktu_absen,nama_pegawai,tipe_absen,keterangan,status_disiplin' +
+@@ -436 +502,4 @@ function doPost(e) {
+-      var headers = ["Waktu Absen", "Nama Pegawai", "Tipe Absen", "Keterangan", "Status Disiplin"];
++      var hariAkhirPeriode = formatKunciTanggal_(new Date(new Date(periodeBerikutnya + '-01T00:00:00+08:00').getTime() - 1));
++      dataAbsen = bacaAbsensiEfektifPengajuan_(dataAbsen, periodeAbsen + '-01', hariAkhirPeriode,
++        slipPribadiTeknisiUji && !punyaHakKelola ? userLogin.namaAsli : '');
++      var headers = ["Waktu Absen", "Nama Pegawai", "Tipe Absen", "Keterangan", "Status Disiplin", "Kembali Bekerja"];
+@@ -440 +509 @@ function doPost(e) {
+-        result2D.push([row.waktu_absen, row.nama_pegawai, row.tipe_absen, row.keterangan, row.status_disiplin || '']);
++        result2D.push([row.waktu_absen, row.nama_pegawai, row.tipe_absen, row.keterangan, row.status_disiplin || '', row.kembali_bekerja_pada || '']);
+@@ -455 +524 @@ function doPost(e) {
+-      var queryTinjauan = 'absensi?select=waktu_absen,nama_pegawai,tipe_absen,keterangan,lokasi_maps' +
++      var queryTinjauan = 'absensi?select=id_absen,waktu_absen,nama_pegawai,tipe_absen,keterangan,status_disiplin,lokasi_maps' +
+@@ -460,0 +530 @@ function doPost(e) {
++      dataAbsenHariIni = bacaAbsensiEfektifPengajuan_(dataAbsenHariIni, tglHariIni, tglHariIni, !punyaHakKelola ? userLogin.namaAsli : '');
+@@ -513 +583 @@ function doPost(e) {
+-          "Jenis (Sakit/Izin)": row.jenis, "Tanggal Mulai": row.tanggal_mulai, "Selesai": row.tanggal_selesai, "Alasan": row.alasan,
++          "Jenis (Sakit/Izin)": row.jenis, "Tanggal Mulai": row.tanggal_mulai, "Selesai": row.tanggal_selesai, "Kembali Bekerja": row.kembali_bekerja_pada || null, "Alasan": row.alasan,
+@@ -526 +596 @@ function doPost(e) {
+-      var tanggalSelesai = String(data.selesai || '').trim();
++      var tanggalSelesai = jenis === 'Sakit' ? null : String(data.selesai || '').trim();
+@@ -529 +599 @@ function doPost(e) {
+-      if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggalMulai) || !/^\d{4}-\d{2}-\d{2}$/.test(tanggalSelesai) || tanggalSelesai < tanggalMulai) {
++      if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggalMulai) || (jenis === 'Izin' && (!/^\d{4}-\d{2}-\d{2}$/.test(tanggalSelesai) || tanggalSelesai < tanggalMulai))) {
+@@ -577,16 +647,2 @@ function doPost(e) {
+-      if (keputusan === 'Disetujui') {
+-        var cursor = new Date(targetCuti.tanggal_mulai);
+-        var end = new Date(targetCuti.tanggal_selesai);
+-        while (cursor <= end) {
+-          var tglAbsen = buatTanggalMakassar_(formatKunciTanggal_(cursor), 8 * 60);
+-          callSupabase_(SUPABASE_URL + 'absensi', 'POST', {
+-            id_absen: "ABS-" + idPengajuan + "-" + formatKunciTanggal_(cursor).replace(/-/g, ''),
+-            waktu_absen: tglAbsen.toISOString(), nama_pegawai: targetCuti.nama_pegawai, role: targetCuti.role,
+-            tipe_absen: targetCuti.jenis, jarak_meter: 0, status_disiplin: "Pengajuan Disetujui",
+-            keterangan: "[ID Pengajuan: " + idPengajuan + "] Disetujui oleh " + userLogin.namaAsli + ". Alasan: " + targetCuti.alasan,
+-            bukti_foto: targetCuti.bukti_foto || "-", lokasi_maps: "-"
+-          });
+-          cursor.setDate(cursor.getDate() + 1);
+-        }
+-      }
+-
++      // Catatan harian dibentuk saat pembacaan dari rentang efektif pengajuan.
++      // Trigger database menetapkan waktu kembali, termasuk jika approval terlambat.
