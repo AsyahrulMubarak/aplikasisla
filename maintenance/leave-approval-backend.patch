@@ -1,0 +1,36 @@
+diff --git a/codeabsensi.txt b/codeabsensi.txt
+index df54414..734ff6b 100644
+--- a/codeabsensi.txt
++++ b/codeabsensi.txt
+@@ -201,0 +202,18 @@ function bolehKelolaAbsensi_(userLogin) {
++// Satu kebijakan untuk penerima WA, antrean, dan keputusan pengajuan sakit/izin.
++function adalahAdminKendariPengajuan_(user) {
++  var role = String(user && user.role || '').trim().toLowerCase();
++  var cabang = String(user && (user.hakAksesCabang || user.hak_akses_cabang) || '').trim().toLowerCase();
++  // Akun admin pusat lama memakai akses Semua (atau kosong); admin Raha terpisah.
++  return role === 'admin' && ['', 'semua', 'kendari'].indexOf(cabang) !== -1;
++}
++
++function bolehMemutuskanPengajuan_(user, pengajuan) {
++  if (!user || !pengajuan) return false;
++  var role = String(user.role || '').trim().toLowerCase();
++  var rolePengaju = String(pengajuan.role || '').trim().toLowerCase();
++  if (role === 'direktur') return true;
++  if (rolePengaju === 'manager') return adalahAdminKendariPengajuan_(user);
++  if (adalahAdminKendariPengajuan_(pengajuan)) return role === 'manager';
++  return role === 'manager' || adalahAdminKendariPengajuan_(user);
++}
++
+@@ -577,0 +596,3 @@ function doPost(e) {
++      if (data.action === 'getDaftarPengajuan') {
++        dbCuti = dbCuti.filter(function(row) { return bolehMemutuskanPengajuan_(userLogin, row); });
++      }
+@@ -623,3 +644,3 @@ function doPost(e) {
+-      // Cari nomor WA atasan untuk broadcast
+-      var semuaUsers = callSupabase_(SUPABASE_URL + 'users?select=role,no_wa');
+-      var waAtasan = semuaUsers.filter(function(u) { return ['admin', 'manager', 'direktur'].indexOf(String(u.role).toLowerCase()) !== -1 && u.no_wa; }).map(function(u) { return normalisasiNoWA_(u.no_wa); });
++      // WA hanya diberikan kepada pihak yang berhak memutuskan pengajuan ini.
++      var semuaUsers = callSupabase_(SUPABASE_URL + 'users?select=role,no_wa,hak_akses_cabang');
++      var waAtasan = semuaUsers.filter(function(u) { return bolehMemutuskanPengajuan_(u, userLogin) && u.no_wa; }).map(function(u) { return normalisasiNoWA_(u.no_wa); });
+@@ -643,0 +665 @@ function doPost(e) {
++      if (!bolehMemutuskanPengajuan_(userLogin, targetCuti)) return buatOutputJson_({ status: 'gagal', pesan: 'Akses Ditolak: Anda tidak berhak memutuskan pengajuan ini.' });
