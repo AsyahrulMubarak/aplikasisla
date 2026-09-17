@@ -6,7 +6,7 @@ Paket ini berisi kode lengkap untuk aplikasi KPI yang terpisah. Login memakai ak
 | --- | --- |
 | `Kode.gs` | Editor Apps Script **aplikasi KPI** |
 | `cloudflare-worker.js` | Worker **alfacom-kpi** |
-| `index.html` | Repositori GitHub **alfacom-kpi**, cadangan frontend |
+| `index.html` | Repositori GitHub **alfacomapp/alfacom-kpi**, pengganti halaman KPI |
 
 ## 1. Apps Script KPI
 
@@ -25,7 +25,15 @@ Google menjelaskan pembaruan deployment aktif melalui versi baru pada [panduan v
 
 Lihat [pengaturan variabel Worker](https://developers.cloudflare.com/workers/configuration/environment-variables/) dan [pengaturan secret Worker](https://developers.cloudflare.com/workers/configuration/secrets/).
 
-## 3. Akun dan pemeriksaan
+## 3. Halaman KPI di GitHub
+
+Penerbitan otomatis ke repositori KPI ditolak GitHub (403) karena akun yang terhubung tidak mempunyai izin tulis. File `index.html` juga perlu Anda unggah manual.
+
+1. Buka repositori **alfacomapp/alfacom-kpi** menggunakan akun yang mempunyai izin tulis.
+2. Ganti `index.html` pada branch penerbitan GitHub Pages dengan file `index.html` dari paket ini, lalu simpan/commit.
+3. Setelah GitHub Pages selesai menerbitkan perubahan, muat ulang `https://alfacomapp.github.io/alfacom-kpi/`. Halaman baru tidak menampilkan form username/password KPI; halaman tersebut mengarahkan pengguna ke Lobby SLA.
+
+## 4. Akun dan pemeriksaan
 
 | Akun SLA | Role akun KPI | Location KPI |
 | --- | --- | --- |
@@ -36,9 +44,9 @@ Lihat [pengaturan variabel Worker](https://developers.cloudflare.com/workers/con
 
 Backend memakai akun KPI aktif yang sudah ada berdasarkan pasangan Role/Location. Harus ada tepat satu akun aktif untuk setiap pasangan di atas; jangan mengganti ID akun karena tugas/laporan tetap memakai ID lama. Format role `admin kendari` juga dinormalisasi menjadi `admin_kendari`.
 
-Setelah dua backend diunggah, muat ulang SLA, login, lalu klik **Aplikasi KPI**. Tab KPI terbuka pada `https://alfacomapp.github.io/alfacom-kpi/` dan menerima sesi sesuai jabatan. Sales/teknisi tidak mendapat akses. Login password KPI lama dinonaktifkan oleh backend baru. Jika sesi berakhir, buka kembali melalui lobby SLA.
+Setelah ketiga file dipasang, muat ulang SLA, login, lalu klik **Aplikasi KPI**. Tab KPI terbuka pada `https://alfacomapp.github.io/alfacom-kpi/` dan menerima sesi sesuai jabatan. Sales/teknisi tidak mendapat akses. Login password KPI lama dinonaktifkan oleh backend baru. Jika sesi berakhir, buka kembali melalui lobby SLA.
 
-Sebelum kedua backend selesai diperbarui, login KPI melalui SLA belum dapat berfungsi. File frontend `index.html` ikut disediakan agar versi halaman dan backend tetap sama bila Anda memilih mengunggah frontend secara manual.
+Sebelum ketiga komponen selesai diperbarui, login KPI melalui SLA belum dapat berfungsi. Tombol **Aplikasi KPI** sudah disiapkan pada lobby SLA dan tidak perlu diunggah lagi secara manual.
 
 ## Pemulihan
 
