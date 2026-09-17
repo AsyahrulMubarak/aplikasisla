@@ -12,7 +12,7 @@
         .card { background: var(--surface); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 15px; margin-bottom: 20px; }
         .logo-text { font-size: 20px; font-weight: 800; color: var(--primary); margin: 0; }
-        
+
         .segment-control { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 20px; }
         .segment-btn { flex: 1; padding: 10px 0; border: none; background: transparent; border-radius: 6px; font-size: 14px; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
         .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -24,7 +24,7 @@
         select, input { width: 100%; padding: 10px; border: 1px solid #93c5fd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; }
         .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; height: 38px;}
         .btn-primary:hover { background: #1e40af; }
-        
+
         /* CSS UNTUK TUNJANGAN DINAMIS */
         #dynamic-bonus-section { border-top: 1px dashed #93c5fd; margin-top: 15px; padding-top: 15px; display: none; }
         .bonus-item { display: flex; gap: 10px; margin-bottom: 10px; }
@@ -37,14 +37,14 @@
         tr:nth-child(even) { background: #f1f5f9; }
         .kuning { background-color: #fef08a !important; color: #854d0e; font-weight: bold; }
         .merah { background-color: #fecaca !important; color: #991b1b; font-weight: bold; }
-        
+
         .summary-box { display: flex; justify-content: space-between; margin-top: 25px; gap: 15px; flex-wrap: wrap;}
         .sum-card { flex: 1; min-width: 150px; padding: 15px; border-radius: 8px; border: 1px solid var(--border); background: #f8fafc; }
         .sum-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
         .sum-val { font-size: 18px; font-weight: 800; color: var(--text-main); }
         .sum-val.plus { color: var(--success); }
         .sum-val.minus { color: var(--danger); }
-        
+
         .total-bersih { background: #ecfdf5; border: 2px solid var(--success); text-align: center; padding: 20px; border-radius: 12px; margin-top: 20px; }
         .total-bersih .sum-title { color: #065f46; font-size: 14px; }
         .total-bersih .sum-val { color: #065f46; font-size: 32px; }
@@ -118,7 +118,7 @@
         }
 
         .mobile-payroll-bar, .mobile-swipe-hint { display: none; }
-        
+
         @media print {
             .control-panel, .btn-print, .segment-control, .mobile-payroll-bar, .mobile-swipe-hint { display: none !important; }
             body { background: white; padding: 0; }
@@ -1050,7 +1050,7 @@
             let namaTarget = document.getElementById('pilih-pegawai').value;
             if(!namaTarget) return;
             
-            let profil = globalUsers.find(u => u['Nama Asli'] === namaTarget) || {};
+            let profil = cariProfilPayroll(namaTarget) || {};
             let bonusStr = profil['Bonus Tambahan'] || profil['Bonus'] || profil['Honor Tambahan'] || '';
             
             let wadah = document.getElementById('wadah-bonus');
@@ -1104,18 +1104,21 @@
             btn.innerText = 'Menyimpan ke Database...'; btn.disabled = true;
             
             try {
+                const profilTarget = cariProfilPayroll(namaTarget);
+                if (!profilTarget || !profilTarget.Username) throw new Error('Profil payroll tidak tersedia. Muat ulang data pegawai.');
                 await pastikanTokenSupabaseAktif_();
                 const res = await fetch(apiUrl, {
                     method: 'POST',
                     body: JSON.stringify(payloadSesiSlip('updateTunjangan', {
-                        namaAsli: namaTarget,
+                        namaAsli: profilTarget['Nama Asli'],
+                        usernameTarget: profilTarget.Username,
                         tunjanganData: finalStr
                     }))
                 });
                 const json = await res.json();
                 if(json.status === 'sukses') {
                     // Memperbarui array lokal agar tidak perlu ditarik ulang dari server
-                    let profil = globalUsers.find(u => u['Nama Asli'] === namaTarget);
+                    let profil = cariProfilPayroll(namaTarget);
                     if(profil) {
                         if(profil.hasOwnProperty('Bonus Tambahan')) profil['Bonus Tambahan'] = finalStr;
                         else if(profil.hasOwnProperty('Bonus')) profil['Bonus'] = finalStr;
@@ -1354,7 +1357,7 @@
 
             if (isAdmin) {
                 select.innerHTML = '<option value="" disabled selected>-- Pilih Pegawai --</option>';
-                let sortedUsers = globalUsers.filter(u => u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
+                let sortedUsers = daftarProfilPayroll().sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
                 sortedUsers.forEach(u => {
                     let gapok = parseFloat(u['Gaji Pokok'] || u['Gaji Pokok (Rp)']) || 0;
                     if (gapok > 0) {
@@ -1401,6 +1404,46 @@
             return '';
         }
 
+        // Pemilihan profil yang sama untuk slip, rekap, dan penyimpanan tunjangan.
+        function normalisasiNamaProfilPayroll_(nilai) {
+          return String(nilai || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        function pilihProfilPayroll_(profiles, nama) {
+          var namaNormal = normalisasiNamaProfilPayroll_(nama);
+          if (!namaNormal) return null;
+          var kandidat = (profiles || []).filter(function(profil) {
+            return normalisasiNamaProfilPayroll_(profil['Nama Asli']) === namaNormal;
+          });
+          if (namaNormal === 'abu abdillah') {
+            kandidat = kandidat.filter(function(profil) { return normalisasiNamaProfilPayroll_(profil.Role) === 'manager'; });
+          } else if (namaNormal === 'abu naura' || namaNormal === 'abu naurah') {
+            kandidat = kandidat.filter(function(profil) {
+              var role = normalisasiNamaProfilPayroll_(profil.Role);
+              return role === 'admin_raha' || (role === 'admin' && normalisasiNamaProfilPayroll_(profil.Hak_Akses_Cabang) === 'raha');
+            });
+          }
+          var bergaji = kandidat.filter(function(profil) {
+            return (parseFloat(profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)']) || 0) > 0;
+          });
+          if (bergaji.length) kandidat = bergaji;
+          // Jangan menebak profil ketika lebih dari satu akun masih memenuhi syarat.
+          return kandidat.length === 1 ? kandidat[0] : null;
+        }
+
+        function cariProfilPayroll(nama) {
+            return pilihProfilPayroll_(globalUsers, nama);
+        }
+
+        function daftarProfilPayroll() {
+            const namaUnik = [...new Set(globalUsers.map(u => normalisasiNamaProfilPayroll_(u['Nama Asli'])).filter(Boolean))];
+            return namaUnik.map(cariProfilPayroll).filter(Boolean);
+        }
+
+        function adalahBonusDisiplinPayroll(nama) {
+            return /^bonus disiplin(?:$|\s+bila\b)/.test(normalisasiNamaProfilPayroll_(nama));
+        }
+
         function kebijakanJamKerjaPayroll(profil) {
             const role = String(profil.Role || profil.role || '').trim().toLowerCase();
             const cabang = normalisasiCabangPayroll(profil.Hak_Akses_Cabang || profil.hak_akses_cabang);
@@ -1423,7 +1466,8 @@
         }
 
         function kalkulasiGajiPegawai(namaTarget, bulanTahun, hariKerjaEfektif, gunakanInputAktif = false) {
-            let profil = globalUsers.find(u => u['Nama Asli'] === namaTarget) || {};
+            let profil = cariProfilPayroll(namaTarget);
+            if (!profil) throw new Error('Profil payroll tidak ditemukan atau ambigu. Muat ulang data pegawai.');
             let gapokRaw = profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)'] || 1500000; 
             let gajiPokok = parseFloat(gapokRaw) || 1500000;
             let kebijakanKerja = kebijakanJamKerjaPayroll(profil);
@@ -1899,17 +1943,16 @@
             let isKebal = ['fauzan', 'dafa', 'mubarak'].includes(namaPegawaiKecil);
 
             // Format tunjangan aplikasi adalah objek { nama, nominal }.
-            let indexBonusDisiplin = arrayTunjangan.findIndex(t =>
-                String(t.nama || '').trim().toLowerCase() === 'bonus disiplin'
-            );
+            let bonusDisiplinTerdaftar = arrayTunjangan.filter(t => adalahBonusDisiplinPayroll(t.nama));
             let dendaDisiplin = 0;
 
             if (isMelanggarDisiplin && !isKebal) {
-                if (indexBonusDisiplin !== -1) {
-                    // SKENARIO A: Bonus disiplin hangus, tanpa denda tambahan.
-                    let bonusDisiplin = arrayTunjangan[indexBonusDisiplin];
-                    bonusDisiplin.nama = `Bonus Disiplin (Hangus: ${countTelatPagi}x Telat, ${countIzin}x Izin, ${countAlpa}x Alpa)`;
-                    bonusDisiplin.nominal = 0;
+                if (bonusDisiplinTerdaftar.length > 0) {
+                    // SKENARIO A: Semua komponen bonus disiplin hangus, tanpa denda tambahan.
+                    bonusDisiplinTerdaftar.forEach(bonusDisiplin => {
+                        bonusDisiplin.nama = `Bonus Disiplin (Hangus: ${countTelatPagi}x Telat, ${countIzin}x Izin, ${countAlpa}x Alpa)`;
+                        bonusDisiplin.nominal = 0;
+                    });
                 } else {
                     // SKENARIO B: Tidak memiliki bonus disiplin, kenakan denda Rp300.000.
                     dendaDisiplin = 300000;
@@ -2020,7 +2063,7 @@
             tbody.innerHTML = '';
             
             let grandTotal = 0;
-            let sortedUsers = globalUsers.filter(u => u['Nama Asli'] && u.Role !== 'direktur').sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
+            let sortedUsers = daftarProfilPayroll().filter(u => u.Role !== 'direktur').sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
 
             sortedUsers.forEach(u => {
                 let gapokRekap = parseFloat(u['Gaji Pokok'] || u['Gaji Pokok (Rp)']) || 0;

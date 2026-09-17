@@ -1,0 +1,74 @@
+diff --git a/coderaha.js.txt b/coderaha.js.txt
+index 92b1826..dccae9c 100644
+--- a/coderaha.js.txt
++++ b/coderaha.js.txt
+@@ -2499,0 +2500,48 @@ function doGet(e) {
++// Pemilihan profil yang sama untuk slip, rekap, dan penyimpanan tunjangan.
++function normalisasiNamaProfilPayroll_(nilai) {
++  return String(nilai || '').trim().toLowerCase().replace(/\s+/g, ' ');
++}
++
++function pilihProfilPayroll_(profiles, nama) {
++  var namaNormal = normalisasiNamaProfilPayroll_(nama);
++  if (!namaNormal) return null;
++  var kandidat = (profiles || []).filter(function(profil) {
++    return normalisasiNamaProfilPayroll_(profil['Nama Asli']) === namaNormal;
++  });
++  if (namaNormal === 'abu abdillah') {
++    kandidat = kandidat.filter(function(profil) { return normalisasiNamaProfilPayroll_(profil.Role) === 'manager'; });
++  } else if (namaNormal === 'abu naura' || namaNormal === 'abu naurah') {
++    kandidat = kandidat.filter(function(profil) {
++      var role = normalisasiNamaProfilPayroll_(profil.Role);
++      return role === 'admin_raha' || (role === 'admin' && normalisasiNamaProfilPayroll_(profil.Hak_Akses_Cabang) === 'raha');
++    });
++  }
++  var bergaji = kandidat.filter(function(profil) {
++    return (parseFloat(profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)']) || 0) > 0;
++  });
++  if (bergaji.length) kandidat = bergaji;
++  // Jangan menebak profil ketika lebih dari satu akun masih memenuhi syarat.
++  return kandidat.length === 1 ? kandidat[0] : null;
++}
++
++function simpanTunjanganProfilPayroll_(sheetUsers, data) {
++  if (!sheetUsers) throw new Error('Data pegawai tidak tersedia.');
++  var rows = sheetUsers.getDataRange().getValues();
++  var headers = rows[0] || [];
++  var colBonus = headers.indexOf('Bonus Tambahan');
++  if (colBonus === -1) colBonus = headers.indexOf('Bonus');
++  if (colBonus === -1) throw new Error('Kolom tunjangan pegawai tidak tersedia.');
++  var profiles = rows.slice(1).map(function(row, index) {
++    var profil = { barisPayroll: index + 2 };
++    headers.forEach(function(header, col) { profil[header] = row[col]; });
++    return profil;
++  });
++  var profil = pilihProfilPayroll_(profiles, data.namaAsli);
++  if (!profil) throw new Error('Profil payroll tidak ditemukan atau ambigu. Muat ulang data pegawai.');
++  var usernameTarget = normalisasiNamaProfilPayroll_(data.usernameTarget);
++  if (usernameTarget && normalisasiNamaProfilPayroll_(profil.Username) !== usernameTarget) {
++    throw new Error('Akun payroll tidak sesuai dengan pegawai yang dipilih. Muat ulang data pegawai.');
++  }
++  sheetUsers.getRange(profil.barisPayroll, colBonus + 1).setValue(data.tunjanganData);
++}
++
+@@ -3251,16 +3299 @@ function doPost(e) {
+-      if (sheetUsers) { 
+-        var dataU = sheetUsers.getDataRange().getValues(); 
+-        var idTarget = String(data.namaAsli).trim(); 
+-        var colNama = dataU[0].indexOf("Nama Asli");
+-        var colBonus = dataU[0].indexOf("Bonus Tambahan"); 
+-        if(colBonus === -1) colBonus = dataU[0].indexOf("Bonus");
+-        
+-        if(colNama !== -1 && colBonus !== -1) {
+-            for (var i = 1; i < dataU.length; i++) { 
+-                if (String(dataU[i][colNama]).trim() === idTarget) {
+-                    sheetUsers.getRange(i + 1, colBonus + 1).setValue(data.tunjanganData);
+-                    break;
+-                } 
+-            } 
+-        }
+-      }
++      simpanTunjanganProfilPayroll_(sheetUsers, data);
+@@ -3268 +3301 @@ function doPost(e) {
+-      
++
