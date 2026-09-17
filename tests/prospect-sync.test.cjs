@@ -105,19 +105,20 @@ test('nama saja atau WA saja tidak pernah mengubah status prospek', async () => 
   assert.equal(second.patches.length, 0);
 });
 
-test('sinkronisasi tiket juga mengabaikan status selain Penawaran dan Kunjungan Toko', async () => {
+test('sinkronisasi tiket tanpa identitas tiket tidak menebak hubungan customer', async () => {
   const prospects = [
     { id_prospek: 'PRP-020', nama_calon_customer: 'Klien Aktif', no_wa: '628333333333', status_prospek: 'Tahap Penawaran', sales_penanggung_jawab: 'Sales A' },
     { id_prospek: 'PRP-021', nama_calon_customer: 'Klien Aktif', no_wa: '628333333333', status_prospek: 'On Progress', sales_penanggung_jawab: 'Sales A' },
     { id_prospek: 'PRP-022', nama_calon_customer: 'Klien Aktif', no_wa: '628333333333', status_prospek: 'Tanpa Keterangan', sales_penanggung_jawab: 'Sales A' }
   ];
   const { context, patches } = frontendHarness(prospects);
+  context.cabangAktif='Kendari';
+  context.normalisasiCabang=value=>value;
 
   const result = await context.sinkronkanStatusProspekDariTiket_('Selesai', '08333333333', 'Klien Aktif');
 
-  assert.equal(result.diperbarui, 1);
-  assert.equal(patches[0].endpoint, 'prospek/PRP-020');
-  assert.equal(patches[0].payload.status_prospek, 'Closing / Deal');
+  assert.equal(result.diperbarui, 0);
+  assert.equal(patches.length, 0);
 });
 
 test('pilihan Batal dan Tanpa Keterangan tidak lagi dibatasi untuk admin', () => {

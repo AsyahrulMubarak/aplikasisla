@@ -1,0 +1,24 @@
+diff --git a/attendance.gs b/attendance.gs
+index 131b02e..652a2a6 100644
+--- a/attendance.gs
++++ b/attendance.gs
+@@ -511 +511 @@ function doPost(e) {
+-      var queryAbsen = 'absensi?select=id_absen,waktu_absen,nama_pegawai,tipe_absen,keterangan,status_disiplin' +
++      var queryAbsen = 'absensi?select=id_absen,waktu_absen,nama_pegawai,tipe_absen,keterangan,status_disiplin,bukti_foto' +
+@@ -523 +523 @@ function doPost(e) {
+-      var headers = ["Waktu Absen", "Nama Pegawai", "Tipe Absen", "Keterangan", "Status Disiplin", "Kembali Bekerja"];
++      var headers = ["Waktu Absen", "Nama Pegawai", "Tipe Absen", "Keterangan", "Status Disiplin", "Kembali Bekerja", "Bukti Foto"];
+@@ -527 +527 @@ function doPost(e) {
+-        result2D.push([row.waktu_absen, row.nama_pegawai, row.tipe_absen, row.keterangan, row.status_disiplin || '', row.kembali_bekerja_pada || '']);
++        result2D.push([row.waktu_absen, row.nama_pegawai, row.tipe_absen, row.keterangan, row.status_disiplin || '', row.kembali_bekerja_pada || '', row.bukti_foto || '']);
+@@ -542 +542 @@ function doPost(e) {
+-      var queryTinjauan = 'absensi?select=id_absen,waktu_absen,nama_pegawai,tipe_absen,keterangan,status_disiplin,lokasi_maps' +
++      var queryTinjauan = 'absensi?select=id_absen,waktu_absen,nama_pegawai,tipe_absen,keterangan,status_disiplin,lokasi_maps,bukti_foto' +
+@@ -562 +562,6 @@ function doPost(e) {
+-            rekapHariIni[namaPegawai] = { tanggal: tglTampil, nama: namaPegawai, status: "Hadir", masuk1: "-", keluar1: "-", masuk2: "-", keluar2: "-", keterangan: keterangan, gps: mapsLink };
++            rekapHariIni[namaPegawai] = { tanggal: tglTampil, nama: namaPegawai, status: "Hadir", masuk1: "-", keluar1: "-", masuk2: "-", keluar2: "-", keterangan: keterangan, gps: mapsLink, foto: [] };
++          }
++
++          var linkFotoTinjauan = String(row.bukti_foto || '').trim();
++          if (/^https?:\/\/[^\s]+$/i.test(linkFotoTinjauan) && !rekapHariIni[namaPegawai].foto.some(function(f) { return f.url === linkFotoTinjauan; })) {
++            rekapHariIni[namaPegawai].foto.push({ url: linkFotoTinjauan, tipe: tipe, waktu: row.waktu_absen });
