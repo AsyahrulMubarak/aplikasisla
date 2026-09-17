@@ -56,7 +56,9 @@
       // WA hanya diberikan kepada pihak yang berhak memutuskan pengajuan ini.
       var semuaUsers = callSupabase_(SUPABASE_URL + 'users?select=role,no_wa,hak_akses_cabang');
       var waAtasan = semuaUsers.filter(function(u) { return bolehMemutuskanPengajuan_(u, userLogin) && u.no_wa; }).map(function(u) { return normalisasiNoWA_(u.no_wa); });
-      var pesanWA = "🚨 PENGAJUAN SAKIT/IZIN BARU\n\nNama: " + userLogin.namaAsli + "\nJenis: " + jenis + "\nAlasan: " + alasanPengajuan + "\n\nMohon tinjau dan berikan persetujuan via sistem SLA.\n\nBuka aplikasi: https://aplikasisla.vercel.app/\nSetelah login, pilih Absensi > Approval Pengajuan.";
+      var noWAPengaju = normalisasiNoWA_(userLogin.noWA);
+      var kontakPengaju = /^\d{8,15}$/.test(noWAPengaju) ? '\nWA Pengaju: +' + noWAPengaju + '\nHubungi Pengaju: https://wa.me/' + noWAPengaju : '\nWA Pengaju: belum terdaftar';
+      var pesanWA = "🚨 PENGAJUAN SAKIT/IZIN BARU\n\nNama: " + userLogin.namaAsli + kontakPengaju + "\nJenis: " + jenis + "\nAlasan: " + alasanPengajuan + "\n\nMohon tinjau dan berikan persetujuan via sistem SLA.\n\nBuka aplikasi: https://aplikasisla.vercel.app/\nSetelah login, pilih Absensi > Approval Pengajuan.";
       kirimBroadcastFonnte_(waAtasan, pesanWA);
 
       return buatOutputJson_({ status: 'sukses', pesan: 'Pengajuan berhasil disimpan dan menunggu approval.' });

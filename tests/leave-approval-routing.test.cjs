@@ -29,7 +29,7 @@ function harness(actor, requests=[]) {
   else {
     context.SUPABASE_URL='https://example.invalid/rest/v1/';context.FOLDER_DRIVE_ID='test-only';
     context.buatOutputJson_=value=>value;
-    context.normalisasiNoWA_=value=>value.replace(/^0/,'62');
+    context.normalisasiNoWA_=value=>String(value || '').replace(/\D/g,'').replace(/^0/,'62');
     vm.runInContext(policy+'\nfunction runHandlers(data,userLogin,punyaHakKelola){\n'+handlers+'\n}',context);
   }
   context.verifikasiSessionToken_=()=>actor.username;
@@ -48,7 +48,7 @@ function harness(actor, requests=[]) {
   };
   return {context,sent,writes,run(data){
     if(complete) return context.doPost({postData:{contents:JSON.stringify({apiKey:vm.runInContext('API_KEY',context),user:{role:'direktur'},...data})}});
-    const user={username:actor.username,namaAsli:actor.nama_asli,role:actor.role,hakAksesCabang:actor.hak_akses_cabang};
+    const user={username:actor.username,namaAsli:actor.nama_asli,role:actor.role,hakAksesCabang:actor.hak_akses_cabang,noWA:actor.no_wa};
     const management=['admin','manager','direktur'].includes(actor.role)&&actor.hak_akses_cabang!=='Raha';
     return context.runHandlers(data,user,management);
   }};
@@ -69,6 +69,18 @@ for(const jenis of ['Sakit','Izin'])for(const [index,expected] of [[2,[0,1]],[1,
     assert.equal(h.sent.length,1);
     assert.deepEqual(h.sent[0].numbers,expected.map(i=>staff[i].no_wa.replace(/^0/,'62')));
     assert.match(h.sent[0].message,/https:\/\/aplikasisla\.vercel\.app\//);
+    assert.ok(h.sent[0].message.includes('https://wa.me/'+staff[index].no_wa.replace(/^0/,'62')));
+  });
+}
+
+for (const [phone,expected] of [['081234567890','6281234567890'],['+62 812-3456-7890','6281234567890'],['',''],[null,''],['123','']]) {
+  test(`Applicant WA is verified from account, not submitted payload: ${phone}`,()=>{
+    const h=harness({...staff[5],no_wa:phone});
+    const result=h.run({action:'ajukanSakitIzin',jenis:'Sakit',tanggalMulai:'2026-09-16',alasan:'Uji lokal',noWA:'089999999999',user:{no_wa:'089999999999'},buktiFotoBase64:'data:image/jpeg;base64,'+'A'.repeat(100)});
+    assert.equal(result.status,'sukses');
+    assert.ok(!h.sent[0].message.includes('089999999999'));
+    if(expected) assert.ok(h.sent[0].message.includes('https://wa.me/'+expected));
+    else assert.match(h.sent[0].message,/WA Pengaju: belum terdaftar/);
   });
 }
 

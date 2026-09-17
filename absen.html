@@ -1001,6 +1001,12 @@
             muatDaftarPengajuan();
         }
 
+        function tombolFotoLampiranPengajuan(bukti) {
+            const url = String(bukti || '').trim();
+            if (!/^https?:\/\//i.test(url)) return '<span class="evidence-link" style="color:#94a3b8;">Foto lampiran tidak tersedia</span>';
+            return '<a class="btn-modal secondary evidence-link" href="' + escapeHTML(url) + '" target="_blank" rel="noopener noreferrer">📷 Lihat Foto Lampiran</a>';
+        }
+
         async function muatDaftarPengajuan() {
             const loading = document.getElementById('approval-loading');
             const list = document.getElementById('approval-list');
@@ -1031,10 +1037,7 @@
                     if (!/^[A-Za-z0-9_-]+$/.test(idPengajuan)) return '';
                     const jenis = String(item['Jenis (Sakit/Izin)'] || '-');
                     const classJenis = jenis.toLowerCase() === 'sakit' ? ' sakit' : '';
-                    const bukti = String(item['Bukti Foto'] || '');
-                    const linkBukti = /^https?:\/\//i.test(bukti)
-                        ? `<a class="evidence-link" href="${escapeHTML(bukti)}" target="_blank" rel="noopener noreferrer">📎 Lihat Bukti</a>`
-                        : '<span class="evidence-link" style="color:#94a3b8;">Tanpa Bukti</span>';
+                    const linkBukti = tombolFotoLampiranPengajuan(item['Bukti Foto']);
 
                     return `<article class="approval-card">
                         <div class="approval-card-head">
@@ -1119,6 +1122,7 @@
                             <div><strong>Waktu Eksekusi:</strong> ${waktuAcc}</div>
                             ${item['Kembali Bekerja'] ? '<div style="margin-top:6px;"><strong>Berakhir otomatis:</strong> Kembali masuk pada ' + formatTanggalTampil(item['Kembali Bekerja'], true) + '</div>' : (jenis === 'Sakit' && !item.Selesai && status === 'Disetujui' ? '<div style="margin-top:6px;">Sedang sakit — sampai kembali bekerja.</div>' : '')}
                         </div>
+                        <div class="approval-controls">${tombolFotoLampiranPengajuan(item['Bukti Foto'])}</div>
                     </article>`;
                 }).join('');
 

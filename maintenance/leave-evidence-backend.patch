@@ -1,0 +1,13 @@
+diff --git a/attendance.gs b/attendance.gs
+index 734ff6b..131b02e 100644
+--- a/attendance.gs
++++ b/attendance.gs
+@@ -462 +462,2 @@ function doPost(e) {
+-      hakAksesCabang: dbUser[0].hak_akses_cabang
++      hakAksesCabang: dbUser[0].hak_akses_cabang,
++      noWA: dbUser[0].no_wa
+@@ -647 +648,3 @@ function doPost(e) {
+-      var pesanWA = "🚨 PENGAJUAN SAKIT/IZIN BARU\n\nNama: " + userLogin.namaAsli + "\nJenis: " + jenis + "\nAlasan: " + alasanPengajuan + "\n\nMohon tinjau dan berikan persetujuan via sistem SLA.\n\nBuka aplikasi: https://aplikasisla.vercel.app/\nSetelah login, pilih Absensi > Approval Pengajuan.";
++      var noWAPengaju = normalisasiNoWA_(userLogin.noWA);
++      var kontakPengaju = /^\d{8,15}$/.test(noWAPengaju) ? '\nWA Pengaju: +' + noWAPengaju + '\nHubungi Pengaju: https://wa.me/' + noWAPengaju : '\nWA Pengaju: belum terdaftar';
++      var pesanWA = "🚨 PENGAJUAN SAKIT/IZIN BARU\n\nNama: " + userLogin.namaAsli + kontakPengaju + "\nJenis: " + jenis + "\nAlasan: " + alasanPengajuan + "\n\nMohon tinjau dan berikan persetujuan via sistem SLA.\n\nBuka aplikasi: https://aplikasisla.vercel.app/\nSetelah login, pilih Absensi > Approval Pengajuan.";

@@ -1,0 +1,6 @@
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict'),{test}=require('node:test');
+const html=fs.readFileSync(path.join(__dirname,'../absen.html'),'utf8');
+const start=html.indexOf('        function tombolFotoLampiranPengajuan('),end=html.indexOf('        async function muatDaftarPengajuan(',start);
+const c=vm.createContext({escapeHTML:v=>String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')});vm.runInContext(html.slice(start,end),c);
+test('Queue and history render a photo button with safe new-tab link',()=>{assert.equal((html.match(/tombolFotoLampiranPengajuan\(item\['Bukti Foto'\]\)/g)||[]).length,2);const result=c.tombolFotoLampiranPengajuan('https://drive.google.com/file/d/example/view');assert.match(result,/Lihat Foto Lampiran/);assert.match(result,/rel="noopener noreferrer"/);});
+test('Missing photo and script/data URLs do not produce clickable evidence',()=>{for(const value of ['',null,'javascript:alert(1)','data:text/html,<script>'])assert.ok(!c.tombolFotoLampiranPengajuan(value).includes('<a '));assert.ok(c.tombolFotoLampiranPengajuan('https://example.test/" onclick="alert(1)').includes('&quot;'));});
