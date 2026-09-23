@@ -306,7 +306,7 @@
             .charts-container { justify-content: flex-start; gap: 20px; }
             .chart-box { flex: 1; min-width: 300px; max-width: none; }
             .checkbox-group { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
-            #modal-bug .modal-content, #modal-update .modal-content, #modal-followup .modal-content, #modal-banding .modal-content, #modal-penawaran .modal-content, #modal-export .modal-content, #modal-poin .modal-content { max-width: 600px; }
+            #modal-bug .modal-content, #modal-update .modal-content, #modal-followup .modal-content, #modal-banding .modal-content, #modal-penawaran .modal-content, #modal-export .modal-content, #modal-poin .modal-content, #modal-edit-garansi .modal-content { max-width: 600px; }
         }
         @media (max-width: 520px) {
             #main-lobby-wrapper { min-height: calc(100vh - 30px); padding: 10px; }
@@ -584,6 +584,39 @@
                 </div>
                 <button type="submit" id="btn-submit-poin" class="btn-solid-primary" style="background:#eab308;">Simpan Poin</button>
                 <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-poin').style.display='none'">Batal</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-edit-garansi" class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-garansi-title">
+        <div class="modal-content" style="border-top-color:#2563eb;">
+            <h3 id="edit-garansi-title" class="modal-title" style="color:#2563eb;">✏️ Edit Kartu Garansi</h3>
+            <p id="edit-garansi-ringkasan" style="margin:-5px 0 15px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; color:#1e3a8a; font-size:12px; line-height:1.5;"></p>
+            <form id="form-edit-garansi" onsubmit="simpanEditGaransi(event)">
+                <input type="hidden" id="edit-garansi-id">
+                <label for="edit-garansi-status">Status Garansi</label>
+                <select id="edit-garansi-status" onchange="sinkronkanFormEditGaransi_()" required>
+                    <option value="Masa Tunggu">⏳ Masa Tunggu</option>
+                    <option value="Aktif">🟢 Aktif</option>
+                    <option value="Diklaim (Hangus)">🔴 Diklaim (Hangus)</option>
+                    <option value="Habis (Tanpa Garansi)">⚪ Habis (Tanpa Garansi)</option>
+                </select>
+
+                <label for="edit-garansi-durasi">Durasi Garansi (Hari)</label>
+                <input type="number" id="edit-garansi-durasi" min="0" step="1" oninput="sinkronkanFormEditGaransi_()" required>
+
+                <label for="edit-garansi-mulai">Waktu Aktivasi Sebenarnya</label>
+                <input type="datetime-local" id="edit-garansi-mulai" step="1" oninput="sinkronkanFormEditGaransi_()">
+
+                <label for="edit-garansi-habis">Waktu Habis (Dihitung Otomatis)</label>
+                <input type="datetime-local" id="edit-garansi-habis" step="1" readonly class="input-terkunci">
+                <p id="edit-garansi-bantuan" style="margin:-8px 0 14px; color:var(--text-muted); font-size:11px; line-height:1.5;"></p>
+
+                <label for="edit-garansi-keterangan">Keterangan Kartu Garansi</label>
+                <textarea id="edit-garansi-keterangan" rows="4" maxlength="2000" placeholder="Tambahkan atau perbaiki keterangan garansi..."></textarea>
+
+                <button type="submit" id="btn-simpan-edit-garansi" class="btn-solid-primary" style="background:#2563eb;">Simpan Perubahan</button>
+                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-edit-garansi').style.display='none'">Batal</button>
             </form>
         </div>
     </div>
@@ -1773,7 +1806,7 @@
             ]);
             if (handlerStatis.has(handler)) return true;
 
-            const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|hapusGaransi|bukaModalFollowUp|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|lihatBuktiChatProspek|unduhBuktiChatProspek)';
+            const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|lihatBuktiChatProspek|unduhBuktiChatProspek)';
             if (new RegExp('^' + fungsiSatuId + "\\('[A-Za-z0-9._-]{1,120}'\\)$").test(handler)) return true;
             if (/^responBanding\('[A-Za-z0-9._-]{1,120}',\s*'(?:Diterima|Ditolak)'\)$/.test(handler)) return true;
             if (/^responPemulihan\('[A-Za-z0-9._-]{1,120}',\s*'[A-Za-z ]{1,40}'\)$/.test(handler)) return true;
@@ -5877,6 +5910,7 @@
 
                 let btnHtml = '';
                 if (roleAdalahAdminOperasional_() || rolePengguna() === 'manager') {
+                    btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;" onclick="bukaEditGaransi('${idGrs}')">✏️ Edit Kartu Garansi</button>`;
                     if (textStatus === 'Masa Tunggu') {
                         btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#2563eb; border-color:#bfdbfe;" onclick="aktifkanGaransi('${idGrs}')">🚀 Aktifkan Garansi (Barang Diambil)</button>`;
                     } else if (textStatus === 'Aktif') {
@@ -5903,6 +5937,143 @@
                 </div>`);
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada data Garansi.</p>';
+        }
+
+        function formatTanggalInputGaransi_(nilai) {
+            const tanggal = parseSafeDate(nilai);
+            if (Number.isNaN(tanggal.getTime())) return '';
+            const pad = angka => String(angka).padStart(2, '0');
+            return `${tanggal.getFullYear()}-${pad(tanggal.getMonth() + 1)}-${pad(tanggal.getDate())}T${pad(tanggal.getHours())}:${pad(tanggal.getMinutes())}:${pad(tanggal.getSeconds())}`;
+        }
+
+        function tanggalDariInputGaransi_(nilai) {
+            const teks = String(nilai || '').trim();
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(teks)) return null;
+            const tanggal = new Date(teks);
+            return Number.isNaN(tanggal.getTime()) ? null : tanggal;
+        }
+
+        function sinkronkanFormEditGaransi_() {
+            const statusInput = document.getElementById('edit-garansi-status');
+            const durasiInput = document.getElementById('edit-garansi-durasi');
+            const mulaiInput = document.getElementById('edit-garansi-mulai');
+            const habisInput = document.getElementById('edit-garansi-habis');
+            const bantuan = document.getElementById('edit-garansi-bantuan');
+            if (!statusInput || !durasiInput || !mulaiInput || !habisInput) return;
+
+            const status = String(statusInput.value || '');
+            const aktif = status === 'Aktif';
+            const tanpaGaransi = status === 'Habis (Tanpa Garansi)';
+            durasiInput.disabled = tanpaGaransi;
+            mulaiInput.disabled = !aktif;
+
+            if (tanpaGaransi) durasiInput.value = '0';
+            if (aktif) {
+                if (!mulaiInput.value) mulaiInput.value = formatTanggalInputGaransi_(new Date());
+                const mulai = tanggalDariInputGaransi_(mulaiInput.value);
+                const durasiHari = Number.parseInt(durasiInput.value, 10);
+                if (mulai && Number.isInteger(durasiHari) && durasiHari > 0) {
+                    habisInput.value = formatTanggalInputGaransi_(new Date(mulai.getTime() + durasiHari * 24 * 60 * 60 * 1000));
+                    if (bantuan) bantuan.textContent = 'Tanggal habis dihitung dari waktu aktivasi sebenarnya ditambah durasi garansi.';
+                } else {
+                    habisInput.value = '';
+                    if (bantuan) bantuan.textContent = 'Status Aktif memerlukan waktu aktivasi dan durasi lebih dari 0 hari.';
+                }
+            } else if (status === 'Masa Tunggu') {
+                if (bantuan) bantuan.textContent = 'Masa Tunggu akan mengosongkan waktu mulai dan waktu habis ketika disimpan.';
+            } else if (status === 'Diklaim (Hangus)') {
+                if (bantuan) bantuan.textContent = 'Waktu klaim yang sudah tercatat tetap dipertahankan.';
+            } else if (bantuan) {
+                bantuan.textContent = 'Tanpa garansi akan menyimpan durasi 0 hari dan mengosongkan kedua tanggal.';
+            }
+        }
+
+        function bukaEditGaransi(id) {
+            if (!(roleAdalahAdminOperasional_() || rolePengguna() === 'manager')) {
+                showToast('Afwan, hanya Admin atau Manager yang dapat mengedit kartu garansi.', 'error');
+                return;
+            }
+            const idAman = idAman_(id);
+            const garansi = (globalGaransi || []).find(item => item && String(item['ID Garansi']).trim() === idAman && dataSesuaiCabangAktif_(item));
+            if (!garansi) {
+                showToast(`Afwan, Garansi ${id} tidak ditemukan pada cabang aktif.`, 'error');
+                return;
+            }
+
+            const statusSaatIni = String(garansi['Status'] || 'Masa Tunggu').trim();
+            const statusEdit = statusSaatIni === 'Habis (Expired)'
+                ? 'Aktif'
+                : (['Masa Tunggu', 'Aktif', 'Diklaim (Hangus)', 'Habis (Tanpa Garansi)'].includes(statusSaatIni) ? statusSaatIni : 'Masa Tunggu');
+            document.getElementById('edit-garansi-id').value = idAman;
+            document.getElementById('edit-garansi-status').value = statusEdit;
+            document.getElementById('edit-garansi-durasi').value = Math.max(0, Number.parseInt(garansi['Durasi (Hari)'], 10) || 0);
+            document.getElementById('edit-garansi-mulai').value = formatTanggalInputGaransi_(garansi['Tanggal Mulai']);
+            document.getElementById('edit-garansi-habis').value = formatTanggalInputGaransi_(garansi['Tanggal Habis']);
+            document.getElementById('edit-garansi-keterangan').value = String(garansi['Keterangan'] || '');
+            document.getElementById('edit-garansi-ringkasan').textContent = `${idAman} • ${garansi['Nama Pelanggan'] || '-'} • ${garansi['Barang / Jasa'] || '-'}`;
+            sinkronkanFormEditGaransi_();
+            document.getElementById('modal-edit-garansi').style.display = 'flex';
+        }
+
+        async function simpanEditGaransi(e) {
+            e.preventDefault();
+            if (!(roleAdalahAdminOperasional_() || rolePengguna() === 'manager')) {
+                showToast('Afwan, hanya Admin atau Manager yang dapat menyimpan perubahan garansi.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btn-simpan-edit-garansi');
+            const teksAwal = btn.innerText;
+            btn.innerText = 'Menyimpan...';
+            btn.disabled = true;
+            try {
+                const id = idAman_(document.getElementById('edit-garansi-id').value);
+                const garansi = (globalGaransi || []).find(item => item && String(item['ID Garansi']).trim() === id && dataSesuaiCabangAktif_(item));
+                if (!id || !garansi) throw new Error('Data garansi tidak ditemukan pada cabang aktif.');
+
+                const status = String(document.getElementById('edit-garansi-status').value || '').trim();
+                const statusDiizinkan = ['Masa Tunggu', 'Aktif', 'Diklaim (Hangus)', 'Habis (Tanpa Garansi)'];
+                if (!statusDiizinkan.includes(status)) throw new Error('Status garansi tidak valid.');
+
+                let durasiHari = Number.parseInt(document.getElementById('edit-garansi-durasi').value, 10);
+                if (!Number.isInteger(durasiHari) || durasiHari < 0) throw new Error('Durasi garansi harus berupa bilangan bulat nol atau lebih.');
+
+                const payload = {
+                    status: status,
+                    durasi_hari: durasiHari,
+                    keterangan: String(document.getElementById('edit-garansi-keterangan').value || '').trim()
+                };
+
+                if (status === 'Aktif') {
+                    if (durasiHari <= 0) throw new Error('Garansi Aktif harus memiliki durasi lebih dari 0 hari.');
+                    const mulai = tanggalDariInputGaransi_(document.getElementById('edit-garansi-mulai').value);
+                    if (!mulai) throw new Error('Waktu aktivasi sebenarnya wajib diisi.');
+                    payload.tanggal_mulai = tanggalIsoSupabase_(mulai);
+                    payload.tanggal_habis = tanggalIsoSupabase_(new Date(mulai.getTime() + durasiHari * 24 * 60 * 60 * 1000));
+                } else if (status === 'Diklaim (Hangus)') {
+                    payload.tanggal_mulai = garansi['Tanggal Mulai'] || null;
+                    payload.tanggal_habis = String(garansi['Status'] || '').includes('Diklaim') && garansi['Tanggal Habis']
+                        ? garansi['Tanggal Habis'] : tanggalIsoSupabase_();
+                } else {
+                    if (status === 'Habis (Tanpa Garansi)') {
+                        durasiHari = 0;
+                        payload.durasi_hari = 0;
+                    }
+                    payload.tanggal_mulai = null;
+                    payload.tanggal_habis = null;
+                }
+
+                const hasil = await callSupabase(endpointFilterSupabase_('garansi', 'id_garansi', id), 'PATCH', payload);
+                pastikanHasilMutasiSupabase_(hasil, `Garansi ${id}`);
+                document.getElementById('modal-edit-garansi').style.display = 'none';
+                showToast(`Alhamdulillah! Kartu garansi ${id} berhasil diperbarui.`, 'success');
+                await ambilSemuaData(true);
+            } catch (err) {
+                showToast('Afwan, Gagal mengedit kartu garansi: ' + err.message, 'error');
+            } finally {
+                btn.innerText = teksAwal;
+                btn.disabled = false;
+            }
         }
 
         async function submitGaransi(e) {
