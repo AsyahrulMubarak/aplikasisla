@@ -32,7 +32,9 @@ function createHarness(role = 'admin') {
   const ids = [
     'edit-garansi-id', 'edit-garansi-status', 'edit-garansi-durasi',
     'edit-garansi-mulai', 'edit-garansi-habis', 'edit-garansi-keterangan',
-    'edit-garansi-ringkasan', 'edit-garansi-bantuan', 'modal-edit-garansi',
+    'edit-garansi-ringkasan', 'edit-garansi-ringkasan-id',
+    'edit-garansi-ringkasan-pelanggan', 'edit-garansi-ringkasan-barang',
+    'edit-garansi-bantuan', 'modal-edit-garansi',
     'btn-simpan-edit-garansi'
   ];
   ids.forEach(id => {
@@ -81,6 +83,9 @@ test('warranty cards expose a sanitized edit action and a dedicated edit form', 
   assert.match(html, /onclick="bukaEditGaransi\('\$\{idGrs\}'\)"[^>]*>✏️ Edit Kartu Garansi/);
   assert.match(html, /id="modal-edit-garansi"/);
   assert.match(html, /id="edit-garansi-keterangan"/);
+  assert.match(html, /class="warranty-edit-header"/);
+  assert.match(html, /class="warranty-edit-summary"/);
+  assert.match(html, /input\[type="datetime-local"\]/);
   assert.match(html, /bukaEditGaransi\|hapusGaransi/);
 });
 
@@ -91,6 +96,9 @@ test('an accidental claim can be restored to active from the actual activation t
   assert.equal(elements['modal-edit-garansi'].style.display, 'flex');
   assert.equal(elements['edit-garansi-status'].value, 'Diklaim (Hangus)');
   assert.equal(elements['edit-garansi-keterangan'].value, 'Catatan lama');
+  assert.equal(elements['edit-garansi-ringkasan-id'].textContent, 'GRS-009');
+  assert.equal(elements['edit-garansi-ringkasan-pelanggan'].textContent, 'Pelanggan Uji');
+  assert.equal(elements['edit-garansi-ringkasan-barang'].textContent, 'Laptop Uji');
 
   elements['edit-garansi-status'].value = 'Aktif';
   elements['edit-garansi-durasi'].value = '7';

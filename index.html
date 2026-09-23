@@ -249,7 +249,7 @@
         }
 
         /* 3. RAPIKAN FORM INPUT (Nyaman Dilihat) */
-        input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="tel"], input[type="date"], input[type="month"], select, textarea {
+        input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="tel"], input[type="date"], input[type="datetime-local"], input[type="month"], select, textarea {
             width: 100%;
             padding: 12px 16px;
             border: 1px solid #cbd5e1;
@@ -287,6 +287,160 @@
             box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.3);
         }
 
+        .ticket-advanced-filters {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+            padding: 14px;
+            border: 1px solid #dbeafe;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #f8fbff 0%, #f1f5f9 100%);
+        }
+        .ticket-filter-field label {
+            display: block;
+            margin: 0 0 6px;
+            color: #334155;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .02em;
+        }
+        .ticket-filter-field select { margin: 0; background:#fff; }
+
+        #modal-edit-garansi {
+            padding: 18px;
+            background: rgba(15, 23, 42, .66);
+            backdrop-filter: blur(5px);
+        }
+        #modal-edit-garansi .modal-content {
+            width: min(680px, 100%);
+            max-height: 92vh;
+            margin: auto;
+            padding: 0;
+            overflow-y: auto;
+            border: 0;
+            border-radius: 22px;
+            background: #f8fafc;
+            box-shadow: 0 28px 80px rgba(15, 23, 42, .32);
+        }
+        .warranty-edit-header {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 22px 24px;
+            color: #fff;
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #0ea5e9 100%);
+        }
+        .warranty-edit-header-icon {
+            display: grid;
+            place-items: center;
+            flex: 0 0 48px;
+            width: 48px;
+            height: 48px;
+            border: 1px solid rgba(255,255,255,.3);
+            border-radius: 15px;
+            background: rgba(255,255,255,.16);
+            font-size: 24px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.2);
+        }
+        .warranty-edit-eyebrow {
+            display: block;
+            margin-bottom: 3px;
+            color: #bfdbfe;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+        .warranty-edit-header h3 { margin: 0; color:#fff; font-size:20px; }
+        .warranty-edit-header p { margin: 5px 40px 0 0; color:#dbeafe; font-size:11px; line-height:1.5; }
+        .warranty-edit-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border: 1px solid rgba(255,255,255,.28);
+            border-radius: 10px;
+            color: #fff;
+            background: rgba(15,23,42,.18);
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .warranty-edit-body { padding: 20px 24px 24px; }
+        .warranty-edit-summary {
+            display: grid;
+            grid-template-columns: .8fr 1fr 1.6fr;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .warranty-edit-summary-item {
+            min-width: 0;
+            padding: 11px 12px;
+            border: 1px solid #dbeafe;
+            border-radius: 12px;
+            background: #fff;
+        }
+        .warranty-edit-summary-item span {
+            display: block;
+            margin-bottom: 4px;
+            color:#64748b;
+            font-size:9px;
+            font-weight:800;
+            letter-spacing:.08em;
+            text-transform:uppercase;
+        }
+        .warranty-edit-summary-item strong {
+            display: block;
+            overflow: hidden;
+            color:#1e3a8a;
+            font-size:12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .warranty-edit-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .warranty-edit-field label {
+            display:block;
+            margin:0 0 7px;
+            color:#334155;
+            font-size:12px;
+            font-weight:750;
+        }
+        .warranty-edit-field input,
+        .warranty-edit-field select,
+        .warranty-edit-field textarea { margin:0; background:#fff; }
+        .warranty-edit-field input:disabled,
+        .warranty-edit-field input[readonly] { color:#64748b; background:#eef2f7; cursor:not-allowed; }
+        .warranty-edit-field-full { grid-column:1 / -1; }
+        .warranty-edit-help {
+            display:flex;
+            gap:9px;
+            align-items:flex-start;
+            margin: 2px 0 16px;
+            padding: 10px 12px;
+            border:1px solid #bae6fd;
+            border-radius:11px;
+            color:#075985;
+            background:#f0f9ff;
+            font-size:11px;
+            line-height:1.5;
+        }
+        .warranty-edit-actions {
+            display:flex;
+            justify-content:flex-end;
+            gap:10px;
+            margin-top:18px;
+            padding-top:16px;
+            border-top:1px solid #e2e8f0;
+        }
+        .warranty-edit-actions button { width:auto; min-width:145px; margin:0; }
+
         /* --- DESKTOP / LAPTOP RESPONSIVE UI (ENTERPRISE EDITION) --- */
         @media (min-width: 768px) {
             body { padding: 0; background-color: #f8fafc; display: block; margin: 0; min-height: 100vh; }
@@ -307,6 +461,7 @@
             .chart-box { flex: 1; min-width: 300px; max-width: none; }
             .checkbox-group { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
             #modal-bug .modal-content, #modal-update .modal-content, #modal-followup .modal-content, #modal-banding .modal-content, #modal-penawaran .modal-content, #modal-export .modal-content, #modal-poin .modal-content, #modal-edit-garansi .modal-content { max-width: 600px; }
+            #modal-edit-garansi .modal-content { max-width: 680px; }
         }
         @media (max-width: 520px) {
             #main-lobby-wrapper { min-height: calc(100vh - 30px); padding: 10px; }
@@ -319,6 +474,14 @@
             .crm-hero { padding: 18px; }
             .crm-broadcast-toolbar { position: static; align-items: stretch; flex-direction: column; }
             .crm-broadcast-btn { width: 100%; min-width: 0; }
+            .ticket-advanced-filters, .warranty-edit-grid, .warranty-edit-summary { grid-template-columns: 1fr; }
+            .warranty-edit-header { padding:20px 18px; align-items:flex-start; }
+            .warranty-edit-header-icon { flex-basis:42px; width:42px; height:42px; border-radius:13px; }
+            .warranty-edit-header h3 { font-size:18px; }
+            .warranty-edit-body { padding:16px; }
+            .warranty-edit-summary-item strong { white-space:normal; }
+            .warranty-edit-actions { flex-direction:column-reverse; }
+            .warranty-edit-actions button { width:100%; }
         }
     </style>
 </head>
@@ -589,35 +752,60 @@
     </div>
 
     <div id="modal-edit-garansi" class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-garansi-title">
-        <div class="modal-content" style="border-top-color:#2563eb;">
-            <h3 id="edit-garansi-title" class="modal-title" style="color:#2563eb;">✏️ Edit Kartu Garansi</h3>
-            <p id="edit-garansi-ringkasan" style="margin:-5px 0 15px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; color:#1e3a8a; font-size:12px; line-height:1.5;"></p>
-            <form id="form-edit-garansi" onsubmit="simpanEditGaransi(event)">
-                <input type="hidden" id="edit-garansi-id">
-                <label for="edit-garansi-status">Status Garansi</label>
-                <select id="edit-garansi-status" onchange="sinkronkanFormEditGaransi_()" required>
-                    <option value="Masa Tunggu">⏳ Masa Tunggu</option>
-                    <option value="Aktif">🟢 Aktif</option>
-                    <option value="Diklaim (Hangus)">🔴 Diklaim (Hangus)</option>
-                    <option value="Habis (Tanpa Garansi)">⚪ Habis (Tanpa Garansi)</option>
-                </select>
-
-                <label for="edit-garansi-durasi">Durasi Garansi (Hari)</label>
-                <input type="number" id="edit-garansi-durasi" min="0" step="1" oninput="sinkronkanFormEditGaransi_()" required>
-
-                <label for="edit-garansi-mulai">Waktu Aktivasi Sebenarnya</label>
-                <input type="datetime-local" id="edit-garansi-mulai" step="1" oninput="sinkronkanFormEditGaransi_()">
-
-                <label for="edit-garansi-habis">Waktu Habis (Dihitung Otomatis)</label>
-                <input type="datetime-local" id="edit-garansi-habis" step="1" readonly class="input-terkunci">
-                <p id="edit-garansi-bantuan" style="margin:-8px 0 14px; color:var(--text-muted); font-size:11px; line-height:1.5;"></p>
-
-                <label for="edit-garansi-keterangan">Keterangan Kartu Garansi</label>
-                <textarea id="edit-garansi-keterangan" rows="4" maxlength="2000" placeholder="Tambahkan atau perbaiki keterangan garansi..."></textarea>
-
-                <button type="submit" id="btn-simpan-edit-garansi" class="btn-solid-primary" style="background:#2563eb;">Simpan Perubahan</button>
-                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-edit-garansi').style.display='none'">Batal</button>
-            </form>
+        <div class="modal-content">
+            <div class="warranty-edit-header">
+                <div class="warranty-edit-header-icon" aria-hidden="true">🛡️</div>
+                <div>
+                    <span class="warranty-edit-eyebrow">Manajemen Garansi</span>
+                    <h3 id="edit-garansi-title">Edit Kartu Garansi</h3>
+                    <p>Perbaiki status, waktu aktivasi, durasi, atau catatan tanpa mengubah identitas transaksi.</p>
+                </div>
+                <button type="button" class="warranty-edit-close" aria-label="Tutup formulir" onclick="document.getElementById('modal-edit-garansi').style.display='none'">×</button>
+            </div>
+            <div class="warranty-edit-body">
+                <div id="edit-garansi-ringkasan" class="warranty-edit-summary">
+                    <div class="warranty-edit-summary-item"><span>ID Garansi</span><strong id="edit-garansi-ringkasan-id">-</strong></div>
+                    <div class="warranty-edit-summary-item"><span>Pelanggan</span><strong id="edit-garansi-ringkasan-pelanggan">-</strong></div>
+                    <div class="warranty-edit-summary-item"><span>Barang / Jasa</span><strong id="edit-garansi-ringkasan-barang">-</strong></div>
+                </div>
+                <form id="form-edit-garansi" onsubmit="simpanEditGaransi(event)">
+                    <input type="hidden" id="edit-garansi-id">
+                    <div class="warranty-edit-grid">
+                        <div class="warranty-edit-field">
+                            <label for="edit-garansi-status">Status Garansi</label>
+                            <select id="edit-garansi-status" onchange="sinkronkanFormEditGaransi_()" required>
+                                <option value="Masa Tunggu">⏳ Masa Tunggu</option>
+                                <option value="Aktif">🟢 Aktif</option>
+                                <option value="Diklaim (Hangus)">🔴 Diklaim (Hangus)</option>
+                                <option value="Habis (Tanpa Garansi)">⚪ Habis (Tanpa Garansi)</option>
+                            </select>
+                        </div>
+                        <div class="warranty-edit-field">
+                            <label for="edit-garansi-durasi">Durasi Garansi</label>
+                            <input type="number" id="edit-garansi-durasi" min="0" step="1" oninput="sinkronkanFormEditGaransi_()" placeholder="Jumlah hari" required>
+                        </div>
+                        <div class="warranty-edit-field">
+                            <label for="edit-garansi-mulai">Waktu Aktivasi Sebenarnya</label>
+                            <input type="datetime-local" id="edit-garansi-mulai" step="1" oninput="sinkronkanFormEditGaransi_()">
+                        </div>
+                        <div class="warranty-edit-field">
+                            <label for="edit-garansi-habis">Waktu Habis Otomatis</label>
+                            <input type="datetime-local" id="edit-garansi-habis" step="1" readonly>
+                        </div>
+                        <div class="warranty-edit-field warranty-edit-field-full">
+                            <div class="warranty-edit-help"><span aria-hidden="true">ℹ️</span><span id="edit-garansi-bantuan"></span></div>
+                        </div>
+                        <div class="warranty-edit-field warranty-edit-field-full">
+                            <label for="edit-garansi-keterangan">Keterangan Kartu Garansi</label>
+                            <textarea id="edit-garansi-keterangan" rows="4" maxlength="2000" placeholder="Tambahkan batas cakupan, nomor lisensi, atau catatan layanan..."></textarea>
+                        </div>
+                    </div>
+                    <div class="warranty-edit-actions">
+                        <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-edit-garansi').style.display='none'">Batal</button>
+                        <button type="submit" id="btn-simpan-edit-garansi" class="btn-solid-primary">✓ Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -757,6 +945,29 @@
                     </select>
                     <select id="filter-tahun-tiket" onchange="renderTickets()" style="padding:10px; font-size:13px; border-radius:8px; border:1px solid #cbd5e1; width:100%; min-width:0; margin:0; cursor:pointer;">
                         <option value="all">Semua Tahun</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option>
+                    </select>
+                </div>
+            </div>
+            <div class="ticket-advanced-filters" aria-label="Filter tiket lanjutan">
+                <div class="ticket-filter-field">
+                    <label for="filter-status-tiket">Status Pekerjaan</label>
+                    <select id="filter-status-tiket" onchange="renderTickets()">
+                        <option value="all">Semua Status</option>
+                        <option value="Menunggu Teknisi">Menunggu Teknisi</option>
+                        <option value="Menunggu">Menunggu</option>
+                        <option value="On Progress">On Progress</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Outsource">Outsource</option>
+                        <option value="Selesai">Selesai</option>
+                        <option value="Cancel">Cancel</option>
+                    </select>
+                </div>
+                <div class="ticket-filter-field">
+                    <label for="filter-pembayaran-tiket">Status Nota</label>
+                    <select id="filter-pembayaran-tiket" onchange="renderTickets()">
+                        <option value="all">Semua Nota</option>
+                        <option value="lunas">Nota Lunas</option>
+                        <option value="belum_lunas">Nota Belum Lunas</option>
                     </select>
                 </div>
             </div>
@@ -5392,6 +5603,24 @@
             return bulanCocok && tahunCocok;
         }
 
+        function statusTiketUntukFilter_(ticket) {
+            const status = String(ticket && ticket['Status'] || 'Menunggu').trim() || 'Menunggu';
+            const teknisi = String(ticket && ticket['Teknisi'] || '').trim();
+            return ['Belum Ditugaskan', '-', ''].includes(teknisi) ? 'Menunggu Teknisi' : status;
+        }
+
+        function tiketCocokFilterTambahan_(ticket, statusFilter, pembayaranFilter) {
+            const filterStatus = String(statusFilter || 'all');
+            const filterPembayaran = String(pembayaranFilter || 'all');
+            const statusTiket = statusTiketUntukFilter_(ticket);
+            if (filterStatus !== 'all' && statusTiket !== filterStatus) return false;
+
+            const notaLunas = statusPoinSudahCair_(ticket && ticket['Status Pembayaran']);
+            if (filterPembayaran === 'lunas' && !notaLunas) return false;
+            if (filterPembayaran === 'belum_lunas' && notaLunas) return false;
+            return true;
+        }
+
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = '';
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
@@ -5399,6 +5628,10 @@
             const filterTahunTiket = document.getElementById('filter-tahun-tiket');
             const bulanTiket = filterBulanTiket ? filterBulanTiket.value : 'all';
             const tahunTiket = filterTahunTiket ? filterTahunTiket.value : 'all';
+            const filterStatusTiket = document.getElementById('filter-status-tiket');
+            const filterPembayaranTiket = document.getElementById('filter-pembayaran-tiket');
+            const statusTiketDipilih = filterStatusTiket ? filterStatusTiket.value : 'all';
+            const pembayaranTiketDipilih = filterPembayaranTiket ? filterPembayaranTiket.value : 'all';
             const infoPeriodeTiket = document.getElementById('ticket-period-help');
             const awalBulanBerjalan = new Date();
             awalBulanBerjalan.setDate(1);
@@ -5461,6 +5694,7 @@
 
                 if (currentTicketFilter === 'aktif' && !isAktif) return;
                 if (currentTicketFilter === 'riwayat' && !isRiwayat) return;
+                if (!tiketCocokFilterTambahan_(ticket, statusTiketDipilih, pembayaranTiketDipilih)) return;
                 if (currentTicketFilter === 'riwayat') {
                     const tanggalRiwayat = ticket['Waktu Selesai'] || ticket['Waktu Lapor'];
                     if (!dataMasukPeriodeDaftar_(tanggalRiwayat, bulanTiket, tahunTiket)) return;
@@ -5605,6 +5839,8 @@
                 if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna()) && parseInt(nilaiPenjualanCek) > 0) {
                     infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`;
                 }
+                const notaSudahLunas = statusPoinSudahCair_(ticket['Status Pembayaran']);
+                const statusNotaHtml = `<p><strong>Status Nota:</strong> <span class="badge ${notaSudahLunas ? 'badge-selesai' : 'badge-pending'}">${notaSudahLunas ? 'Lunas' : 'Belum Lunas'}</span></p>`;
 
                 let teknisiSebelumnyaKey = Object.keys(ticket).find(k => String(k).trim() === 'Teknisi Sebelumnya');
                 let teknisiSebelumnyaHtml = teknisiSebelumnyaKey && String(ticket[teknisiSebelumnyaKey] || '').trim() !== ''
@@ -5648,6 +5884,7 @@
                     <p><strong>Pekerjaan:</strong> ${ticket['Jenis Pekerjaan']}</p>
                     <p><strong>Sales:</strong> ${ticket['Sales']||'-'}</p>
                     ${infoPenjualanHtml}
+                    ${statusNotaHtml}
                     <p><strong>Teknisi:</strong> ${ticket['Teknisi']}</p>
                     ${teknisiSebelumnyaHtml}
                     ${htmlPoinTeknisi}
@@ -5657,7 +5894,7 @@
                     ${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}${linkTrackBtn}
                 </div>`);
             });
-            if(!htmlAda) container.innerHTML = `<p style="text-align:center; color:var(--text-muted); margin-top:40px;">${currentTicketFilter === 'aktif' ? 'Tidak ada tiket aktif.' : 'Tidak ada tiket di riwayat pada periode atau pencarian terpilih.'}</p>`;
+            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket yang cocok dengan status, nota, periode, atau pencarian terpilih.</p>';
         }
 
         function renderPenjualan() {
@@ -6010,7 +6247,9 @@
             document.getElementById('edit-garansi-mulai').value = formatTanggalInputGaransi_(garansi['Tanggal Mulai']);
             document.getElementById('edit-garansi-habis').value = formatTanggalInputGaransi_(garansi['Tanggal Habis']);
             document.getElementById('edit-garansi-keterangan').value = String(garansi['Keterangan'] || '');
-            document.getElementById('edit-garansi-ringkasan').textContent = `${idAman} • ${garansi['Nama Pelanggan'] || '-'} • ${garansi['Barang / Jasa'] || '-'}`;
+            document.getElementById('edit-garansi-ringkasan-id').textContent = idAman;
+            document.getElementById('edit-garansi-ringkasan-pelanggan').textContent = String(garansi['Nama Pelanggan'] || '-');
+            document.getElementById('edit-garansi-ringkasan-barang').textContent = String(garansi['Barang / Jasa'] || '-');
             sinkronkanFormEditGaransi_();
             document.getElementById('modal-edit-garansi').style.display = 'flex';
         }

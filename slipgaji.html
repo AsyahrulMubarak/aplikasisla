@@ -317,8 +317,9 @@
                         <input type="number" id="input-kasbon" placeholder="Contoh: 50000" value="0">
                     </div>
                     <div class="form-group">
-                        <label style="color:#0284c7;">✈️ Tgl Luar Kota (Pokok x2)</label>
+                        <label style="color:#0284c7;">✈️ Tgl Luar Kota (Pokok x2 & Koreksi Gratis)</label>
                         <input type="text" id="input-luar-kota" placeholder="Contoh: 12, 13, 15" value="">
+                        <small style="display:block; margin-top:6px; color:#64748b; line-height:1.4;">Koreksi absen pada tanggal ini tidak memakai kuota 7x bulanan.</small>
                     </div>
                     <div class="form-group" style="justify-content:flex-end;">
                         <button type="button" id="btn-simpan-variabel" class="btn-primary" onclick="simpanVariabelPayroll()" style="width:100%;">💾 Simpan Komponen Bulanan</button>
@@ -454,7 +455,7 @@
                             <li><strong>Keterlambatan Masuk:</strong> Kendari dan Admin Raha ditandai telat setelah 08:45; pegawai Raha setelah 09:45.</li>
                             <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari disetujui per bulan dibayar penuh. Setelah kuota habis, kolom jam tetap kosong dengan latar biru sampai pegawai absen masuk. Upah kemudian mengikuti waktu kehadiran yang tercatat.</li>
                             <li><strong>Lupa Pulang:</strong> Tiga kali pertama per bulan ditutup otomatis pada 17:00 / 20:00 sesuai jadwal. Kejadian berikutnya dipotong 90 menit dan ditandai abu-abu. Penutupan disimpan setelah batas lembur 06:00 WITA hari berikutnya.</li>
-                            <li><strong>Koreksi Absen:</strong> Dapat digunakan bila terjadi kendala sistem (Maksimal 7x per bulan).</li>
+                            <li><strong>Koreksi Absen:</strong> Maksimal 7x per bulan; koreksi pada tanggal Luar Kota tidak memakai kuota.</li>
                         </ul>
                     </div>
             
@@ -918,6 +919,32 @@
             periodePayrollTermuat = periode;
         }
 
+        function periodePayrollSaatIni_() {
+            const sekarang = new Date();
+            return `${sekarang.getFullYear()}-${String(sekarang.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        function daftarPengecualianKoreksiLuarKota_(dataPayroll) {
+            return (Array.isArray(dataPayroll) ? dataPayroll : []).map(item => ({
+                namaPegawai: String(item && item.namaPegawai || '').trim(),
+                luarKota: String(item && item.luarKota || '').trim()
+            })).filter(item => item.namaPegawai !== '');
+        }
+
+        async function sinkronkanPengecualianKoreksiLuarKota_(dataPayroll, periode) {
+            if (!penggunaBolehKelolaPayroll_() || periode !== periodePayrollSaatIni_()) return false;
+            const daftarPayroll = daftarPengecualianKoreksiLuarKota_(dataPayroll);
+            const hasil = await fetchJsonDenganTimeout_(
+                API_ABSEN,
+                payloadSesiSlip('syncPengecualianKoreksiLuarKota', {
+                    periode: periode,
+                    daftarPayroll: daftarPayroll
+                }),
+                'Sinkronisasi kuota koreksi Luar Kota'
+            );
+            return hasil && hasil.status === 'sukses';
+        }
+
         async function muatVariabelPayroll(terapkanKeForm = true) {
             let periode = document.getElementById('pilih-bulan').value;
             let namaPegawai = document.getElementById('pilih-pegawai').value;
@@ -1032,8 +1059,16 @@
                 globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] = json.data;
                 periodePayrollTermuat = periode;
                 terapkanVariabelPayrollKeForm(namaPegawai);
+                try {
+                    await sinkronkanPengecualianKoreksiLuarKota_([json.data], periode);
+                } catch (errorSinkron) {
+                    komponenPayrollKotor_ = false;
+                    showToast('Komponen payroll sudah tersimpan, tetapi pengecualian kuota koreksi belum tersinkron. Tekan Simpan Komponen Bulanan sekali lagi.', 'warning');
+                    console.warn('Sinkronisasi kuota koreksi gagal setelah payroll tersimpan:', errorSinkron);
+                    return;
+                }
                 komponenPayrollKotor_ = false;
-                showToast('Alhamdulillah! Komponen payroll ' + periode + ' untuk ' + namaPegawai + ' berhasil disimpan.', 'success');
+                showToast('Alhamdulillah! Komponen payroll tersimpan dan tanggal Luar Kota sudah dikecualikan dari kuota koreksi.', 'success');
             } catch (err) {
                 showToast('Afwan, gagal menyimpan komponen payroll: ' + err.message, 'error');
             } finally {
@@ -1268,6 +1303,14 @@
                 globalAbsen = absenBaru;
                 simpanVariabelPayrollTermuat_(dataSLA.payroll, periode);
                 periodeDataPayrollTermuat = periode;
+
+                // Sinkronisasi ini juga menangani data Luar Kota yang sudah tersimpan
+                // sebelum aturan pengecualian kuota koreksi diterapkan.
+                if (penggunaBolehKelolaPayroll_() && periode === periodePayrollSaatIni_()) {
+                    sinkronkanPengecualianKoreksiLuarKota_(dataSLA.payroll, periode).catch(errorSinkronLuarKota => {
+                        console.warn('Pengecualian kuota koreksi Luar Kota belum tersinkron:', errorSinkronLuarKota);
+                    });
+                }
 
                 isiDropdownPegawai(namaSebelumnya);
                 loadTunjanganPegawai();
