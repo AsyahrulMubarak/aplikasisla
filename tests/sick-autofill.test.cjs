@@ -32,14 +32,14 @@ test('Alasan sakit berisi kata izin tetap biru dan mempertahankan waktu masuk si
   assert.equal(cells[1], '08:00');
   assert.equal(cells[3], '12:36:26');
   assert.equal(cells[4], '17:00');
-  assert.equal(cells[5], '<strong>9.00h</strong>');
+  assert.equal(cells[5], '<strong>09:00:00</strong>');
   assert.equal(cells[6], 'Rp 38462');
   assert.match(row, /background-color:#bfdbfe/);
   assert.doesNotMatch(row, /#bbf7d0|Berjalan/);
 });
 test('Autofill mengikuti Raha 20:00 dan pengecualian admin Raha 17:00', () => {
   assert.equal(calculate(sickDay(), 'Raha').cells[4], '20:00');
-  assert.equal(calculate(sickDay(), 'Raha').cells[5], '<strong>12.00h</strong>');
+  assert.equal(calculate(sickDay(), 'Raha').cells[5], '<strong>12:00:00</strong>');
   assert.equal(calculate(sickDay(), 'Raha', 'admin').cells[4], '17:00');
 });
 test('Sakit tanpa hadir fisik terisi penuh dan tidak dianggap lupa keluar', () => {
@@ -54,8 +54,8 @@ test('Kuota sakit dihitung termasuk hari yang memiliki absen fisik, sekali per t
   const { row, cells } = calculate([...earlier, ...sickDay(), event('08', '17:00:00', 'Keluar')]);
   assert.equal(cells[1], '-');
   assert.equal(cells[3], '12:36:26');
-  assert.equal(cells[5], '<strong>4.40h</strong>');
-  assert.equal(cells[6], 'Rp 18803');
+  assert.equal(cells[5], '<strong>04:23:34</strong>');
+  assert.equal(cells[6], 'Rp 18773');
   assert.equal(cells[9], '- Rp 0');
   assert.match(row, /background-color:#bfdbfe/);
   assert.doesNotMatch(row, /background-color:#e2e8f0/);
@@ -64,7 +64,7 @@ test('Auto keluar penalti tetap mengurangi 90 menit pada hari sakit, dengan sel 
   const { row, cells } = calculate([...sickDay(), event('08', '15:30:00', 'Keluar', 'Auto Keluar Penalti (Potongan 90 Menit)')]);
   assert.equal(cells[1], '08:00');
   assert.equal(cells[4], '15:30:00');
-  assert.equal(cells[5], '<strong>7.50h</strong>');
+  assert.equal(cells[5], '<strong>07:30:00</strong>');
   assert.equal(cells[6], 'Rp 32051');
   assert.equal(cells[9], '- Rp 6410');
   assert.match(row, /background-color:#bfdbfe[^>]*>08:00/);
@@ -74,8 +74,8 @@ test('Sakit dan lupa keluar sama-sama habis: hanya penalti lupa keluar memendekk
   const earlier = ['01', '02', '03'].map(day => event(day, '08:00:00', 'Sakit'));
   const { row, cells } = calculate([...earlier, ...sickDay(), event('08', '15:30:00', 'Keluar', 'Auto Keluar Penalti (Potongan 90 Menit)')]);
   assert.equal(cells[1], '-');
-  assert.equal(cells[5], '<strong>2.90h</strong>');
-  assert.equal(cells[6], 'Rp 12393');
+  assert.equal(cells[5], '<strong>02:53:34</strong>');
+  assert.equal(cells[6], 'Rp 12362');
   assert.equal(cells[9], '- Rp 0'); // Potongan sudah tercermin sekali pada akhir sesi 15:30.
   assert.match(row, /background:#e2e8f0[^>]*>15:30:00/);
 });
@@ -95,16 +95,16 @@ test('Setelah kuota sakit habis, upah hari berjalan mulai dari masuk siang nyata
   const { cells } = calculate([...earlier, ...sickDay()], 'Kendari', 'teknisi', '2026-09-08T12:39:00+08:00');
   assert.equal(cells[1], '-');
   assert.equal(cells[3], '12:36:26');
-  assert.equal(cells[4], '12:39 (Berjalan)');
-  assert.equal(cells[5], '<strong>0.05h</strong>');
-  assert.equal(cells[6], 'Rp 214');
+  assert.equal(cells[4], '12:39:00 (Berjalan)');
+  assert.equal(cells[5], '<strong>00:02:34</strong>');
+  assert.equal(cells[6], 'Rp 183');
   assert.equal(cells[9], '- Rp 0');
 });
 test('Lembur nyata pada hari sakit tetap dibayar, termasuk keluar setelah tengah malam', () => {
   const { cells } = calculate([...sickDay(), event('09', '00:20:16', 'Keluar')]);
   assert.equal(cells[4], '00:20:16 (+1)');
-  assert.equal(cells[5], '<strong>16.33h</strong>');
-  assert.match(cells[8], /Rp 36667/);
+  assert.equal(cells[5], '<strong>16:20:16</strong>');
+  assert.match(cells[8], /Rp 36689/);
 });
 test('Kata sakit atau kuota habis pada catatan biasa tidak mengubah status warna', () => {
   const { row } = calculate([event('08', '08:00:00', 'Masuk', '', 'Bantu rekan sakit, kuota habis'), event('08', '17:00:00', 'Keluar')]);
@@ -122,7 +122,7 @@ test('Sakit pagi: masuk siang nyata putih, autofill pagi biru, penalti keluar te
   assert.equal(cells[3], '12:36:26');
   assert.match(styles[3], /background-color:#ffffff/);
   assert.match(styles[4], /background:#e2e8f0/);
-  assert.equal(cells[5], '<strong>7.50h</strong>');
+  assert.equal(cells[5], '<strong>07:30:00</strong>');
   assert.equal(cells[9], '- Rp 6410');
 });
 
@@ -135,8 +135,8 @@ test('Izin pagi dan masuk siang hari berjalan: pagi kosong hijau, masuk siang pu
   assert.match(styles[1], /background-color:#bbf7d0/);
   assert.equal(cells[3], '12:21:27');
   assert.match(styles[3], /background-color:#ffffff/);
-  assert.equal(cells[4], '12:23 (Berjalan)');
-  assert.equal(cells[5], '<strong>0.03h</strong>');
+  assert.equal(cells[4], '12:23:00 (Berjalan)');
+  assert.equal(cells[5], '<strong>00:01:33</strong>');
 });
 
 test('Kuota sakit habis: pagi tetap kosong biru, masuk siang nyata putih tanpa autofill pagi', () => {
@@ -145,8 +145,8 @@ test('Kuota sakit habis: pagi tetap kosong biru, masuk siang nyata putih tanpa a
   assert.equal(cells[1], '-');
   assert.match(styles[1], /background-color:#bfdbfe/);
   assert.match(styles[3], /background-color:#ffffff/);
-  assert.equal(cells[5], '<strong>4.40h</strong>');
-  assert.equal(cells[6], 'Rp 18803');
+  assert.equal(cells[5], '<strong>04:23:34</strong>');
+  assert.equal(cells[6], 'Rp 18773');
 });
 
 test('Tanpa kehadiran siang nyata: autofill sakit tetap biru dan izin tetap hijau', () => {
@@ -166,7 +166,7 @@ test('Kehadiran siang Raha putih dengan jadwal autofill dan warna keluar yang te
   assert.match(styles[3], /background-color:#ffffff/);
   assert.equal(cells[4], '20:00');
   assert.match(styles[4], /background-color:#bfdbfe/);
-  assert.equal(cells[5], '<strong>12.00h</strong>');
+  assert.equal(cells[5], '<strong>12:00:00</strong>');
 });
 
 test('Hari biasa dan koreksi manual tetap memakai warna aslinya', () => {

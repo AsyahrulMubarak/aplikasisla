@@ -826,7 +826,7 @@
         }
 
         function tentukanStatusDisiplin(tipe) {
-            const now = new Date(); const h = now.getHours(); const m = now.getMinutes();
+            const now = new Date(); const h = now.getHours(); const m = now.getMinutes(); const s = now.getSeconds();
             let waktuAngka = h + (m/60); // Desimal jam
             const batasTelatMenit = Number(kebijakanAbsensiAktif && kebijakanAbsensiAktif.batasTelatMenit) || (8 * 60 + 45);
             const batasKeluarMenit = Number(kebijakanAbsensiAktif && kebijakanAbsensiAktif.selesaiMenit) || (17 * 60);
@@ -835,7 +835,7 @@
                 if ((h * 60 + m) <= batasTelatMenit) return "Tepat Waktu";
                 return "Terlambat (Diatas " + formatJamDariMenit(batasTelatMenit) + ")";
             } else if (tipe === 'Masuk Setelah Istirahat') {
-                if ((h * 60 + m) > 13 * 60) return "Terlambat Setelah Istirahat";
+                if ((h * 3600 + m * 60 + s) > (13 * 60 + 30) * 60) return "Terlambat Setelah Istirahat";
                 return "Tepat Waktu";
             } else if (tipe === 'Keluar') {
                 if ((h * 60 + m) > batasKeluarMenit) return "Lembur";

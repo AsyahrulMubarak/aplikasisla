@@ -109,10 +109,30 @@ test('Masuk kembali setelah kuota pokok penuh seluruhnya dihitung lembur', () =>
 });
 
 test('Checkpoint istirahat tidak memulai ulang kuota; potongan telat siang tetap berlaku', () => {
-  const r = calculate([event('08:25:00', 'Masuk'), event('13:30:00', 'Masuk Setelah Istirahat'), event('18:25:00', 'Keluar')]);
-  const onTime = calculate([event('08:25:00', 'Masuk'), event('13:00:00', 'Masuk Setelah Istirahat'), event('18:25:00', 'Keluar')]);
+  const r = calculate([event('08:25:00', 'Masuk'), event('13:30:01', 'Masuk Setelah Istirahat'), event('18:25:00', 'Keluar')]);
+  const onTime = calculate([event('08:25:00', 'Masuk'), event('13:30:00', 'Masuk Setelah Istirahat'), event('18:25:00', 'Keluar')]);
   assertMinutes(r, 540, 60);
-  assert.equal(r.totalPotongan - onTime.totalPotongan, 5000);
+  assert.ok(Math.abs((r.totalPotongan - onTime.totalPotongan) - 10000 / 3600) < 0.000001);
+});
+
+test('Durasi reguler dan lembur mempertahankan detik absensi', () => {
+  const reguler = calculate([event('08:16:02', 'Masuk'), event('17:14:41', 'Keluar')]);
+  assert.ok(Math.abs(reguler.totalUpahHadir - 32319 * 10000 / 3600) < 0.000001);
+  assert.match(reguler.barisHTML, /08:58:39/);
+  const lembur = calculate([event('08:00:00', 'Masuk'), event('17:00:01', 'Keluar')]);
+  assert.ok(Math.abs(lembur.totalLembur - 5000 / 3600) < 0.000001);
+  assert.match(lembur.barisHTML, /00:00:01/);
+});
+
+test('Potongan tanpa checkpoint berjalan dari 13:30:00 dan berhenti pada 01:30:00', () => {
+  const berjalan = calculate([event('08:00:00', 'Masuk')], { now: '2026-09-08T14:00:01+08:00' });
+  const berjalanTepat = calculate([event('08:00:00', 'Masuk'), event('13:30:00', 'Masuk Setelah Istirahat')], { now: '2026-09-08T14:00:01+08:00' });
+  assert.ok(Math.abs((berjalan.totalPotongan - berjalanTepat.totalPotongan) - 1801 * 10000 / 3600) < 0.000001);
+  assert.match(berjalan.barisHTML, /Potongan istirahat 00:30:01/);
+  const maksimal = calculate([event('08:00:00', 'Masuk'), event('17:00:00', 'Keluar')]);
+  const maksimalTepat = calculate([event('08:00:00', 'Masuk'), event('13:30:00', 'Masuk Setelah Istirahat'), event('17:00:00', 'Keluar')]);
+  assert.ok(Math.abs((maksimal.totalPotongan - maksimalTepat.totalPotongan) - 5400 * 10000 / 3600) < 0.000001);
+  assert.match(maksimal.barisHTML, /Potongan istirahat 01:30:00/);
 });
 
 for (const role of ['admin', 'admin_raha']) {
