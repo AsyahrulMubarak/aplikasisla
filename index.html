@@ -4916,6 +4916,19 @@
             return ['', '-', 'N/A', 'NA', 'NULL', 'UNDEFINED'].includes(noTransaksi) ? '' : noTransaksi;
         }
 
+        function nomorTransaksiNotaGratis_(rawValue) {
+            return ['FREE', 'GRATIS', 'GARANSI'].includes(normalisasiNoTransaksiNota_(rawValue));
+        }
+
+        function notaTiketSudahLunas_(ticket) {
+            if (statusPoinSudahCair_(ticket && ticket['Status Pembayaran'])) return true;
+            if (!ticket) return false;
+
+            return nomorTransaksiNotaGratis_(
+                ticket['No Transaksi'] || ticket['No. Transaksi'] || ticket['Nomor Transaksi'] || ''
+            );
+        }
+
         function tanggalNotaDariNomorTransaksi_(noTransaksi) {
             const nomorNormal = normalisasiNoTransaksiNota_(noTransaksi);
             const periodeIpos = nomorNormal.match(/(?:^|\/)(0[1-9]|1[0-2])(\d{2})$/);
@@ -5615,7 +5628,7 @@
             const statusTiket = statusTiketUntukFilter_(ticket);
             if (filterStatus !== 'all' && statusTiket !== filterStatus) return false;
 
-            const notaLunas = statusPoinSudahCair_(ticket && ticket['Status Pembayaran']);
+            const notaLunas = notaTiketSudahLunas_(ticket);
             if (filterPembayaran === 'lunas' && !notaLunas) return false;
             if (filterPembayaran === 'belum_lunas' && notaLunas) return false;
             return true;
@@ -5839,7 +5852,7 @@
                 if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna()) && parseInt(nilaiPenjualanCek) > 0) {
                     infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`;
                 }
-                const notaSudahLunas = statusPoinSudahCair_(ticket['Status Pembayaran']);
+                const notaSudahLunas = notaTiketSudahLunas_(ticket);
                 const statusNotaHtml = `<p><strong>Status Nota:</strong> <span class="badge ${notaSudahLunas ? 'badge-selesai' : 'badge-pending'}">${notaSudahLunas ? 'Lunas' : 'Belum Lunas'}</span></p>`;
 
                 let teknisiSebelumnyaKey = Object.keys(ticket).find(k => String(k).trim() === 'Teknisi Sebelumnya');
