@@ -61,6 +61,7 @@ function frontendHarness(prospects) {
   });
 
   const names = [
+    'statusProspekKanonis_',
     'normalisasiNamaCustomerProspek_',
     'normalisasiWASementara_',
     'statusProspekAktifUntukSinkron_',

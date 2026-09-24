@@ -31,6 +31,7 @@ function extractFunction(name) {
 
 const filterContext = vm.createContext({});
 new vm.Script([
+  extractFunction('statusProspekKanonis_'),
   extractFunction('normalisasiNilaiFilterProspek_'),
   extractFunction('daftarSalesProspek_'),
   extractFunction('prospekSesuaiFilter_')
@@ -49,6 +50,15 @@ test('prospect filters match an exact sales member and exact status', () => {
   assert.equal(filterContext.prospekSesuaiFilter_(prospect, 'amanah', 'bintang', 'tahap penawaran'), true);
   assert.equal(filterContext.prospekSesuaiFilter_(prospect, '', 'intang', 'tahap penawaran'), false);
   assert.equal(filterContext.prospekSesuaiFilter_(prospect, '', 'bintang', 'penawaran'), false);
+});
+
+test('legacy prospect statuses collapse into their canonical filter values', () => {
+  assert.equal(filterContext.statusProspekKanonis_('Closing'), 'Closing / Deal');
+  assert.equal(filterContext.statusProspekKanonis_('closing/deal'), 'Closing / Deal');
+  assert.equal(filterContext.statusProspekKanonis_('Proses Servis'), 'On Progress');
+  assert.equal(filterContext.statusProspekKanonis_('Proses Service'), 'On Progress');
+  assert.equal(filterContext.prospekSesuaiFilter_({ ...prospect, 'Status Prospek': 'Closing' }, '', '', 'Closing / Deal'), true);
+  assert.equal(filterContext.prospekSesuaiFilter_({ ...prospect, 'Status Prospek': 'Proses Servis' }, '', '', 'On Progress'), true);
 });
 
 test('prospect sales and status controls are unique', () => {

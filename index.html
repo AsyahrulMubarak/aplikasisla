@@ -1742,7 +1742,7 @@
                 const record = {
                     "ID Prospek": row.id_prospek, "Tanggal Input": row.tanggal_input,
                     "Nama Calon Customer": row.nama_calon_customer, "Kebutuhan": row.kebutuhan,
-                    "Status Prospek": row.status_prospek, "Sales Penanggung Jawab": row.sales_penanggung_jawab,
+                    "Status Prospek": statusProspekKanonis_(row.status_prospek), "Sales Penanggung Jawab": row.sales_penanggung_jawab,
                     "Estimasi (Rp)": row.estimasi_rp, "Bukti Chat": row.bukti_chat, "Surat Penawaran": row.surat_penawaran,
                     "No WA": row.no_wa, "Waktu Follow Up Terakhir": row.waktu_follow_up_terakhir,
                     "Riwayat Follow Up": row.riwayat_follow_up, "Waktu Peringatan CRM Terakhir": row.waktu_peringatan_crm_terakhir,
@@ -2223,7 +2223,7 @@
         }
 
         async function sinkronkanStatusProspekOtomatis_(statusProspekTujuan, noWaCustomer, namaCustomer, sumberPerubahan) {
-            const statusTujuan = String(statusProspekTujuan || '').trim();
+            const statusTujuan = statusProspekKanonis_(statusProspekTujuan);
             if (!statusTujuan) return { ditemukan: 0, diperbarui: 0, status: '' };
 
             // Nama dan WA wajib sama-sama cocok. Ini mencegah customer yang namanya
@@ -3954,7 +3954,7 @@
                         // --- MAP DATA PROSPEK ---
                         globalProspek = (dbProspek || []).map(p => ({
                             "ID Prospek": p.id_prospek, "Tanggal Input": p.tanggal_input, "Nama Calon Customer": p.nama_calon_customer,
-                            "Kebutuhan": p.kebutuhan, "Status Prospek": p.status_prospek, "Sales Penanggung Jawab": p.sales_penanggung_jawab,
+                            "Kebutuhan": p.kebutuhan, "Status Prospek": statusProspekKanonis_(p.status_prospek), "Sales Penanggung Jawab": p.sales_penanggung_jawab,
                             "Estimasi (Rp)": p.estimasi_rp, "Bukti Chat": p.bukti_chat, "Surat Penawaran": p.surat_penawaran, "No WA": p.no_wa,
                             "Waktu Follow Up Terakhir": p.waktu_follow_up_terakhir, "Riwayat Follow Up": p.riwayat_follow_up, "Waktu Peringatan CRM Terakhir": p.waktu_peringatan_crm_terakhir,
                             "Waktu Minta Penawaran": p.waktu_minta_penawaran, "Waktu Selesai Penawaran": p.waktu_selesai_penawaran, "Target SLA Penawaran (Jam)": p.target_sla_penawaran_jam,
@@ -6799,6 +6799,14 @@
             }
         }
 
+        function statusProspekKanonis_(nilai) {
+            const status = String(nilai || '').trim();
+            const statusNormal = status.toLowerCase().replace(/\s+/g, ' ');
+            if (statusNormal === 'closing' || /^closing\s*\/\s*deal$/.test(statusNormal)) return 'Closing / Deal';
+            if (statusNormal === 'proses servis' || statusNormal === 'proses service') return 'On Progress';
+            return status;
+        }
+
         function normalisasiNilaiFilterProspek_(nilai) {
             return String(nilai || '').trim().toLowerCase().replace(/\s+/g, ' ');
         }
@@ -6812,12 +6820,12 @@
         function prospekSesuaiFilter_(prospek, keyword, salesDipilih, statusDipilih) {
             if (!prospek) return false;
             const salesNormal = normalisasiNilaiFilterProspek_(salesDipilih);
-            const statusNormal = normalisasiNilaiFilterProspek_(statusDipilih);
+            const statusNormal = normalisasiNilaiFilterProspek_(statusProspekKanonis_(statusDipilih));
             const daftarSalesNormal = daftarSalesProspek_(prospek['Sales Penanggung Jawab'])
                 .map(normalisasiNilaiFilterProspek_);
 
             if (salesNormal && !daftarSalesNormal.includes(salesNormal)) return false;
-            if (statusNormal && normalisasiNilaiFilterProspek_(prospek['Status Prospek']) !== statusNormal) return false;
+            if (statusNormal && normalisasiNilaiFilterProspek_(statusProspekKanonis_(prospek['Status Prospek'])) !== statusNormal) return false;
 
             const keywordNormal = normalisasiNilaiFilterProspek_(keyword);
             if (!keywordNormal) return true;
@@ -6828,7 +6836,7 @@
                 prospek['Nama Calon Customer'],
                 noWa,
                 prospek.Kebutuhan,
-                prospek['Status Prospek'],
+                statusProspekKanonis_(prospek['Status Prospek']),
                 prospek['Sales Penanggung Jawab']
             ].map(normalisasiNilaiFilterProspek_).join(' ');
             return radar.includes(keywordNormal);
@@ -6849,7 +6857,7 @@
                     const kunci = normalisasiNilaiFilterProspek_(nama);
                     if (kunci && !salesMap.has(kunci)) salesMap.set(kunci, nama);
                 });
-                const status = String(prospek && prospek['Status Prospek'] || '').trim();
+                const status = statusProspekKanonis_(prospek && prospek['Status Prospek']);
                 const kunciStatus = normalisasiNilaiFilterProspek_(status);
                 if (kunciStatus && !statusMap.has(kunciStatus)) statusMap.set(kunciStatus, status);
             });
@@ -6900,7 +6908,7 @@
 
                 htmlAda = true;
 
-                let textStatus = String(p['Status Prospek'] || 'Tahap Penawaran');
+                let textStatus = statusProspekKanonis_(p['Status Prospek'] || 'Tahap Penawaran');
                 let sc = 'status-aman'; let bc = 'badge-aman';
                 if (textStatus.includes('Closing')) { sc = 'status-terpenuhi'; bc = 'badge-selesai'; }
                 else if (textStatus.includes('Kunjungan')) { sc = 'status-terlambat'; bc = 'badge-status'; }
