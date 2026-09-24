@@ -78,6 +78,29 @@ test('No discipline bonus: one 300k penalty when both limits exceeded; BBM uncha
  c.globalAbsen=monthEvents(name,{alpa:3,telat:4});let r=c.kalkulasiGajiPegawai(name,'2026-09',26);assert.equal(r.dendaDisiplin,300000);assert.equal(r.totalTunjanganTetap,300000);
  c.globalAbsen=monthEvents(name,{alpa:2,telat:3});r=c.kalkulasiGajiPegawai(name,'2026-09',26);assert.equal(r.dendaDisiplin,0);
 });
+test('Late after break never forfeits discipline bonus or creates the 300k penalty',()=>{
+ const workdays=[];
+ for(let d=1;d<=30;d++)if(new Date(2026,8,d).getDay()!==0){
+  const day='2026-09-'+String(d).padStart(2,'0');
+  workdays.push({'Nama Pegawai':'Pegawai Uji','Waktu Absen':day+'T14:00:00+08:00','Tipe Absen':'Masuk Setelah Istirahat','Status Disiplin':'Terlambat Setelah Istirahat',Keterangan:''});
+  workdays.push({'Nama Pegawai':'Pegawai Uji','Waktu Absen':day+'T17:00:00+08:00','Tipe Absen':'Keluar','Status Disiplin':'',Keterangan:''});
+ }
+ for(const bonus of [longBonus+'=300000','TUNJANGAN BBM=300000']){
+  const {c}=harness([{'Nama Asli':'Pegawai Uji',Role:'sales','Gaji Pokok':2600000,'Bonus Tambahan':bonus}]);
+  c.globalAbsen=structuredClone(workdays);const r=c.kalkulasiGajiPegawai('Pegawai Uji','2026-09',26);
+  assert.equal(r.countTelatPagi,0);assert.equal(r.dendaDisiplin,0);
+  if(bonus.startsWith(longBonus))assert.equal(r.totalTunjanganTetap,300000);
+ }
+});
+test('The full 08:45 minute is on time and lateness starts at 08:46',()=>{
+ const {c}=harness([{'Nama Asli':'Pegawai Uji',Role:'sales','Gaji Pokok':2600000,'Bonus Tambahan':'TUNJANGAN BBM=300000'}]);
+ c.globalAbsen=monthEvents('Pegawai Uji');
+ c.globalAbsen=c.globalAbsen.filter(e=>!e['Waktu Absen'].startsWith('2026-09-01'));
+ c.globalAbsen.push({'Nama Pegawai':'Pegawai Uji','Waktu Absen':'2026-09-01T08:45:59+08:00','Tipe Absen':'Masuk','Status Disiplin':'',Keterangan:''},{'Nama Pegawai':'Pegawai Uji','Waktu Absen':'2026-09-01T17:00:00+08:00','Tipe Absen':'Keluar','Status Disiplin':'',Keterangan:''});
+ assert.equal(c.kalkulasiGajiPegawai('Pegawai Uji','2026-09',26).countTelatPagi,0);
+ c.globalAbsen.find(e=>e['Waktu Absen'].includes('08:45:59'))['Waktu Absen']='2026-09-01T08:46:00+08:00';
+ assert.equal(c.kalkulasiGajiPegawai('Pegawai Uji','2026-09',26).countTelatPagi,1);
+});
 for(const name of ['Fauzan','Dafa','Mubarak','Asyahrul Mubarak'])test('Discipline exceptions preserved: '+name,()=>{
  const {c}=harness([{'Nama Asli':name,Role:'teknisi','Gaji Pokok':2600000}]);c.globalAbsen=monthEvents(name,{alpa:3,telat:4});assert.equal(c.kalkulasiGajiPegawai(name,'2026-09',26).dendaDisiplin,name==='Asyahrul Mubarak'?300000:0);
 });

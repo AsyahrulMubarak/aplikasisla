@@ -175,3 +175,28 @@ test('Hari biasa dan koreksi manual tetap memakai warna aslinya', () => {
   const corrected = calculate([event('08', '08:00:00', 'Masuk'), event('08', '13:30:00', 'Masuk Setelah Istirahat', 'Koreksi Manual'), event('08', '17:00:00', 'Keluar')]);
   assert.match(corrected.styles[3], /background:#fbcfe8/);
 });
+
+test('Data izin lama berhenti berwarna setelah masuk fisik meski tanpa cap Kembali Bekerja', () => {
+  const { cells, styles } = calculate([
+    event('08', '09:30:08', 'Izin'),
+    event('08', '13:18:13', 'Masuk'),
+    event('08', '13:32:03', 'Masuk Setelah Istirahat'),
+    event('08', '17:14:58', 'Keluar')
+  ]);
+  assert.equal(cells[3], '13:18:13');
+  assert.equal(cells[4], '17:14:58');
+  assert.match(styles[1], /background-color:#bbf7d0/);
+  assert.match(styles[3], /background-color:#ffffff/);
+  assert.match(styles[4], /background-color:#ffffff/);
+});
+
+test('Masuk pagi tambahan tidak menggantikan checkpoint masuk siang', () => {
+  const { cells } = calculate([
+    event('08', '08:45:00', 'Masuk', 'Koreksi Manual'),
+    event('08', '08:46:05', 'Masuk'),
+    event('08', '12:57:14', 'Masuk Setelah Istirahat'),
+    event('08', '17:46:12', 'Keluar')
+  ]);
+  assert.equal(cells[1], '08:45:00');
+  assert.equal(cells[3], '12:57:14');
+});

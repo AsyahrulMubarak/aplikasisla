@@ -1621,7 +1621,23 @@
                 const waktuKembaliPengajuan = events.map(e => new Date(e['Kembali Bekerja'] || NaN))
                     .filter(d => !isNaN(d.getTime()) && d.getFullYear() === currDate.getFullYear() && d.getMonth() === currDate.getMonth() && d.getDate() === currDate.getDate())
                     .sort((a,b) => a - b)[0] || null;
+                const waktuMulaiIzinSakit = events.filter(e => /Sakit|Izin/.test(String(e['Tipe Absen'] || '')))
+                    .map(e => new Date(e['Waktu Absen'])).filter(d => !isNaN(d.getTime())).sort((a,b) => a - b)[0] || null;
+                // Data lama tidak selalu memiliki kolom "Kembali Bekerja". Masuk fisik
+                // pertama setelah izin/sakit menjadi batas akhir warna izin pada hari itu.
+                const waktuKembaliFisik = events.filter(e => {
+                    const tipe = String(e['Tipe Absen'] || '');
+                    const status = String(e['Status Disiplin'] || '');
+                    const waktu = new Date(e['Waktu Absen']);
+                    return tipe.includes('Masuk') && !/Lupa Absen Masuk|Koreksi|Auto/i.test(status) &&
+                        !isNaN(waktu.getTime()) && (!waktuMulaiIzinSakit || waktu >= waktuMulaiIzinSakit);
+                }).map(e => new Date(e['Waktu Absen'])).sort((a,b) => a - b)[0] || null;
+                const waktuKembaliEfektif = waktuKembaliPengajuan || waktuKembaliFisik;
                 let adaAbsenFisik = events.some(e => String(e['Tipe Absen']).includes('Masuk') || String(e['Tipe Absen']).includes('Keluar') || String(e['Tipe Absen']).includes('Pulang'));
+                const adaKeluarFisik = events.some(e => {
+                    const tipe = String(e['Tipe Absen'] || '');
+                    return /Keluar|Pulang/.test(tipe) && !String(e['Status Disiplin'] || '').includes('Auto Keluar');
+                });
 
                 // Izin dihitung satu kali per hari kerja untuk evaluasi kedisiplinan.
                 if (isIzinExplicit && !isAhad && !isFutureDate) countIzin++;
@@ -1756,6 +1772,7 @@
                     isHadir = true; countKehadiran++;
                     let adaKeluar = false;
                     let detikMasukPertama = null;
+                    let detikMasukPagiPertama = null;
                     let detikMasukSetelahIstirahat = null;
                     let detikKeluarTerakhir = null;
                     let detikSesiTerbuka = null;
@@ -1798,19 +1815,26 @@
                         if (tipe.includes("Masuk")) {
                             const sesiSudahTerbuka = detikSesiTerbuka !== null;
                             const adalahCheckpointIstirahat = tipe.includes('Setelah Istirahat') || (!isAutoMasuk && detikEvent >= 12 * 3600);
+                            const adalahMasukPagi = isAutoMasuk || (!tipe.includes('Setelah Istirahat') && jamFloat < 12);
+                            const adalahMasukSiang = tipe.includes('Setelah Istirahat') || (!isAutoMasuk && jamFloat >= 12);
 
-                            if ((isAutoMasuk || jamFloat < 12.0) && msk1 === "-") {
+                            if (adalahMasukPagi && msk1 === "-") {
                                 msk1 = jamStr;
                                 if (isKoreksi) bgM1 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
-                                else if (isAutoMasuk || detikEvent > kebijakanKerja.batasTelatMenit * 60) bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Telat / Lupa Masuk
-                            } else if (msk2 === "-") {
+                                else if (isAutoMasuk || Math.floor(detikEvent / 60) > kebijakanKerja.batasTelatMenit) bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Telat / Lupa Masuk
+                            } else if (adalahMasukSiang && msk2 === "-") {
                                 msk2 = jamStr;
                                 msk2DariAbsenFisik = !isAutoMasuk && !isKoreksi && jamFloat >= 12;
                                 if (isKoreksi) bgM2 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
                             } else if (tipe.includes('Setelah Istirahat')) {
                                 ketList.push('Checkpoint Setelah Istirahat: ' + jamStr);
+                            } else {
+                                ketList.push('Masuk tambahan: ' + jamStr);
                             }
                             if (detikMasukPertama === null || detikEvent < detikMasukPertama) detikMasukPertama = detikEvent;
+                            if (adalahMasukPagi && (detikMasukPagiPertama === null || detikEvent < detikMasukPagiPertama)) {
+                                detikMasukPagiPertama = detikEvent;
+                            }
                             if (adalahCheckpointIstirahat && detikMasukSetelahIstirahat === null) {
                                 detikMasukSetelahIstirahat = detikEvent;
                                 // Checkpoint yang terlambat hanya dipotong bila argo masih
@@ -1844,6 +1868,7 @@
                     if (msk1 === "-" && msk2 === "-" && (klr1 !== "-" || klr2 !== "-")) {
                         msk1 = "13:30:00"; bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Lupa Masuk
                         detikMasukPertama = (13 * 60 + 30) * 60;
+                        detikMasukPagiPertama = detikMasukPertama;
                         ketList.push("Lupa Masuk (Auto 13:30:00)");
                         if (detikKeluarTerakhir !== null && detikKeluarTerakhir > detikMasukPertama) {
                             sesiKerjaHariIni.push({ mulai: detikMasukPertama, selesai: detikKeluarTerakhir });
@@ -1907,7 +1932,9 @@
                             ketList.push(mulaiLembur ? 'Lembur berjalan sampai absen keluar' : 'Jam kerja berjalan sampai absen keluar');
                         }
 
-                        if (detikMasukPertama > kebijakanKerja.batasTelatMenit * 60) countTelatPagi++;
+                        // Hanya checkpoint masuk pagi yang memengaruhi bonus/denda disiplin.
+                        // Seluruh menit 08:45 masih tepat waktu; telat dimulai pada 08:46.
+                        if (detikMasukPagiPertama !== null && Math.floor(detikMasukPagiPertama / 60) > kebijakanKerja.batasTelatMenit) countTelatPagi++;
                         if (totalDetikLembur > 0) {
                             lemHariIni += totalDetikLembur * (5000 / 3600); // Tetap memakai tarif lembur yang telah berlaku.
                             txtLemburJam = formatDurasiDetikPayroll(totalDetikLembur);
@@ -1994,8 +2021,8 @@
                     finalBgM2 = 'background-color:#ffffff;';
                 }
 
-                if (!isAhad && waktuKembaliPengajuan && (isSakitExplicit || isIzinExplicit)) {
-                    const menitKembali = waktuKembaliPengajuan.getHours() * 60 + waktuKembaliPengajuan.getMinutes();
+                if (!isAhad && waktuKembaliEfektif && (isSakitExplicit || isIzinExplicit)) {
+                    const menitKembali = waktuKembaliEfektif.getHours() * 60 + waktuKembaliEfektif.getMinutes();
                     // Warna izin/sakit hanya sebelum masuk kembali. Penanda koreksi,
                     // keterlambatan, dan auto keluar tetap mengikuti aturan sebelumnya.
                     if (menitKembali < 12 * 60) {
@@ -2006,7 +2033,9 @@
                         if (Number(bagianKeluar[0]) * 60 + Number(bagianKeluar[1]) >= menitKembali) finalBgK1 = bgK1 || 'background-color:#ffffff;';
                     }
                     finalBgM2 = bgM2 || 'background-color:#ffffff;';
-                    finalBgK2 = bgK2 || 'background-color:#ffffff;';
+                    // Jadwal keluar yang diisi oleh hak sakit tetap biru. Keluar fisik
+                    // setelah kembali bekerja menjadi putih; auto keluar menjaga warnanya.
+                    if (!applySakitFull || adaKeluarFisik || bgK2) finalBgK2 = bgK2 || 'background-color:#ffffff;';
                 }
 
                 barisHTML += `<tr style="${rowBg}">
