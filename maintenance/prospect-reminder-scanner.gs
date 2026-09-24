@@ -33,7 +33,7 @@ function kirimNotifWAProspekDenganJeda_(nomorTujuan, pesan) {
 function statusProspekMenghentikanReminder_(status) {
   var nilai = String(status || '').trim().toLowerCase().replace(/\s+/g, ' ');
   if (nilai === 'proses servis' || nilai === 'proses service') nilai = 'on progress';
-  return !nilai || /closing|batal|tanpa keterangan/.test(nilai);
+  return !nilai || /closing|batal|tanpa keterangan|on progress|pending/.test(nilai);
 }
 
 // Sheet dipakai scanner lama, sedangkan perubahan status aplikasi berada di Supabase.

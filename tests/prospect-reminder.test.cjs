@@ -18,8 +18,8 @@ for(const status of ['Batal',' BATAL ','Tanpa Keterangan','tanpa   keterangan','
   for(const age of [3,30]){const r=harness({liveStatus:status,age});assert.equal(r.sent.length,0);assert.equal(r.writes.length,0);}
  });
 }
-for(const status of ['On Progress','Proses Servis','Proses Service'])test('progress status remains active after legacy merge: '+status,()=>{
- const r=harness({liveStatus:status});assert.equal(r.sent.length,1);assert.equal(r.writes.length,1);
+for(const status of ['On Progress','Pending','Proses Servis','Proses Service'])test('ticket-managed status suppresses CRM reminders: '+status,()=>{
+ for(const age of [3,30]){const r=harness({liveStatus:status,age});assert.equal(r.sent.length,0);assert.equal(r.writes.length,0);}
 });
 test('unverifiable, deleted, or unidentified prospect never sends a reminder or closes a stale row',()=>{
  for(const opts of [{error:true},{missing:true},{missingId:true}])for(const age of [3,30]){const r=harness({...opts,age});assert.equal(r.sent.length,0);assert.equal(r.writes.length,0);}

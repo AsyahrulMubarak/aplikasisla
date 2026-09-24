@@ -14,7 +14,9 @@
             const unik = new Map();
             (Array.isArray(daftar) ? daftar : []).forEach(p => {
                 if (!p || !/^[A-Za-z0-9_-]+$/.test(String(p.id_prospek || ''))) return;
-                if (norm(p.cabang) !== cabang || normalisasiWASementara_(p.no_wa) !== wa) return;
+                // Prospek lama sebelum fitur cabang memakai NULL dan secara historis milik Kendari.
+                const cabangProspek = norm(p.cabang) || 'kendari';
+                if (cabangProspek !== cabang || normalisasiWASementara_(p.no_wa) !== wa) return;
                 if (!['tahap penawaran','kunjungan toko','on progress','pending','proses servis'].includes(norm(p.status_prospek))) return;
                 const dibuat = new Date(p.tanggal_input).getTime();
                 if (!Number.isFinite(dibuat) || dibuat > waktuTiket) return;
@@ -46,7 +48,10 @@
             const result = { ...kosong, ditemukan: pilihan.data.length, status: tujuan, ambigu: pilihan.ambigu };
             for (const p of pilihan.data) {
                 if (String(p.status_prospek).trim().toLowerCase() === tujuan.toLowerCase()) continue;
-                const endpoint = endpointFilterSupabase_('prospek', 'id_prospek', p.id_prospek) + '&cabang=eq.' + encodeURIComponent(cabang) + '&status_prospek=eq.' + encodeURIComponent(p.status_prospek);
+                const filterCabangProspek = normalisasiCabang(p.cabang) === 'Raha'
+                    ? '&cabang=eq.Raha'
+                    : '&or=(cabang.eq.Kendari,cabang.is.null)';
+                const endpoint = endpointFilterSupabase_('prospek', 'id_prospek', p.id_prospek) + filterCabangProspek + '&status_prospek=eq.' + encodeURIComponent(p.status_prospek);
                 const updated = await callSupabase(endpoint, 'PATCH', { status_prospek: tujuan });
                 // Perubahan manual yang mendahului PATCH tidak ditimpa dan tidak memicu WA.
                 if (Array.isArray(updated) && updated.length === 0) continue;
