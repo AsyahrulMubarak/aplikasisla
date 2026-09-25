@@ -686,14 +686,14 @@
                 </button>
                 <button type="button" id="btn-lobby-gaji" class="main-lobby-option gaji" onclick="bukaModulPendukung('gaji')">
                     <span aria-hidden="true">🧾</span>Slip Gaji Digital
-                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Manajemen & Asyahrul (Uji)</strong>
+                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Manajemen & Teknisi Kendari (Slip Pribadi)</strong>
                 </button>
                 <button type="button" id="btn-lobby-kpi" class="main-lobby-option" onclick="bukaAplikasiKpi()">
                     <span aria-hidden="true">📊</span> Aplikasi KPI
                     <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Direktur, Manager, dan Admin</strong>
                 </button>
             </div>
-            <p class="main-lobby-note">Absensi dapat dibuka oleh pegawai Kendari yang telah diizinkan. Menu approval tetap khusus Manajemen. Slip Gaji tetap khusus Manajemen serta Asyahrul untuk uji coba, dan data Asyahrul dibatasi hanya miliknya sendiri.</p>
+            <p class="main-lobby-note">Absensi dapat dibuka oleh pegawai Kendari yang telah diizinkan. Menu approval tetap khusus Manajemen. Teknisi Kendari hanya dapat melihat slip gaji miliknya sendiri dan tidak dapat mengubah komponen payroll.</p>
             <div id="main-lobby-status" role="status" aria-live="polite"></div>
             <button type="button" class="main-lobby-logout" onclick="prosesLogout()">🚪 Keluar Aplikasi</button>
         </div>
@@ -2849,7 +2849,8 @@
         }
 
         function penggunaBolehMengaksesSlipGaji_(user = penggunaAktif) {
-            return roleAdalahManajemenUtama_(rolePengguna(user)) || penggunaAdalahTeknisiUjiAbsensi_(user);
+            const teknisiKendari = rolePengguna(user) === 'teknisi' && hakAksesCabangPengguna(user) === 'Kendari';
+            return roleAdalahManajemenUtama_(rolePengguna(user)) || teknisiKendari;
         }
 
         function penggunaSalesTanpaGaji_(user = penggunaAktif) {

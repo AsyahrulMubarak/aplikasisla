@@ -559,6 +559,7 @@
         let timerPemulihanPayroll_ = null;
         let komponenPayrollKotor_ = false;
         let tunjanganPayrollKotor_ = false;
+        let timerSimpanLuarKota_ = null;
         const KUNCI_DRAF_LUAR_KOTA_ = 'sla-payroll-luar-kota-draft-v1';
 
         const PWA_WORKER_READY_TIMEOUT_MS_ = 5000;
@@ -595,15 +596,15 @@
             ]);
         }
 
-        function penggunaAdalahTeknisiUjiPayroll_() {
+        function penggunaAdalahTeknisiKendariPayroll_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
-            const username = String(penggunaAktif && penggunaAktif.Username || '').trim().toLowerCase().replace(/\s+/g, '');
-            return role === 'teknisi' && username === 'asyahrul';
+            const cabang = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
+            return role === 'teknisi' && cabang === 'Kendari';
         }
 
         function penggunaBolehMembukaSlipGaji_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
-            return ['admin', 'manager', 'direktur'].includes(role) || penggunaAdalahTeknisiUjiPayroll_();
+            return ['admin', 'manager', 'direktur'].includes(role) || penggunaAdalahTeknisiKendariPayroll_();
         }
 
         function penggunaBolehKelolaPayroll_() {
@@ -838,7 +839,7 @@
                 await pastikanTokenSupabaseAktif_();
             } catch(e) { window.location.href = "index.html"; return; }
 
-            // Manajemen melihat seluruh payroll; akses uji hanya slip pribadi Asyahrul.
+            // Manajemen melihat seluruh payroll; teknisi Kendari hanya slip pribadi.
             if (!penggunaBolehMembukaSlipGaji_()) {
                 window.location.href = "index.html";
                 return;
@@ -846,7 +847,7 @@
             if (penggunaBolehKelolaPayroll_()) {
                 document.getElementById('menu-tab').style.display = 'flex';
             } else {
-                document.getElementById('div-komponen-variabel').style.display = 'none';
+                document.getElementById('div-komponen-variabel').style.display = 'flex';
                 document.getElementById('dynamic-bonus-section').style.display = 'none';
                 document.getElementById('btn-simpan-variabel').style.display = 'none';
             }
@@ -859,13 +860,17 @@
             if (!target || !target.closest) return;
             if (target.closest('#div-komponen-variabel')) komponenPayrollKotor_ = true;
             if (target.closest('#dynamic-bonus-section')) tunjanganPayrollKotor_ = true;
-            if (target.id === 'input-luar-kota') simpanDrafLuarKotaAktif_();
+            if (target.id === 'input-luar-kota') {
+                simpanDrafLuarKotaAktif_();
+                jadwalkanSimpanLuarKota_();
+            }
         });
         document.addEventListener('change', event => {
             const target = event.target;
             if (!target || target.id !== 'input-luar-kota' || !penggunaBolehKelolaPayroll_()) return;
-            // Nilai Luar Kota merupakan aturan payroll, bukan sekadar filter tampilan.
-            // Simpan saat input selesai diedit agar tidak hilang ketika aplikasi ditutup.
+            // Segera selesaikan antrean saat input kehilangan fokus.
+            if (timerSimpanLuarKota_) clearTimeout(timerSimpanLuarKota_);
+            timerSimpanLuarKota_ = null;
             simpanVariabelPayroll({ otomatis: true });
         });
         document.addEventListener('click', event => {
@@ -914,6 +919,19 @@
             catch (error) { console.warn('Draf tanggal Luar Kota tidak dapat dibersihkan:', error); }
         }
 
+        function jadwalkanSimpanLuarKota_() {
+            if (!penggunaBolehKelolaPayroll_()) return;
+            if (timerSimpanLuarKota_) clearTimeout(timerSimpanLuarKota_);
+            const periode = document.getElementById('pilih-bulan').value;
+            const namaPegawai = document.getElementById('pilih-pegawai').value;
+            timerSimpanLuarKota_ = setTimeout(() => {
+                timerSimpanLuarKota_ = null;
+                const konteksMasihSama = document.getElementById('pilih-bulan').value === periode &&
+                    normalisasiNamaPayroll(document.getElementById('pilih-pegawai').value) === normalisasiNamaPayroll(namaPegawai);
+                if (konteksMasihSama) simpanVariabelPayroll({ otomatis: true });
+            }, 800);
+        }
+
         function cekKunciBulan() {
             let bulanDipilihStr = document.getElementById('pilih-bulan').value;
             if (!bulanDipilihStr || !/^\d{4}-\d{2}$/.test(bulanDipilihStr)) return false;
@@ -928,24 +946,29 @@
                 document.getElementById('input-kasbon'),
                 document.getElementById('input-luar-kota')
             ];
-            let bgWarna = isPastMonth ? '#f1f5f9' : '#ffffff';
+            const bolehKelola = penggunaBolehKelolaPayroll_();
+            let bgWarna = (isPastMonth || !bolehKelola) ? '#f1f5f9' : '#ffffff';
 
             inputBulanan.forEach(input => {
                 if (!input) return;
-                input.disabled = isPastMonth;
+                input.disabled = isPastMonth || !bolehKelola;
                 input.style.background = bgWarna;
-                input.title = isPastMonth ? 'Periode lampau telah dikunci untuk menjaga audit payroll.' : '';
+                input.title = !bolehKelola
+                    ? 'Komponen payroll hanya dapat dilihat. Perubahan khusus Manajemen.'
+                    : (isPastMonth ? 'Periode lampau telah dikunci untuk menjaga audit payroll.' : '');
             });
 
             let btnSimpan = document.getElementById('btn-simpan-variabel');
-            if (btnSimpan) btnSimpan.disabled = isPastMonth;
+            if (btnSimpan) btnSimpan.disabled = isPastMonth || !bolehKelola;
 
             let infoKunci = document.getElementById('info-kunci-bulan');
             if (infoKunci) {
-                infoKunci.innerText = isPastMonth
-                    ? '🔒 Periode lampau terkunci dan hanya dapat dilihat.'
-                    : '🔓 Periode aktif—perubahan masih dapat disimpan.';
-                infoKunci.style.color = isPastMonth ? '#b45309' : '#047857';
+                infoKunci.innerText = !bolehKelola
+                    ? '👁️ Mode baca saja—komponen payroll ditetapkan oleh Manajemen.'
+                    : (isPastMonth
+                        ? '🔒 Periode lampau terkunci dan hanya dapat dilihat.'
+                        : '🔓 Periode aktif—perubahan masih dapat disimpan.');
+                infoKunci.style.color = (isPastMonth || !bolehKelola) ? '#b45309' : '#047857';
             }
             return isPastMonth;
         }
@@ -1091,6 +1114,10 @@
 
         async function simpanVariabelPayroll(opsi = {}) {
             const otomatis = !!opsi.otomatis;
+            if (!penggunaBolehKelolaPayroll_()) {
+                if (!otomatis) showToast('Komponen payroll hanya dapat diubah oleh Manajemen.', 'warning');
+                return false;
+            }
             let namaPegawai = document.getElementById('pilih-pegawai').value;
             let periode = document.getElementById('pilih-bulan').value;
             if (!namaPegawai || !periode) { if (!otomatis) showToast('Pilih pegawai dan periode terlebih dahulu.', 'warning'); return false; }

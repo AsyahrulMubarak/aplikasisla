@@ -1,0 +1,150 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const { test } = require('node:test');
+
+const root = path.resolve(__dirname, '..');
+const lobbyHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const slipHtml = fs.readFileSync(path.join(root, 'slipgaji.html'), 'utf8');
+const backendPath = [path.join(root, 'code.js'), path.resolve(root, '../code.js')]
+  .find(candidate => fs.existsSync(candidate));
+assert.ok(backendPath, 'Kendari backend source code.js is required');
+const backend = fs.readFileSync(backendPath, 'utf8');
+
+function extractFunction(source, name) {
+  const match = source.match(new RegExp('^([ \\t]*)function ' + name + '\\([^]*?^\\1\\}', 'm'));
+  assert.ok(match, `Missing function: ${name}`);
+  return match[0];
+}
+
+test('Kendari technicians can open only the personal read-only payroll view', () => {
+  const lobbyContext = vm.createContext({
+    penggunaAktif: null,
+    rolePengguna: user => String(user && user.Role || '').trim().toLowerCase(),
+    hakAksesCabangPengguna: user => {
+      const value = String(user && user.Hak_Akses_Cabang || '').trim().toLowerCase();
+      return value === 'kendari' ? 'Kendari' : value === 'raha' ? 'Raha' : value === 'semua' ? 'Semua' : '';
+    },
+    roleAdalahManajemenUtama_: role => ['admin', 'manager', 'direktur'].includes(role)
+  });
+  vm.runInContext(extractFunction(lobbyHtml, 'penggunaBolehMengaksesSlipGaji_'), lobbyContext);
+  assert.equal(lobbyContext.penggunaBolehMengaksesSlipGaji_({ Role: 'teknisi', Hak_Akses_Cabang: 'Kendari' }), true);
+  assert.equal(lobbyContext.penggunaBolehMengaksesSlipGaji_({ Role: 'teknisi', Hak_Akses_Cabang: 'Raha' }), false);
+  assert.equal(lobbyContext.penggunaBolehMengaksesSlipGaji_({ Role: 'sales', Hak_Akses_Cabang: 'Kendari' }), false);
+
+  const slipContext = vm.createContext({ penggunaAktif: null, String, Array });
+  vm.runInContext([
+    extractFunction(slipHtml, 'normalisasiCabangSesi'),
+    extractFunction(slipHtml, 'penggunaAdalahTeknisiKendariPayroll_'),
+    extractFunction(slipHtml, 'penggunaBolehMembukaSlipGaji_'),
+    extractFunction(slipHtml, 'penggunaBolehKelolaPayroll_')
+  ].join('\n'), slipContext);
+  slipContext.penggunaAktif = { Role: 'teknisi', Hak_Akses_Cabang: 'Kendari' };
+  assert.equal(slipContext.penggunaBolehMembukaSlipGaji_(), true);
+  assert.equal(slipContext.penggunaBolehKelolaPayroll_(), false);
+  slipContext.penggunaAktif = { Role: 'teknisi', Hak_Akses_Cabang: 'Raha' };
+  assert.equal(slipContext.penggunaBolehMembukaSlipGaji_(), false);
+
+  assert.match(slipHtml, /input\.disabled = isPastMonth \|\| !bolehKelola/);
+  assert.match(slipHtml, /Komponen payroll hanya dapat diubah oleh Manajemen/);
+  assert.match(slipHtml, /btn-simpan-variabel'\)\.style\.display = 'none'/);
+  assert.match(backend, /simpanVariabelPayroll:\s*manajemenUtama/);
+});
+
+test('backend scopes every technician payroll response to the authenticated employee', () => {
+  const users = [
+    { username: 'alif', role: 'teknisi', nama_asli: 'Alif', gaji_pokok: 2600000, hak_akses_cabang: 'Kendari' },
+    { username: 'rendi', role: 'teknisi', nama_asli: 'Rendi', gaji_pokok: 2600000, hak_akses_cabang: 'Kendari' }
+  ];
+  const tickets = [
+    { id_tiket: 'A-1', status: 'Selesai', status_pembayaran: 'Lunas', teknisi: 'Alif', bobot_poin: 1, cabang: 'Kendari' },
+    { id_tiket: 'R-1', status: 'Selesai', status_pembayaran: 'Lunas', teknisi: 'Rendi', bobot_poin: 1, cabang: 'Kendari' }
+  ];
+  const responses = [users, tickets, []].map(rows => ({
+    getResponseCode: () => 200,
+    getContentText: () => JSON.stringify(rows)
+  }));
+  const payrollCalls = [];
+  const context = vm.createContext({
+    String,
+    Array,
+    JSON,
+    parseInt,
+    encodeURIComponent,
+    SUPABASE_URL: 'https://example.test/',
+    SUPABASE_KEY: 'test-key',
+    cabangOperasional_: value => value || 'Kendari',
+    daftarNamaMemuat_: (value, name) => String(value || '').split(',').map(item => item.trim()).includes(name),
+    ambilVariabelPayrollBackend: (period, name) => {
+      payrollCalls.push([period, name]);
+      return [{ periode: period, namaPegawai: name, luarKota: '21, 22, 23' }];
+    },
+    UrlFetchApp: { fetchAll: () => responses },
+    ContentService: {
+      MimeType: { JSON: 'json' },
+      createTextOutput: text => ({ text, setMimeType() { return this; } })
+    }
+  });
+  vm.runInContext(extractFunction(backend, 'prosesGetPayrollData_'), context);
+  const result = JSON.parse(context.prosesGetPayrollData_(
+    { periode: '2026-09', cabang: 'Kendari', user: { SessionToken: 'jwt' } },
+    { role: 'teknisi', username: 'alif', nama: 'Alif' }
+  ).text);
+
+  assert.equal(result.status, 'sukses');
+  assert.deepEqual(result.users.map(user => user.Username), ['alif']);
+  assert.deepEqual(result.tickets.map(ticket => ticket['ID Tiket']), ['A-1']);
+  assert.deepEqual(payrollCalls, [['2026-09', 'Alif']]);
+
+  const denied = JSON.parse(context.prosesGetPayrollData_(
+    { periode: '2026-09', cabang: 'Kendari', user: { SessionToken: 'jwt' } },
+    { role: 'sales', username: 'juna', nama: 'Juna' }
+  ).text);
+  assert.equal(denied.status, 'gagal');
+});
+
+test('outside-city dates are stored per month and return when an older month is selected', () => {
+  const fields = {
+    'pilih-bulan': { value: '2026-09' },
+    'input-fee': { value: '' },
+    'input-kasbon': { value: '' },
+    'input-luar-kota': { value: '' }
+  };
+  const context = vm.createContext({
+    globalPayrollBulanan: {},
+    periodePayrollTermuat: '',
+    komponenPayrollKotor_: false,
+    document: { getElementById: id => fields[id] },
+    ambilDrafLuarKota_: () => null,
+    setTimeout,
+    String,
+    parseFloat
+  });
+  vm.runInContext([
+    extractFunction(slipHtml, 'normalisasiNamaPayroll'),
+    extractFunction(slipHtml, 'terapkanVariabelPayrollKeForm'),
+    extractFunction(slipHtml, 'simpanVariabelPayrollTermuat_')
+  ].join('\n'), context);
+
+  context.simpanVariabelPayrollTermuat_([
+    { namaPegawai: 'Alif', fee: 0, kasbon: 0, luarKota: '21, 22, 23' }
+  ], '2026-09');
+  context.terapkanVariabelPayrollKeForm('Alif');
+  assert.equal(fields['input-luar-kota'].value, '21, 22, 23');
+
+  fields['pilih-bulan'].value = '2026-10';
+  context.simpanVariabelPayrollTermuat_([], '2026-10');
+  context.terapkanVariabelPayrollKeForm('Alif');
+  assert.equal(fields['input-luar-kota'].value, '');
+
+  fields['pilih-bulan'].value = '2026-09';
+  context.simpanVariabelPayrollTermuat_([
+    { namaPegawai: 'Alif', fee: 0, kasbon: 0, luarKota: '21, 22, 23' }
+  ], '2026-09');
+  context.terapkanVariabelPayrollKeForm('Alif');
+  assert.equal(fields['input-luar-kota'].value, '21, 22, 23');
+
+  assert.match(slipHtml, /jadwalkanSimpanLuarKota_\(\)/);
+  assert.match(slipHtml, /setTimeout\(\(\) => \{[\s\S]*simpanVariabelPayroll\(\{ otomatis: true \}\)[\s\S]*\}, 800\)/);
+});
