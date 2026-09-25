@@ -13,7 +13,7 @@ function event(time, type, day = '2026-09-08', status = '') {
     'Tipe Absen': type, 'Status Disiplin': status, Keterangan: '' };
 }
 function calculate(events, options = {}) {
-  const { branch = 'Kendari', role = 'teknisi', now = '2026-09-09T08:00:00+08:00', month = '2026-09', luarKota = '' } = options;
+  const { branch = 'Kendari', role = 'teknisi', now = '2026-09-09T08:00:00+08:00', month = '2026-09', luarKota = '', liburTambahan = '' } = options;
   const hours = branch === 'Raha' && !['admin', 'admin_raha'].includes(role) ? 12 : 9;
   class FixedDate extends Date {
     constructor(...args) { super(...(args.length ? args : [now])); }
@@ -21,7 +21,7 @@ function calculate(events, options = {}) {
   const c = vm.createContext({ Date: FixedDate,
     globalUsers: [{ 'Nama Asli': name, 'Gaji Pokok': 26 * hours * 10000, Role: role, Hak_Akses_Cabang: branch }],
     globalAbsen: events, globalTickets: [], formatRp: value => 'Rp ' + Math.round(value),
-    ambilVariabelPayroll: () => ({ luarKota, fee: 0, kasbon: 0 }) });
+    ambilVariabelPayroll: () => ({ luarKota, liburTambahan, fee: 0, kasbon: 0 }) });
   vm.runInContext(html.slice(html.indexOf('        function normalisasiCabangPayroll'), html.indexOf('        function generateSlipIndividu')), c);
   return c.kalkulasiGajiPegawai(name, month, 26);
 }
@@ -172,15 +172,28 @@ test('Setelah kuota sakit habis, sesi nyata memakai batas 20:00 tanpa pokok tamb
   assertMinutes(r, 3 * 540 + 420, 1);
 });
 
-test('Pokok x2 menggandakan upah pokok dan upah lembur', () => {
+test('Pokok x2 hanya menggandakan upah pokok harian, bukan lembur', () => {
   const events = [event('08:00:00', 'Masuk'), event('18:00:00', 'Keluar')];
   const biasa = calculate(events);
   const duaKali = calculate(events, { luarKota: '8' });
-  assert.ok(Math.abs(duaKali.totalUpahHadir - biasa.totalUpahHadir) < 0.000001);
-  assert.ok(Math.abs(duaKali.totalLembur - (biasa.totalLembur * 2 + biasa.totalUpahHadir)) < 0.000001);
+  assert.ok(Math.abs(duaKali.totalUpahHadir - biasa.totalUpahHadir * 2) < 0.000001);
+  assert.ok(Math.abs(duaKali.totalLembur - biasa.totalLembur) < 0.000001);
   assert.ok(Math.abs((duaKali.totalBersih - biasa.totalBersih) -
-    (biasa.totalUpahHadir + biasa.totalLembur)) < 0.000001);
-  assert.match(duaKali.barisHTML, /Pokok &amp; lembur x2/);
+    biasa.totalUpahHadir) < 0.000001);
+  assert.match(duaKali.barisHTML, /Upah pokok harian x2 \(Luar Kota\)/);
+});
+
+test('Libur tambahan manual menggandakan pokok harian, libur nasional tidak otomatis', () => {
+  const events = [event('08:00:00', 'Masuk'), event('18:00:00', 'Keluar')];
+  const biasa = calculate(events);
+  const libur = calculate(events, { liburTambahan: '8' });
+  assert.ok(Math.abs(libur.totalUpahHadir - biasa.totalUpahHadir * 2) < 0.000001);
+  assert.ok(Math.abs(libur.totalLembur - biasa.totalLembur) < 0.000001);
+  assert.match(libur.barisHTML, /Upah pokok harian x2 \(Libur Tambahan\)/);
+  const nasional = calculate([
+    event('08:00:00', 'Masuk', '2026-08-17'), event('18:00:00', 'Keluar', '2026-08-17')
+  ], { month: '2026-08', now: '2026-08-18T08:00:00+08:00' });
+  assert.doesNotMatch(nasional.barisHTML, /Hari Libur Nasional|Libur Tambahan/);
 });
 
 test('Sintaks seluruh script halaman slip gaji valid', () => {

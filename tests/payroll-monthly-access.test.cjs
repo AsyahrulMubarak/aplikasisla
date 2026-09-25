@@ -109,14 +109,17 @@ test('outside-city dates are stored per month and return when an older month is 
     'pilih-bulan': { value: '2026-09' },
     'input-fee': { value: '' },
     'input-kasbon': { value: '' },
-    'input-luar-kota': { value: '' }
+    'input-luar-kota': { value: '' },
+    'input-libur-tambahan': { value: '' }
   };
   const context = vm.createContext({
     globalPayrollBulanan: {},
     periodePayrollTermuat: '',
     komponenPayrollKotor_: false,
     document: { getElementById: id => fields[id] },
-    ambilDrafLuarKota_: () => null,
+    ambilDrafTanggalPayroll_: () => null,
+    penggunaBolehKelolaPayroll_: () => true,
+    periodePayrollSaatIni_: () => '2026-09',
     setTimeout,
     String,
     parseFloat
@@ -128,23 +131,62 @@ test('outside-city dates are stored per month and return when an older month is 
   ].join('\n'), context);
 
   context.simpanVariabelPayrollTermuat_([
-    { namaPegawai: 'Alif', fee: 0, kasbon: 0, luarKota: '21, 22, 23' }
+    { namaPegawai: 'Alif', fee: 0, kasbon: 0, luarKota: '21, 22, 23', liburTambahan: '5, 12' }
   ], '2026-09');
   context.terapkanVariabelPayrollKeForm('Alif');
   assert.equal(fields['input-luar-kota'].value, '21, 22, 23');
+  assert.equal(fields['input-libur-tambahan'].value, '5, 12');
 
   fields['pilih-bulan'].value = '2026-10';
   context.simpanVariabelPayrollTermuat_([], '2026-10');
   context.terapkanVariabelPayrollKeForm('Alif');
   assert.equal(fields['input-luar-kota'].value, '');
+  assert.equal(fields['input-libur-tambahan'].value, '');
 
   fields['pilih-bulan'].value = '2026-09';
   context.simpanVariabelPayrollTermuat_([
-    { namaPegawai: 'Alif', fee: 0, kasbon: 0, luarKota: '21, 22, 23' }
+    { namaPegawai: 'Alif', fee: 0, kasbon: 0, luarKota: '21, 22, 23', liburTambahan: '5, 12' }
   ], '2026-09');
   context.terapkanVariabelPayrollKeForm('Alif');
   assert.equal(fields['input-luar-kota'].value, '21, 22, 23');
+  assert.equal(fields['input-libur-tambahan'].value, '5, 12');
 
   assert.match(slipHtml, /jadwalkanSimpanLuarKota_\(\)/);
   assert.match(slipHtml, /setTimeout\(\(\) => \{[\s\S]*simpanVariabelPayroll\(\{ otomatis: true \}\)[\s\S]*\}, 800\)/);
+  assert.doesNotMatch(slipHtml, /LIBUR_NASIONAL_PAYROLL|isLiburNasional/);
+  assert.match(slipHtml, /let isHariLibur = isAhad \|\| isLiburTambahan/);
+});
+
+test('technician and past-month views use saved server dates, never an unsaved local draft', () => {
+  const fields = {
+    'pilih-bulan': { value: '2026-08' },
+    'input-fee': { value: '' },
+    'input-kasbon': { value: '' },
+    'input-luar-kota': { value: '' },
+    'input-libur-tambahan': { value: '' }
+  };
+  let draftReads = 0;
+  const context = vm.createContext({
+    globalPayrollBulanan: { alif: { luarKota: '21, 22', liburTambahan: '5' } },
+    document: { getElementById: id => fields[id] },
+    penggunaBolehKelolaPayroll_: () => true,
+    periodePayrollSaatIni_: () => '2026-09',
+    ambilDrafTanggalPayroll_: () => { draftReads++; return '31'; },
+    String,
+    parseFloat
+  });
+  vm.runInContext([
+    extractFunction(slipHtml, 'normalisasiNamaPayroll'),
+    extractFunction(slipHtml, 'terapkanVariabelPayrollKeForm')
+  ].join('\n'), context);
+  context.terapkanVariabelPayrollKeForm('Alif');
+  assert.equal(fields['input-luar-kota'].value, '21, 22');
+  assert.equal(fields['input-libur-tambahan'].value, '5');
+  assert.equal(draftReads, 0);
+  fields['pilih-bulan'].value = '2026-09';
+  context.penggunaBolehKelolaPayroll_ = () => false;
+  context.terapkanVariabelPayrollKeForm('Alif');
+  assert.equal(fields['input-luar-kota'].value, '21, 22');
+  assert.equal(fields['input-libur-tambahan'].value, '5');
+  assert.equal(draftReads, 0);
 });
