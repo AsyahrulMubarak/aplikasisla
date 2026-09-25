@@ -568,6 +568,8 @@
         let timerSimpanLuarKota_ = null;
         const KUNCI_DRAF_LUAR_KOTA_ = 'sla-payroll-luar-kota-draft-v1';
         const KUNCI_DRAF_LIBUR_TAMBAHAN_ = 'sla-payroll-libur-tambahan-draft-v1';
+        const KUNCI_DRAF_FEE_ = 'sla-payroll-fee-draft-v1';
+        const KUNCI_DRAF_KASBON_ = 'sla-payroll-kasbon-draft-v1';
 
         const PWA_WORKER_READY_TIMEOUT_MS_ = 5000;
 
@@ -867,14 +869,14 @@
             if (!target || !target.closest) return;
             if (target.closest('#div-komponen-variabel')) komponenPayrollKotor_ = true;
             if (target.closest('#dynamic-bonus-section')) tunjanganPayrollKotor_ = true;
-            if (target.id === 'input-luar-kota' || target.id === 'input-libur-tambahan') {
+            if (['input-fee', 'input-kasbon', 'input-luar-kota', 'input-libur-tambahan'].includes(target.id)) {
                 simpanDrafTanggalPayrollAktif_(target.id);
                 jadwalkanSimpanLuarKota_();
             }
         });
         document.addEventListener('change', event => {
             const target = event.target;
-            if (!target || (target.id !== 'input-luar-kota' && target.id !== 'input-libur-tambahan') || !penggunaBolehKelolaPayroll_()) return;
+            if (!target || !['input-fee', 'input-kasbon', 'input-luar-kota', 'input-libur-tambahan'].includes(target.id) || !penggunaBolehKelolaPayroll_()) return;
             // Segera selesaikan antrean saat input kehilangan fokus.
             if (timerSimpanLuarKota_) clearTimeout(timerSimpanLuarKota_);
             timerSimpanLuarKota_ = null;
@@ -890,7 +892,13 @@
         }
 
         function kunciDrafTanggalPayroll_(idInput, periode, namaPegawai) {
-            const awalan = idInput === 'input-libur-tambahan' ? KUNCI_DRAF_LIBUR_TAMBAHAN_ : KUNCI_DRAF_LUAR_KOTA_;
+            const awalan = {
+                'input-fee': KUNCI_DRAF_FEE_,
+                'input-kasbon': KUNCI_DRAF_KASBON_,
+                'input-luar-kota': KUNCI_DRAF_LUAR_KOTA_,
+                'input-libur-tambahan': KUNCI_DRAF_LIBUR_TAMBAHAN_
+            }[idInput];
+            if (!awalan) throw new Error('Input payroll tidak dikenal.');
             return awalan + ':' + String(periode || '').trim() + ':' + normalisasiNamaPayroll(namaPegawai);
         }
 
@@ -900,10 +908,15 @@
                 const namaPegawai = document.getElementById('pilih-pegawai').value;
                 if (!periode || !namaPegawai) return;
                 const dataServer = globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] || {};
-                const field = idInput === 'input-libur-tambahan' ? 'liburTambahan' : 'luarKota';
+                const field = {
+                    'input-fee': 'fee',
+                    'input-kasbon': 'kasbon',
+                    'input-luar-kota': 'luarKota',
+                    'input-libur-tambahan': 'liburTambahan'
+                }[idInput];
                 localStorage.setItem(kunciDrafTanggalPayroll_(idInput, periode, namaPegawai), JSON.stringify({
                     nilai: document.getElementById(idInput).value || '',
-                    nilaiServer: String(dataServer[field] || ''),
+                    nilaiServer: String(dataServer[field] ?? (field === 'fee' || field === 'kasbon' ? 0 : '')),
                     disimpanPada: Date.now()
                 }));
             } catch (error) {
@@ -985,20 +998,23 @@
 
         function terapkanVariabelPayrollKeForm(namaPegawai) {
             let dataPayroll = globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] || {};
-            document.getElementById('input-fee').value = parseFloat(dataPayroll.fee) || 0;
-            document.getElementById('input-kasbon').value = parseFloat(dataPayroll.kasbon) || 0;
-            const nilaiServerLuarKota = String(dataPayroll.luarKota || '');
             const periode = document.getElementById('pilih-bulan').value;
             const bolehPulihkanDraf = penggunaBolehKelolaPayroll_() && periode === periodePayrollSaatIni_();
-            const drafLuarKota = bolehPulihkanDraf
-                ? ambilDrafTanggalPayroll_('input-luar-kota', periode, namaPegawai, nilaiServerLuarKota) : null;
-            document.getElementById('input-luar-kota').value = drafLuarKota === null ? nilaiServerLuarKota : drafLuarKota;
-            const nilaiServerLibur = String(dataPayroll.liburTambahan || '');
-            const drafLibur = bolehPulihkanDraf
-                ? ambilDrafTanggalPayroll_('input-libur-tambahan', periode, namaPegawai, nilaiServerLibur) : null;
-            document.getElementById('input-libur-tambahan').value = drafLibur === null ? nilaiServerLibur : drafLibur;
-            if ((drafLuarKota !== null && drafLuarKota !== nilaiServerLuarKota) ||
-                (drafLibur !== null && drafLibur !== nilaiServerLibur)) {
+            const kolom = [
+                ['input-fee', 'fee', '0'],
+                ['input-kasbon', 'kasbon', '0'],
+                ['input-luar-kota', 'luarKota', ''],
+                ['input-libur-tambahan', 'liburTambahan', '']
+            ];
+            let adaDrafBelumTersimpan = false;
+            kolom.forEach(([id, field, nilaiKosong]) => {
+                const nilaiServer = String(dataPayroll[field] ?? nilaiKosong);
+                const draf = bolehPulihkanDraf
+                    ? ambilDrafTanggalPayroll_(id, periode, namaPegawai, nilaiServer) : null;
+                document.getElementById(id).value = draf === null ? nilaiServer : draf;
+                if (draf !== null && draf !== nilaiServer) adaDrafBelumTersimpan = true;
+            });
+            if (adaDrafBelumTersimpan) {
                 komponenPayrollKotor_ = true;
                 // Pulihkan draf yang belum sempat mencapai server saat aplikasi ditutup.
                 setTimeout(() => {
@@ -1175,9 +1191,13 @@
                 periodePayrollTermuat = periode;
                 const formMasihSama = document.getElementById('pilih-bulan').value === periode &&
                     normalisasiNamaPayroll(document.getElementById('pilih-pegawai').value) === normalisasiNamaPayroll(namaPegawai) &&
+                    String(document.getElementById('input-fee').value || '') === String(nilaiForm.fee || '') &&
+                    String(document.getElementById('input-kasbon').value || '') === String(nilaiForm.kasbon || '') &&
                     String(document.getElementById('input-luar-kota').value || '') === String(nilaiForm.luarKota || '') &&
                     String(document.getElementById('input-libur-tambahan').value || '') === String(nilaiForm.liburTambahan || '');
                 if (formMasihSama) {
+                    hapusDrafTanggalPayroll_('input-fee', periode, namaPegawai);
+                    hapusDrafTanggalPayroll_('input-kasbon', periode, namaPegawai);
                     hapusDrafTanggalPayroll_('input-luar-kota', periode, namaPegawai);
                     hapusDrafTanggalPayroll_('input-libur-tambahan', periode, namaPegawai);
                     terapkanVariabelPayrollKeForm(namaPegawai);
@@ -1192,7 +1212,7 @@
                 }
                 if (formMasihSama) komponenPayrollKotor_ = false;
                 showToast(otomatis
-                    ? 'Tanggal Luar Kota dan Libur Tambahan tersimpan otomatis.'
+                    ? 'Komponen payroll tersimpan otomatis.'
                     : 'Alhamdulillah! Komponen payroll tersimpan dan tanggal Luar Kota sudah dikecualikan dari kuota koreksi.', 'success');
                 return true;
             } catch (err) {
@@ -1530,8 +1550,7 @@
                 select.innerHTML = '<option value="" disabled selected>-- Pilih Pegawai --</option>';
                 let sortedUsers = daftarProfilPayroll().sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
                 sortedUsers.forEach(u => {
-                    let gapok = parseFloat(u['Gaji Pokok'] || u['Gaji Pokok (Rp)']) || 0;
-                    if (gapok > 0) {
+                    if (profilLayakTampilPayroll_(u)) {
                         select.innerHTML += `<option value="${u['Nama Asli']}">${u['Nama Asli']} (${u.Role})</option>`;
                     }
                 });
@@ -1611,6 +1630,14 @@
             return namaUnik.map(cariProfilPayroll).filter(Boolean);
         }
 
+        function profilLayakTampilPayroll_(profil) {
+            const gaji = parseFloat(profil['Gaji Pokok'] ?? profil['Gaji Pokok (Rp)']) || 0;
+            if (gaji > 0) return true;
+            if (String(profil.Role || '').toLowerCase() === 'freelance') return false;
+            const nama = normalisasiNamaProfilPayroll_(profil['Nama Asli']);
+            return globalAbsen.some(absen => normalisasiNamaProfilPayroll_(absen['Nama Pegawai']) === nama);
+        }
+
         function adalahBonusDisiplinPayroll(nama) {
             return /^bonus disiplin(?:$|\s+bila\b)/.test(normalisasiNamaProfilPayroll_(nama));
         }
@@ -1669,8 +1696,11 @@
         function kalkulasiGajiPegawai(namaTarget, bulanTahun, hariKerjaEfektif, gunakanInputAktif = false) {
             let profil = cariProfilPayroll(namaTarget);
             if (!profil) throw new Error('Profil payroll tidak ditemukan atau ambigu. Muat ulang data pegawai.');
-            let gapokRaw = profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)'] || 1500000; 
-            let gajiPokok = parseFloat(gapokRaw) || 1500000;
+            let gapokRaw = profil['Gaji Pokok'] ?? profil['Gaji Pokok (Rp)'];
+            // Nilai 0 yang tersimpan adalah profil belum diberi nominal, bukan
+            // alasan untuk membuat gaji default Rp1.500.000 pada slip.
+            let gajiPokok = gapokRaw === 0 || String(gapokRaw).trim() === '0'
+                ? 0 : (parseFloat(gapokRaw) || 1500000);
             let kebijakanKerja = kebijakanJamKerjaPayroll(profil);
 
             let bonusStr = profil['Bonus Tambahan'] || profil['Bonus'] || profil['Honor Tambahan'] || '';
@@ -1702,6 +1732,7 @@
 
                 let d = new Date(dOrig.getTime());
                 let tipe = String(a['Tipe Absen']).trim();
+                if (tipe === 'Absen Diabaikan') return;
                 let h = d.getHours();
                 let isOvernight = false;
 
@@ -1746,7 +1777,34 @@
                 let isHariLibur = isAhad || isLiburTambahan;
                 let isFutureDate = (isCurrentMonth && i > todayDate); // Mencegah tanggal masa depan dihitung
 
-                let events = rekapanMentah[dateKey] || [];
+                let events = [...(rekapanMentah[dateKey] || [])];
+                // Cadangan untuk catatan lama saat trigger penutup absen belum
+                // berjalan. Gunakan kuota yang sama dengan penutup di backend.
+                const sudahAutoKeluar = events.some(e => String(e['Status Disiplin'] || '').includes('Auto Keluar'));
+                let sesiMasihTerbuka = false;
+                let masukTerakhir = null;
+                [...events].sort((a, b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen'])).forEach(e => {
+                    const tipe = String(e['Tipe Absen'] || '');
+                    if (tipe.includes('Masuk')) { sesiMasihTerbuka = true; masukTerakhir = e; }
+                    else if (/Keluar|Pulang|Sakit|Izin/.test(tipe)) sesiMasihTerbuka = false;
+                });
+                const sakitPertama = events.filter(e => String(e['Tipe Absen'] || '').includes('Sakit'))
+                    .sort((a, b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen']))[0];
+                const sakitPagiBerkuota = !!sakitPertama && kuotaSakitTerpakai < 3 &&
+                    !events.some(e => String(e['Tipe Absen'] || '').includes('Masuk') &&
+                        new Date(e['Waktu Absen']) < new Date(sakitPertama['Waktu Absen']));
+                const lewatBatasFinalisasi = now.getTime() >= new Date(dateKey + 'T06:00:00+08:00').getTime() + 86400000;
+                if (sesiMasihTerbuka && !sudahAutoKeluar && !sakitPagiBerkuota && lewatBatasFinalisasi && masukTerakhir) {
+                    const penaltiLupaKeluar = countLupaPulang >= 3;
+                    const menitKeluar = kebijakanKerja.selesaiMenit - (penaltiLupaKeluar ? 90 : 0);
+                    const jadwalKeluar = new Date(new Date(dateKey + 'T00:00:00+08:00').getTime() + menitKeluar * 60000);
+                    const waktuKeluar = new Date(Math.max(jadwalKeluar.getTime(), new Date(masukTerakhir['Waktu Absen']).getTime()));
+                    events.push({ 'Waktu Absen': waktuKeluar.toISOString(), 'Nama Pegawai': namaTarget,
+                        'Tipe Absen': 'Keluar', 'Status Disiplin': penaltiLupaKeluar
+                            ? 'Auto Keluar Penalti (Potongan 90 Menit)' : 'Auto Keluar (Lupa Absen Keluar)',
+                        'Keterangan': 'Keluar terisi otomatis pada slip karena absen keluar belum tercatat.' });
+                }
+                if (sudahAutoKeluar || (sesiMasihTerbuka && !sakitPagiBerkuota && lewatBatasFinalisasi)) countLupaPulang++;
                 let isSakitExplicit = events.some(e => String(e['Tipe Absen']).includes('Sakit'));
                 let isIzinExplicit = events.some(e => String(e['Tipe Absen']).includes('Izin'));
                 const waktuKembaliPengajuan = events.map(e => new Date(e['Kembali Bekerja'] || NaN))
@@ -1789,6 +1847,7 @@
                 if (isIzinExplicit && !isHariLibur && !isFutureDate) countIzin++;
 
                 let applySakitFull = false; let applySakitKosong = false;
+                let applySakitSisaHari = false;
                 // Hari izin yang memiliki absen fisik tetap mengikuti sesi kerja nyata.
                 let applyIzin = isIzinExplicit && !adaAbsenFisik;
 
@@ -1813,6 +1872,10 @@
                     if (!statusMenutupSesiFisik) {
                         if (kuotaSakitTersedia) applySakitFull = true;
                         else applySakitKosong = true;
+                    } else if (kuotaSakitTersedia && !waktuKembaliEfektif) {
+                        // Pegawai sudah bekerja lalu sakit: sesi nyata berakhir pada
+                        // waktu pengajuan, sisa jadwal dibayar dari kuota sakit.
+                        applySakitSisaHari = true;
                     }
                 }
 
@@ -2127,6 +2190,24 @@
                         potHariIni += potonganIstirahatHariIniDetik * upahPerDetik;
                         ketList.push('Potongan Setelah Istirahat (' + formatDurasiDetikPayroll(potonganIstirahatHariIniDetik) + ')');
                     }
+                    if (applySakitSisaHari && eventPenutupIzinSakit) {
+                        const waktuSakit = new Date(eventPenutupIzinSakit['Waktu Absen']);
+                        const menitSakit = waktuSakit.getHours() * 60 + waktuSakit.getMinutes();
+                        if (menitSakit < kebijakanKerja.selesaiMenit) {
+                            upahRegulerHariIni = upahPerHari;
+                            totalDetikRegulerHariIni = kebijakanKerja.durasiMenit * 60;
+                            totalDetikKerjaHariIni = totalDetikRegulerHariIni + totalDetikLemburHariIni;
+                            if (msk2 === '-' && menitSakit <= 13 * 60 + 30) {
+                                msk2 = '13:30';
+                                bgM2 = 'background-color:#bfdbfe; color:#1e3a8a;';
+                            }
+                            if (klr2 === '-') {
+                                klr2 = formatJamMenitPayroll(kebijakanKerja.selesaiMenit);
+                                bgK2 = 'background-color:#bfdbfe; color:#1e3a8a;';
+                            }
+                            ketList.push('Sakit (Kuota Tersedia, Sisa Hari Terisi Otomatis)');
+                        }
+                    }
                 } else if (!isHariLibur && !isFutureDate) {
                     // LOGIKA ALPA
                     isAlpa = true; countAlpa++;
@@ -2309,6 +2390,9 @@
             document.getElementById('res-role').innerText = String(data.profil.Role || 'Staff').toUpperCase();
             document.getElementById('res-gapok').innerText = formatRp(data.gajiPokok);
             document.getElementById('res-upah-jam').innerText = formatRp(data.upahPerJam) + " / Jam";
+            if (data.gajiPokok === 0 && penggunaBolehKelolaPayroll_()) {
+                showToast('Gaji pokok ' + namaTarget + ' masih Rp0 di profil pegawai. Tetapkan nominal sebelum slip dipakai untuk pembayaran.', 'warning');
+            }
             
             document.getElementById('tabel-absen').innerHTML = data.barisHTML;
             document.getElementById('sum-hadir').innerText = formatRp(data.totalUpahHadir);
@@ -2384,12 +2468,9 @@
             tbody.innerHTML = '';
             
             let grandTotal = 0;
-            let sortedUsers = daftarProfilPayroll().filter(u => u.Role !== 'direktur').sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
+            let sortedUsers = daftarProfilPayroll().filter(u => u.Role !== 'direktur' && profilLayakTampilPayroll_(u)).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
 
             sortedUsers.forEach(u => {
-                let gapokRekap = parseFloat(u['Gaji Pokok'] || u['Gaji Pokok (Rp)']) || 0;
-                if (gapokRekap === 0) return; // Freelance/non-gapok tidak masuk Master Rekapitulasi.
-
                 let data = kalkulasiGajiPegawai(u['Nama Asli'], bulanTahun, hk);
                 if(data.countKehadiran > 0 || data.gajiPokok > 0) { 
                     grandTotal += data.totalBersih;
