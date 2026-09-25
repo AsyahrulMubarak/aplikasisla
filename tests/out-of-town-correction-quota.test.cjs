@@ -108,3 +108,40 @@ test('manual corrections on outside-city dates do not consume the normal seven-u
   const records = [row(12), row(15), row(1), row(2), row(3), row(4), row(5), row(6), row(7)];
   assert.equal(records.filter(record => context.koreksiMengurangiKuota_(record, '2026-09', outsideDays)).length, 7);
 });
+
+test('free outside-city corrections are white while quota corrections remain pink', () => {
+  process.env.TZ = 'Asia/Makassar';
+  class FixedDate extends Date {
+    constructor(...args) { super(...(args.length ? args : ['2026-09-25T09:00:00+08:00'])); }
+  }
+  const employee = 'Pegawai Uji Warna';
+  const event = (day, time, type, status = '') => ({
+    'Nama Pegawai': employee,
+    'Waktu Absen': `2026-09-${String(day).padStart(2, '0')}T${time}+08:00`,
+    'Tipe Absen': type,
+    'Status Disiplin': status,
+    'Keterangan': ''
+  });
+  const context = vm.createContext({
+    Date: FixedDate,
+    Set,
+    globalUsers: [{ 'Nama Asli': employee, 'Gaji Pokok': 2600000, Role: 'teknisi', Hak_Akses_Cabang: 'Kendari' }],
+    globalAbsen: [
+      event(3, '08:00:00', 'Masuk'), event(3, '17:00:00', 'Keluar', 'Koreksi Manual'),
+      event(21, '08:00:00', 'Masuk'), event(21, '17:00:00', 'Keluar', 'Koreksi Manual')
+    ],
+    globalTickets: [],
+    formatRp: value => 'Rp ' + Math.round(value),
+    ambilVariabelPayroll: () => ({ luarKota: '21', fee: 0, kasbon: 0 })
+  });
+  vm.runInContext(slipHtml.slice(
+    slipHtml.indexOf('        function normalisasiCabangPayroll'),
+    slipHtml.indexOf('        function generateSlipIndividu')
+  ), context);
+  const result = context.kalkulasiGajiPegawai(employee, '2026-09', 26);
+  const normalRow = result.barisHTML.split('<tr ').find(row => row.includes('03/09/2026'));
+  const freeRow = result.barisHTML.split('<tr ').find(row => row.includes('21/09/2026'));
+  assert.match(normalRow, /background:#fbcfe8; color:#be185d;[^>]*>17:00:00/);
+  assert.match(freeRow, /background-color:#ffffff; color:#0f172a;[^>]*>17:00:00/);
+  assert.doesNotMatch(freeRow, /background:#fbcfe8/);
+});

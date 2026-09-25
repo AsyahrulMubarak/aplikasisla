@@ -387,13 +387,20 @@
             return String(nilai || '').trim().toLowerCase().replace(/\s+/g, ' ');
         }
 
+        const PEGAWAI_KENDARI_AKSES_ABSENSI = [
+            'alif', 'ardan', 'ardi s', 'asyahrul mubarak', 'dafa', 'fauzan', 'juna',
+            'muaz', 'mubarak', 'muhammad bintang restu prabowo', 'muhammad syawal',
+            'rendi', 'wawan'
+        ];
+
         function penggunaBolehAbsenLokal() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
             const cabang = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
-            const username = String(penggunaAktif && penggunaAktif.Username || '').trim().toLowerCase().replace(/\s+/g, '');
+            const nama = normalisasiNamaAbsensi(penggunaAktif && penggunaAktif['Nama Asli']);
             const adminRaha = role === 'admin_raha' || (role === 'admin' && cabang === 'Raha');
             const manajemen = ['admin', 'manager', 'direktur'].includes(role);
-            return (manajemen && !adminRaha) || (role === 'teknisi' && username === 'asyahrul');
+            const pegawaiKendariDiizinkan = cabang === 'Kendari' && PEGAWAI_KENDARI_AKSES_ABSENSI.includes(nama);
+            return (manajemen && !adminRaha) || pegawaiKendariDiizinkan;
         }
 
         function formatJamDariMenit(menit) {

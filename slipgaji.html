@@ -1648,6 +1648,9 @@
 
                 let msk1 = "-", klr1 = "-", msk2 = "-", klr2 = "-";
                 let bgM1 = "", bgK1 = "", bgM2 = "", bgK2 = ""; // Penyimpan warna per sel
+                const warnaKoreksiHariIni = arrLuarKota.includes(i)
+                    ? "background-color:#ffffff; color:#0f172a;"
+                    : "background:#fbcfe8; color:#be185d;";
                 let msk2DariAbsenFisik = false;
 
                 let ketList = []; let potHariIni = 0; let lemHariIni = 0; let upahRegulerHariIni = 0; let isHadir = false;
@@ -1820,12 +1823,12 @@
 
                             if (adalahMasukPagi && msk1 === "-") {
                                 msk1 = jamStr;
-                                if (isKoreksi) bgM1 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
+                                if (isKoreksi) bgM1 = warnaKoreksiHariIni; // Putih bila koreksi tidak memakai kuota.
                                 else if (isAutoMasuk || Math.floor(detikEvent / 60) > kebijakanKerja.batasTelatMenit) bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Telat / Lupa Masuk
                             } else if (adalahMasukSiang && msk2 === "-") {
                                 msk2 = jamStr;
                                 msk2DariAbsenFisik = !isAutoMasuk && !isKoreksi && jamFloat >= 12;
-                                if (isKoreksi) bgM2 = "background:#fbcfe8; color:#be185d;"; // Pink Koreksi
+                                if (isKoreksi) bgM2 = warnaKoreksiHariIni;
                             } else if (tipe.includes('Setelah Istirahat')) {
                                 ketList.push('Checkpoint Setelah Istirahat: ' + jamStr);
                             } else {
@@ -1849,10 +1852,10 @@
                         } else if (tipe.includes("Keluar") || tipe.includes("Pulang")) {
                             if (jamFloat <= 14.0) {
                                 klr1 = jamStr;
-                                if (isKoreksi) bgK1 = "background:#fbcfe8; color:#be185d;";
+                                if (isKoreksi) bgK1 = warnaKoreksiHariIni;
                             } else {
                                 klr2 = jamStr;
-                                if (isKoreksi) bgK2 = "background:#fbcfe8; color:#be185d;";
+                                if (isKoreksi) bgK2 = warnaKoreksiHariIni;
                                 else if (isAutoKeluar && status.includes('Penalti')) bgK2 = "background:#e2e8f0; color:#334155;";
                                 else if (isAutoKeluar) bgK2 = "background:#e0f2fe; color:#0369a1;";
                             }

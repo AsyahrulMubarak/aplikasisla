@@ -682,7 +682,7 @@
                 </button>
                 <button type="button" id="btn-lobby-absen" class="main-lobby-option absen" onclick="bukaModulPendukung('absen')">
                     <span aria-hidden="true">📅</span>Sistem Absensi
-                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Manajemen & Asyahrul (Uji)</strong>
+                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Sesuai Hak Akses Pegawai Kendari</strong>
                 </button>
                 <button type="button" id="btn-lobby-gaji" class="main-lobby-option gaji" onclick="bukaModulPendukung('gaji')">
                     <span aria-hidden="true">🧾</span>Slip Gaji Digital
@@ -693,7 +693,7 @@
                     <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Direktur, Manager, dan Admin</strong>
                 </button>
             </div>
-            <p class="main-lobby-note">Untuk saat ini, Absensi dan Slip Gaji dapat dibuka oleh Admin, Manager, Direktur, serta Asyahrul untuk uji coba. Slip Gaji Asyahrul hanya menampilkan data miliknya sendiri.</p>
+            <p class="main-lobby-note">Absensi dapat dibuka oleh pegawai Kendari yang telah diizinkan. Menu approval tetap khusus Manajemen. Slip Gaji tetap khusus Manajemen serta Asyahrul untuk uji coba, dan data Asyahrul dibatasi hanya miliknya sendiri.</p>
             <div id="main-lobby-status" role="status" aria-live="polite"></div>
             <button type="button" class="main-lobby-logout" onclick="prosesLogout()">🚪 Keluar Aplikasi</button>
         </div>
@@ -2829,13 +2829,23 @@
             return role === 'teknisi' && username === 'asyahrul';
         }
 
+        function penggunaKendariDiizinkanAbsensi_(user = penggunaAktif) {
+            const daftarNama = [
+                'alif', 'ardan', 'ardi s', 'asyahrul mubarak', 'dafa', 'fauzan', 'juna',
+                'muaz', 'mubarak', 'muhammad bintang restu prabowo', 'muhammad syawal',
+                'rendi', 'wawan'
+            ];
+            const nama = String(user && user['Nama Asli'] || '').trim().toLowerCase().replace(/\s+/g, ' ');
+            return hakAksesCabangPengguna(user) === 'Kendari' && daftarNama.includes(nama);
+        }
+
         // Akses ini hanya untuk modul Absensi/Payroll; tidak mengubah hak akses SLA cabang.
         function penggunaBolehMengaksesAbsensi_(user = penggunaAktif) {
             const role = rolePengguna(user);
             const cabang = hakAksesCabangPengguna(user);
             const adminRaha = role === 'admin_raha' || (role === 'admin' && cabang === 'Raha');
             const manajemen = ['admin', 'manager', 'direktur'].includes(role);
-            return (manajemen && !adminRaha) || penggunaAdalahTeknisiUjiAbsensi_(user);
+            return (manajemen && !adminRaha) || penggunaKendariDiizinkanAbsensi_(user);
         }
 
         function penggunaBolehMengaksesSlipGaji_(user = penggunaAktif) {
