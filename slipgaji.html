@@ -317,7 +317,7 @@
                         <input type="number" id="input-kasbon" placeholder="Contoh: 50000" value="0">
                     </div>
                     <div class="form-group">
-                        <label style="color:#0284c7;">✈️ Tgl Luar Kota (Pokok & Lembur x2, Koreksi Gratis)</label>
+                        <label style="color:#0284c7;">✈️ Tgl Luar Kota (Pokok Harian x2, Koreksi Gratis)</label>
                         <input type="text" id="input-luar-kota" placeholder="Contoh: 12, 13, 15" value="">
                         <small style="display:block; margin-top:6px; color:#64748b; line-height:1.4;">Koreksi absen pada tanggal ini tidak memakai kuota 7x bulanan.</small>
                     </div>
@@ -410,6 +410,7 @@
                     <div class="sum-card">
                         <div class="sum-title">Bonus Poin SLA</div>
                         <div class="sum-val plus" id="sum-poin">Rp 0</div>
+                        <small id="sum-poin-detail" style="display:block; margin-top:4px; color:#64748b;"></small>
                     </div>
                     <div class="sum-card" id="box-fee" style="display:none; background:#ecfccb; border-color:#bef264;">
                         <div class="sum-title" style="color:#4d7c0f;">Fee Marketing</div>
@@ -1548,6 +1549,16 @@
             return '';
         }
 
+        // Hari libur nasional (tanpa cuti bersama), mengikuti SKB 3 Menteri 2026–2027.
+        const LIBUR_NASIONAL_PAYROLL = new Set([
+            '2026-01-01', '2026-01-16', '2026-02-17', '2026-03-19', '2026-03-21', '2026-03-22',
+            '2026-04-03', '2026-04-05', '2026-05-01', '2026-05-14', '2026-05-27', '2026-05-31',
+            '2026-06-01', '2026-06-16', '2026-08-17', '2026-08-25', '2026-12-25',
+            '2027-01-01', '2027-01-05', '2027-02-06', '2027-03-08', '2027-03-10', '2027-03-11',
+            '2027-03-26', '2027-03-28', '2027-05-01', '2027-05-06', '2027-05-17', '2027-05-20',
+            '2027-06-01', '2027-06-06', '2027-08-15', '2027-08-17', '2027-12-25', '2027-12-26'
+        ]);
+
         // Pemilihan profil yang sama untuk slip, rekap, dan penyimpanan tunjangan.
         function normalisasiNamaProfilPayroll_(nilai) {
           return String(nilai || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1714,6 +1725,8 @@
                 let dateKey = currDate.getFullYear() + "-" + String(currDate.getMonth()+1).padStart(2,'0') + "-" + String(currDate.getDate()).padStart(2,'0');
                 let namaHari = namaHariArr[currDate.getDay()];
                 let isAhad = (currDate.getDay() === 0);
+                let isLiburNasional = LIBUR_NASIONAL_PAYROLL.has(dateKey);
+                let isHariLibur = isAhad || isLiburNasional;
                 let isFutureDate = (isCurrentMonth && i > todayDate); // Mencegah tanggal masa depan dihitung
 
                 let events = rekapanMentah[dateKey] || [];
@@ -1756,7 +1769,7 @@
                 const statusMenutupSesiFisik = !!eventPenutupIzinSakit;
 
                 // Izin dihitung satu kali per hari kerja untuk evaluasi kedisiplinan.
-                if (isIzinExplicit && !isAhad && !isFutureDate) countIzin++;
+                if (isIzinExplicit && !isHariLibur && !isFutureDate) countIzin++;
 
                 let applySakitFull = false; let applySakitKosong = false;
                 // Hari izin yang memiliki absen fisik tetap mengikuti sesi kerja nyata.
@@ -1777,7 +1790,7 @@
                 let totalDetikLemburHariIni = 0;
                 let potonganIstirahatHariIniDetik = 0;
 
-                if (!isAhad && !isFutureDate && isSakitExplicit) {
+                if (!isHariLibur && !isFutureDate && isSakitExplicit) {
                     const kuotaSakitTersedia = kuotaSakitTerpakai < 3;
                     kuotaSakitTerpakai++;
                     if (!statusMenutupSesiFisik) {
@@ -2002,6 +2015,11 @@
                             adaKeluar = true;
                             if (detikSesiTerbuka !== null && detikEvent > detikSesiTerbuka) {
                                 sesiKerjaHariIni.push({ mulai: detikSesiTerbuka, selesai: detikEvent });
+                            } else if (detikSesiTerbuka === null && !sesiDitutupStatus && sesiKerjaHariIni.length > 0) {
+                                // Keluar beruntun tanpa masuk kembali adalah duplikat penutupan.
+                                // Gunakan waktu terakhir agar selaras dengan jam keluar yang ditampilkan.
+                                const sesiTerakhir = sesiKerjaHariIni[sesiKerjaHariIni.length - 1];
+                                if (detikEvent > sesiTerakhir.selesai) sesiTerakhir.selesai = detikEvent;
                             }
                             detikSesiTerbuka = null;
                             if (detikKeluarTerakhir === null || detikEvent > detikKeluarTerakhir) detikKeluarTerakhir = detikEvent;
@@ -2087,7 +2105,7 @@
                         potHariIni += potonganIstirahatHariIniDetik * upahPerDetik;
                         ketList.push('Potongan Setelah Istirahat (' + formatDurasiDetikPayroll(potonganIstirahatHariIniDetik) + ')');
                     }
-                } else if (!isAhad && !isFutureDate) {
+                } else if (!isHariLibur && !isFutureDate) {
                     // LOGIKA ALPA
                     isAlpa = true; countAlpa++;
                     ketList.push("Alpa (Tanpa Keterangan)");
@@ -2099,31 +2117,26 @@
                 let txtJam = totalDetikKerjaHariIni > 0 ? formatDurasiDetikPayroll(totalDetikKerjaHariIni) : "-";
                 let upahHariIniStr = "-";
                 if (isHadir) {
-                    // Argo upah reguler mengikuti detik dari absen masuk hingga keluar.
-                    let upahBersihHariIni = upahRegulerHariIni - potHariIni + lemHariIni;
-                    if (upahBersihHariIni < 0) upahBersihHariIni = 0;
-                    totalUpahHadir += upahRegulerHariIni;
+                    // Kolom ini dan total upah hadir hanya memuat upah harian pokok.
+                    // Lembur dan potongan masing-masing dicatat pada kolomnya sendiri.
+                    const pokokHarianX2 = isPokok2x || isHariLibur;
+                    const upahPokokHarianDibayar = upahRegulerHariIni * (pokokHarianX2 ? 2 : 1);
+                    totalUpahHadir += upahPokokHarianDibayar;
+                    upahHariIniStr = formatRp(upahPokokHarianDibayar);
 
-                    // 2. Terapkan Penggandaan Luar Kota JIKA ADA
-                    if (isPokok2x) {
-                        // Gandakan komponen upah pokok dan lembur secara eksplisit.
-                        // Potongan tetap diterapkan satu kali sesuai pelanggaran nyata.
-                        const bonusPokokLuarKota = upahRegulerHariIni;
-                        const bonusLemburLuarKota = lemHariIni;
-                        const bonusLuarKota = bonusPokokLuarKota + bonusLemburLuarKota;
-                        lemHariIni += bonusLuarKota; // Masukkan ke wadah lembur agar ditambahkan ke Total Gaji Akhir
-                        upahBersihHariIni += bonusLuarKota; // Perbarui upah bersih hari ini untuk ditampilkan di tabel
-                        ketList.push("Pokok &amp; lembur x2 (Pokok + " + formatRp(bonusPokokLuarKota) +
-                            ", lembur + " + formatRp(bonusLemburLuarKota) + ")");
+                    if (pokokHarianX2) {
+                        const alasanX2 = [];
+                        if (isPokok2x) alasanX2.push('Luar Kota');
+                        if (isAhad) alasanX2.push('Hari Ahad');
+                        if (isLiburNasional) alasanX2.push('Hari Libur Nasional');
+                        ketList.push('Upah pokok harian x2 (' + alasanX2.join(', ') + ')');
                     }
-
-                    upahHariIniStr = formatRp(upahBersihHariIni);
                 }
 
                 totalPotongan += potHariIni; totalLembur += lemHariIni;
                 let uniqueKet = [...new Set(ketList)];
                 let infoStr = uniqueKet.join('<br>') || "-";
-                if (!isAhad && !isFutureDate) {
+                if (!isHariLibur && !isFutureDate) {
                     const rawWaktu = [msk1, klr1, msk2, klr2].join(' | ');
                     const rekonsiliasi = '<span style="display:block; margin-top:5px; color:#475569; font-size:10px;">' +
                         '<strong>Rekonsiliasi:</strong> Raw ' + rawWaktu +
@@ -2138,8 +2151,8 @@
                 // ==========================================
                 let rowBg = i%2===0 ? "background:#f1f5f9;" : "background:#ffffff;"; // Default Belang
                 let globalCellBg = "";
-                if (isAhad) {
-                    rowBg = "background-color:#fecdd3; color:#9f1239;"; // Pink khusus hari Ahad.
+                if (isHariLibur) {
+                    rowBg = "background-color:#fecdd3; color:#9f1239;"; // Pink untuk Ahad dan libur nasional.
                 }
 
                 // 1. Standarkan teks kolom status agar normal (tanpa warna-warni teks).
@@ -2147,7 +2160,7 @@
 
                 // 2. Siapkan warna khusus untuk keempat kolom waktu.
                 let bgWaktuKhusus = "";
-                if (!isAhad) {
+                if (!isHariLibur) {
                     if (isAlpa) {
                         bgWaktuKhusus = "background-color:#1e293b; color:#ffffff;"; // Hitam, teks putih.
                     } else if (isSakitExplicit && !statusMenutupSesiFisik) {
@@ -2158,17 +2171,17 @@
                 }
 
                 // 3. Terapkan warna khusus ke kolom waktu, tanpa menimpa baris Ahad.
-                let finalBgM1 = isAhad ? "" : (bgWaktuKhusus || bgM1 || globalCellBg);
-                let finalBgK1 = isAhad ? "" : (bgWaktuKhusus || bgK1 || globalCellBg);
-                let finalBgM2 = isAhad ? "" : (bgWaktuKhusus || bgM2 || globalCellBg);
-                let finalBgK2 = isAhad ? "" : (bgK2 || bgWaktuKhusus || globalCellBg);
+                let finalBgM1 = isHariLibur ? "" : (bgWaktuKhusus || bgM1 || globalCellBg);
+                let finalBgK1 = isHariLibur ? "" : (bgWaktuKhusus || bgK1 || globalCellBg);
+                let finalBgM2 = isHariLibur ? "" : (bgWaktuKhusus || bgM2 || globalCellBg);
+                let finalBgK2 = isHariLibur ? "" : (bgK2 || bgWaktuKhusus || globalCellBg);
                 // Kehadiran siang nyata kembali putih; kolom pagi tetap mencatat izin/sakit.
                 // Autofill, koreksi, dan penanda khusus keluar mengikuti warna sebelumnya.
-                if (!isAhad && (isSakitExplicit || isIzinExplicit) && msk2DariAbsenFisik) {
+                if (!isHariLibur && (isSakitExplicit || isIzinExplicit) && msk2DariAbsenFisik) {
                     finalBgM2 = 'background-color:#ffffff;';
                 }
 
-                if (!isAhad && waktuKembaliEfektif && (isSakitExplicit || isIzinExplicit)) {
+                if (!isHariLibur && waktuKembaliEfektif && (isSakitExplicit || isIzinExplicit)) {
                     const menitKembali = waktuKembaliEfektif.getHours() * 60 + waktuKembaliEfektif.getMinutes();
                     // Warna izin/sakit hanya sebelum masuk kembali. Penanda koreksi,
                     // keterlambatan, dan auto keluar tetap mengikuti aturan sebelumnya.
@@ -2199,7 +2212,7 @@
                 </tr>`;
             }
 
-            let totalBonusPoin = 0;
+            let totalPoinSla = 0;
             globalTickets.forEach(t => {
                 if (t['Status'] === 'Selesai' && t['Status Pembayaran'] === 'Lunas') {
                     let tglTutup = new Date(t['Tanggal Lunas'] || t['Waktu Selesai'] || t[Object.keys(t)[9]]);
@@ -2209,12 +2222,15 @@
                             let poinTiket = parseFloat(t['Bobot Poin']) || 0;
                             let isVeto = String(t['Veto Admin'] || '').trim().toLowerCase() === 'ya';
                             if (poinTiket > 0 && (t['Status SLA'] === 'TERPENUHI' || isVeto)) {
-                                totalBonusPoin += ((poinTiket / tekArr.length) * 10000);
+                                totalPoinSla += poinTiket / tekArr.length;
                             }
                         }
                     }
                 }
             });
+            // Nilai poin yang dibayar mengikuti presisi satu desimal yang ditampilkan.
+            totalPoinSla = Math.round((totalPoinSla + Number.EPSILON) * 10) / 10;
+            const totalBonusPoin = totalPoinSla * 10000;
 
             // === SISTEM PENALTI KEDISIPLINAN ALFACOM (REVISI SKENARIO A, B, C) ===
             let totalTelatIzin = countTelatPagi + countIzin;
@@ -2249,7 +2265,7 @@
             let kasbon = variabelPayroll.kasbon;
             let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin + totalTunjanganTetap + feeMarketing - kasbon;
 
-            return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalTunjanganTetap, feeMarketing, kasbon, luarKota: variabelPayroll.luarKota, arrayTunjangan, dendaDisiplin, countTelatPagi, countIzin, countAlpa, totalBersih, barisHTML };
+            return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalPoinSla, totalTunjanganTetap, feeMarketing, kasbon, luarKota: variabelPayroll.luarKota, arrayTunjangan, dendaDisiplin, countTelatPagi, countIzin, countAlpa, totalBersih, barisHTML };
         }
 
         function generateSlipIndividu() {
@@ -2297,6 +2313,7 @@
 
             document.getElementById('sum-honor').innerText = "+ " + formatRp(data.totalTunjanganTetap);
             document.getElementById('sum-poin').innerText = "+ " + formatRp(data.totalBonusPoin);
+            document.getElementById('sum-poin-detail').innerText = data.totalPoinSla.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' poin × Rp10.000';
 
             let feeMarketing = data.feeMarketing;
             let kasbon = data.kasbon;
