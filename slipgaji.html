@@ -1840,7 +1840,10 @@
 
                     // Persetujuan sakit mengisi jadwal dasar. Jika pegawai datang
                     // siang, waktu fisiknya menggantikan checkpoint siang saja.
-                    msk1 = "08:00";
+                    // Bila sakit pagi berakhir saat pegawai hadir siang, jam masuk
+                    // pagi tetap kosong/biru. Hak upah sakit hari itu tetap
+                    // mengikuti kuota yang sudah berlaku.
+                    msk1 = masukSiangNyata ? "-" : "08:00";
                     msk2 = masukSiangNyata ? formatEventSakit(masukSiangNyata) : "13:30";
                     msk2DariAbsenFisik = !!masukSiangNyata &&
                         !String(masukSiangNyata['Status Disiplin'] || '').includes('Lupa Absen Masuk') &&
@@ -1866,6 +1869,7 @@
                         }
                     });
                     ketList.push("Sakit (Kuota Tersedia)");
+                    if (masukSiangNyata) ketList.push('Sakit pagi berakhir saat masuk siang nyata');
 
                     // Penutupan dari backend tetap memakai kuota lupa keluar sendiri.
                     // Upah dasar sakit belum dipangkas oleh waktu keluar, sehingga
@@ -1965,9 +1969,10 @@
 
                         if (tipe.includes("Masuk")) {
                             const sesiSudahTerbuka = detikSesiTerbuka !== null;
-                            const adalahCheckpointIstirahat = tipe.includes('Setelah Istirahat') || (!isAutoMasuk && detikEvent >= 12 * 3600);
-                            const adalahMasukPagi = isAutoMasuk || (!tipe.includes('Setelah Istirahat') && jamFloat < 12);
-                            const adalahMasukSiang = tipe.includes('Setelah Istirahat') || (!isAutoMasuk && jamFloat >= 12);
+                            const masukPagiTerlambatSiang = tipe === 'Masuk' && status === 'Terlambat Masuk';
+                            const adalahCheckpointIstirahat = tipe.includes('Setelah Istirahat') || (!isAutoMasuk && !masukPagiTerlambatSiang && detikEvent >= 12 * 3600);
+                            const adalahMasukPagi = isAutoMasuk || masukPagiTerlambatSiang || (!tipe.includes('Setelah Istirahat') && jamFloat < 12);
+                            const adalahMasukSiang = tipe.includes('Setelah Istirahat') || (!isAutoMasuk && !masukPagiTerlambatSiang && jamFloat >= 12);
 
                             if (adalahMasukPagi && msk1 === "-") {
                                 msk1 = jamStr;

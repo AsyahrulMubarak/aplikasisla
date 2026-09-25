@@ -29,7 +29,7 @@ function calculate(events, branch = 'Kendari', role = 'teknisi', now = '2026-09-
 const sickDay = () => [event('08', '08:00:00', 'Sakit', 'Pengajuan Disetujui', approval), event('08', '12:36:26', 'Masuk Setelah Istirahat')];
 test('Alasan sakit berisi kata izin tetap biru dan mempertahankan waktu masuk siang', () => {
   const { row, cells } = calculate(sickDay());
-  assert.equal(cells[1], '08:00');
+  assert.equal(cells[1], '-');
   assert.equal(cells[3], '12:36:26');
   assert.equal(cells[4], '17:00');
   assert.equal(cells[5], '<strong>09:00:00</strong>');
@@ -62,12 +62,12 @@ test('Kuota sakit dihitung termasuk hari yang memiliki absen fisik, sekali per t
 });
 test('Auto keluar penalti tetap mengurangi 90 menit pada hari sakit, dengan sel keluar abu-abu', () => {
   const { row, cells } = calculate([...sickDay(), event('08', '15:30:00', 'Keluar', 'Auto Keluar Penalti (Potongan 90 Menit)')]);
-  assert.equal(cells[1], '08:00');
+  assert.equal(cells[1], '-');
   assert.equal(cells[4], '15:30:00');
   assert.equal(cells[5], '<strong>07:30:00</strong>');
-  assert.equal(cells[6], 'Rp 38462'); // Pokok harian terpisah dari potongan Rp 6.410.
+  assert.equal(cells[6], 'Rp 38462');
   assert.equal(cells[9], '- Rp 6410');
-  assert.match(row, /background-color:#bfdbfe[^>]*>08:00/);
+  assert.match(row, /background-color:#bfdbfe[^>]*>-/);
   assert.match(row, /background:#e2e8f0[^>]*>15:30:00/);
 });
 test('Sakit dan lupa keluar sama-sama habis: hanya penalti lupa keluar memendekkan sesi fisik 90 menit', () => {
@@ -115,9 +115,9 @@ test('Kuota sakit bulan sebelumnya tidak menghabiskan kuota bulan yang dipilih',
   assert.equal(calculate([...earlier, ...sickDay()]).cells[9], '- Rp 0');
 });
 
-test('Sakit pagi: masuk siang nyata putih, autofill pagi biru, penalti keluar tetap abu-abu', () => {
+test('Sakit pagi: masuk siang nyata putih, pagi kosong biru, penalti keluar tetap abu-abu', () => {
   const { cells, styles } = calculate([...sickDay(), event('08', '15:30:00', 'Keluar', 'Auto Keluar Penalti (Potongan 90 Menit)')]);
-  assert.equal(cells[1], '08:00');
+  assert.equal(cells[1], '-');
   assert.match(styles[1], /background-color:#bfdbfe/);
   assert.equal(cells[3], '12:36:26');
   assert.match(styles[3], /background-color:#ffffff/);
@@ -137,6 +137,18 @@ test('Izin pagi dan masuk siang hari berjalan: pagi kosong hijau, masuk siang pu
   assert.match(styles[3], /background-color:#ffffff/);
   assert.equal(cells[4], '12:23:00 (Berjalan)');
   assert.equal(cells[5], '<strong>00:01:33</strong>');
+});
+
+test('Masuk pertama pukul 13:04 tanpa izin/sakit tampil di pagi dengan kuning terlambat', () => {
+  const { cells, styles, result } = calculate([
+    event('08', '13:04:51', 'Masuk', 'Terlambat Masuk'),
+    event('08', '17:34:28', 'Keluar')
+  ]);
+  assert.equal(cells[1], '13:04:51');
+  assert.equal(cells[3], '-');
+  assert.match(styles[1], /background:#fef08a/);
+  assert.equal(result.countTelatPagi, 1);
+  assert.equal(cells[9], '- Rp 0');
 });
 
 test('Kuota sakit habis: pagi tetap kosong biru, masuk siang nyata putih tanpa autofill pagi', () => {
