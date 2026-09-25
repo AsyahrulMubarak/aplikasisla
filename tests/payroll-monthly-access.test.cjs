@@ -155,6 +155,10 @@ test('outside-city dates are stored per month and return when an older month is 
   assert.match(slipHtml, /setTimeout\(\(\) => \{[\s\S]*simpanVariabelPayroll\(\{ otomatis: true \}\)[\s\S]*\}, 800\)/);
   assert.doesNotMatch(slipHtml, /LIBUR_NASIONAL_PAYROLL|isLiburNasional/);
   assert.match(slipHtml, /let isHariLibur = isAhad \|\| isLiburTambahan/);
+  assert.match(backend, /'Tanggal Libur Tambahan'/);
+  assert.match(backend, /liburTambahan: String\(data\[i\]\[colLiburTambahan\] \|\| ''\)/);
+  assert.match(backend, /sheet\.getRange\(barisTarget, colLiburTambahan \+ 1\)\.setValue\(liburTambahanBersih\)/);
+  assert.match(backend, /data\.diubahOleh, data\.liburTambahan\)/);
 });
 
 test('technician and past-month views use saved server dates, never an unsaved local draft', () => {
