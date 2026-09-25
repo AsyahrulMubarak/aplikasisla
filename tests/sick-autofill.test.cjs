@@ -200,3 +200,41 @@ test('Masuk pagi tambahan tidak menggantikan checkpoint masuk siang', () => {
   assert.equal(cells[1], '08:45:00');
   assert.equal(cells[3], '12:57:14');
 });
+
+test('Izin setelah masuk menutup sesi pada waktu izin dan hanya sel keluar yang hijau', () => {
+  const { cells, styles } = calculate([
+    event('08', '08:00:06', 'Masuk'),
+    event('08', '13:02:37', 'Izin')
+  ]);
+  assert.equal(cells[1], '08:00:06');
+  assert.equal(cells[2], '13:02:37');
+  assert.equal(cells[5], '<strong>05:02:31</strong>');
+  assert.doesNotMatch(styles[1], /#bbf7d0/);
+  assert.match(styles[2], /background-color:#bbf7d0/);
+  assert.equal(cells[9], '- Rp 0');
+});
+
+test('Sakit setelah masuk menutup sesi nyata dan tidak memberi autofill sehari penuh', () => {
+  const { cells, styles } = calculate([
+    event('08', '08:00:00', 'Masuk'),
+    event('08', '15:15:00', 'Sakit')
+  ]);
+  assert.equal(cells[1], '08:00:00');
+  assert.equal(cells[4], '15:15:00');
+  assert.equal(cells[5], '<strong>07:15:00</strong>');
+  assert.doesNotMatch(styles[1], /#bfdbfe/);
+  assert.match(styles[4], /background-color:#bfdbfe/);
+  assert.doesNotMatch(cells[5], /09:00:00/);
+});
+
+test('Keluar tambahan tanpa masuk kembali tidak menggantikan waktu izin sebagai penutup sesi', () => {
+  const { cells, styles } = calculate([
+    event('08', '08:00:06', 'Masuk'),
+    event('08', '13:02:37', 'Izin'),
+    event('08', '17:00:00', 'Keluar')
+  ]);
+  assert.equal(cells[2], '13:02:37');
+  assert.equal(cells[4], '-');
+  assert.match(styles[2], /background-color:#bbf7d0/);
+  assert.equal(cells[5], '<strong>05:02:31</strong>');
+});

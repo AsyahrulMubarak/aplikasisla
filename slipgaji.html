@@ -317,7 +317,7 @@
                         <input type="number" id="input-kasbon" placeholder="Contoh: 50000" value="0">
                     </div>
                     <div class="form-group">
-                        <label style="color:#0284c7;">✈️ Tgl Luar Kota (Pokok x2 & Koreksi Gratis)</label>
+                        <label style="color:#0284c7;">✈️ Tgl Luar Kota (Pokok & Lembur x2, Koreksi Gratis)</label>
                         <input type="text" id="input-luar-kota" placeholder="Contoh: 12, 13, 15" value="">
                         <small style="display:block; margin-top:6px; color:#64748b; line-height:1.4;">Koreksi absen pada tanggal ini tidak memakai kuota 7x bulanan.</small>
                     </div>
@@ -559,6 +559,7 @@
         let timerPemulihanPayroll_ = null;
         let komponenPayrollKotor_ = false;
         let tunjanganPayrollKotor_ = false;
+        const KUNCI_DRAF_LUAR_KOTA_ = 'sla-payroll-luar-kota-draft-v1';
 
         const PWA_WORKER_READY_TIMEOUT_MS_ = 5000;
 
@@ -858,6 +859,14 @@
             if (!target || !target.closest) return;
             if (target.closest('#div-komponen-variabel')) komponenPayrollKotor_ = true;
             if (target.closest('#dynamic-bonus-section')) tunjanganPayrollKotor_ = true;
+            if (target.id === 'input-luar-kota') simpanDrafLuarKotaAktif_();
+        });
+        document.addEventListener('change', event => {
+            const target = event.target;
+            if (!target || target.id !== 'input-luar-kota' || !penggunaBolehKelolaPayroll_()) return;
+            // Nilai Luar Kota merupakan aturan payroll, bukan sekadar filter tampilan.
+            // Simpan saat input selesai diedit agar tidak hilang ketika aplikasi ditutup.
+            simpanVariabelPayroll({ otomatis: true });
         });
         document.addEventListener('click', event => {
             const target = event.target;
@@ -866,6 +875,43 @@
 
         function normalisasiNamaPayroll(nama) {
             return String(nama || '').trim().toLowerCase();
+        }
+
+        function kunciDrafLuarKota_(periode, namaPegawai) {
+            return KUNCI_DRAF_LUAR_KOTA_ + ':' + String(periode || '').trim() + ':' + normalisasiNamaPayroll(namaPegawai);
+        }
+
+        function simpanDrafLuarKotaAktif_() {
+            try {
+                const periode = document.getElementById('pilih-bulan').value;
+                const namaPegawai = document.getElementById('pilih-pegawai').value;
+                if (!periode || !namaPegawai) return;
+                const dataServer = globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] || {};
+                localStorage.setItem(kunciDrafLuarKota_(periode, namaPegawai), JSON.stringify({
+                    nilai: document.getElementById('input-luar-kota').value || '',
+                    nilaiServer: String(dataServer.luarKota || ''),
+                    disimpanPada: Date.now()
+                }));
+            } catch (error) {
+                console.warn('Draf tanggal Luar Kota tidak dapat disimpan di perangkat:', error);
+            }
+        }
+
+        function ambilDrafLuarKota_(periode, namaPegawai, nilaiServer) {
+            try {
+                const raw = localStorage.getItem(kunciDrafLuarKota_(periode, namaPegawai));
+                if (!raw) return null;
+                const draf = JSON.parse(raw);
+                if (!draf || String(draf.nilaiServer || '') !== String(nilaiServer || '')) return null;
+                return String(draf.nilai || '');
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function hapusDrafLuarKota_(periode, namaPegawai) {
+            try { localStorage.removeItem(kunciDrafLuarKota_(periode, namaPegawai)); }
+            catch (error) { console.warn('Draf tanggal Luar Kota tidak dapat dibersihkan:', error); }
         }
 
         function cekKunciBulan() {
@@ -908,7 +954,20 @@
             let dataPayroll = globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] || {};
             document.getElementById('input-fee').value = parseFloat(dataPayroll.fee) || 0;
             document.getElementById('input-kasbon').value = parseFloat(dataPayroll.kasbon) || 0;
-            document.getElementById('input-luar-kota').value = dataPayroll.luarKota || '';
+            const nilaiServerLuarKota = String(dataPayroll.luarKota || '');
+            const periode = document.getElementById('pilih-bulan').value;
+            const drafLuarKota = ambilDrafLuarKota_(periode, namaPegawai, nilaiServerLuarKota);
+            document.getElementById('input-luar-kota').value = drafLuarKota === null ? nilaiServerLuarKota : drafLuarKota;
+            if (drafLuarKota !== null && drafLuarKota !== nilaiServerLuarKota) {
+                komponenPayrollKotor_ = true;
+                // Pulihkan draf yang belum sempat mencapai server saat aplikasi ditutup.
+                setTimeout(() => {
+                    if (document.getElementById('pilih-bulan').value === periode &&
+                        normalisasiNamaPayroll(document.getElementById('pilih-pegawai').value) === normalisasiNamaPayroll(namaPegawai)) {
+                        simpanVariabelPayroll({ otomatis: true, pemulihanDraf: true });
+                    }
+                }, 0);
+            }
         }
 
         function simpanVariabelPayrollTermuat_(dataPayroll, periode) {
@@ -1030,16 +1089,23 @@
             return hasil;
         }
 
-        async function simpanVariabelPayroll() {
+        async function simpanVariabelPayroll(opsi = {}) {
+            const otomatis = !!opsi.otomatis;
             let namaPegawai = document.getElementById('pilih-pegawai').value;
             let periode = document.getElementById('pilih-bulan').value;
-            if (!namaPegawai || !periode) { showToast('Pilih pegawai dan periode terlebih dahulu.', 'warning'); return; }
-            if (cekKunciBulan()) { showToast('Periode lampau telah dikunci dan tidak dapat diubah.', 'warning'); return; }
-            if (periodePayrollTermuat !== periode) { showToast('Data periode belum selesai dimuat. Silakan coba lagi.', 'warning'); return; }
+            if (!namaPegawai || !periode) { if (!otomatis) showToast('Pilih pegawai dan periode terlebih dahulu.', 'warning'); return false; }
+            if (cekKunciBulan()) { if (!otomatis) showToast('Periode lampau telah dikunci dan tidak dapat diubah.', 'warning'); return false; }
+            if (periodePayrollTermuat !== periode) { if (!otomatis) showToast('Data periode belum selesai dimuat. Silakan coba lagi.', 'warning'); return false; }
+
+            const nilaiForm = {
+                fee: document.getElementById('input-fee').value,
+                kasbon: document.getElementById('input-kasbon').value,
+                luarKota: document.getElementById('input-luar-kota').value
+            };
 
             let btn = document.getElementById('btn-simpan-variabel');
             btn.disabled = true;
-            btn.innerText = 'Menyimpan...';
+            btn.innerText = otomatis ? 'Menyimpan otomatis...' : 'Menyimpan...';
             try {
                 await pastikanTokenSupabaseAktif_();
                 const res = await fetch(apiUrl, {
@@ -1047,9 +1113,9 @@
                     body: JSON.stringify(payloadSesiSlip('simpanVariabelPayroll', {
                         periode: periode,
                         namaPegawai: namaPegawai,
-                        fee: document.getElementById('input-fee').value,
-                        kasbon: document.getElementById('input-kasbon').value,
-                        luarKota: document.getElementById('input-luar-kota').value,
+                        fee: nilaiForm.fee,
+                        kasbon: nilaiForm.kasbon,
+                        luarKota: nilaiForm.luarKota,
                         diubahOleh: penggunaAktif['Nama Asli'] || penggunaAktif.Username || '-'
                     }))
                 });
@@ -1058,19 +1124,27 @@
 
                 globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] = json.data;
                 periodePayrollTermuat = periode;
-                terapkanVariabelPayrollKeForm(namaPegawai);
+                hapusDrafLuarKota_(periode, namaPegawai);
+                const formMasihSama = document.getElementById('pilih-bulan').value === periode &&
+                    normalisasiNamaPayroll(document.getElementById('pilih-pegawai').value) === normalisasiNamaPayroll(namaPegawai) &&
+                    String(document.getElementById('input-luar-kota').value || '') === String(nilaiForm.luarKota || '');
+                if (formMasihSama) terapkanVariabelPayrollKeForm(namaPegawai);
                 try {
                     await sinkronkanPengecualianKoreksiLuarKota_([json.data], periode);
                 } catch (errorSinkron) {
-                    komponenPayrollKotor_ = false;
+                    if (formMasihSama) komponenPayrollKotor_ = false;
                     showToast('Komponen payroll sudah tersimpan, tetapi pengecualian kuota koreksi belum tersinkron. Tekan Simpan Komponen Bulanan sekali lagi.', 'warning');
                     console.warn('Sinkronisasi kuota koreksi gagal setelah payroll tersimpan:', errorSinkron);
-                    return;
+                    return true;
                 }
-                komponenPayrollKotor_ = false;
-                showToast('Alhamdulillah! Komponen payroll tersimpan dan tanggal Luar Kota sudah dikecualikan dari kuota koreksi.', 'success');
+                if (formMasihSama) komponenPayrollKotor_ = false;
+                showToast(otomatis
+                    ? 'Tanggal Luar Kota tersimpan otomatis dan tidak akan hilang saat aplikasi ditutup.'
+                    : 'Alhamdulillah! Komponen payroll tersimpan dan tanggal Luar Kota sudah dikecualikan dari kuota koreksi.', 'success');
+                return true;
             } catch (err) {
-                showToast('Afwan, gagal menyimpan komponen payroll: ' + err.message, 'error');
+                if (!otomatis || opsi.pemulihanDraf) showToast('Afwan, gagal menyimpan komponen payroll: ' + err.message, 'error');
+                return false;
             } finally {
                 btn.innerText = '💾 Simpan Komponen Bulanan';
                 cekKunciBulan();
@@ -1638,6 +1712,21 @@
                     const tipe = String(e['Tipe Absen'] || '');
                     return /Keluar|Pulang/.test(tipe) && !String(e['Status Disiplin'] || '').includes('Auto Keluar');
                 });
+                const eventsUrutUntukStatus = [...events].sort((a,b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen']));
+                let sesiTerbukaSebelumStatus = false;
+                const eventPenutupIzinSakit = eventsUrutUntukStatus.find(event => {
+                    const tipe = String(event['Tipe Absen'] || '');
+                    if (tipe.includes('Masuk')) {
+                        sesiTerbukaSebelumStatus = true;
+                        return false;
+                    }
+                    if (/Keluar|Pulang/.test(tipe)) {
+                        sesiTerbukaSebelumStatus = false;
+                        return false;
+                    }
+                    return sesiTerbukaSebelumStatus && /Sakit|Izin/.test(tipe);
+                }) || null;
+                const statusMenutupSesiFisik = !!eventPenutupIzinSakit;
 
                 // Izin dihitung satu kali per hari kerja untuk evaluasi kedisiplinan.
                 if (isIzinExplicit && !isAhad && !isFutureDate) countIzin++;
@@ -1662,10 +1751,11 @@
                 let potonganIstirahatHariIniDetik = 0;
 
                 if (!isAhad && !isFutureDate && isSakitExplicit) {
-                    if (kuotaSakitTerpakai < 3) {
-                        applySakitFull = true; kuotaSakitTerpakai++;
-                    } else {
-                        applySakitKosong = true; kuotaSakitTerpakai++;
+                    const kuotaSakitTersedia = kuotaSakitTerpakai < 3;
+                    kuotaSakitTerpakai++;
+                    if (!statusMenutupSesiFisik) {
+                        if (kuotaSakitTersedia) applySakitFull = true;
+                        else applySakitKosong = true;
                     }
                 }
 
@@ -1779,6 +1869,7 @@
                     let detikMasukSetelahIstirahat = null;
                     let detikKeluarTerakhir = null;
                     let detikSesiTerbuka = null;
+                    let sesiDitutupStatus = false;
                     let potonganCheckpointIstirahatDetik = 0;
                     let potonganIstirahatTerekamDetik = 0;
                     const batasMasukSetelahIstirahatDetik = (13 * 60 + 30) * 60;
@@ -1849,7 +1940,29 @@
                                 }
                             }
                             if (!sesiSudahTerbuka) detikSesiTerbuka = detikEvent;
+                        } else if (/Sakit|Izin/.test(tipe) && detikSesiTerbuka !== null && detikEvent > detikSesiTerbuka) {
+                            const labelStatus = tipe.includes('Sakit') ? 'Sakit' : 'Izin';
+                            const warnaStatus = labelStatus === 'Sakit'
+                                ? 'background-color:#bfdbfe; color:#1e3a8a;'
+                                : 'background-color:#bbf7d0; color:#166534;';
+                            if (jamFloat <= 14.0) {
+                                klr1 = jamStr;
+                                bgK1 = warnaStatus;
+                            } else {
+                                klr2 = jamStr;
+                                bgK2 = warnaStatus;
+                            }
+                            sesiKerjaHariIni.push({ mulai: detikSesiTerbuka, selesai: detikEvent });
+                            detikSesiTerbuka = null;
+                            sesiDitutupStatus = true;
+                            adaKeluar = true;
+                            if (detikKeluarTerakhir === null || detikEvent > detikKeluarTerakhir) detikKeluarTerakhir = detikEvent;
+                            ketList.push(labelStatus + ' digunakan sebagai absen keluar: ' + jamStr);
                         } else if (tipe.includes("Keluar") || tipe.includes("Pulang")) {
+                            if (detikSesiTerbuka === null && sesiDitutupStatus) {
+                                ketList.push('Keluar setelah status izin/sakit diabaikan: ' + jamStr);
+                                return;
+                            }
                             if (jamFloat <= 14.0) {
                                 klr1 = jamStr;
                                 if (isKoreksi) bgK1 = warnaKoreksiHariIni;
@@ -1966,11 +2079,15 @@
 
                     // 2. Terapkan Penggandaan Luar Kota JIKA ADA
                     if (isPokok2x) {
-                        // Bonus Luar Kota = Sejumlah Upah Bersih (sehingga totalnya x2)
-                        let bonusLuarKota = upahBersihHariIni;
+                        // Gandakan komponen upah pokok dan lembur secara eksplisit.
+                        // Potongan tetap diterapkan satu kali sesuai pelanggaran nyata.
+                        const bonusPokokLuarKota = upahRegulerHariIni;
+                        const bonusLemburLuarKota = lemHariIni;
+                        const bonusLuarKota = bonusPokokLuarKota + bonusLemburLuarKota;
                         lemHariIni += bonusLuarKota; // Masukkan ke wadah lembur agar ditambahkan ke Total Gaji Akhir
                         upahBersihHariIni += bonusLuarKota; // Perbarui upah bersih hari ini untuk ditampilkan di tabel
-                        ketList.push("Pokok x2 (+ " + formatRp(bonusLuarKota) + ")");
+                        ketList.push("Pokok &amp; lembur x2 (Pokok + " + formatRp(bonusPokokLuarKota) +
+                            ", lembur + " + formatRp(bonusLemburLuarKota) + ")");
                     }
 
                     upahHariIniStr = formatRp(upahBersihHariIni);
@@ -2006,9 +2123,9 @@
                 if (!isAhad) {
                     if (isAlpa) {
                         bgWaktuKhusus = "background-color:#1e293b; color:#ffffff;"; // Hitam, teks putih.
-                    } else if (isSakitExplicit) {
+                    } else if (isSakitExplicit && !statusMenutupSesiFisik) {
                         bgWaktuKhusus = "background-color:#bfdbfe; color:#1e3a8a;"; // Biru.
-                    } else if (isIzinExplicit) {
+                    } else if (isIzinExplicit && !statusMenutupSesiFisik) {
                         bgWaktuKhusus = "background-color:#bbf7d0; color:#166534;"; // Hijau.
                     }
                 }

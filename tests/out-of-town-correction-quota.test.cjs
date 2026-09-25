@@ -70,7 +70,7 @@ function backendHarness() {
 }
 
 test('payroll marks outside-city dates as free attendance corrections', () => {
-  assert.match(slipHtml, /Tgl Luar Kota \(Pokok x2 & Koreksi Gratis\)/);
+  assert.match(slipHtml, /Tgl Luar Kota \(Pokok & Lembur x2, Koreksi Gratis\)/);
   assert.match(slipHtml, /payloadSesiSlip\('syncPengecualianKoreksiLuarKota'/);
   assert.match(slipHtml, /koreksi pada tanggal Luar Kota tidak memakai kuota/i);
   if (fullBackend) {
@@ -107,6 +107,15 @@ test('manual corrections on outside-city dates do not consume the normal seven-u
 
   const records = [row(12), row(15), row(1), row(2), row(3), row(4), row(5), row(6), row(7)];
   assert.equal(records.filter(record => context.koreksiMengurangiKuota_(record, '2026-09', outsideDays)).length, 7);
+});
+
+test('outside-city dates are saved automatically and an interrupted save keeps a local draft', () => {
+  assert.match(slipHtml, /target\.id === 'input-luar-kota'.*simpanDrafLuarKotaAktif_/s);
+  assert.match(slipHtml, /target\.id !== 'input-luar-kota'.*simpanVariabelPayroll\(\{ otomatis: true \}\)/s);
+  assert.match(slipHtml, /localStorage\.setItem\(kunciDrafLuarKota_/);
+  assert.match(slipHtml, /ambilDrafLuarKota_\(periode, namaPegawai, nilaiServerLuarKota\)/);
+  assert.match(slipHtml, /hapusDrafLuarKota_\(periode, namaPegawai\)/);
+  assert.match(slipHtml, /Tanggal Luar Kota tersimpan otomatis dan tidak akan hilang saat aplikasi ditutup/);
 });
 
 test('free outside-city corrections are white while quota corrections remain pink', () => {
