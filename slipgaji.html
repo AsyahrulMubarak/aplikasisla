@@ -566,6 +566,7 @@
         let komponenPayrollKotor_ = false;
         let tunjanganPayrollKotor_ = false;
         let timerSimpanLuarKota_ = null;
+        let janjiSimpanVariabelPayroll_ = null;
         const KUNCI_DRAF_LUAR_KOTA_ = 'sla-payroll-luar-kota-draft-v1';
         const KUNCI_DRAF_LIBUR_TAMBAHAN_ = 'sla-payroll-libur-tambahan-draft-v1';
         const KUNCI_DRAF_FEE_ = 'sla-payroll-fee-draft-v1';
@@ -1149,6 +1150,22 @@
         }
 
         async function simpanVariabelPayroll(opsi = {}) {
+            const periodeDiminta = document.getElementById('pilih-bulan').value;
+            const namaDiminta = normalisasiNamaPayroll(document.getElementById('pilih-pegawai').value);
+            while (janjiSimpanVariabelPayroll_) {
+                try { await janjiSimpanVariabelPayroll_; } catch (_) { /* percobaan berikutnya tetap boleh */ }
+                if (document.getElementById('pilih-bulan').value !== periodeDiminta ||
+                    normalisasiNamaPayroll(document.getElementById('pilih-pegawai').value) !== namaDiminta) return false;
+            }
+            const pekerjaan = jalankanSimpanVariabelPayroll_(opsi);
+            janjiSimpanVariabelPayroll_ = pekerjaan;
+            try { return await pekerjaan; }
+            finally {
+                if (janjiSimpanVariabelPayroll_ === pekerjaan) janjiSimpanVariabelPayroll_ = null;
+            }
+        }
+
+        async function jalankanSimpanVariabelPayroll_(opsi = {}) {
             const otomatis = !!opsi.otomatis;
             if (!penggunaBolehKelolaPayroll_()) {
                 if (!otomatis) showToast('Komponen payroll hanya dapat diubah oleh Manajemen.', 'warning');
@@ -1187,10 +1204,14 @@
                 const json = await res.json();
                 if (json.status !== 'sukses') throw new Error(json.pesan || 'Penyimpanan gagal.');
 
-                globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] = json.data;
-                periodePayrollTermuat = periode;
-                const formMasihSama = document.getElementById('pilih-bulan').value === periode &&
-                    normalisasiNamaPayroll(document.getElementById('pilih-pegawai').value) === normalisasiNamaPayroll(namaPegawai) &&
+                const periodeMasihSama = document.getElementById('pilih-bulan').value === periode;
+                if (periodeMasihSama) {
+                    globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] = json.data;
+                    periodePayrollTermuat = periode;
+                }
+                const pegawaiMasihSama = periodeMasihSama &&
+                    normalisasiNamaPayroll(document.getElementById('pilih-pegawai').value) === normalisasiNamaPayroll(namaPegawai);
+                const formMasihSama = pegawaiMasihSama &&
                     String(document.getElementById('input-fee').value || '') === String(nilaiForm.fee || '') &&
                     String(document.getElementById('input-kasbon').value || '') === String(nilaiForm.kasbon || '') &&
                     String(document.getElementById('input-luar-kota').value || '') === String(nilaiForm.luarKota || '') &&
@@ -1201,6 +1222,12 @@
                     hapusDrafTanggalPayroll_('input-luar-kota', periode, namaPegawai);
                     hapusDrafTanggalPayroll_('input-libur-tambahan', periode, namaPegawai);
                     terapkanVariabelPayrollKeForm(namaPegawai);
+                } else if (pegawaiMasihSama) {
+                    // Respons lama tiba saat manajemen masih mengetik. Sesuaikan
+                    // dasar draf dengan nilai Supabase terbaru lalu simpan lagi.
+                    ['input-fee', 'input-kasbon', 'input-luar-kota', 'input-libur-tambahan']
+                        .forEach(simpanDrafTanggalPayrollAktif_);
+                    jadwalkanSimpanLuarKota_();
                 }
                 try {
                     await sinkronkanPengecualianKoreksiLuarKota_([json.data], periode);
