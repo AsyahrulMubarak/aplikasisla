@@ -119,8 +119,25 @@
 
         .mobile-payroll-bar, .mobile-swipe-hint { display: none; }
 
+        .slip-floating-scroll {
+            display: none;
+            position: fixed;
+            bottom: 10px;
+            z-index: 9997;
+            height: 20px;
+            overflow-x: scroll;
+            overflow-y: hidden;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: rgba(248, 250, 252, 0.97);
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+            scrollbar-color: #64748b #e2e8f0;
+        }
+        .slip-floating-scroll.is-visible { display: block; }
+        .slip-floating-scroll-content { height: 1px; pointer-events: none; }
+
         @media print {
-            .control-panel, .btn-print, .segment-control, .mobile-payroll-bar, .mobile-swipe-hint { display: none !important; }
+            .control-panel, .btn-print, .segment-control, .mobile-payroll-bar, .mobile-swipe-hint, .slip-floating-scroll { display: none !important; }
             body { background: white; padding: 0; }
             .card { box-shadow: none; border: none; padding: 0; }
             .attendance-scroll { overflow: visible !important; white-space: normal !important; }
@@ -511,6 +528,10 @@
             </div>
             </div>
         </div>
+    </div>
+
+    <div id="slip-floating-scroll" class="slip-floating-scroll" role="region" aria-label="Geser tabel slip gaji ke kiri atau kanan" tabindex="0">
+        <div id="slip-floating-scroll-content" class="slip-floating-scroll-content"></div>
     </div>
 
     <div class="mobile-payroll-bar" id="mobile-payroll-bar" role="region" aria-label="Aksi slip gaji">
@@ -1350,6 +1371,7 @@
             
             document.getElementById('area-slip').style.display = 'none';
             document.getElementById('area-dashboard').style.display = 'none';
+            document.getElementById('slip-floating-scroll').classList.remove('is-visible');
             
             if (tabId === 'slip') {
                 document.getElementById('div-pilih-pegawai').style.display = 'block';
@@ -2415,6 +2437,7 @@
 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('area-slip').style.display = 'none';
+            document.getElementById('slip-floating-scroll').classList.remove('is-visible');
 
             let data = kalkulasiGajiPegawai(namaTarget, bulanTahun, hk, true);
 
@@ -2482,7 +2505,55 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('area-slip').style.display = 'block';
             document.getElementById('mobile-payroll-bar').classList.add('is-visible');
+            requestAnimationFrame(perbaruiScrollbarSlip_);
         }
+
+        function perbaruiScrollbarSlip_() {
+            const sumber = document.querySelector('.attendance-scroll');
+            const penggeser = document.getElementById('slip-floating-scroll');
+            const isi = document.getElementById('slip-floating-scroll-content');
+            const area = document.getElementById('area-slip');
+            if (!sumber || !penggeser || !isi || !area || getComputedStyle(area).display === 'none') {
+                if (penggeser) penggeser.classList.remove('is-visible');
+                return;
+            }
+            const barBawah = document.getElementById('mobile-payroll-bar');
+            const tinggiBarBawah = barBawah && getComputedStyle(barBawah).position === 'fixed' &&
+                getComputedStyle(barBawah).display !== 'none' ? barBawah.getBoundingClientRect().height : 0;
+            const jarakBawah = tinggiBarBawah + 8;
+            const batasLayar = window.innerHeight - jarakBawah;
+            const posisiTabel = sumber.getBoundingClientRect();
+            const lebarTerlihat = Math.max(0, Math.min(window.innerWidth, posisiTabel.right) - Math.max(0, posisiTabel.left));
+            const perluPenggeser = sumber.scrollWidth > sumber.clientWidth + 1 && lebarTerlihat > 60 &&
+                posisiTabel.top < batasLayar - 20 && posisiTabel.bottom > batasLayar + 1;
+            penggeser.classList.toggle('is-visible', perluPenggeser);
+            if (!perluPenggeser) return;
+            penggeser.style.left = Math.max(0, posisiTabel.left) + 'px';
+            penggeser.style.width = lebarTerlihat + 'px';
+            penggeser.style.bottom = jarakBawah + 'px';
+            isi.style.width = sumber.scrollWidth + 'px';
+            if (Math.abs(penggeser.scrollLeft - sumber.scrollLeft) > 1) penggeser.scrollLeft = sumber.scrollLeft;
+        }
+
+        function siapkanScrollbarSlip_() {
+            const sumber = document.querySelector('.attendance-scroll');
+            const penggeser = document.getElementById('slip-floating-scroll');
+            if (!sumber || !penggeser) return;
+            sumber.addEventListener('scroll', () => {
+                if (Math.abs(penggeser.scrollLeft - sumber.scrollLeft) > 1) penggeser.scrollLeft = sumber.scrollLeft;
+            }, { passive: true });
+            penggeser.addEventListener('scroll', () => {
+                if (Math.abs(sumber.scrollLeft - penggeser.scrollLeft) > 1) sumber.scrollLeft = penggeser.scrollLeft;
+            }, { passive: true });
+            window.addEventListener('scroll', perbaruiScrollbarSlip_, { passive: true });
+            window.addEventListener('resize', perbaruiScrollbarSlip_);
+            if (window.ResizeObserver) {
+                const pengamat = new ResizeObserver(perbaruiScrollbarSlip_);
+                pengamat.observe(sumber);
+                pengamat.observe(sumber.querySelector('table'));
+            }
+        }
+        siapkanScrollbarSlip_();
 
         function generateDashboardRekap() {
             let bulanTahun = document.getElementById('pilih-bulan').value;
