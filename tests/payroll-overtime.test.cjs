@@ -115,6 +115,26 @@ test('Checkpoint istirahat tidak memulai ulang kuota; potongan telat siang tetap
   assert.ok(Math.abs((r.totalPotongan - onTime.totalPotongan) - 10000 / 3600) < 0.000001);
 });
 
+test('Kolom upah harian mengurangi potongan hari itu sebelum lembur tanpa menghitungnya dua kali', () => {
+  const r = calculate([event('08:00:00', 'Masuk'), event('13:30:01', 'Masuk Setelah Istirahat'),
+    event('18:00:00', 'Keluar')]);
+  const onTime = calculate([event('08:00:00', 'Masuk'), event('13:30:00', 'Masuk Setelah Istirahat'),
+    event('18:00:00', 'Keluar')]);
+  const row = [...r.barisHTML.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)]
+    .find(match => match[1].includes('08/09/2026'))?.[1];
+  assert.ok(row);
+  const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)]
+    .map(match => match[1].replace(/<[^>]+>/g, '').trim());
+  assert.equal(cells[6], 'Rp 89997');
+  assert.match(cells[8], /Rp 5000/);
+  assert.equal(cells[9], '- Rp 3');
+  assert.equal(r.totalUpahHadir, 90000);
+  assert.ok(Math.abs((r.totalPotongan - onTime.totalPotongan) - 10000 / 3600) < 0.000001);
+  assert.equal(r.totalLembur, 5000);
+  assert.ok(Math.abs((onTime.totalBersih - r.totalBersih) - 10000 / 3600) < 0.000001);
+  assert.match(html, /Upah Harian Setelah Potongan/);
+});
+
 test('Durasi reguler dan lembur mempertahankan detik absensi', () => {
   const reguler = calculate([event('08:16:02', 'Masuk'), event('17:14:41', 'Keluar')]);
   assert.ok(Math.abs(reguler.totalUpahHadir - 32319 * 10000 / 3600) < 0.000001);

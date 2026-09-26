@@ -65,7 +65,7 @@ test('Auto keluar penalti tetap mengurangi 90 menit pada hari sakit, dengan sel 
   assert.equal(cells[1], '-');
   assert.equal(cells[4], '15:30:00');
   assert.equal(cells[5], '<strong>07:30:00</strong>');
-  assert.equal(cells[6], 'Rp 38462');
+  assert.equal(cells[6], 'Rp 32051'); // Upah harian sudah dikurangi potongan Rp 6410, tanpa lembur.
   assert.equal(cells[9], '- Rp 6410');
   assert.match(row, /background-color:#bfdbfe[^>]*>-/);
   assert.match(row, /background:#e2e8f0[^>]*>15:30:00/);

@@ -375,7 +375,7 @@
                                 <th>Msk 2 (Siang)</th>
                                 <th>Klr 2 (Sore)</th>
                                 <th>Total Jam</th>
-                                <th>Upah Harian</th>
+                                <th title="Upah pokok harian dikurangi potongan hari itu, sebelum lembur">Upah Harian Setelah Potongan</th>
                                 <th>Status / Ket</th>
                                 <th>Lembur</th>
                                 <th>Potongan</th>
@@ -396,7 +396,7 @@
 
                 <div class="summary-box slip-summary">
                     <div class="sum-card">
-                        <div class="sum-title">Upah Kehadiran (Prasarat)</div>
+                        <div class="sum-title">Upah Kehadiran (Sebelum Potongan)</div>
                         <div class="sum-val" id="sum-hadir">Rp 0</div>
                         <div style="font-size:10px; color:#64748b; margin-top:5px;">Hadir: <span id="count-hadir">0</span> / <span id="count-wajib">0</span> Hari</div>
                     </div>
@@ -2252,12 +2252,12 @@
                 let txtJam = totalDetikKerjaHariIni > 0 ? formatDurasiDetikPayroll(totalDetikKerjaHariIni) : "-";
                 let upahHariIniStr = "-";
                 if (isHadir) {
-                    // Kolom ini dan total upah hadir hanya memuat upah harian pokok.
-                    // Lembur dan potongan masing-masing dicatat pada kolomnya sendiri.
+                    // Total upah hadir tetap bruto untuk ringkasan. Kolom harian
+                    // menampilkan upah pokok setelah potongan hari ini, sebelum lembur.
                     const pokokHarianX2 = isPokok2x || isHariLibur;
                     const upahPokokHarianDibayar = upahRegulerHariIni * (pokokHarianX2 ? 2 : 1);
                     totalUpahHadir += upahPokokHarianDibayar;
-                    upahHariIniStr = formatRp(upahPokokHarianDibayar);
+                    upahHariIniStr = formatRp(upahPokokHarianDibayar - potHariIni);
 
                     if (pokokHarianX2) {
                         const alasanX2 = [];
