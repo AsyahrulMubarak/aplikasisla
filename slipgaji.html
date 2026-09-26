@@ -117,7 +117,7 @@
             box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.3);
         }
 
-        .mobile-payroll-bar, .mobile-swipe-hint { display: none; }
+        .mobile-payroll-bar, .mobile-swipe-hint, .mobile-card-hint, .mobile-attendance-list { display: none; }
 
         .slip-floating-scroll {
             display: none;
@@ -137,14 +137,14 @@
         .slip-floating-scroll-content { height: 1px; pointer-events: none; }
 
         @media print {
-            .control-panel, .btn-print, .segment-control, .mobile-payroll-bar, .mobile-swipe-hint, .slip-floating-scroll { display: none !important; }
+            .control-panel, .btn-print, .segment-control, .mobile-payroll-bar, .mobile-swipe-hint, .mobile-card-hint, .mobile-attendance-list, .slip-floating-scroll { display: none !important; }
             body { background: white; padding: 0; }
             .card { box-shadow: none; border: none; padding: 0; }
             .attendance-scroll { overflow: visible !important; white-space: normal !important; }
             .attendance-table th:first-child, .attendance-table td:first-child { position: static !important; box-shadow: none !important; }
         }
 
-        @media (max-width: 768px) {
+        @media screen and (max-width: 768px) {
             body { padding: 0 0 calc(86px + env(safe-area-inset-bottom)); }
             .container { padding: 10px; }
             .card { padding: 14px; border-radius: 14px; margin-bottom: 8px; }
@@ -242,6 +242,84 @@
                 font-size: 11px;
                 font-weight: 600;
             }
+            .slip-attendance.mobile-cards-ready .attendance-scroll,
+            .slip-attendance.mobile-cards-ready .mobile-swipe-hint,
+            .slip-floating-scroll { display: none !important; }
+            .slip-attendance.mobile-cards-ready .mobile-card-hint {
+                display: block;
+                margin: 0 0 10px;
+                color: var(--text-muted);
+                font-size: 12px;
+            }
+            .slip-attendance.mobile-cards-ready .mobile-attendance-list {
+                display: grid;
+                gap: 8px;
+            }
+            .attendance-day-card {
+                min-width: 0;
+                overflow: hidden;
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                background: #fff;
+                box-shadow: 0 2px 5px rgba(15, 23, 42, .04);
+            }
+            .attendance-day-card > summary {
+                position: relative;
+                display: block;
+                min-height: 72px;
+                padding: 11px 36px 11px 13px;
+                box-sizing: border-box;
+                cursor: pointer;
+                list-style: none;
+            }
+            .attendance-day-card > summary::-webkit-details-marker { display: none; }
+            .attendance-day-card > summary::after {
+                content: '⌄';
+                position: absolute;
+                top: 10px;
+                right: 13px;
+                color: #475569;
+                font-size: 23px;
+                line-height: 1;
+                transition: transform .15s ease;
+            }
+            .attendance-day-card[open] > summary::after { transform: rotate(180deg); }
+            .attendance-day-card > summary:focus-visible { outline: 3px solid #2563eb; outline-offset: -3px; }
+            .mobile-card-date { display: block; font-size: 13px; font-weight: 800; line-height: 1.4; }
+            .mobile-card-overview {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                gap: 3px 12px;
+                align-items: baseline;
+                margin-top: 6px;
+            }
+            .mobile-card-times { color: #475569; font-size: 12px; font-variant-numeric: tabular-nums; }
+            .mobile-card-wage { color: #0f766e; font-size: 13px; font-weight: 800; white-space: nowrap; }
+            .mobile-card-detail {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+                padding: 12px;
+                border-top: 1px solid var(--border);
+            }
+            .mobile-card-field { min-width: 0; }
+            .mobile-card-field.is-wide { grid-column: 1 / -1; }
+            .mobile-card-label { display: block; margin-bottom: 4px; color: #475569; font-size: 11px; font-weight: 700; }
+            .mobile-card-value {
+                min-height: 36px;
+                padding: 9px;
+                box-sizing: border-box;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                font-size: 12px;
+                line-height: 1.4;
+                overflow-wrap: anywhere;
+                font-variant-numeric: tabular-nums;
+            }
+            .mobile-card-field.is-time .mobile-card-value { font-weight: 700; text-align: center; }
+            .mobile-card-field.is-status .mobile-card-value { background: #f8fafc; }
+            .mobile-card-field.is-status a { max-width: 100%; box-sizing: border-box; }
             .slip-rules { margin-top: 18px !important; }
 
             .mobile-payroll-bar.is-visible {
@@ -382,6 +460,8 @@
 
                 <div class="slip-attendance">
                     <div class="mobile-swipe-hint" aria-hidden="true">↔ Geser tabel untuk melihat rincian jam dan potongan</div>
+                    <div class="mobile-card-hint">Ketuk tanggal untuk rincian. Angka hijau adalah upah harian setelah potongan, sebelum lembur.</div>
+                    <div id="mobile-attendance-list" class="mobile-attendance-list" aria-label="Rincian kehadiran per tanggal"></div>
                     <div class="attendance-scroll" style="overflow-x: auto; white-space: nowrap; width: 100%; border: 1px solid var(--border); border-radius: 8px;">
                     <table class="attendance-table" style="margin-top:0; border:none;">
                         <thead>
@@ -2425,6 +2505,78 @@
             return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalPoinSla, totalTunjanganTetap, feeMarketing, kasbon, luarKota: variabelPayroll.luarKota, arrayTunjangan, dendaDisiplin, countTelatPagi, countIzin, countAlpa, totalBersih, barisHTML };
         }
 
+        function buatKartuAbsensiMobile_() {
+            const sumber = document.getElementById('tabel-absen');
+            const daftar = document.getElementById('mobile-attendance-list');
+            const area = document.querySelector('.slip-attendance');
+            if (!sumber || !daftar || !area) return;
+
+            const potongan = document.createDocumentFragment();
+            const rincian = [
+                ['Masuk pagi', 1, true], ['Keluar jeda', 2, true],
+                ['Masuk siang', 3, true], ['Keluar sore', 4, true],
+                ['Total jam', 5], ['Upah harian setelah potongan', 6],
+                ['Lembur', 8], ['Potongan', 9], ['Status / keterangan', 7, false, true]
+            ];
+            let jumlahKartu = 0;
+            for (const baris of sumber.rows) {
+                const kolom = baris.cells;
+                if (kolom.length < 10) continue;
+                const kartu = document.createElement('details');
+                kartu.className = 'attendance-day-card';
+                if (baris.style.color) kartu.style.color = baris.style.color;
+                const warnaWaktu = [1, 2, 3, 4].map(indeks => kolom[indeks].style.backgroundColor)
+                    .find(warna => warna && warna !== 'rgb(255, 255, 255)');
+                const warnaPenanda = warnaWaktu || (baris.style.color ? baris.style.backgroundColor : '');
+                if (warnaPenanda) {
+                    kartu.style.borderLeftWidth = '4px';
+                    kartu.style.borderLeftColor = warnaPenanda;
+                }
+
+                const ringkasan = document.createElement('summary');
+                if (baris.style.backgroundColor) ringkasan.style.backgroundColor = baris.style.backgroundColor;
+                const tanggal = document.createElement('span');
+                tanggal.className = 'mobile-card-date';
+                tanggal.textContent = kolom[0].textContent.trim();
+                const gambaran = document.createElement('span');
+                gambaran.className = 'mobile-card-overview';
+                const jam = document.createElement('span');
+                jam.className = 'mobile-card-times';
+                jam.textContent = (kolom[1].textContent.trim() || '–') + ' → ' + (kolom[4].textContent.trim() || '–');
+                const upah = document.createElement('span');
+                upah.className = 'mobile-card-wage';
+                upah.textContent = kolom[6].textContent.trim() || '–';
+                gambaran.append(jam, upah);
+                ringkasan.append(tanggal, gambaran);
+
+                const isi = document.createElement('div');
+                isi.className = 'mobile-card-detail';
+                for (const [label, indeks, waktu, lebar] of rincian) {
+                    const bidang = document.createElement('div');
+                    bidang.className = 'mobile-card-field' + (waktu ? ' is-time' : '') + (lebar ? ' is-wide is-status' : '');
+                    const nama = document.createElement('span');
+                    nama.className = 'mobile-card-label';
+                    nama.textContent = label;
+                    const nilai = document.createElement('div');
+                    nilai.className = 'mobile-card-value';
+                    const sumberNilai = kolom[indeks];
+                    for (const anak of sumberNilai.childNodes) nilai.appendChild(anak.cloneNode(true));
+                    if (waktu) {
+                        nilai.style.backgroundColor = sumberNilai.style.backgroundColor ||
+                            (baris.style.color ? baris.style.backgroundColor : '');
+                    }
+                    if (sumberNilai.style.color) nilai.style.color = sumberNilai.style.color;
+                    bidang.append(nama, nilai);
+                    isi.appendChild(bidang);
+                }
+                kartu.append(ringkasan, isi);
+                potongan.appendChild(kartu);
+                jumlahKartu++;
+            }
+            daftar.replaceChildren(potongan);
+            area.classList.toggle('mobile-cards-ready', jumlahKartu > 0);
+        }
+
         function generateSlipIndividu() {
             let namaTarget = document.getElementById('pilih-pegawai').value;
             let bulanTahun = document.getElementById('pilih-bulan').value;
@@ -2450,6 +2602,7 @@
             }
             
             document.getElementById('tabel-absen').innerHTML = data.barisHTML;
+            buatKartuAbsensiMobile_();
             document.getElementById('sum-hadir').innerText = formatRp(data.totalUpahHadir);
             document.getElementById('count-hadir').innerText = data.countKehadiran;
             document.getElementById('count-wajib').innerText = hk;
