@@ -4247,17 +4247,19 @@
 
         const KPI_APP_URL = 'https://alfacomapp.github.io/alfacom-kpi/';
         const KPI_APP_ORIGIN = 'https://alfacomapp.github.io';
-        const KPI_WORKER_URL = 'https://alfacom-kpi.alfacomapp.workers.dev';
 
         function penggunaBolehMengaksesKpi_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
             const cabang = String(penggunaAktif && penggunaAktif.Hak_Akses_Cabang || '').trim().toLowerCase();
-            return ['direktur', 'manager', 'admin_raha'].includes(role) || (role === 'admin' && ['', 'semua', 'kendari', 'raha'].includes(cabang));
+            const login = String(penggunaAktif && (penggunaAktif.Username_Login || penggunaAktif.Username || penggunaAktif.username_login || penggunaAktif.username) || '').trim().toLowerCase();
+            return ['direktur', 'manager', 'admin_raha'].includes(role) ||
+                (role === 'admin' && ['', 'semua', 'kendari', 'raha'].includes(cabang)) ||
+                (role === 'sales' && login === 'juna' && cabang === 'kendari');
         }
 
         async function bukaAplikasiKpi() {
             if (!punyaAksesLobby() || !penggunaBolehMengaksesKpi_()) {
-                showToast('Akses KPI khusus Direktur, Manager, Admin Kendari, dan Admin Raha.', 'warning');
+                showToast('Akses KPI khusus Direktur, Manager, Admin Kendari, Admin Raha, dan Juna Sales Director.', 'warning');
                 return;
             }
             const tombol = document.getElementById('btn-lobby-kpi');
@@ -4268,7 +4270,6 @@
             tombol.disabled = true;
             status.innerText = 'Menghubungkan sesi ke Aplikasi KPI...';
             let tokenKpi = '', siap = false, terkirim = false, timer, listener;
-            const controller = new AbortController();
             const kirimSesi = () => {
                 if (!siap || !tokenKpi || terkirim || tabKpi.closed) return;
                 terkirim = true;
@@ -4282,20 +4283,14 @@
                     if (event.data.type === 'kpi:sla-error') reject(new Error('Sesi KPI tidak dapat dibuka. Silakan coba lagi.'));
                 };
                 window.addEventListener('message', listener);
-                timer = setTimeout(() => { controller.abort(); reject(new Error('Koneksi KPI melewati batas waktu. Silakan coba lagi.')); }, 90000);
+                timer = setTimeout(() => { reject(new Error('Koneksi KPI melewati batas waktu. Silakan coba lagi.')); }, 90000);
             });
             // Pasang penanganan langsung agar timeout selama autentikasi tidak menjadi rejection tanpa handler.
             selesai.catch(() => {});
             try {
                 await pastikanTokenSupabaseAktif_();
-                const response = await fetch(KPI_WORKER_URL, {
-                    signal: controller.signal,
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'apiLoginSla', args: [penggunaAktif.SessionToken] })
-                });
-                const result = await response.json();
-                if (!response.ok || !result || !result.ok || typeof result.token !== 'string' || !result.token) throw new Error(result && result.message || 'Login KPI belum berhasil.');
-                tokenKpi = result.token;
+                tokenKpi = penggunaAktif.SessionToken;
+                if (typeof tokenKpi !== 'string' || !tokenKpi) throw new Error('Sesi SLA belum tersedia. Silakan login ulang.');
                 kirimSesi();
                 await selesai;
                 status.innerText = 'Aplikasi KPI sudah dibuka sesuai hak akses Anda.';
