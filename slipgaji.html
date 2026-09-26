@@ -627,15 +627,15 @@
             ]);
         }
 
-        function penggunaAdalahTeknisiKendariPayroll_() {
+        function penggunaAdalahPegawaiKendariPayroll_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
             const cabang = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
-            return role === 'teknisi' && cabang === 'Kendari';
+            return ['teknisi', 'sales'].includes(role) && cabang === 'Kendari';
         }
 
         function penggunaBolehMembukaSlipGaji_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
-            return ['admin', 'manager', 'direktur'].includes(role) || penggunaAdalahTeknisiKendariPayroll_();
+            return ['admin', 'manager', 'direktur'].includes(role) || penggunaAdalahPegawaiKendariPayroll_();
         }
 
         function penggunaBolehKelolaPayroll_() {
@@ -870,7 +870,7 @@
                 await pastikanTokenSupabaseAktif_();
             } catch(e) { window.location.href = "index.html"; return; }
 
-            // Manajemen melihat seluruh payroll; teknisi Kendari hanya slip pribadi.
+            // Manajemen melihat seluruh payroll; sales dan teknisi Kendari hanya slip pribadi.
             if (!penggunaBolehMembukaSlipGaji_()) {
                 window.location.href = "index.html";
                 return;

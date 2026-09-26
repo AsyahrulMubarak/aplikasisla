@@ -686,14 +686,14 @@
                 </button>
                 <button type="button" id="btn-lobby-gaji" class="main-lobby-option gaji" onclick="bukaModulPendukung('gaji')">
                     <span aria-hidden="true">🧾</span>Slip Gaji Digital
-                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Manajemen & Teknisi Kendari (Slip Pribadi)</strong>
+                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Manajemen & Pegawai Kendari (Slip Pribadi)</strong>
                 </button>
                 <button type="button" id="btn-lobby-kpi" class="main-lobby-option" onclick="bukaAplikasiKpi()">
                     <span aria-hidden="true">📊</span> Aplikasi KPI
                     <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Direktur, Manager, dan Admin</strong>
                 </button>
             </div>
-            <p class="main-lobby-note">Absensi dapat dibuka oleh pegawai Kendari yang telah diizinkan. Menu approval tetap khusus Manajemen. Teknisi Kendari hanya dapat melihat slip gaji miliknya sendiri dan tidak dapat mengubah komponen payroll.</p>
+            <p class="main-lobby-note">Absensi dapat dibuka oleh pegawai Kendari yang telah diizinkan. Menu approval tetap khusus Manajemen. Sales dan teknisi Kendari hanya dapat melihat slip gaji miliknya sendiri dan tidak dapat mengubah komponen payroll.</p>
             <div id="main-lobby-status" role="status" aria-live="polite"></div>
             <button type="button" class="main-lobby-logout" onclick="prosesLogout()">🚪 Keluar Aplikasi</button>
         </div>
@@ -2849,12 +2849,12 @@
         }
 
         function penggunaBolehMengaksesSlipGaji_(user = penggunaAktif) {
-            const teknisiKendari = rolePengguna(user) === 'teknisi' && hakAksesCabangPengguna(user) === 'Kendari';
-            return roleAdalahManajemenUtama_(rolePengguna(user)) || teknisiKendari;
+            const pegawaiKendari = ['teknisi', 'sales'].includes(rolePengguna(user)) && hakAksesCabangPengguna(user) === 'Kendari';
+            return roleAdalahManajemenUtama_(rolePengguna(user)) || pegawaiKendari;
         }
 
-        function penggunaSalesTanpaGaji_(user = penggunaAktif) {
-            return rolePengguna(user) === 'sales' && !(parseFloat(user && user['Gaji Pokok']) > 0);
+        function penggunaSalesLintasCabang_(user = penggunaAktif) {
+            return rolePengguna(user) === 'sales';
         }
 
         function dataSesuaiCabangAktif_(record) {
@@ -2895,7 +2895,7 @@
             return !!API_URL_CABANG[cabangTarget] && (
                 hakAkses === 'Semua' ||
                 hakAkses === cabangTarget ||
-                penggunaSalesTanpaGaji_(user)
+                penggunaSalesLintasCabang_(user)
             );
         }
 
@@ -2983,7 +2983,7 @@
             const isManajemenUtama = roleAdalahManajemenUtama_();
             const bolehAbsensi = penggunaBolehMengaksesAbsensi_();
             const bolehSlipGaji = penggunaBolehMengaksesSlipGaji_();
-            const showAllBranches = (hakAkses === 'Semua' || penggunaSalesTanpaGaji_());
+            const showAllBranches = (hakAkses === 'Semua' || penggunaSalesLintasCabang_());
 
             document.getElementById('btn-lobby-sla-kendari').style.display = showAllBranches || hakAkses === 'Kendari' ? 'block' : 'none';
             document.getElementById('btn-lobby-sla-raha').style.display = showAllBranches || hakAkses === 'Raha' ? 'block' : 'none';
@@ -4172,8 +4172,7 @@
                 "Hak_Akses_Cabang": userRecord.hak_akses_cabang || userRecord.cabang
             };
 
-            // Nilai milik user sendiri diperlukan untuk membedakan Sales bergaji
-            // (hanya cabang kerjanya) dan Sales tanpa gaji (dua cabang SLA).
+            // Nilai gaji milik user sendiri dipakai oleh profil dan slip payroll.
             recordBersih["Gaji Pokok"] = userRecord.gaji_pokok;
             recordBersih["Bonus Tambahan"] = userRecord.bonus_tambahan;
 
