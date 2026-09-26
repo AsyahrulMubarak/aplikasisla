@@ -226,17 +226,43 @@ test('Izin setelah masuk menutup sesi pada waktu izin dan hanya sel keluar yang 
   assert.equal(cells[9], '- Rp 0');
 });
 
-test('Sakit setelah masuk menutup sesi nyata dan tidak memberi autofill sehari penuh', () => {
+test('Sakit setelah masuk memakai kuota untuk mengisi sisa hari', () => {
   const { cells, styles } = calculate([
     event('08', '08:00:00', 'Masuk'),
     event('08', '15:15:00', 'Sakit')
   ]);
   assert.equal(cells[1], '08:00:00');
-  assert.equal(cells[4], '15:15:00');
-  assert.equal(cells[5], '<strong>07:15:00</strong>');
+  assert.equal(cells[2], '-');
+  assert.equal(cells[4], '17:00');
+  assert.equal(cells[5], '<strong>09:00:00</strong>');
   assert.doesNotMatch(styles[1], /#bfdbfe/);
   assert.match(styles[4], /background-color:#bfdbfe/);
-  assert.doesNotMatch(cells[5], /09:00:00/);
+});
+
+test('Juna-like sick submission in the morning is not shown as exit while quota remains', () => {
+  const { cells, styles, row } = calculate([
+    event('01', '08:00:00', 'Sakit'),
+    event('08', '07:43:41', 'Masuk'),
+    event('08', '09:21:26', 'Sakit')
+  ]);
+  assert.deepEqual(cells.slice(1, 5), ['07:43:41', '-', '13:30', '17:00']);
+  assert.match(styles[3], /background-color:#bfdbfe/);
+  assert.match(styles[4], /background-color:#bfdbfe/);
+  assert.equal(cells[5], '<strong>09:00:00</strong>');
+  assert.match(row, /Pengajuan Sakit: 09:21:26/);
+});
+
+test('Sakit setelah masuk saat kuota habis memakai waktu pengajuan sebagai keluar biru', () => {
+  const earlier = ['01', '02', '03'].map(day => event(day, '08:00:00', 'Sakit'));
+  const { cells, styles } = calculate([...earlier,
+    event('08', '08:00:00', 'Masuk'),
+    event('08', '09:21:26', 'Sakit')
+  ]);
+  assert.equal(cells[2], '09:21:26');
+  assert.equal(cells[3], '-');
+  assert.equal(cells[4], '-');
+  assert.equal(cells[5], '<strong>01:21:26</strong>');
+  assert.match(styles[2], /background-color:#bfdbfe/);
 });
 
 test('Keluar tambahan tanpa masuk kembali tidak menggantikan waktu izin sebagai penutup sesi', () => {

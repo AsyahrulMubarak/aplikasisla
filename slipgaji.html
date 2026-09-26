@@ -2094,22 +2094,27 @@
                             if (!sesiSudahTerbuka) detikSesiTerbuka = detikEvent;
                         } else if (/Sakit|Izin/.test(tipe) && detikSesiTerbuka !== null && detikEvent > detikSesiTerbuka) {
                             const labelStatus = tipe.includes('Sakit') ? 'Sakit' : 'Izin';
+                            const sakitBerkuota = labelStatus === 'Sakit' && applySakitSisaHari;
                             const warnaStatus = labelStatus === 'Sakit'
                                 ? 'background-color:#bfdbfe; color:#1e3a8a;'
                                 : 'background-color:#bbf7d0; color:#166534;';
-                            if (jamFloat <= 14.0) {
-                                klr1 = jamStr;
-                                bgK1 = warnaStatus;
-                            } else {
-                                klr2 = jamStr;
-                                bgK2 = warnaStatus;
+                            if (!sakitBerkuota) {
+                                if (jamFloat <= 14.0) {
+                                    klr1 = jamStr;
+                                    bgK1 = warnaStatus;
+                                } else {
+                                    klr2 = jamStr;
+                                    bgK2 = warnaStatus;
+                                }
                             }
                             sesiKerjaHariIni.push({ mulai: detikSesiTerbuka, selesai: detikEvent });
                             detikSesiTerbuka = null;
                             sesiDitutupStatus = true;
                             adaKeluar = true;
                             if (detikKeluarTerakhir === null || detikEvent > detikKeluarTerakhir) detikKeluarTerakhir = detikEvent;
-                            ketList.push(labelStatus + ' digunakan sebagai absen keluar: ' + jamStr);
+                            ketList.push(sakitBerkuota
+                                ? 'Pengajuan Sakit: ' + jamStr + ' (sisa hari terisi dari kuota)'
+                                : labelStatus + ' digunakan sebagai absen keluar: ' + jamStr);
                         } else if (tipe.includes("Keluar") || tipe.includes("Pulang")) {
                             if (detikSesiTerbuka === null && sesiDitutupStatus) {
                                 ketList.push('Keluar setelah status izin/sakit diabaikan: ' + jamStr);
