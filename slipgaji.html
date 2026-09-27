@@ -660,6 +660,9 @@
 
         let penggunaAktif = null;
         let globalUsers = []; let globalTickets = []; let globalAbsen = [];
+        let tiketPayrollPerCabang_ = Object.create(null);
+        let periodeTiketPayroll_ = '';
+        let janjiTiketPayrollCabang_ = Object.create(null);
         let globalPayrollBulanan = {};
         let periodePayrollTermuat = '';
         let periodeDataPayrollTermuat = '';
@@ -1582,6 +1585,10 @@
                 globalUsers = usersBaru;
                 globalTickets = dataSLA.tickets;
                 globalAbsen = absenBaru;
+                tiketPayrollPerCabang_ = Object.create(null);
+                tiketPayrollPerCabang_[cabangAktif] = dataSLA.tickets;
+                periodeTiketPayroll_ = periode;
+                janjiTiketPayrollCabang_ = Object.create(null);
                 simpanVariabelPayrollTermuat_(dataSLA.payroll, periode);
                 periodeDataPayrollTermuat = periode;
 
@@ -1706,6 +1713,34 @@
             return String(d.getHours()).padStart(2,'0') + ":" + String(d.getMinutes()).padStart(2,'0');
         }
 
+        async function pastikanTiketPayrollCabang_(cabang, periode) {
+            const cabangTujuan = normalisasiCabangPayroll(cabang);
+            if (!cabangTujuan || periodeTiketPayroll_ !== periode) throw new Error('Data tiket payroll belum siap untuk periode ini. Muat ulang slip.');
+            if (Array.isArray(tiketPayrollPerCabang_[cabangTujuan])) return;
+            if (!penggunaBolehKelolaPayroll_() ||
+                normalisasiCabangSesi(penggunaAktif.Hak_Akses_Cabang) !== 'Semua') {
+                throw new Error('Akun ini tidak memiliki akses ke tiket payroll cabang ' + cabangTujuan + '.');
+            }
+            if (janjiTiketPayrollCabang_[cabangTujuan]) return janjiTiketPayrollCabang_[cabangTujuan];
+            const urutanRequest = urutanLoadDataPayroll;
+            const pekerjaan = (async () => {
+                await pastikanTokenSupabaseAktif_();
+                const dataCabang = await jalankanSumberPayrollDenganUlang_('Tiket ' + cabangTujuan, () =>
+                    fetchJsonDenganTimeout_(API_URL_CABANG[cabangTujuan],
+                        payloadSesiSlip('getPayrollData', { periode, cabang: cabangTujuan }),
+                        'Tiket ' + cabangTujuan, FETCH_TIMEOUT_MS,
+                        { signal: controllerLoadDataPayroll_ && controllerLoadDataPayroll_.signal }),
+                    controllerLoadDataPayroll_ && controllerLoadDataPayroll_.signal);
+                if (urutanRequest !== urutanLoadDataPayroll || periodeTiketPayroll_ !== periode ||
+                    document.getElementById('pilih-bulan').value !== periode) throw buatErrorBatalPayroll_();
+                if (!Array.isArray(dataCabang.tickets)) throw new Error('Data tiket ' + cabangTujuan + ' tidak valid.');
+                tiketPayrollPerCabang_[cabangTujuan] = dataCabang.tickets;
+            })();
+            janjiTiketPayrollCabang_[cabangTujuan] = pekerjaan;
+            try { await pekerjaan; }
+            finally { if (janjiTiketPayrollCabang_[cabangTujuan] === pekerjaan) delete janjiTiketPayrollCabang_[cabangTujuan]; }
+        }
+
         async function prosesData() {
             const periode = document.getElementById('pilih-bulan').value;
             if (periodeDataPayrollTermuat !== periode) {
@@ -1714,8 +1749,22 @@
             }
             let payrollSiap = await muatVariabelPayroll(false);
             if (!payrollSiap) { showToast('Data komponen payroll belum berhasil dimuat. Silakan coba lagi.', 'error'); return; }
-            if (currentTab === 'slip') { generateSlipIndividu(); } 
-            else { generateDashboardRekap(); }
+            try {
+                if (currentTab === 'slip') {
+                    const profil = cariProfilPayroll(document.getElementById('pilih-pegawai').value);
+                    if (profil) await pastikanTiketPayrollCabang_(cabangSumberPoinPayroll_(profil), periode);
+                    generateSlipIndividu();
+                } else {
+                    if (normalisasiCabangSesi(penggunaAktif.Hak_Akses_Cabang) === 'Semua') {
+                        await pastikanTiketPayrollCabang_(cabangAktif === 'Raha' ? 'Kendari' : 'Raha', periode);
+                    }
+                    generateDashboardRekap();
+                }
+            } catch (error) {
+                if (error && error.code === 'REQUEST_ABORTED') return;
+                console.error('Gagal memuat tiket cabang payroll:', error);
+                showToast(error.message || 'Tiket payroll gagal dimuat.', 'error');
+            }
         }
 
         // ==========================================
@@ -1726,6 +1775,16 @@
             if (cabang === 'raha') return 'Raha';
             if (cabang === 'kendari') return 'Kendari';
             return '';
+        }
+
+        function cabangSumberPoinPayroll_(profil) {
+            const nama = normalisasiNamaProfilPayroll_(profil && profil['Nama Asli']);
+            const role = normalisasiNamaProfilPayroll_(profil && profil.Role);
+            const cabang = normalisasiCabangPayroll(profil && profil.Hak_Akses_Cabang);
+            if (nama === 'abu abid' && role === 'admin' && cabang !== 'Raha') return 'Kendari';
+            if (nama === 'abu naura' && (role === 'admin_raha' || (role === 'admin' && cabang === 'Raha'))) return 'Raha';
+            if (nama === 'ardan' && role === 'sales' && cabang === 'Raha') return 'Raha';
+            return cabang || (typeof cabangAktif === 'string' ? cabangAktif : '');
         }
 
         // Pemilihan profil yang sama untuk slip, rekap, dan penyimpanan tunjangan.
@@ -2511,6 +2570,10 @@
             const poinNotaAdminKendari = normalisasiNamaProfilPayroll_(profil['Nama Asli']) === 'abu abid' &&
                 normalisasiNamaProfilPayroll_(profil.Role) === 'admin' &&
                 normalisasiCabangPayroll(profil.Hak_Akses_Cabang) !== 'Raha';
+            const cabangPoin = cabangSumberPoinPayroll_(profil);
+            const tiketSumberPoin = typeof tiketPayrollPerCabang_ !== 'undefined' &&
+                Array.isArray(tiketPayrollPerCabang_[cabangPoin])
+                ? tiketPayrollPerCabang_[cabangPoin] : globalTickets;
             const namaProfilPoin = normalisasiNamaProfilPayroll_(profil['Nama Asli']);
             const roleProfilPoin = normalisasiNamaProfilPayroll_(profil.Role);
             const cabangProfilPoin = normalisasiCabangPayroll(profil.Hak_Akses_Cabang);
@@ -2523,11 +2586,11 @@
             let totalPoinTeknisiRaha = 0;
             let totalBonusPoinTeknisiRaha = 0;
             if (poinNotaAdminKendari) {
-                totalPoinSla = hitungPoinNotaAdminKendari_(globalTickets, bulanTahun);
+                totalPoinSla = hitungPoinNotaAdminKendari_(tiketSumberPoin, bulanTahun);
                 nilaiPerPoin = 2500;
                 labelBonusPoin = 'Bonus Poin Nota iPOS';
             } else if (adminNauraRaha || salesArdanRaha) {
-                const poinRaha = hitungPoinTeknisiRaha_(globalTickets, globalUsers, bulanTahun);
+                const poinRaha = hitungPoinTeknisiRaha_(tiketSumberPoin, globalUsers, bulanTahun);
                 const sumberPoin = adminNauraRaha ? 'abu naura' : 'abu adibah';
                 totalPoinSla = Math.round(((poinRaha.perTeknisi[sumberPoin] || 0) + Number.EPSILON) * 10) / 10;
                 labelBonusPoin = adminNauraRaha ? 'Bonus Poin SLA Abu Naura (Teknisi)' : 'Bonus Poin SLA Abu Adibah';
@@ -2536,7 +2599,7 @@
                     totalBonusPoinTeknisiRaha = totalPoinTeknisiRaha * 2500;
                 }
             } else {
-                globalTickets.forEach(t => {
+                tiketSumberPoin.forEach(t => {
                     if (t['Status'] === 'Selesai' && t['Status Pembayaran'] === 'Lunas') {
                         let tglTutup = new Date(t['Tanggal Lunas'] || t['Waktu Selesai'] || t[Object.keys(t)[9]]);
                         if (!isNaN(tglTutup.getTime()) && tglTutup.getFullYear() == thnPilih && String(tglTutup.getMonth()+1).padStart(2,'0') == blnPilih) {
@@ -2570,22 +2633,26 @@
 
             const profilRaha = String(profil.Role || '').trim().toLowerCase() === 'admin_raha' ||
                 normalisasiCabangPayroll(profil.Hak_Akses_Cabang) === 'Raha';
+            const teknisiTanpaBonusBulananRaha = profilRaha && roleProfilPoin === 'teknisi' &&
+                ['rendi', 'wawan'].includes(namaProfilPoin);
             if (profilRaha) {
                 // Tiga bonus Raha dihitung dari aturan bulanan, bukan nominal profil.
                 // Item lama dengan nama setara dikeluarkan agar tidak terbayar ganda.
                 arrayTunjangan = arrayTunjangan.filter(t => !jenisBonusRahaPayroll_(t.nama));
-                const disiplinTercapai = totalTelatIzin <= 3 && countAlpa <= 2;
-                arrayTunjangan.push({
-                    nama: disiplinTercapai
-                        ? 'Bonus Disiplin Raha (Izin + Telat ≤3x, Alpa ≤2 hari)'
-                        : `Bonus Disiplin Raha (Hangus: ${countIzin}x Izin, ${countTelatPagi}x Telat, ${countAlpa}x Alpa)`,
-                    nominal: disiplinTercapai ? 100000 : 0
-                });
-                arrayTunjangan.push({ nama: 'Sholat 5 Waktu', nominal: 100000 });
-                arrayTunjangan.push({
-                    nama: disiplinTercapai ? 'Bonus Karena 2 Tunjangan Diatas Terpenuhi' : 'Bonus Karena 2 Tunjangan Diatas Terpenuhi (Hangus)',
-                    nominal: disiplinTercapai ? 100000 : 0
-                });
+                if (!teknisiTanpaBonusBulananRaha) {
+                    const disiplinTercapai = totalTelatIzin <= 3 && countAlpa <= 2;
+                    arrayTunjangan.push({
+                        nama: disiplinTercapai
+                            ? 'Bonus Disiplin Raha (Izin + Telat ≤3x, Alpa ≤2 hari)'
+                            : `Bonus Disiplin Raha (Hangus: ${countIzin}x Izin, ${countTelatPagi}x Telat, ${countAlpa}x Alpa)`,
+                        nominal: disiplinTercapai ? 100000 : 0
+                    });
+                    arrayTunjangan.push({ nama: 'Sholat 5 Waktu', nominal: 100000 });
+                    arrayTunjangan.push({
+                        nama: disiplinTercapai ? 'Bonus Karena 2 Tunjangan Diatas Terpenuhi' : 'Bonus Karena 2 Tunjangan Diatas Terpenuhi (Hangus)',
+                        nominal: disiplinTercapai ? 100000 : 0
+                    });
+                }
             } else if (isMelanggarDisiplin && !isKebal) {
                 if (bonusDisiplinTerdaftar.length > 0) {
                     // SKENARIO A: Semua komponen bonus disiplin hangus, tanpa denda tambahan.

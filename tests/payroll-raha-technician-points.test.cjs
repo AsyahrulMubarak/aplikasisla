@@ -78,3 +78,91 @@ test('Jumlah tim memakai pecahan poin sebelum pembulatan per teknisi',()=>{
   assert.equal(result.totalPoinTeknisiRaha,20);
   assert.equal(result.totalBonusPoinTeknisiRaha,50000);
 });
+
+test('Poin Raha tetap dihitung ketika manajemen membuka slip dari lobby Kendari',()=>{
+  const context=makeContext();
+  context.globalTickets=[ticket('2026-09-10T10:00:00+08:00','Abu Naura',100,{Cabang:'Kendari'})];
+  context.tiketPayrollPerCabang_={Kendari:context.globalTickets,Raha:structuredClone(tickets)};
+  context.cabangAktif='Kendari';
+  const abuNaura=context.kalkulasiGajiPegawai('Abu Naura','2026-09',26);
+  const ardan=context.kalkulasiGajiPegawai('Ardan','2026-09',26);
+  assert.equal(abuNaura.totalPoinSla,10);
+  assert.equal(abuNaura.totalBonusPoin,100000);
+  assert.equal(ardan.totalPoinSla,20);
+  assert.equal(ardan.totalBonusPoinTeknisiRaha,137500);
+});
+
+test('Rendi dan Wawan tidak menerima tiga bonus bulanan Raha tetapi poin SLA tetap masuk',()=>{
+  const context=makeContext();
+  for(const nama of ['Rendi','Wawan']){
+    const result=context.kalkulasiGajiPegawai(nama,'2026-09',26);
+    assert.equal(result.totalTunjanganTetap,0,nama);
+    assert.equal(result.arrayTunjangan.length,0,nama);
+    assert.ok(result.totalBonusPoin>0,nama);
+    assert.equal(result.totalBonusPoinTeknisiRaha,0,nama);
+  }
+  const kontrol=context.kalkulasiGajiPegawai('Abu Adibah','2026-09',26);
+  assert.equal(kontrol.totalTunjanganTetap,100000);
+  assert.equal(kontrol.arrayTunjangan.length,3);
+});
+
+test('Bonus Raha lama Rendi dan Wawan dibuang tanpa menghapus honor lain',()=>{
+  const context=makeContext();
+  const bonusLama='TIDAK TELAT MASUK PAGI, IZIN LEBIH 3X ATAU TIDAK ALPA LEBIH DARI 2X=100000|SHOLAT 5 WAKTU=100000|BONUS KARENA 2 TUNJANGAN DIATAS TERPENUHI=100000|Honor Lain=25000';
+  for(const profil of context.globalUsers.filter(p=>['Rendi','Wawan'].includes(p['Nama Asli']))) profil['Bonus Tambahan']=bonusLama;
+  for(const nama of ['Rendi','Wawan']){
+    const result=context.kalkulasiGajiPegawai(nama,'2026-09',26);
+    assert.equal(result.totalTunjanganTetap,25000,nama);
+    assert.equal(result.arrayTunjangan.length,1,nama);
+    assert.equal(result.arrayTunjangan[0].nama,'Honor Lain',nama);
+  }
+});
+
+function makeTicketLoaderContext(access='Semua'){
+  const requests=[];
+  const context=vm.createContext({
+    normalisasiCabangPayroll:value=>value==='Kendari'||value==='Raha'?value:'',
+    normalisasiCabangSesi:value=>value,
+    penggunaAktif:{Hak_Akses_Cabang:access},
+    penggunaBolehKelolaPayroll_:()=>true,
+    tiketPayrollPerCabang_:{Kendari:[]},
+    periodeTiketPayroll_:'2026-09',
+    janjiTiketPayrollCabang_:Object.create(null),
+    urutanLoadDataPayroll:1,
+    controllerLoadDataPayroll_:null,
+    API_URL_CABANG:{Kendari:'kendari-gas',Raha:'raha-gas'},
+    payloadSesiSlip:(action,data)=>({action,...data}),
+    pastikanTokenSupabaseAktif_:async()=>{},
+    jalankanSumberPayrollDenganUlang_:async(_label,run)=>run(),
+    fetchJsonDenganTimeout_:async(url,payload)=>{
+      requests.push({url,payload});
+      return {tickets:[ticket('2026-09-10T10:00:00+08:00','Abu Naura',10)]};
+    },
+    document:{getElementById:()=>({value:'2026-09'})},
+    buatErrorBatalPayroll_:()=>new Error('dibatalkan'),
+    FETCH_TIMEOUT_MS:30000
+  });
+  vm.runInContext(html.slice(html.indexOf('        async function pastikanTiketPayrollCabang_'),
+    html.indexOf('        async function prosesData()')),context);
+  return {context,requests};
+}
+
+test('Manajemen memuat tiket cabang Raha hanya sekali dari GAS Raha untuk periode yang dipilih',async()=>{
+  const {context,requests}=makeTicketLoaderContext();
+  await Promise.all([
+    context.pastikanTiketPayrollCabang_('Raha','2026-09'),
+    context.pastikanTiketPayrollCabang_('Raha','2026-09')
+  ]);
+  assert.equal(requests.length,1);
+  assert.equal(requests[0].url,'raha-gas');
+  assert.equal(requests[0].payload.action,'getPayrollData');
+  assert.equal(requests[0].payload.periode,'2026-09');
+  assert.equal(requests[0].payload.cabang,'Raha');
+  assert.equal(context.tiketPayrollPerCabang_.Raha.length,1);
+});
+
+test('Akun satu cabang tidak mengambil tiket cabang lain',async()=>{
+  const {context,requests}=makeTicketLoaderContext('Kendari');
+  await assert.rejects(context.pastikanTiketPayrollCabang_('Raha','2026-09'),/tidak memiliki akses/);
+  assert.equal(requests.length,0);
+});
