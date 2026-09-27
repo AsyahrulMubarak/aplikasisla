@@ -130,13 +130,13 @@ function makeTicketLoaderContext(access='Semua'){
     janjiTiketPayrollCabang_:Object.create(null),
     urutanLoadDataPayroll:1,
     controllerLoadDataPayroll_:null,
-    API_URL_CABANG:{Kendari:'kendari-gas',Raha:'raha-gas'},
+    apiUrl:'kendari-gas',
     payloadSesiSlip:(action,data)=>({action,...data}),
     pastikanTokenSupabaseAktif_:async()=>{},
     jalankanSumberPayrollDenganUlang_:async(_label,run)=>run(),
     fetchJsonDenganTimeout_:async(url,payload)=>{
       requests.push({url,payload});
-      return {tickets:[ticket('2026-09-10T10:00:00+08:00','Abu Naura',10)]};
+      return {cabang:'Raha',tickets:[ticket('2026-09-10T10:00:00+08:00','Abu Naura',10)]};
     },
     document:{getElementById:()=>({value:'2026-09'})},
     buatErrorBatalPayroll_:()=>new Error('dibatalkan'),
@@ -147,18 +147,25 @@ function makeTicketLoaderContext(access='Semua'){
   return {context,requests};
 }
 
-test('Manajemen memuat tiket cabang Raha hanya sekali dari GAS Raha untuk periode yang dipilih',async()=>{
+test('Manajemen memuat tiket Raha lewat GAS cabang aktif yang memverifikasi sesi',async()=>{
   const {context,requests}=makeTicketLoaderContext();
   await Promise.all([
     context.pastikanTiketPayrollCabang_('Raha','2026-09'),
     context.pastikanTiketPayrollCabang_('Raha','2026-09')
   ]);
   assert.equal(requests.length,1);
-  assert.equal(requests[0].url,'raha-gas');
+  assert.equal(requests[0].url,'kendari-gas');
   assert.equal(requests[0].payload.action,'getPayrollData');
   assert.equal(requests[0].payload.periode,'2026-09');
   assert.equal(requests[0].payload.cabang,'Raha');
   assert.equal(context.tiketPayrollPerCabang_.Raha.length,1);
+});
+
+test('Respons GAS cabang yang keliru tidak pernah dipakai sebagai nol poin Raha',async()=>{
+  const {context}=makeTicketLoaderContext();
+  context.fetchJsonDenganTimeout_=async()=>({cabang:'Kendari',tickets:[]});
+  await assert.rejects(context.pastikanTiketPayrollCabang_('Raha','2026-09'),/tidak sesuai/);
+  assert.equal(context.tiketPayrollPerCabang_.Raha,undefined);
 });
 
 test('Akun satu cabang tidak mengambil tiket cabang lain',async()=>{

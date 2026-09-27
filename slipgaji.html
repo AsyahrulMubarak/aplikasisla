@@ -1726,14 +1726,17 @@
             const pekerjaan = (async () => {
                 await pastikanTokenSupabaseAktif_();
                 const dataCabang = await jalankanSumberPayrollDenganUlang_('Tiket ' + cabangTujuan, () =>
-                    fetchJsonDenganTimeout_(API_URL_CABANG[cabangTujuan],
+                    fetchJsonDenganTimeout_(apiUrl,
                         payloadSesiSlip('getPayrollData', { periode, cabang: cabangTujuan }),
                         'Tiket ' + cabangTujuan, FETCH_TIMEOUT_MS,
                         { signal: controllerLoadDataPayroll_ && controllerLoadDataPayroll_.signal }),
                     controllerLoadDataPayroll_ && controllerLoadDataPayroll_.signal);
                 if (urutanRequest !== urutanLoadDataPayroll || periodeTiketPayroll_ !== periode ||
                     document.getElementById('pilih-bulan').value !== periode) throw buatErrorBatalPayroll_();
-                if (!Array.isArray(dataCabang.tickets)) throw new Error('Data tiket ' + cabangTujuan + ' tidak valid.');
+                if (normalisasiCabangPayroll(dataCabang.cabang) !== cabangTujuan ||
+                    !Array.isArray(dataCabang.tickets)) {
+                    throw new Error('Data tiket ' + cabangTujuan + ' tidak sesuai. Perbarui GAS cabang aktif.');
+                }
                 tiketPayrollPerCabang_[cabangTujuan] = dataCabang.tickets;
             })();
             janjiTiketPayrollCabang_[cabangTujuan] = pekerjaan;
@@ -1743,12 +1746,18 @@
 
         async function prosesData() {
             const periode = document.getElementById('pilih-bulan').value;
+            const areaLama = document.getElementById(currentTab === 'slip' ? 'area-slip' : 'area-dashboard');
+            if (areaLama) areaLama.style.display = 'none';
+            if (currentTab === 'slip') document.getElementById('slip-floating-scroll').classList.remove('is-visible');
             if (periodeDataPayrollTermuat !== periode) {
                 const dataSiap = await tarikSemuaData(true);
                 if (!dataSiap) return;
             }
             let payrollSiap = await muatVariabelPayroll(false);
             if (!payrollSiap) { showToast('Data komponen payroll belum berhasil dimuat. Silakan coba lagi.', 'error'); return; }
+            const loading = document.getElementById('loading');
+            loading.textContent = 'Memproses slip dan poin SLA...';
+            loading.style.display = 'block';
             try {
                 if (currentTab === 'slip') {
                     const profil = cariProfilPayroll(document.getElementById('pilih-pegawai').value);
@@ -1764,6 +1773,8 @@
                 if (error && error.code === 'REQUEST_ABORTED') return;
                 console.error('Gagal memuat tiket cabang payroll:', error);
                 showToast(error.message || 'Tiket payroll gagal dimuat.', 'error');
+            } finally {
+                loading.style.display = 'none';
             }
         }
 
