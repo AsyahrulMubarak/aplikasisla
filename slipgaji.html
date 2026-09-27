@@ -514,6 +514,11 @@
                         <div class="sum-val plus" id="sum-poin">Rp 0</div>
                         <small id="sum-poin-detail" style="display:block; margin-top:4px; color:#64748b;"></small>
                     </div>
+                    <div class="sum-card" id="box-poin-teknisi-raha" style="display:none;">
+                        <div class="sum-title">Total Poin Teknisi Raha</div>
+                        <div class="sum-val plus" id="sum-poin-teknisi-raha">Rp 0</div>
+                        <small id="sum-poin-teknisi-raha-detail" style="display:block; margin-top:4px; color:#64748b;"></small>
+                    </div>
                     <div class="sum-card" id="box-fee" style="display:none; background:#ecfccb; border-color:#bef264;">
                         <div class="sum-title" style="color:#4d7c0f;">Fee Marketing</div>
                         <div class="sum-val plus" id="sum-fee">Rp 0</div>
@@ -1741,6 +1746,8 @@
               var role = normalisasiNamaProfilPayroll_(profil.Role);
               return role === 'admin_raha' || (role === 'admin' && normalisasiNamaProfilPayroll_(profil.Hak_Akses_Cabang) === 'raha');
             });
+          } else if (namaNormal === 'ardan') {
+            kandidat = kandidat.filter(function(profil) { return normalisasiNamaProfilPayroll_(profil.Role) === 'sales'; });
           }
           var bergaji = kandidat.filter(function(profil) {
             return (parseFloat(profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)']) || 0) > 0;
@@ -1810,6 +1817,33 @@
                 if (periodeLunas === bulanTahun) nomorNotaLunas.add(noTransaksi);
             });
             return nomorNotaLunas.size;
+        }
+
+        function hitungPoinTeknisiRaha_(daftarTiket, daftarUser, bulanTahun) {
+            const teknisiRaha = new Set((daftarUser || []).filter(profil =>
+                normalisasiNamaProfilPayroll_(profil.Role) === 'teknisi' &&
+                normalisasiCabangPayroll(profil.Hak_Akses_Cabang) === 'Raha'
+            ).map(profil => normalisasiNamaProfilPayroll_(profil['Nama Asli'])).filter(Boolean));
+            const perTeknisi = Object.create(null);
+            let total = 0;
+            (daftarTiket || []).forEach(tiket => {
+                if (normalisasiCabangPayroll(tiket.Cabang) !== 'Raha' ||
+                    tiket.Status !== 'Selesai' || tiket['Status Pembayaran'] !== 'Lunas') return;
+                const tanggalLunas = new Date(tiket['Tanggal Lunas'] || tiket['Waktu Selesai'] || '');
+                if (Number.isNaN(tanggalLunas.getTime()) ||
+                    tanggalLunas.getFullYear() + '-' + String(tanggalLunas.getMonth() + 1).padStart(2, '0') !== bulanTahun) return;
+                const poin = parseFloat(tiket['Bobot Poin']) || 0;
+                const veto = String(tiket['Veto Admin'] || '').trim().toLowerCase() === 'ya';
+                if (poin <= 0 || (tiket['Status SLA'] !== 'TERPENUHI' && !veto)) return;
+                const namaDalamTiket = String(tiket.Teknisi || '').split(',').map(nama => normalisasiNamaProfilPayroll_(nama));
+                namaDalamTiket.forEach(nama => {
+                    if (!teknisiRaha.has(nama)) return;
+                    const bagian = poin / namaDalamTiket.length;
+                    perTeknisi[nama] = (perTeknisi[nama] || 0) + bagian;
+                    total += bagian;
+                });
+            });
+            return { perTeknisi, total: Math.round((total + Number.EPSILON) * 10) / 10 };
         }
 
         function formatJamMenitPayroll(menit) {
@@ -2477,13 +2511,30 @@
             const poinNotaAdminKendari = normalisasiNamaProfilPayroll_(profil['Nama Asli']) === 'abu abid' &&
                 normalisasiNamaProfilPayroll_(profil.Role) === 'admin' &&
                 normalisasiCabangPayroll(profil.Hak_Akses_Cabang) !== 'Raha';
+            const namaProfilPoin = normalisasiNamaProfilPayroll_(profil['Nama Asli']);
+            const roleProfilPoin = normalisasiNamaProfilPayroll_(profil.Role);
+            const cabangProfilPoin = normalisasiCabangPayroll(profil.Hak_Akses_Cabang);
+            const adminNauraRaha = namaProfilPoin === 'abu naura' &&
+                (roleProfilPoin === 'admin_raha' || (roleProfilPoin === 'admin' && cabangProfilPoin === 'Raha'));
+            const salesArdanRaha = namaProfilPoin === 'ardan' && roleProfilPoin === 'sales' && cabangProfilPoin === 'Raha';
             let totalPoinSla = 0;
             let nilaiPerPoin = 10000;
             let labelBonusPoin = 'Bonus Poin SLA';
+            let totalPoinTeknisiRaha = 0;
+            let totalBonusPoinTeknisiRaha = 0;
             if (poinNotaAdminKendari) {
                 totalPoinSla = hitungPoinNotaAdminKendari_(globalTickets, bulanTahun);
                 nilaiPerPoin = 2500;
                 labelBonusPoin = 'Bonus Poin Nota iPOS';
+            } else if (adminNauraRaha || salesArdanRaha) {
+                const poinRaha = hitungPoinTeknisiRaha_(globalTickets, globalUsers, bulanTahun);
+                const sumberPoin = adminNauraRaha ? 'abu naura' : 'abu adibah';
+                totalPoinSla = Math.round(((poinRaha.perTeknisi[sumberPoin] || 0) + Number.EPSILON) * 10) / 10;
+                labelBonusPoin = adminNauraRaha ? 'Bonus Poin SLA Abu Naura (Teknisi)' : 'Bonus Poin SLA Abu Adibah';
+                if (salesArdanRaha) {
+                    totalPoinTeknisiRaha = poinRaha.total;
+                    totalBonusPoinTeknisiRaha = totalPoinTeknisiRaha * 2500;
+                }
             } else {
                 globalTickets.forEach(t => {
                     if (t['Status'] === 'Selesai' && t['Status Pembayaran'] === 'Lunas') {
@@ -2554,9 +2605,14 @@
 
             let feeMarketing = variabelPayroll.fee;
             let kasbon = variabelPayroll.kasbon;
-            let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin + totalTunjanganTetap + feeMarketing - kasbon;
+            let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin +
+                totalBonusPoinTeknisiRaha + totalTunjanganTetap + feeMarketing - kasbon;
 
-            return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur, totalBonusPoin, totalPoinSla, nilaiPerPoin, labelBonusPoin, totalTunjanganTetap, feeMarketing, kasbon, luarKota: variabelPayroll.luarKota, arrayTunjangan, dendaDisiplin, countTelatPagi, countIzin, countAlpa, totalBersih, barisHTML };
+            return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur,
+                totalBonusPoin, totalPoinSla, nilaiPerPoin, labelBonusPoin, totalPoinTeknisiRaha,
+                totalBonusPoinTeknisiRaha, tampilkanPoinTeknisiRaha: salesArdanRaha, totalTunjanganTetap,
+                feeMarketing, kasbon, luarKota: variabelPayroll.luarKota, arrayTunjangan, dendaDisiplin,
+                countTelatPagi, countIzin, countAlpa, totalBersih, barisHTML };
         }
 
         function buatKartuAbsensiMobile_() {
@@ -2683,6 +2739,12 @@
             document.getElementById('sum-poin-title').innerText = data.labelBonusPoin;
             document.getElementById('sum-poin').innerText = "+ " + formatRp(data.totalBonusPoin);
             document.getElementById('sum-poin-detail').innerText = data.totalPoinSla.toLocaleString('id-ID', { minimumFractionDigits: data.nilaiPerPoin === 2500 ? 0 : 1, maximumFractionDigits: 1 }) + ' poin × ' + formatRp(data.nilaiPerPoin);
+            document.getElementById('box-poin-teknisi-raha').style.display = data.tampilkanPoinTeknisiRaha ? 'block' : 'none';
+            if (data.tampilkanPoinTeknisiRaha) {
+                document.getElementById('sum-poin-teknisi-raha').innerText = '+ ' + formatRp(data.totalBonusPoinTeknisiRaha);
+                document.getElementById('sum-poin-teknisi-raha-detail').innerText =
+                    data.totalPoinTeknisiRaha.toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' poin × ' + formatRp(2500);
+            }
 
             let feeMarketing = data.feeMarketing;
             let kasbon = data.kasbon;
@@ -2786,7 +2848,8 @@
                 if(data.countKehadiran > 0 || data.gajiPokok > 0) { 
                     grandTotal += data.totalBersih;
                     let totalPotonganGabungan = data.totalPotongan + data.kasbon;
-                    let totalBonusGabungan = data.totalBonusPoin + data.totalTunjanganTetap + data.feeMarketing;
+                    let totalBonusGabungan = data.totalBonusPoin + data.totalBonusPoinTeknisiRaha +
+                        data.totalTunjanganTetap + data.feeMarketing;
                     
                     tbody.innerHTML += `
                         <tr>

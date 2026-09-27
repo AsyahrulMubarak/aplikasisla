@@ -16,6 +16,8 @@ function pilihProfilPayroll_(profiles, nama) {
       var role = normalisasiNamaProfilPayroll_(profil.Role);
       return role === 'admin_raha' || (role === 'admin' && normalisasiNamaProfilPayroll_(profil.Hak_Akses_Cabang) === 'raha');
     });
+  } else if (namaNormal === 'ardan') {
+    kandidat = kandidat.filter(function(profil) { return normalisasiNamaProfilPayroll_(profil.Role) === 'sales'; });
   }
   var bergaji = kandidat.filter(function(profil) {
     return (parseFloat(profil['Gaji Pokok'] || profil['Gaji Pokok (Rp)']) || 0) > 0;
