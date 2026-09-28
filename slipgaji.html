@@ -1954,6 +1954,29 @@
             }).join('');
         }
 
+        function renderLokasiAbsensi_(catatan) {
+            const aman = nilai => String(nilai || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const dilihat = new Set();
+            return (Array.isArray(catatan) ? catatan : []).map(item => {
+                const lokasi = String(item && item.url || '').trim();
+                let parsed;
+                try { parsed = new URL(lokasi); } catch (_) { return ''; }
+                if (parsed.protocol !== 'https:' || parsed.hostname !== 'www.google.com' || parsed.pathname !== '/maps') return '';
+                const koordinat = String(parsed.searchParams.get('q') || '').match(/^(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)$/);
+                if (!koordinat) return '';
+                const lat = Number(koordinat[1]);
+                const lon = Number(koordinat[2]);
+                if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return '';
+                const url = 'https://www.google.com/maps?q=' + lat + ',' + lon;
+                if (dilihat.has(url)) return '';
+                dilihat.add(url);
+                const waktu = new Date(item.waktu || '');
+                const jam = isNaN(waktu.getTime()) ? '' : ' · ' + String(waktu.getHours()).padStart(2, '0') + ':' + String(waktu.getMinutes()).padStart(2, '0');
+                const label = 'Lihat Lokasi ' + String(item.tipe || 'Absen') + jam;
+                return '<a href="' + aman(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin:6px 6px 0 0; padding:6px 9px; border:1px solid #99f6e4; border-radius:6px; background:#f0fdfa; color:#0f766e; font-size:11px; font-weight:600; text-decoration:none;">📍 ' + aman(label) + '</a>';
+            }).join('');
+        }
+
         function kalkulasiGajiPegawai(namaTarget, bulanTahun, hariKerjaEfektif, gunakanInputAktif = false) {
             let profil = cariProfilPayroll(namaTarget);
             if (!profil) throw new Error('Profil payroll tidak ditemukan atau ambigu. Muat ulang data pegawai.');
@@ -2584,7 +2607,7 @@
                     <td style="${finalBgK2}">${klr2}</td>
                     <td><strong>${txtJam}</strong></td>
                     <td style="color:#0f766e; font-weight:600;">${upahHariIniStr}</td>
-                    <td style="${statusTextStyle}">${infoStr}${renderFotoAbsensi_(events.map(e => ({ url: e['Bukti Foto'], tipe: e['Tipe Absen'], waktu: e['Waktu Absen'] })))}</td>
+                    <td style="${statusTextStyle}">${infoStr}${renderFotoAbsensi_(events.map(e => ({ url: e['Bukti Foto'], tipe: e['Tipe Absen'], waktu: e['Waktu Absen'] })))}${renderLokasiAbsensi_(events.map(e => ({ url: e['Lokasi Maps'], tipe: e['Tipe Absen'], waktu: e['Waktu Absen'] })))}</td>
                     <td style="color:var(--success); line-height:1.4;">${txtLemburJam ? `<span style="font-size:10px; color:#64748b;">${txtLemburJam}</span><br>` : ''}+ ${formatRp(lemHariIni)}</td>
                     <td style="color:var(--danger);">- ${formatRp(potHariIni)}</td>
                 </tr>`;
