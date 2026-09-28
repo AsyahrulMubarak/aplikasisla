@@ -393,6 +393,13 @@
             'rendi', 'wawan'
         ];
 
+        function pegawaiBergajiBolehAbsenLokal_(user) {
+            const cabang = normalisasiCabangSesi(user && user.Hak_Akses_Cabang);
+            const nama = String(user && user['Nama Asli'] || '').trim();
+            const gaji = Number(user && user['Gaji Pokok']);
+            return !!nama && ['Kendari', 'Raha'].includes(cabang) && Number.isFinite(gaji) && gaji > 0;
+        }
+
         function penggunaBolehAbsenLokal() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
             const cabang = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
@@ -400,7 +407,8 @@
             const adminRaha = role === 'admin_raha' || (role === 'admin' && cabang === 'Raha');
             const manajemen = ['admin', 'manager', 'direktur'].includes(role);
             const pegawaiKendariDiizinkan = cabang === 'Kendari' && PEGAWAI_KENDARI_AKSES_ABSENSI.includes(nama);
-            return (manajemen && !adminRaha) || pegawaiKendariDiizinkan;
+            return (manajemen && !adminRaha) || pegawaiKendariDiizinkan ||
+                pegawaiBergajiBolehAbsenLokal_(penggunaAktif);
         }
 
         function formatJamDariMenit(menit) {

@@ -682,18 +682,18 @@
                 </button>
                 <button type="button" id="btn-lobby-absen" class="main-lobby-option absen" onclick="bukaModulPendukung('absen')">
                     <span aria-hidden="true">📅</span>Sistem Absensi
-                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Sesuai Hak Akses Pegawai Kendari</strong>
+                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Pegawai Bergaji Kendari & Raha</strong>
                 </button>
                 <button type="button" id="btn-lobby-gaji" class="main-lobby-option gaji" onclick="bukaModulPendukung('gaji')">
                     <span aria-hidden="true">🧾</span>Slip Gaji Digital
-                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Manajemen & Pegawai Kendari (Slip Pribadi)</strong>
+                    <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Manajemen & Pegawai Bergaji (Slip Pribadi)</strong>
                 </button>
                 <button type="button" id="btn-lobby-kpi" class="main-lobby-option" onclick="bukaAplikasiKpi()">
                     <span aria-hidden="true">📊</span> Aplikasi KPI
                     <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Direktur, Manager, dan Admin</strong>
                 </button>
             </div>
-            <p class="main-lobby-note">Absensi dapat dibuka oleh pegawai Kendari yang telah diizinkan. Menu approval tetap khusus Manajemen. Sales dan teknisi Kendari hanya dapat melihat slip gaji miliknya sendiri dan tidak dapat mengubah komponen payroll.</p>
+            <p class="main-lobby-note">Pegawai Kendari dan Raha yang memiliki gaji pokok dapat membuka Absensi dan slip gajinya sendiri. Menu approval dan pengelolaan komponen payroll tetap khusus Manajemen.</p>
             <div id="main-lobby-status" role="status" aria-live="polite"></div>
             <button type="button" class="main-lobby-logout" onclick="prosesLogout()">🚪 Keluar Aplikasi</button>
         </div>
@@ -2839,18 +2839,27 @@
             return hakAksesCabangPengguna(user) === 'Kendari' && daftarNama.includes(nama);
         }
 
+        function penggunaBergajiDiizinkanModul_(user = penggunaAktif) {
+            const cabang = hakAksesCabangPengguna(user);
+            const nama = String(user && user['Nama Asli'] || '').trim();
+            const gaji = Number(user && user['Gaji Pokok']);
+            return !!nama && ['Kendari', 'Raha'].includes(cabang) && Number.isFinite(gaji) && gaji > 0;
+        }
+
         // Akses ini hanya untuk modul Absensi/Payroll; tidak mengubah hak akses SLA cabang.
         function penggunaBolehMengaksesAbsensi_(user = penggunaAktif) {
             const role = rolePengguna(user);
             const cabang = hakAksesCabangPengguna(user);
             const adminRaha = role === 'admin_raha' || (role === 'admin' && cabang === 'Raha');
             const manajemen = ['admin', 'manager', 'direktur'].includes(role);
-            return (manajemen && !adminRaha) || penggunaKendariDiizinkanAbsensi_(user);
+            return (manajemen && !adminRaha) || penggunaKendariDiizinkanAbsensi_(user) ||
+                penggunaBergajiDiizinkanModul_(user);
         }
 
         function penggunaBolehMengaksesSlipGaji_(user = penggunaAktif) {
             const pegawaiKendari = ['teknisi', 'sales'].includes(rolePengguna(user)) && hakAksesCabangPengguna(user) === 'Kendari';
-            return roleAdalahManajemenUtama_(rolePengguna(user)) || pegawaiKendari;
+            return roleAdalahManajemenUtama_(rolePengguna(user)) || pegawaiKendari ||
+                penggunaBergajiDiizinkanModul_(user);
         }
 
         function penggunaSalesLintasCabang_(user = penggunaAktif) {

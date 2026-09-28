@@ -32,6 +32,28 @@ function assertMinutes(result, regular, overtime) {
     `Upah lembur ${result.totalLembur}; seharusnya ${overtime} menit`);
 }
 
+test('tiga hari berurutan memakai jam masuk, istirahat, dan keluar fisik', () => {
+  const dates = [
+    ['2026-09-08', '08:10:10', '13:40:10', '20:20:10'],
+    ['2026-09-09', '08:50:20', '13:10:20', '20:00:20'],
+    ['2026-09-10', '08:20:30', '13:45:30', '20:30:30']
+  ];
+  const events = dates.flatMap(([day, morning, afternoon, end]) => [
+    event(morning, 'Masuk', day),
+    event(afternoon, 'Masuk Setelah Istirahat', day),
+    event(end, 'Keluar', day)
+  ]);
+  const result = calculate(events, { branch: 'Raha', now: '2026-09-28T08:00:00+08:00' });
+  for (const [day, morning, afternoon, end] of dates) {
+    const label = `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(0, 4)}`;
+    const row = [...result.barisHTML.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)]
+      .find(match => match[1].includes(label))?.[1];
+    assert.ok(row, `Slip harus menampilkan ${label}`);
+    for (const time of [morning, afternoon, end]) assert.match(row, new RegExp(time));
+    assert.doesNotMatch(row, /auto|berjalan/i);
+  }
+});
+
 for (const [branch, start, end, regular, overtime] of [
   ['Kendari', '08:25', '17:00', 515, 0],
   ['Kendari', '08:25', '17:24', 539, 0],
@@ -180,6 +202,42 @@ test('Auto keluar lupa pulang tetap menutup pada jadwal/penalti yang tercatat', 
   ]) {
     assertMinutes(calculate([event('08:25:00', 'Masuk'), event(time, 'Keluar', '2026-09-08', status)]), minutes, 0);
   }
+});
+
+test('auto keluar memakai jam masuk fisik Raha', () => {
+  const events = [
+    event('09:20:00', 'Masuk', '2026-09-15'),
+    event('20:00:00', 'Keluar', '2026-09-15', 'Auto Keluar (Lupa Absen Keluar)'),
+    event('09:05:00', 'Masuk', '2026-09-18'),
+    event('20:00:00', 'Keluar', '2026-09-18', 'Auto Keluar (Lupa Absen Keluar)')
+  ];
+  const result = calculate(events, { branch: 'Raha', now: '2026-09-28T12:00:00+08:00' });
+  const detikKerja = (10 * 3600 + 40 * 60) + (10 * 3600 + 55 * 60);
+  assert.ok(Math.abs(result.totalUpahHadir - detikKerja * 10000 / 3600) < 0.000001);
+  const tanggal15 = result.barisHTML.split('<tr ').find(row => row.includes('15/09/2026'));
+  const tanggal18 = result.barisHTML.split('<tr ').find(row => row.includes('18/09/2026'));
+  assert.match(tanggal15, /09:20:00/);
+  assert.match(tanggal15, /10:40:00/);
+  assert.match(tanggal18, /09:05:00/);
+  assert.match(tanggal18, /10:55:00/);
+});
+
+test('autofill sisa sakit tidak membayar sebelum masuk fisik', () => {
+  const events = [
+    event('09:20:00', 'Masuk', '2026-09-15'),
+    event('13:48:00', 'Sakit', '2026-09-15'),
+    event('09:05:00', 'Masuk', '2026-09-18'),
+    event('13:14:00', 'Sakit', '2026-09-18')
+  ];
+  const result = calculate(events, { branch: 'Raha', now: '2026-09-28T12:00:00+08:00' });
+  const detikKerja = (10 * 3600 + 40 * 60) + (10 * 3600 + 55 * 60);
+  assert.ok(Math.abs(result.totalUpahHadir - detikKerja * 10000 / 3600) < 0.000001);
+  const tanggal15 = result.barisHTML.split('<tr ').find(row => row.includes('15/09/2026'));
+  const tanggal18 = result.barisHTML.split('<tr ').find(row => row.includes('18/09/2026'));
+  assert.match(tanggal15, /09:20:00/);
+  assert.match(tanggal15, /10:40:00/);
+  assert.match(tanggal18, /09:05:00/);
+  assert.match(tanggal18, /10:55:00/);
 });
 
 test('Izin dengan kehadiran nyata memakai batas argo yang sama', () => {
