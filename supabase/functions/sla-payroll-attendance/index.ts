@@ -48,6 +48,7 @@ async function allRows(table, query) {
 }
 const norm = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const branch = value => /^(kendari|raha)$/i.test(String(value || '')) ? (String(value).toLowerCase() === 'raha' ? 'Raha' : 'Kendari') : '';
+const absenceBranchScope = value => value === 'Kendari' ? '&or=(cabang.eq.Kendari,cabang.is.null)' : '&cabang=eq.Raha';
 const management = u => ['admin','manager','direktur'].includes(u.role) && !(u.role === 'admin' && u.branch === 'Raha');
 const salaried = u => !!u.name && !!u.branch && Number(u.salary) > 0;
 const canAttend = u => management(u) || (u.branch === 'Kendari' && LEGACY_KENDARI.has(norm(u.name))) || salaried(u);
@@ -176,24 +177,21 @@ async function getAbsence(body,u) {
   const period=safePeriod(body.periode); if (!period) throw new Error('Format periode absensi tidak valid.');
   const next=period.slice(5)==='12' ? String(Number(period.slice(0,4))+1)+'-01' : period.slice(0,5)+String(Number(period.slice(5))+1).padStart(2,'0');
   const own=!management(u);
-  const scope=own?'&nama_pegawai=eq.'+encode(u.name):
-    u.branch==='Kendari'?'&or=(cabang.eq.Kendari,cabang.is.null)':'&cabang=eq.Raha';
+  const scope=(own?'&nama_pegawai=eq.'+encode(u.name):'')+absenceBranchScope(u.branch);
   let rows=await allRows('absensi','select=id_absen,waktu_absen,nama_pegawai,role,tipe_absen,keterangan,status_disiplin,bukti_foto,lokasi_maps'+
     '&waktu_absen=gte.'+encode(period+'-01T00:00:00+08:00')+'&waktu_absen=lt.'+encode(next+'-01T06:00:00+08:00')+
     scope+'&order=waktu_absen.asc');
-  rows=await effectiveAbsence(rows,period+'-01',addDay(next+'-01',-1),own?u.name:'',own?'':u.branch);
+  rows=await effectiveAbsence(rows,period+'-01',addDay(next+'-01',-1),own?u.name:'',u.branch);
   rows=await photos(rows);
   return { status:'sukses',periode:period,data:[HEADERS_ABSEN,...rows.map(r=>[r.waktu_absen,r.nama_pegawai,r.tipe_absen,r.keterangan,r.status_disiplin||'',r.kembali_bekerja_pada||'',r.bukti_foto||'',r.lokasi_maps||''])] };
 }
 async function getReview(u) {
   const today=day(), tomorrow=addDay(today);
-  const scope=management(u)?
-    (u.branch==='Kendari'?'&or=(cabang.eq.Kendari,cabang.is.null)':'&cabang=eq.Raha'):
-    '&nama_pegawai=eq.'+encode(u.name);
+  const scope=(management(u)?'':'&nama_pegawai=eq.'+encode(u.name))+absenceBranchScope(u.branch);
   let rows=await allRows('absensi','select=id_absen,waktu_absen,nama_pegawai,role,tipe_absen,keterangan,status_disiplin,lokasi_maps,bukti_foto'+
     '&waktu_absen=gte.'+encode(today+'T00:00:00+08:00')+'&waktu_absen=lt.'+encode(tomorrow+'T00:00:00+08:00')+
     scope+'&order=waktu_absen.asc');
-  rows=await photos(await effectiveAbsence(rows,today,today,management(u)?'':u.name,management(u)?u.branch:''));
+  rows=await photos(await effectiveAbsence(rows,today,today,management(u)?'':u.name,u.branch));
   const result=new Map();
   for (const r of rows) {
     if (day(r.waktu_absen)!==today) continue;
@@ -398,9 +396,9 @@ async function syncCorrection(body,u) {
   if (rows.length) await rest('sla_koreksi_luar_kota','on_conflict=periode,nama_pegawai','POST',rows,'resolution=merge-duplicates,return=representation');
   return {status:'sukses',jumlah:rows.length};
 }
-async function sameDayRows(name,work) {
+async function sameDayRows(name,work,cabang) {
   const rows=await allRows('absensi','select=*&nama_pegawai=eq.'+encode(name)+'&waktu_absen=gte.'+encode(work+'T00:00:00+08:00')+
-    '&waktu_absen=lt.'+encode(addDay(work)+'T06:00:00+08:00')+'&order=waktu_absen.asc,id_absen.asc');
+    '&waktu_absen=lt.'+encode(addDay(work)+'T06:00:00+08:00')+absenceBranchScope(cabang)+'&order=waktu_absen.asc,id_absen.asc');
   return rows.filter(r=>workDay(r)===work);
 }
 async function recordAttendance(body,u) {
@@ -427,18 +425,18 @@ async function recordAttendance(body,u) {
     if(needsProof&&(!String(body.keterangan||'').trim()||!String(body.fotoBase64||'').startsWith('data:image/')))
       throw new Error('Di luar radius atau pulang setelah 20:00 wajib keterangan dan foto.');
   }
-  const work=workDay({waktu_absen:at,tipe_absen:recordType}),daily=await sameDayRows(u.name,work),extra=[];
+  const work=workDay({waktu_absen:at,tipe_absen:recordType}),daily=await sameDayRows(u.name,work,u.branch),extra=[];
   const expected=daily.at(-1)?.id_absen||'';
   if(correction) {
     const period=monthNow(),exceptions=await rest('sla_koreksi_luar_kota','select=tanggal&periode=eq.'+encode(period)+'&nama_pegawai=eq.'+encode(u.name));
     const exempt=exceptions[0]?.tanggal?.includes(Number(day(at).slice(8)))||false;
-    const monthRows=await allRows('absensi','select=waktu_absen,status_disiplin&nama_pegawai=eq.'+encode(u.name)+'&waktu_absen=gte.'+encode(period+'-01T00:00:00+08:00'));
+    const monthRows=await allRows('absensi','select=waktu_absen,status_disiplin&nama_pegawai=eq.'+encode(u.name)+'&waktu_absen=gte.'+encode(period+'-01T00:00:00+08:00')+absenceBranchScope(u.branch));
     const count=monthRows.filter(r=>r.status_disiplin==='Koreksi Manual'&&!exceptions[0]?.tanggal?.includes(Number(day(r.waktu_absen).slice(8)))).length;
     if(!exempt&&count>=7)throw new Error('Jatah Koreksi Absen bulan ini habis (maksimal 7).');
   }
   if(!correction&&type!=='Keluar'&&minute(at)>=720) {
     const morning=daily.some(r=>String(r.tipe_absen||'').includes('Masuk')&&!String(r.tipe_absen||'').includes('Setelah Istirahat')&&minute(r.waktu_absen)<720);
-    const effective=morning?[]:await effectiveAbsence(daily,work,work,u.name);
+    const effective=morning?[]:await effectiveAbsence(daily,work,work,u.name,u.branch);
     const sick=effective.some(r=>['Izin','Sakit'].includes(r.tipe_absen)&&new Date(r.waktu_absen)<at);
     if(type==='Masuk Setelah Istirahat'&&!morning&&!sick)throw new Error('Lakukan Absen Masuk terlebih dahulu.');
     if(type==='Masuk'&&(morning||sick))recordType='Masuk Setelah Istirahat';
