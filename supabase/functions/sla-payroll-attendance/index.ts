@@ -6,7 +6,10 @@ const PUBLIC_KEYS = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') || '{}'
 const SECRET = SECRET_KEYS.default || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const PUBLIC = PUBLIC_KEYS.default || Deno.env.get('SUPABASE_ANON_KEY');
 const BUCKET = 'sla-attendance-private';
-const ORIGINS = new Set(['https://aplikasisla.vercel.app']);
+const ORIGINS = new Set([
+  'https://aplikasisla.vercel.app',
+  'https://aplikasisla-git-codex-supabase-ce8793-asyahrulmubaraks-projects.vercel.app'
+]);
 const HEADERS_ABSEN = ['Waktu Absen', 'Nama Pegawai', 'Tipe Absen', 'Keterangan', 'Status Disiplin', 'Kembali Bekerja', 'Bukti Foto', 'Lokasi Maps'];
 const OFFICE = {
   Kendari: { lat: -3.9641006831731826, lon: 122.54316001476751 },
