@@ -718,7 +718,10 @@
         function penggunaAdalahPegawaiKendariPayroll_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
             const cabang = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
-            return ['teknisi', 'sales'].includes(role) && cabang === 'Kendari';
+            const gaji = Number(penggunaAktif && penggunaAktif['Gaji Pokok']);
+            const bergaji = !!String(penggunaAktif && penggunaAktif['Nama Asli'] || '').trim() &&
+                ['Kendari', 'Raha'].includes(cabang) && Number.isFinite(gaji) && gaji > 0;
+            return (['teknisi', 'sales'].includes(role) && cabang === 'Kendari') || bergaji;
         }
 
         function penggunaBolehMembukaSlipGaji_() {
@@ -958,7 +961,7 @@
                 await pastikanTokenSupabaseAktif_();
             } catch(e) { window.location.href = "index.html"; return; }
 
-            // Manajemen melihat seluruh payroll; sales dan teknisi Kendari hanya slip pribadi.
+            // Manajemen melihat seluruh payroll; pegawai bergaji hanya slip pribadi.
             if (!penggunaBolehMembukaSlipGaji_()) {
                 window.location.href = "index.html";
                 return;
@@ -2457,8 +2460,17 @@
                         const waktuSakit = new Date(eventPenutupIzinSakit['Waktu Absen']);
                         const menitSakit = waktuSakit.getHours() * 60 + waktuSakit.getMinutes();
                         if (menitSakit < kebijakanKerja.selesaiMenit) {
-                            upahRegulerHariIni = upahPerHari;
-                            totalDetikRegulerHariIni = kebijakanKerja.durasiMenit * 60;
+                            // Kuota sakit hanya mengisi waktu setelah pengajuan.
+                            // Sesi sebelum sakit tetap dimulai pada jam masuk fisik,
+                            // sehingga masuk terlambat tidak berubah menjadi upah penuh.
+                            const detikSakit = menitSakit * 60 + waktuSakit.getSeconds();
+                            const sisaDetikJadwal = Math.max(0,
+                                kebijakanKerja.selesaiMenit * 60 - detikSakit);
+                            const sisaKuotaReguler = Math.max(0,
+                                kebijakanKerja.durasiMenit * 60 - totalDetikRegulerHariIni);
+                            const detikSakitDibayar = Math.min(sisaDetikJadwal, sisaKuotaReguler);
+                            upahRegulerHariIni += detikSakitDibayar * upahPerDetik;
+                            totalDetikRegulerHariIni += detikSakitDibayar;
                             totalDetikKerjaHariIni = totalDetikRegulerHariIni + totalDetikLemburHariIni;
                             if (msk2 === '-' && menitSakit <= 13 * 60 + 30) {
                                 msk2 = '13:30';
