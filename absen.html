@@ -348,7 +348,7 @@
         // ==========================================
         // KONFIGURASI SISTEM
         // ==========================================
-        const API_ABSEN_URL = "https://script.google.com/macros/s/AKfycbzWjDbDmP8HTkFhnr4i_-HDN4Gozsfa8tuSKnwIszLIphJdtfuUk9R0YdgZyotncqgyfg/exec";
+        const API_ABSEN_URL = 'https://oozkqjgllubhjctnkxwl.supabase.co/functions/v1/sla-payroll-attendance';
         const API_URL_KENDARI = "https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec";
         const API_URL_RAHA = "https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec";
         const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
@@ -537,18 +537,27 @@
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 25000);
             try {
+                const payloadAktif = payloadDenganTokenTerbaru_(payload);
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: {'Content-Type': 'text/plain;charset=utf-8'},
-                    body: JSON.stringify(payloadDenganTokenTerbaru_(payload)),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': 'Bearer ' + payloadAktif.user.SessionToken
+                    },
+                    body: JSON.stringify(payloadAktif),
                     redirect: 'follow',
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
+                if (response.status === 401 && izinkanRefresh) {
+                    await pastikanTokenSupabaseAktif_(true);
+                    return await fetchAntiCORS(url, payload, false);
+                }
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const hasil = await response.json();
                 if (izinkanRefresh && responsMenandakanSesiTidakSah_(hasil)) {
-                    // Token dapat habis di antara halaman dibuka dan request GAS.
+                    // Token dapat habis di antara halaman dibuka dan request Supabase.
                     // Refresh lalu ulang satu kali agar tidak terjadi pengulangan tanpa batas.
                     await pastikanTokenSupabaseAktif_(true);
                     return await fetchAntiCORS(url, payload, false);
@@ -1224,7 +1233,7 @@
                 let base64Foto = "";
                 const fileInput = document.getElementById('input-foto');
                 if (fileInput.files.length > 0) {
-                    textLoading.innerText = "Mengompres & mengirim foto ke Drive...";
+                    textLoading.innerText = "Mengompres dan menyimpan foto bukti...";
                     base64Foto = await kompresFoto(fileInput.files[0]);
                 }
 
