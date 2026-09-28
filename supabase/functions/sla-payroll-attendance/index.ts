@@ -347,8 +347,8 @@ function normalizePhone(value) {
   return /^\d{8,15}$/.test(number)?number:'';
 }
 async function notifyManagers(u,reason,type) {
-  const token=Deno.env.get('FONNTE_TOKEN');
-  if (!token) throw new Error('FONNTE_TOKEN belum dikonfigurasi pada Edge Function.');
+  const token=Deno.env.get('FONNTE_TOKEN') || Deno.env.get('FONNTE_TOKEN_CADANGAN');
+  if (!token) throw new Error('Token Fonnte belum dikonfigurasi pada Edge Function.');
   const users=await allRows('users','select=role,no_wa,hak_akses_cabang');
   const recipients=users.filter(x=>x.no_wa&&canApprove({role:norm(x.role),branch:branch(x.hak_akses_cabang),access:x.hak_akses_cabang},u))
     .map(x=>normalizePhone(x.no_wa)).filter(Boolean);
