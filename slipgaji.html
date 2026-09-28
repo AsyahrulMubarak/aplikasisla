@@ -634,7 +634,8 @@
         const API_URL_KENDARI = "https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec";
         const API_URL_RAHA = "https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec";
         const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
-        const API_ABSEN = "https://script.google.com/macros/s/AKfycbzWjDbDmP8HTkFhnr4i_-HDN4Gozsfa8tuSKnwIszLIphJdtfuUk9R0YdgZyotncqgyfg/exec";
+        const API_SLA_SUPABASE = 'https://oozkqjgllubhjctnkxwl.supabase.co/functions/v1/sla-payroll-attendance';
+        const API_ABSEN = API_SLA_SUPABASE;
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
         const FETCH_TIMEOUT_MS = 30000;
         const SUPABASE_URL = 'https://oozkqjgllubhjctnkxwl.supabase.co';
@@ -644,17 +645,17 @@
 
         // --- RESTORASI SESI CABANG DARI LOBI UTAMA ---
         let cabangAktif = 'Kendari'; // Fallback aman
-        let apiUrl = '';
+        let apiUrl = API_SLA_SUPABASE;
         try {
             const sesiTersimpan = sessionStorage.getItem('sesiLoginSLA');
             if (sesiTersimpan) {
                 const sesi = JSON.parse(sesiTersimpan);
                 cabangAktif = sesi.cabangAktif || 'Kendari';
-                apiUrl = sesi.apiUrl || API_URL_KENDARI;
+                apiUrl = API_SLA_SUPABASE;
             }
         } catch (e) {
             console.error("Gagal membaca sesi SLA:", e);
-            apiUrl = API_URL_KENDARI;
+            apiUrl = API_SLA_SUPABASE;
         }
         // ---------------------------------------------
 
@@ -856,7 +857,7 @@
                 throw new Error('URL API sesi tidak valid.');
             }
 
-            apiUrl = apiCabang;
+            apiUrl = API_SLA_SUPABASE;
             document.documentElement.dataset.cabangAktif = cabangAktif;
             return session;
         }
@@ -891,10 +892,16 @@
             try {
                 const response = await fetch(url, {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': 'Bearer ' + payload.user.SessionToken
+                    },
                     redirect: 'follow',
                     body: JSON.stringify(payload),
                     signal: controller.signal
                 });
+                if (response.status === 401) throw new Error('Sesi Anda tidak sah atau telah kedaluwarsa.');
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const responseText = await response.text();
@@ -942,8 +949,8 @@
                 return await mintaDataAbsen();
             } catch (errorAwal) {
                 if (!errorSesiAbsensi_(errorAwal)) throw errorAwal;
-                // Sesi dapat kadaluwarsa tepat di antara pemuatan halaman dan
-                // panggilan Apps Script. Refresh lalu ulangi satu kali saja.
+                // Sesi dapat kedaluwarsa tepat sebelum panggilan Edge Function.
+                // Refresh lalu ulangi satu kali saja.
                 await pastikanTokenSupabaseAktif_(true);
                 return await mintaDataAbsen();
             }
@@ -1303,6 +1310,11 @@
                 await pastikanTokenSupabaseAktif_();
                 const res = await fetch(apiUrl, {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': 'Bearer ' + penggunaAktif.SessionToken
+                    },
                     body: JSON.stringify(payloadSesiSlip('simpanVariabelPayroll', {
                         periode: periode,
                         namaPegawai: namaPegawai,
@@ -1430,6 +1442,11 @@
                 await pastikanTokenSupabaseAktif_();
                 const res = await fetch(apiUrl, {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': 'Bearer ' + penggunaAktif.SessionToken
+                    },
                     body: JSON.stringify(payloadSesiSlip('updateTunjangan', {
                         namaAsli: profilTarget['Nama Asli'],
                         usernameTarget: profilTarget.Username,
@@ -1504,7 +1521,8 @@
                     throw buatErrorBatalPayroll_();
                 }
                 console.warn(`[PAYROLL] ${label} gagal pada percobaan pertama; mengulang sumber ini saja:`, errorAwal);
-                await new Promise(resolve => setTimeout(resolve, 750));
+                if (errorSesiAbsensi_(errorAwal)) await pastikanTokenSupabaseAktif_(true);
+                else await new Promise(resolve => setTimeout(resolve, 750));
                 if (signal && signal.aborted) throw buatErrorBatalPayroll_();
                 return await jalankan();
             }
@@ -1738,7 +1756,7 @@
                     document.getElementById('pilih-bulan').value !== periode) throw buatErrorBatalPayroll_();
                 if (normalisasiCabangPayroll(dataCabang.cabang) !== cabangTujuan ||
                     !Array.isArray(dataCabang.tickets)) {
-                    throw new Error('Data tiket ' + cabangTujuan + ' tidak sesuai. Perbarui GAS cabang aktif.');
+                    throw new Error('Data tiket ' + cabangTujuan + ' tidak sesuai. Muat ulang data payroll.');
                 }
                 tiketPayrollPerCabang_[cabangTujuan] = dataCabang.tickets;
             })();

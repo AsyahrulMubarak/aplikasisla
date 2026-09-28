@@ -8207,6 +8207,27 @@
             document.getElementById('btn-batal-edit-user').style.display = 'none';
         }
 
+        async function kelolaProfilMelaluiSupabase_(action, profil, usernameTarget, ulangi = true) {
+            await pastikanTokenSupabaseAktif_();
+            const response = await fetch('https://oozkqjgllubhjctnkxwl.supabase.co/functions/v1/sla-payroll-attendance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': 'Bearer ' + penggunaAktif.SessionToken
+                },
+                body: JSON.stringify({ action, profil, usernameTarget })
+            });
+            if (response.status === 401 && ulangi) {
+                await pastikanTokenSupabaseAktif_(true);
+                return kelolaProfilMelaluiSupabase_(action, profil, usernameTarget, false);
+            }
+            if (!response.ok) throw new Error('API profil Supabase HTTP ' + response.status);
+            const hasil = await response.json();
+            if (hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Perubahan profil ditolak.');
+            return hasil.data;
+        }
+
         async function simpanUserBaru(e) {
             e.preventDefault();
             const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
@@ -8240,10 +8261,10 @@
                 }
 
                 if (modeEditUser) {
-                    const hasilUser = await callSupabase(endpointFilterSupabase_('users', 'username', payload.username), 'PATCH', payload);
+                    const hasilUser = await kelolaProfilMelaluiSupabase_('ubahProfil', payload);
                     pastikanHasilMutasiSupabase_(hasilUser, `User ${payload.username}`);
                 } else {
-                    const hasilUser = await callSupabase('users', 'POST', payload);
+                    const hasilUser = await kelolaProfilMelaluiSupabase_('buatProfil', payload);
                     pastikanHasilMutasiSupabase_(hasilUser, `User ${payload.username}`);
                 }
 
@@ -8323,7 +8344,7 @@
 
                 document.getElementById('loading').style.display = 'block';
 
-                const hasilHapusUser = await callSupabase(endpointFilterSupabase_('users', 'username', un), 'DELETE');
+                const hasilHapusUser = await kelolaProfilMelaluiSupabase_('hapusProfil', null, un);
                 pastikanHasilMutasiSupabase_(hasilHapusUser, `User ${un}`);
 
                 showToast('Alhamdulillah! User berhasil dihapus.', 'success');
