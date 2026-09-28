@@ -8398,16 +8398,25 @@
                     if (!Number.isFinite(loginTimeAwal) || loginTimeAwal <= 0 || (new Date().getTime() - loginTimeAwal) > 86400000) throw new Error('Sesi kedaluwarsa.');
                     penggunaAktif = Object.assign({}, parsedSessionAwal.user);
                     waktuLoginAktif = loginTimeAwal;
-                    const cabangSesi = normalisasiCabang(parsedSessionAwal.cabangAktif);
-                    const urlValidasi = API_URL_CABANG[cabangSesi] || API_AUTH_URL;
-                    const hasilValidasi = await kirimKeBackend_(urlValidasi, 'validateSession');
-                    if (!hasilValidasi || hasilValidasi.status !== 'sukses' || !hasilValidasi.user) throw new Error('Sesi ditolak server.');
-                    // Respons GAS tidak membawa refresh token. Pertahankan pasangan
-                    // token terbaru yang mungkin baru saja dirotasi sebelum validasi.
+                    // Validasi token langsung ke Supabase Auth. GAS cabang Kendari
+                    // menolak akun Raha ketika kembali dari modul ke Lobby.
+                    const tokenValidasi = await pastikanTokenSupabaseAktif_();
+                    const responsValidasi = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+                        headers: {
+                            apikey: SUPABASE_ANON_KEY,
+                            Authorization: `Bearer ${tokenValidasi}`
+                        }
+                    });
+                    if (!responsValidasi.ok) throw new Error('Sesi Supabase ditolak.');
+                    const akunValidasi = await responsValidasi.json();
+                    const profilValidasi = await muatProfilLoginSupabase_(
+                        { user: akunValidasi, access_token: tokenValidasi },
+                        parsedSessionAwal.user.Username
+                    );
                     const tokenAktif = penggunaAktif.SessionToken;
                     const refreshTokenAktif = penggunaAktif.RefreshToken || parsedSessionAwal.user.RefreshToken || '';
                     const expiresAtAktif = penggunaAktif.SessionExpiresAt || parsedSessionAwal.user.SessionExpiresAt || waktuKedaluwarsaJwt_(tokenAktif);
-                    penggunaAktif = Object.assign({}, hasilValidasi.user, {
+                    penggunaAktif = Object.assign({}, profilValidasi, {
                         SessionToken: tokenAktif,
                         RefreshToken: refreshTokenAktif,
                         SessionExpiresAt: expiresAtAktif
