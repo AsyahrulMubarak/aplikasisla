@@ -732,7 +732,8 @@
 
         function penggunaBolehKelolaPayroll_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
-            return ['admin', 'manager', 'direktur'].includes(role);
+            const cabang = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
+            return role === 'manager' || role === 'direktur' || (role === 'admin' && cabang !== 'Raha');
         }
 
         function waktuKedaluwarsaJwt_(token) {
@@ -1738,8 +1739,7 @@
             const cabangTujuan = normalisasiCabangPayroll(cabang);
             if (!cabangTujuan || periodeTiketPayroll_ !== periode) throw new Error('Data tiket payroll belum siap untuk periode ini. Muat ulang slip.');
             if (Array.isArray(tiketPayrollPerCabang_[cabangTujuan])) return;
-            if (!penggunaBolehKelolaPayroll_() ||
-                normalisasiCabangSesi(penggunaAktif.Hak_Akses_Cabang) !== 'Semua') {
+            if (!penggunaBolehKelolaPayroll_()) {
                 throw new Error('Akun ini tidak memiliki akses ke tiket payroll cabang ' + cabangTujuan + '.');
             }
             if (janjiTiketPayrollCabang_[cabangTujuan]) return janjiTiketPayrollCabang_[cabangTujuan];
@@ -1785,7 +1785,7 @@
                     if (profil) await pastikanTiketPayrollCabang_(cabangSumberPoinPayroll_(profil), periode);
                     generateSlipIndividu();
                 } else {
-                    if (normalisasiCabangSesi(penggunaAktif.Hak_Akses_Cabang) === 'Semua') {
+                    if (penggunaBolehKelolaPayroll_()) {
                         await pastikanTiketPayrollCabang_(cabangAktif === 'Raha' ? 'Kendari' : 'Raha', periode);
                     }
                     generateDashboardRekap();

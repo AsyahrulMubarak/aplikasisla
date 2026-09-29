@@ -52,12 +52,13 @@ async function allRows(table, query) {
 const norm = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const branch = value => /^(kendari|raha)$/i.test(String(value || '')) ? (String(value).toLowerCase() === 'raha' ? 'Raha' : 'Kendari') : '';
 const absenceBranchScope = value => value === 'Kendari' ? '&or=(cabang.eq.Kendari,cabang.is.null)' : '&cabang=eq.Raha';
-const management = u => ['admin','manager','direktur'].includes(u.role) && !(u.role === 'admin' && u.branch === 'Raha');
+const management = u => ['admin','manager','direktur'].includes(u.role) && !(u.role === 'admin' && (u.homeBranch || u.branch) === 'Raha');
 const salaried = u => !!u.name && !!u.branch && Number(u.salary) > 0;
 const canAttend = u => management(u) || (u.branch === 'Kendari' && LEGACY_KENDARI.has(norm(u.name))) || salaried(u);
 const canOwnSlip = u => salaried(u) || (u.branch === 'Kendari' && ['teknisi','sales'].includes(u.role));
-const canPayrollManage = u => ['admin','manager','direktur'].includes(u.role) && !(u.role === 'admin' && u.branch === 'Raha');
+const canPayrollManage = u => management(u);
 const canManageBranch = (u,target) => u.access === 'Semua' || target === u.branch;
+const canManagePayrollBranch = (u,target) => canPayrollManage(u) && !!branch(target);
 const safePeriod = value => /^\d{4}-(0[1-9]|1[0-2])$/.test(String(value || '')) ? String(value) : null;
 const encode = encodeURIComponent;
 function wita(value = new Date()) {
@@ -110,8 +111,9 @@ async function authenticate(request) {
   const emailExpected = norm(p.username).replace(/\s+/g,'') + '@alfacom.local';
   if (String(auth.email || '').toLowerCase() !== emailExpected) throw new Error('Identitas akun tidak cocok dengan profil.');
   const role=norm(p.role),access=String(p.hak_akses_cabang||p.cabang||'').trim();
+  const homeBranch=branch(access)||branch(p.cabang)||(role==='manager'||role==='direktur'||role==='admin'?'Kendari':'');
   return { username: p.username, name: p.nama_asli, role,
-    branch: branch(access)||branch(p.cabang)||(role==='manager'||role==='direktur'||role==='admin'?'Kendari':''),
+    branch:homeBranch,homeBranch,
     access, salary: Number(p.gaji_pokok) || 0, phone: p.no_wa || '', authId: auth.id };
 }
 async function photoUrl(value) {
@@ -180,21 +182,21 @@ async function getAbsence(body,u) {
   const period=safePeriod(body.periode); if (!period) throw new Error('Format periode absensi tidak valid.');
   const next=period.slice(5)==='12' ? String(Number(period.slice(0,4))+1)+'-01' : period.slice(0,5)+String(Number(period.slice(5))+1).padStart(2,'0');
   const own=!management(u);
-  const scope=(own?'&nama_pegawai=eq.'+encode(u.name):'')+absenceBranchScope(u.branch);
+  const scope=own?'&nama_pegawai=eq.'+encode(u.name)+absenceBranchScope(u.branch):'';
   let rows=await allRows('absensi','select=id_absen,waktu_absen,nama_pegawai,role,tipe_absen,keterangan,status_disiplin,bukti_foto,lokasi_maps'+
     '&waktu_absen=gte.'+encode(period+'-01T00:00:00+08:00')+'&waktu_absen=lt.'+encode(next+'-01T06:00:00+08:00')+
     scope+'&order=waktu_absen.asc');
-  rows=await effectiveAbsence(rows,period+'-01',addDay(next+'-01',-1),own?u.name:'',u.branch);
+  rows=await effectiveAbsence(rows,period+'-01',addDay(next+'-01',-1),own?u.name:'',own?u.branch:'');
   rows=await photos(rows);
   return { status:'sukses',periode:period,data:[HEADERS_ABSEN,...rows.map(r=>[r.waktu_absen,r.nama_pegawai,r.tipe_absen,r.keterangan,r.status_disiplin||'',r.kembali_bekerja_pada||'',r.bukti_foto||'',r.lokasi_maps||''])] };
 }
 async function getReview(u) {
   const today=day(), tomorrow=addDay(today);
-  const scope=(management(u)?'':'&nama_pegawai=eq.'+encode(u.name))+absenceBranchScope(u.branch);
+  const scope=management(u)?'':'&nama_pegawai=eq.'+encode(u.name)+absenceBranchScope(u.branch);
   let rows=await allRows('absensi','select=id_absen,waktu_absen,nama_pegawai,role,tipe_absen,keterangan,status_disiplin,lokasi_maps,bukti_foto'+
     '&waktu_absen=gte.'+encode(today+'T00:00:00+08:00')+'&waktu_absen=lt.'+encode(tomorrow+'T00:00:00+08:00')+
     scope+'&order=waktu_absen.asc');
-  rows=await photos(await effectiveAbsence(rows,today,today,management(u)?'':u.name,u.branch));
+  rows=await photos(await effectiveAbsence(rows,today,today,management(u)?'':u.name,management(u)?'':u.branch));
   const result=new Map();
   for (const r of rows) {
     if (day(r.waktu_absen)!==today) continue;
@@ -227,12 +229,11 @@ async function getPayroll(body,u) {
   const own=!canPayrollManage(u); if (own&&!canOwnSlip(u)) throw new Error('Akses Slip Gaji belum diizinkan untuk akun ini.');
   const target=branch(body.cabang||u.branch); if (!target) throw new Error('Cabang payroll tidak valid.');
   if (own&&target!==u.branch) throw new Error('Slip pribadi hanya tersedia pada cabang kerja pegawai.');
-  if (!own&&target!==u.branch&&!(u.access==='Semua'&&['admin','manager','direktur'].includes(u.role)))
+  if (!own&&!canManagePayrollBranch(u,target))
     throw new Error('Akses payroll lintas cabang ditolak.');
   const next=period.slice(5)==='12'?String(Number(period.slice(0,4))+1)+'-01':period.slice(0,5)+String(Number(period.slice(5))+1).padStart(2,'0');
   let users=await allRows('users','select=username,role,nama_asli,email,target_sales_rp,no_wa,gaji_pokok,bonus_tambahan,hak_akses_cabang'+
     (own?'&auth_id=eq.'+encode(u.authId):'')+'&order=nama_asli.asc');
-  if (!own) users=users.filter(r=>branch(r.hak_akses_cabang)===target||r.hak_akses_cabang==='Semua');
   if (own&&users.length!==1) throw new Error('Profil payroll pegawai tidak ditemukan.');
   const base='select=id_tiket,no_transaksi,status,status_pembayaran,tanggal_lunas,waktu_selesai,teknisi,bobot_poin,veto_admin,status_sla,cabang'+
     '&status=eq.Selesai&status_pembayaran=eq.Lunas'+(target==='Kendari'?'&or=(cabang.eq.Kendari,cabang.is.null)':'&cabang=eq.Raha');
@@ -261,10 +262,11 @@ async function savePayroll(body,u) {
   const period=safePeriod(body.periode),name=String(body.namaPegawai||'').trim();
   if (!period||!name) throw new Error('Periode atau pegawai tidak valid.');
   if (period<monthNow()) throw new Error('Periode payroll yang sudah lewat telah dikunci.');
-  const target=await rest('users','select=nama_asli,hak_akses_cabang&nama_asli=eq.'+encode(name)+'&limit=2');
-  if (target.length!==1) throw new Error('Profil payroll tidak unik atau tidak ditemukan.');
-  const targetBranch=branch(target[0].hak_akses_cabang);
-  if(!targetBranch||!canManageBranch(u,targetBranch))throw new Error('Cabang payroll tidak sesuai hak akses.');
+  const target=await allRows('users','select=nama_asli,hak_akses_cabang&nama_asli=eq.'+encode(name));
+  const targetBranches=new Set(target.map(r=>branch(r.hak_akses_cabang)));
+  if (!target.length||targetBranches.size!==1) throw new Error('Cabang profil payroll tidak unik atau tidak ditemukan.');
+  const targetBranch=[...targetBranches][0];
+  if(!targetBranch||!canManagePayrollBranch(u,targetBranch))throw new Error('Cabang payroll tidak sesuai hak akses.');
   const fee=Number(body.fee),kasbon=Number(body.kasbon);
   if (!Number.isFinite(fee)||!Number.isFinite(kasbon)||fee<0||kasbon<0) throw new Error('Nominal payroll tidak valid.');
   const key=period+'_'+name.toLowerCase(),old=await rest('payroll_bulanan','select=*&kunci_payroll=eq.'+encode(key)+'&limit=2');
@@ -394,7 +396,7 @@ async function syncCorrection(body,u) {
   const rows=body.daftarPayroll.filter(x=>String(x.namaPegawai||'').trim()).map(x=>({periode:period,nama_pegawai:String(x.namaPegawai).trim(),
     tanggal:dates(x.luarKota,period).split(',').map(x=>Number(x.trim())).filter(Boolean),diperbarui_pada:new Date().toISOString(),diperbarui_oleh:u.name}));
   const profiles=await allRows('users','select=nama_asli,hak_akses_cabang');
-  const allowed=new Set(profiles.filter(r=>branch(r.hak_akses_cabang)&&canManageBranch(u,branch(r.hak_akses_cabang))).map(r=>norm(r.nama_asli)));
+  const allowed=new Set(profiles.filter(r=>canManagePayrollBranch(u,branch(r.hak_akses_cabang))).map(r=>norm(r.nama_asli)));
   if(rows.some(r=>!allowed.has(norm(r.nama_pegawai))))throw new Error('Pengecualian payroll di luar cabang ditolak.');
   if (rows.length) await rest('sla_koreksi_luar_kota','on_conflict=periode,nama_pegawai','POST',rows,'resolution=merge-duplicates,return=representation');
   return {status:'sukses',jumlah:rows.length};
@@ -499,7 +501,7 @@ async function dispatch(body,u) {
     if(!canPayrollManage(u))throw new Error('Akses komponen payroll ditolak.');
     const period=safePeriod(body.periode);if(!period)throw new Error('Periode payroll tidak valid.');
     const profiles=await allRows('users','select=nama_asli,hak_akses_cabang');
-    const names=new Set(profiles.filter(r=>branch(r.hak_akses_cabang)&&canManageBranch(u,branch(r.hak_akses_cabang))).map(r=>norm(r.nama_asli)));
+    const names=new Set(profiles.filter(r=>canManagePayrollBranch(u,branch(r.hak_akses_cabang))).map(r=>norm(r.nama_asli)));
     return {status:'sukses',data:(await payrollRows(period)).filter(r=>names.has(norm(r.namaPegawai)))};
   }
   if(action==='simpanVariabelPayroll')return savePayroll(body,u);
@@ -509,7 +511,7 @@ async function dispatch(body,u) {
     const target=await rest('users','select=username,nama_asli,hak_akses_cabang&username=eq.'+encode(String(body.usernameTarget||''))+'&limit=2');
     if(target.length!==1||norm(target[0].nama_asli)!==norm(body.namaAsli))throw new Error('Profil tunjangan tidak cocok.');
     const targetBranch=branch(target[0].hak_akses_cabang);
-    if(!targetBranch||!canManageBranch(u,targetBranch))throw new Error('Cabang tunjangan tidak sesuai hak akses.');
+    if(!targetBranch||!canManagePayrollBranch(u,targetBranch))throw new Error('Cabang tunjangan tidak sesuai hak akses.');
     await rest('users','username=eq.'+encode(target[0].username),'PATCH',{bonus_tambahan:String(body.tunjanganData||'')});
     return {status:'sukses'};
   }
