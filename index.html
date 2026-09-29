@@ -2040,6 +2040,7 @@
             if (/^responBanding\('[A-Za-z0-9._-]{1,120}',\s*'(?:Diterima|Ditolak)'\)$/.test(handler)) return true;
             if (/^responPemulihan\('[A-Za-z0-9._-]{1,120}',\s*'[A-Za-z ]{1,40}'\)$/.test(handler)) return true;
             if (/^kirimWAdanCatat\('[A-Za-z0-9._-]{1,120}',\s*'628\d{7,12}',\s*'[A-Za-z0-9%._~!*()\-]{1,6000}',\s*this\)$/.test(handler)) return true;
+            if (/^bukaWAPenitipan\('TKT-[A-Za-z0-9-]+',\s*'628\d{7,12}',\s*'[A-Za-z0-9%._~!*()\-]{1,6000}'\)$/.test(handler)) return true;
             return false;
         }
 
@@ -8556,7 +8557,7 @@
 
                             // Pengingat otomatis dicatat setelah Fonnte menerima permintaan.
                             let amanPesan = encodeURIComponent(pesan).replace(/'/g, "%27");
-                            let waLink = /^628\d{7,12}$/.test(noWa) ? `<button onclick="bukaWAPenitipan('${ref}', '${noWa}', '${amanPesan}')" style="display:block; width:100%; margin-top:8px; padding:10px 12px; background:#25d366; color:white; border:none; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">💬 Buka WhatsApp (manual)</button>` : '<span style="font-size:11px; color:red; display:block; margin-top:5px;">No WA klien belum valid; pengingat otomatis tidak dapat dikirim.</span>';
+                            let waLink = /^TKT-[A-Za-z0-9-]+$/.test(ref) && /^628\d{7,12}$/.test(noWa) ? `<button onclick="bukaWAPenitipan('${ref}', '${noWa}', '${amanPesan}')" style="display:block; width:100%; margin-top:8px; padding:10px 12px; background:#25d366; color:white; border:none; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">💬 Buka WhatsApp (manual)</button>` : '<span style="font-size:11px; color:red; display:block; margin-top:5px;">No WA klien atau referensi tiket belum valid; pengingat otomatis tidak dapat dikirim.</span>';
 
                             htmlHasil += `<div style="background:${warna}; padding:12px; border-radius:6px; margin-bottom:10px; border:1px solid rgba(0,0,0,0.1); font-size:12px; ${bedaHari>=30?'color:white;':''}">
                                 <strong style="font-size:14px;">${amanTeks_(namaKlien)}</strong> (${amanTeks_(ref)})<br>
@@ -8582,7 +8583,7 @@
         }
 
         function bukaWAPenitipan(ref, noWa, pesanUrlEncoded) {
-            if (!idAman_(ref) || !/^628\d{7,12}$/.test(String(noWa || '')) || !/^[A-Za-z0-9%._~!*()\-]{1,6000}$/.test(String(pesanUrlEncoded || ''))) {
+            if (!/^TKT-[A-Za-z0-9-]+$/.test(String(ref || '')) || !/^628\d{7,12}$/.test(String(noWa || '')) || !/^[A-Za-z0-9%._~!*()\-]{1,6000}$/.test(String(pesanUrlEncoded || ''))) {
                 showToast('Data WhatsApp atau referensi tidak valid.', 'error');
                 return;
             }
