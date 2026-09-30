@@ -53,6 +53,20 @@
         .main-lobby-option.raha { border-color: #99f6e4; background: linear-gradient(145deg, #ecfdf5, #fff); color: #0f766e; }
         .main-lobby-option.absen { border-color: #a7f3d0; background: linear-gradient(145deg, #ecfdf5, #fff); color: #047857; }
         .main-lobby-option.gaji { border-color: #fde68a; background: linear-gradient(145deg, #fffbeb, #fff); color: #a16207; }
+        .main-lobby-option.klaim { border-color: #d8b4fe; background: linear-gradient(145deg, #faf5ff, #fff); color: #7e22ce; }
+        #klaim-sales-wrapper { display:none; position:fixed; inset:0; z-index:9999; background:#f8fafc; overflow-y:auto; padding:24px 16px; box-sizing:border-box; }
+        .klaim-sales-panel { max-width:1100px; margin:0 auto; }
+        .klaim-sales-header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+        .klaim-sales-header h2 { margin:0 0 6px; color:#6b21a8; }
+        .klaim-sales-header p { margin:0; color:var(--text-muted); font-size:13px; }
+        .klaim-sales-filters { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+        .klaim-sales-filters input { flex:2; min-width:190px; margin:0; padding:12px; border:1px solid var(--border); border-radius:10px; font:inherit; font-size:13px; }
+        .klaim-sales-filters select { flex:1; min-width:160px; margin:0; }
+        .klaim-sales-branches { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+        .klaim-sales-branch { min-width:0; }
+        .klaim-sales-branch h3 { margin:0 0 14px; color:var(--primary); }
+        .klaim-sales-branch .card { overflow-wrap:anywhere; }
+        @media (max-width:700px) { .klaim-sales-branches { grid-template-columns:1fr; } }
         .main-lobby-option:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(30,58,138,.12); }
         .main-lobby-option:disabled { opacity: .55; cursor: wait; transform: none; }
         .main-lobby-option.is-locked { border-color: #cbd5e1; background: linear-gradient(145deg, #f1f5f9, #e2e8f0); color: #64748b; opacity: .68; filter: grayscale(1); }
@@ -692,11 +706,42 @@
                     <span aria-hidden="true">📊</span> Aplikasi KPI
                     <strong class="lobby-lock-indicator" aria-hidden="true">🔒 Khusus Direktur, Manager, dan Admin</strong>
                 </button>
+                <button type="button" id="btn-lobby-klaim-sales" class="main-lobby-option klaim" onclick="bukaMenuKlaimSales()" style="display:none;">
+                    <span aria-hidden="true">📌</span>Klaim Sales
+                    <small style="display:block; margin-top:6px; font-weight:500;">Pengajuan Kendari &amp; Raha · Admin Kendari</small>
+                </button>
             </div>
             <p class="main-lobby-note">Pegawai Kendari dan Raha yang memiliki gaji pokok dapat membuka Absensi dan slip gajinya sendiri. Menu approval dan pengelolaan komponen payroll tetap khusus Manajemen.</p>
             <div id="main-lobby-status" role="status" aria-live="polite"></div>
             <button type="button" class="main-lobby-logout" onclick="prosesLogout()">🚪 Keluar Aplikasi</button>
         </div>
+    </div>
+
+    <div id="klaim-sales-wrapper" aria-hidden="true">
+        <main class="klaim-sales-panel" aria-labelledby="klaim-sales-title">
+            <div class="klaim-sales-header">
+                <div><h2 id="klaim-sales-title">📌 Klaim Sales</h2><p>Pengajuan tiket Kendari dan Raha · Persetujuan khusus Admin Kendari</p></div>
+                <div class="btn-grid" style="margin:0;">
+                    <button type="button" class="btn-edit" id="btn-refresh-klaim-sales" onclick="muatKlaimSales()">↻ Muat ulang</button>
+                    <button type="button" class="btn-action-primary" style="margin:0; width:auto;" onclick="tutupMenuKlaimSales()">← Kembali ke Lobby</button>
+                </div>
+            </div>
+            <div class="segment-control">
+                <button type="button" class="segment-btn active" id="btn-klaim-baru" onclick="pilihTampilanKlaimSales('baru')">Pengajuan Baru</button>
+                <button type="button" class="segment-btn" id="btn-klaim-riwayat" onclick="pilihTampilanKlaimSales('riwayat')">Riwayat</button>
+            </div>
+            <div class="klaim-sales-filters">
+                <input id="search-klaim-sales" type="search" placeholder="Cari tiket, klien, atau Sales pengaju..." aria-label="Cari pengajuan klaim" oninput="renderKlaimSales()">
+                <select id="filter-status-klaim-sales" aria-label="Status pengajuan klaim" onchange="renderKlaimSales()">
+                    <option value="all">Semua pengajuan</option><option value="Diajukan">Menunggu persetujuan</option><option value="Diterima">Diterima</option><option value="Ditolak">Ditolak</option>
+                </select>
+            </div>
+            <p id="klaim-sales-status" role="status" aria-live="polite" style="font-size:12px; color:var(--text-muted);"></p>
+            <div class="klaim-sales-branches">
+                <section class="klaim-sales-branch" aria-labelledby="klaim-kendari-title"><h3 id="klaim-kendari-title">🏢 Kendari</h3><div id="klaim-kendari-container"></div></section>
+                <section class="klaim-sales-branch" aria-labelledby="klaim-raha-title"><h3 id="klaim-raha-title">🏢 Raha</h3><div id="klaim-raha-container"></div></section>
+            </div>
+        </main>
     </div>
 
     <div id="modal-banding" class="modal">
@@ -1511,7 +1556,7 @@
 
             // Use POST with credentials
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 25000);
+            const timeoutId = setTimeout(() => controller.abort(), ['ajukanBanding', 'responBanding'].includes(action) ? 60000 : 25000);
 
             try {
                 const response = await fetch(url, Object.assign({
@@ -2037,7 +2082,8 @@
 
             const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|lihatBuktiChatProspek|unduhBuktiChatProspek)';
             if (new RegExp('^' + fungsiSatuId + "\\('[A-Za-z0-9._-]{1,120}'\\)$").test(handler)) return true;
-            if (/^responBanding\('[A-Za-z0-9._-]{1,120}',\s*'(?:Diterima|Ditolak)'\)$/.test(handler)) return true;
+            if (/^responBanding\('[A-Za-z0-9._-]{1,120}',\s*'(?:Diterima|Ditolak)'(?:,\s*'(?:Kendari|Raha)')?\)$/.test(handler)) return true;
+            if (/^lihatBuktiKlaimSales\('[A-Za-z0-9._-]{1,120}',\s*'(?:Kendari|Raha)'\)$/.test(handler)) return true;
             if (/^responPemulihan\('[A-Za-z0-9._-]{1,120}',\s*'[A-Za-z ]{1,40}'\)$/.test(handler)) return true;
             if (/^kirimWAdanCatat\('[A-Za-z0-9._-]{1,120}',\s*'628\d{7,12}',\s*'[A-Za-z0-9%._~!*()\-]{1,6000}',\s*this\)$/.test(handler)) return true;
             if (/^bukaWAPenitipan\('TKT-[A-Za-z0-9-]+',\s*'628\d{7,12}',\s*'[A-Za-z0-9%._~!*()\-]{1,6000}'\)$/.test(handler)) return true;
@@ -2989,6 +3035,7 @@
 
         function tampilkanLobbyUtama() {
             if (!punyaAksesLobby()) throw new Error('Akun ini tidak memiliki akses ke Lobby utama.');
+            hentikanMenuKlaimSales_();
             if (intervalAutoRefresh) { clearInterval(intervalAutoRefresh); intervalAutoRefresh = null; }
             hentikanRealtimeSLA_();
             cabangAktif = null;
@@ -3013,6 +3060,7 @@
 
             document.getElementById('btn-lobby-sla-kendari').style.display = showAllBranches || hakAkses === 'Kendari' ? 'block' : 'none';
             document.getElementById('btn-lobby-sla-raha').style.display = showAllBranches || hakAkses === 'Raha' ? 'block' : 'none';
+            document.getElementById('btn-lobby-klaim-sales').style.display = penggunaAdminKendariKlaim_() ? 'block' : 'none';
             const hakModulPendukung = {
                 'btn-lobby-absen': bolehAbsensi,
                 'btn-lobby-gaji': bolehSlipGaji,
@@ -5903,9 +5951,7 @@
                 }
                 else if (roleAdalahAdminOperasional_() || rolePengguna() === 'manager') {
                     if (ticket['Status Banding'] === 'Diajukan') {
-                        let imgs = String(ticket['Bukti Banding']||'').split('|#|'); let imgHtml = '';
-                        imgs.forEach((imgSrc, idx) => { if(imgSrc && imgSrc.length > 10) { imgHtml += `<div style="display:flex; flex-direction:column; align-items:center;"><img src="${imgSrc}"><a href="${imgSrc}" download="Bukti_${ticket['ID Tiket']}_${idx+1}.jpg" class="dl-btn">Unduh Foto ${idx+1}</a></div>`; } });
-                        htmlBanding = `<div style="margin-top:15px; padding:15px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px;"><h4 style="margin:0 0 10px 0; color:var(--purple); font-size:14px;">Klaim Sales: ${ticket['Sales Pengaju']}</h4>${ticket['Keterangan Sales'] ? `<p style="font-size:12px; margin:0 0 10px 0; color:#4a5568;"><i>"${ticket['Keterangan Sales']}"</i></p>` : ''}<div class="img-grid">${imgHtml}</div><div class="btn-grid"><button class="btn-acc" onclick="responBanding('${ticket['ID Tiket']}', 'Diterima')">Terima Klaim</button><button class="btn-del" onclick="responBanding('${ticket['ID Tiket']}', 'Ditolak')">Tolak Klaim</button></div></div>`;
+                        htmlBanding = `<div style="margin-top:15px; padding:12px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px; font-size:12px;">Klaim Sales menunggu persetujuan Admin Kendari melalui menu Klaim Sales di lobby.</div>`;
                     }
 
                     if (isUnassigned) {
@@ -7730,10 +7776,184 @@
 
         }
 
-        function bukaModalBanding(id) { document.getElementById('banding-id').value = id; document.getElementById('banding-bukti').value = ''; document.getElementById('banding-keterangan').value = ''; document.getElementById('modal-banding').style.display = 'flex'; }
+        let globalKlaimSales = [];
+        let tampilanKlaimSales_ = 'baru';
+        let menuKlaimSalesTerbuka_ = false;
+        let intervalKlaimSales_ = null;
+        let promiseMuatKlaimSales_ = null;
+        let urutanMuatKlaimSales_ = 0;
+        const klaimSalesSedangDiproses_ = new Set();
+        const cacheBuktiKlaimSales_ = new Map();
+        const buktiKlaimSalesSedangDimuat_ = new Set();
+
+        function penggunaAdminKendariKlaim_(user = penggunaAktif) {
+            if (!user) return false;
+            const role = String(user.Role || '').trim().toLowerCase();
+            const cabang = String(user.Hak_Akses_Cabang || '').trim().toLowerCase();
+            return role === 'admin' && ['', 'kendari', 'semua'].includes(cabang);
+        }
+
+        function klaimSalesMasukRiwayat_(klaim) {
+            return !klaim.klaim_sales_diajukan_pada || klaim.status_banding !== 'Diajukan';
+        }
+
+        function pilihTampilanKlaimSales(tampilan) {
+            if (!['baru', 'riwayat'].includes(tampilan) || !penggunaAdminKendariKlaim_()) return;
+            tampilanKlaimSales_ = tampilan;
+            document.getElementById('filter-status-klaim-sales').value = 'all';
+            renderKlaimSales();
+        }
+
+        function hentikanMenuKlaimSales_() {
+            menuKlaimSalesTerbuka_ = false;
+            if (intervalKlaimSales_) clearInterval(intervalKlaimSales_);
+            intervalKlaimSales_ = null;
+            promiseMuatKlaimSales_ = null;
+            urutanMuatKlaimSales_++;
+            globalKlaimSales = [];
+            cacheBuktiKlaimSales_.clear();
+            buktiKlaimSalesSedangDimuat_.clear();
+            document.getElementById('klaim-sales-wrapper').style.display = 'none';
+            document.getElementById('klaim-sales-wrapper').setAttribute('aria-hidden', 'true');
+            tetapkanHtmlAman_(document.getElementById('klaim-kendari-container'), '');
+            tetapkanHtmlAman_(document.getElementById('klaim-raha-container'), '');
+        }
+
+        async function bukaMenuKlaimSales() {
+            if (!penggunaAdminKendariKlaim_()) {
+                showToast('Menu Klaim Sales khusus Admin Kendari.', 'warning');
+                return;
+            }
+            hentikanRealtimeSLA_();
+            document.getElementById('app-wrapper').style.display = 'none';
+            document.getElementById('main-lobby-wrapper').style.display = 'none';
+            document.getElementById('main-lobby-wrapper').setAttribute('aria-hidden', 'true');
+            document.getElementById('klaim-sales-wrapper').style.display = 'block';
+            document.getElementById('klaim-sales-wrapper').setAttribute('aria-hidden', 'false');
+            menuKlaimSalesTerbuka_ = true;
+            renderKlaimSales();
+            if (intervalKlaimSales_) clearInterval(intervalKlaimSales_);
+            intervalKlaimSales_ = setInterval(() => {
+                if (menuKlaimSalesTerbuka_ && document.visibilityState !== 'hidden') void muatKlaimSales();
+            }, 30000);
+            await muatKlaimSales();
+        }
+
+        function tutupMenuKlaimSales() {
+            hentikanMenuKlaimSales_();
+            tampilkanLobbyUtama();
+        }
+
+        async function muatKlaimSales(paksaBaru = false) {
+            if (!menuKlaimSalesTerbuka_ || !penggunaAdminKendariKlaim_()) return false;
+            if (promiseMuatKlaimSales_ && !paksaBaru) return promiseMuatKlaimSales_;
+            const urutan = ++urutanMuatKlaimSales_;
+            const username = penggunaAktif.Username;
+            const status = document.getElementById('klaim-sales-status');
+            const tombol = document.getElementById('btn-refresh-klaim-sales');
+            status.textContent = 'Memuat pengajuan Kendari dan Raha...';
+            tombol.disabled = true;
+            const promise = (async () => {
+                try {
+                    const hasil = await kirimKeBackend_(API_AUTH_URL, 'getKlaimSales');
+                    if (!menuKlaimSalesTerbuka_ || !penggunaAktif || penggunaAktif.Username !== username || urutan !== urutanMuatKlaimSales_) return false;
+                    if (!hasil || hasil.status !== 'sukses' || !Array.isArray(hasil.data)) throw new Error('Daftar klaim tidak valid.');
+                    globalKlaimSales = hasil.data.map(k => cacheBuktiKlaimSales_.has(k.klaim_sales_id)
+                        ? { ...k, bukti_banding: cacheBuktiKlaimSales_.get(k.klaim_sales_id) } : k);
+                    renderKlaimSales();
+                    status.textContent = 'Data diperbarui otomatis setiap 30 detik. Pengajuan sebelum menu dibuat tersedia di Riwayat.';
+                    return true;
+                } catch (error) {
+                    if (menuKlaimSalesTerbuka_ && urutan === urutanMuatKlaimSales_) status.textContent = 'Gagal memuat klaim: ' + error.message + ' Gunakan Muat ulang untuk mencoba kembali.';
+                    return false;
+                } finally {
+                    if (urutan === urutanMuatKlaimSales_) { tombol.disabled = false; promiseMuatKlaimSales_ = null; }
+                }
+            })();
+            promiseMuatKlaimSales_ = promise;
+            return promise;
+        }
+
+        function renderKlaimSales() {
+            if (!penggunaAdminKendariKlaim_()) return;
+            const riwayat = tampilanKlaimSales_ === 'riwayat';
+            const cari = String(document.getElementById('search-klaim-sales').value || '').trim().toLowerCase();
+            const status = document.getElementById('filter-status-klaim-sales').value;
+            const jumlahBaru = globalKlaimSales.filter(k => !klaimSalesMasukRiwayat_(k)).length;
+            document.getElementById('btn-klaim-baru').textContent = `Pengajuan Baru (${jumlahBaru})`;
+            document.getElementById('btn-klaim-riwayat').textContent = `Riwayat (${globalKlaimSales.length - jumlahBaru})`;
+            document.getElementById('btn-klaim-baru').classList.toggle('active', !riwayat);
+            document.getElementById('btn-klaim-riwayat').classList.toggle('active', riwayat);
+            const daftar = globalKlaimSales.filter(k => klaimSalesMasukRiwayat_(k) === riwayat &&
+                (status === 'all' || k.status_banding === status) &&
+                [k.id_tiket, k.klien_lokasi, k.pekerjaan, k.sales_pengaju].some(v => String(v || '').toLowerCase().includes(cari)));
+            for (const cabang of ['Kendari', 'Raha']) {
+                const cabangRows = daftar.filter(k => (normalisasiCabang(k.cabang) || 'Kendari') === cabang);
+                document.getElementById(`klaim-${cabang.toLowerCase()}-title`).textContent = `🏢 ${cabang} (${cabangRows.length})`;
+                let html = '';
+                for (const k of cabangRows) {
+                    const id = idAman_(k.id_tiket);
+                    const menunggu = k.status_banding === 'Diajukan';
+                    const sedangProses = klaimSalesSedangDiproses_.has(`${cabang}|${id}`);
+                    const badge = menunggu ? 'badge-pending' : k.status_banding === 'Diterima' ? 'badge-selesai' : 'badge-cancel';
+                    const bukti = String(k.bukti_banding || '').split('|#|').map((foto, i) => {
+                        const url = foto.trim() ? urlAman_(foto, true) : '';
+                        return url ? `<div><img src="${amanTeks_(url)}" alt="Bukti klaim ${amanTeks_(id)} foto ${i + 1}" loading="lazy"><a href="${amanTeks_(url)}" target="_blank" class="dl-btn" download="Bukti_${amanTeks_(id)}_${i + 1}.jpg">Buka foto ${i + 1}</a></div>` : '';
+                    }).join('');
+                    const muatBukti = k.bukti_banding === undefined && id
+                        ? `<button class="btn-action-primary" ${buktiKlaimSalesSedangDimuat_.has(k.klaim_sales_id) ? 'disabled' : ''} onclick="lihatBuktiKlaimSales('${id}', '${cabang}')">${buktiKlaimSalesSedangDimuat_.has(k.klaim_sales_id) ? 'Memuat bukti...' : '📷 Lihat bukti pengajuan'}</button>`
+                        : (!bukti ? '<p style="color:var(--text-muted);">Foto bukti belum tersedia pada pengajuan ini.</p>' : '');
+                    const aksi = menunggu && id ? `<div class="btn-grid"><button class="btn-acc" ${sedangProses ? 'disabled' : ''} onclick="responBanding('${id}', 'Diterima', '${cabang}')">${sedangProses ? 'Memproses...' : 'Terima Klaim'}</button><button class="btn-del" ${sedangProses ? 'disabled' : ''} onclick="responBanding('${id}', 'Ditolak', '${cabang}')">Tolak Klaim</button></div>` : '';
+                    html += `<article class="card" style="border-left-color:${menunggu ? 'var(--warning)' : k.status_banding === 'Diterima' ? 'var(--success)' : 'var(--danger)'};">
+                        <h3><span>${amanTeks_(k.id_tiket)}</span><span class="badge ${badge}">${menunggu ? 'Menunggu' : amanTeks_(k.status_banding)}</span></h3>
+                        <p><strong>Sales pengaju:</strong> ${amanTeks_(k.sales_pengaju || '-')}</p><p><strong>Klien:</strong> ${amanTeks_(k.klien_lokasi || '-')}</p><p><strong>Pekerjaan:</strong> ${amanTeks_(k.pekerjaan || '-')}</p>
+                        <p><strong>Diajukan:</strong> ${k.klaim_sales_diajukan_pada ? amanTeks_(formatWaktu(k.klaim_sales_diajukan_pada)) : 'Pengajuan sebelum menu dibuat'}</p>
+                        ${k.keterangan_sales ? `<p style="white-space:pre-wrap;"><strong>Keterangan Sales:</strong> ${amanTeks_(k.keterangan_sales)}</p>` : ''}
+                        ${k.alasan_admin ? `<p style="white-space:pre-wrap;"><strong>Alasan penolakan:</strong> ${amanTeks_(k.alasan_admin)}</p>` : ''}
+                        ${k.klaim_sales_diputuskan_pada ? `<p><strong>Diputuskan:</strong> ${amanTeks_(formatWaktu(k.klaim_sales_diputuskan_pada))} · ${amanTeks_(k.klaim_sales_admin || 'Admin Kendari')}</p>` : ''}
+                        ${menunggu && !k.klaim_sales_username ? '<p style="color:var(--warning);">Identitas akun Sales pengaju perlu diperiksa sebelum pengajuan lama diproses.</p>' : ''}
+                        ${muatBukti}<div class="img-grid">${bukti}</div>${aksi}</article>`;
+                }
+                if (!html) html = `<div class="card"><p>${cari || status !== 'all' ? 'Tidak ada pengajuan yang sesuai filter.' : riwayat ? 'Belum ada riwayat pengajuan di cabang ini.' : 'Belum ada pengajuan baru di cabang ini. Pengajuan lama dapat dilihat di Riwayat.'}</p></div>`;
+                tetapkanHtmlAman_(document.getElementById(`klaim-${cabang.toLowerCase()}-container`), html);
+            }
+        }
+
+        async function lihatBuktiKlaimSales(idTiket, cabang) {
+            if (!penggunaAdminKendariKlaim_() || !menuKlaimSalesTerbuka_) return;
+            const klaim = globalKlaimSales.find(k => k.id_tiket === idTiket && (normalisasiCabang(k.cabang) || 'Kendari') === cabang);
+            if (!klaim || buktiKlaimSalesSedangDimuat_.has(klaim.klaim_sales_id)) return;
+            const idKlaim = klaim.klaim_sales_id;
+            const username = penggunaAktif.Username;
+            buktiKlaimSalesSedangDimuat_.add(idKlaim);
+            renderKlaimSales();
+            try {
+                const hasil = await kirimKeBackend_(API_AUTH_URL, 'getBuktiKlaimSales', { idTiket, cabang });
+                if (!menuKlaimSalesTerbuka_ || !penggunaAktif || penggunaAktif.Username !== username) return;
+                if (!hasil || hasil.status !== 'sukses' || typeof hasil.data !== 'string') throw new Error('Bukti pengajuan tidak valid.');
+                cacheBuktiKlaimSales_.set(idKlaim, hasil.data);
+                const terbaru = globalKlaimSales.find(k => k.klaim_sales_id === idKlaim);
+                if (terbaru) terbaru.bukti_banding = hasil.data;
+            } catch (error) {
+                if (menuKlaimSalesTerbuka_) showToast('Gagal memuat bukti: ' + error.message, 'error');
+            } finally {
+                buktiKlaimSalesSedangDimuat_.delete(idKlaim);
+                if (menuKlaimSalesTerbuka_) renderKlaimSales();
+            }
+        }
+
+        function bukaModalBanding(id) {
+            if (rolePengguna() !== 'sales') { showToast('Pengajuan klaim khusus Sales.', 'warning'); return; }
+            document.getElementById('banding-id').value = id;
+            document.getElementById('banding-bukti').value = '';
+            document.getElementById('banding-keterangan').value = '';
+            document.getElementById('modal-banding').style.display = 'flex';
+        }
 
         async function kirimBanding(e) {
             e.preventDefault();
+            if (rolePengguna() !== 'sales') { showToast('Pengajuan klaim khusus Sales.', 'warning'); return; }
+            if (document.getElementById('btn-submit-banding').disabled) return;
             const fileInput = document.getElementById('banding-bukti');
             if(fileInput.files.length === 0) { showToast('Afwan, Harap pilih minimal 1 foto bukti!', 'warning'); return; }
             if(fileInput.files.length > 3) { showToast('Afwan, Maksimal 3 foto yang bisa diunggah sekaligus!', 'warning'); return; }
@@ -7751,54 +7971,55 @@
                 const ketSales = document.getElementById('banding-keterangan').value;
                 const idTiket = document.getElementById('banding-id').value;
 
-                const hasilBanding = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', { status_banding: 'Diajukan', sales_pengaju: penggunaAktif['Nama Asli'], bukti_banding: gabunganBukti, keterangan_sales: ketSales });
-                pastikanHasilMutasiSupabase_(hasilBanding, `Banding tiket ${idTiket}`);
-                showToast('Alhamdulillah! Klaim terkirim, menunggu persetujuan Admin.', 'success');
+                const hasilBanding = await kirimKeBackend_(API_AUTH_URL, 'ajukanBanding', {
+                    idTiket, cabang: cabangAktif, buktiBanding: gabunganBukti, keteranganSales: ketSales
+                });
+                if (!hasilBanding || hasilBanding.status !== 'sukses') throw new Error('Pengajuan klaim belum tersimpan.');
+                const notifTertunda = hasilBanding.notifikasi && (hasilBanding.notifikasi.gagal || hasilBanding.notifikasi.tertunda);
+                showToast('Klaim tersimpan, menunggu persetujuan Admin Kendari.' + (notifTertunda ? ' Notifikasi WA masih dalam antrean pengiriman ulang.' : ''), notifTertunda ? 'warning' : 'success');
                 document.getElementById('modal-banding').style.display = 'none';
                 await ambilSemuaData(true);
             } catch (err) {
-                showToast('Afwan, Gagal kompresi foto atau sinyal lemah.', 'error');
+                showToast('Gagal mengirim klaim: ' + err.message + ' Muat ulang tiket untuk memastikan status pengajuan.', 'error');
             }
             document.getElementById('banding-status').style.display = 'none';
             document.getElementById('btn-submit-banding').disabled = false;
             document.getElementById('btn-submit-banding').innerText = 'Kirim Pengajuan Bukti';
         }
 
-        async function responBanding(idTiket, keputusan) {
-            const tiketBanding = (globalTickets || []).find(tiket => tiket && String(tiket['ID Tiket']) === String(idTiket));
-            const namaSales = tiketBanding ? String(tiketBanding['Sales Pengaju'] || '').trim() : '';
-            if (!tiketBanding || !namaSales) { showToast('Data pengajuan Banding tidak lengkap.', 'error'); return; }
-            let alasan = '';
-            if (keputusan === 'Ditolak') {
-                alasan = await showPrompt("Bismillah, Tuliskan alasan penolakan untuk Sales:");
-                if (alasan === null) return;
-                if (alasan.trim() === '') {
-                    showToast('Afwan, Alasan penolakan wajib diisi!', 'warning');
-                    return;
-                }
-            } else {
-                const acc = await showConfirm('Bismillah, yakin menerima klaim ini? Nama Sales akan otomatis diupdate.', false);
-                if (!acc) return;
-            }
-
-            document.getElementById('loading').style.display = 'block';
+        async function responBanding(idTiket, keputusan, cabang) {
+            if (!penggunaAdminKendariKlaim_() || !menuKlaimSalesTerbuka_) { showToast('Persetujuan klaim khusus Admin Kendari melalui menu lobby.', 'warning'); return; }
+            if (!['Diterima', 'Ditolak'].includes(keputusan)) { showToast('Keputusan klaim tidak valid.', 'error'); return; }
+            const tiket = globalKlaimSales.find(k => String(k.id_tiket) === String(idTiket) && (normalisasiCabang(k.cabang) || 'Kendari') === cabang);
+            if (!tiket || tiket.status_banding !== 'Diajukan') { showToast('Pengajuan tidak ditemukan atau sudah diproses.', 'warning'); return; }
+            const kunci = `${cabang}|${idTiket}`;
+            if (klaimSalesSedangDiproses_.has(kunci)) return;
+            klaimSalesSedangDiproses_.add(kunci);
+            renderKlaimSales();
             try {
-                if (keputusan === 'Diterima') {
-                    const hasilTerima = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', { status_banding: keputusan, sales: namaSales, alasan_admin: null });
-                    pastikanHasilMutasiSupabase_(hasilTerima, `Banding tiket ${idTiket}`);
-                } else if (keputusan === 'Ditolak') {
-                    const hasilTolak = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', { status_banding: keputusan, alasan_admin: alasan });
-                    pastikanHasilMutasiSupabase_(hasilTolak, `Banding tiket ${idTiket}`);
-                } else {
-                    throw new Error(`Keputusan Banding tidak valid: ${keputusan}`);
-                }
-
-                showToast(`Alhamdulillah! Klaim berhasil diproses (${keputusan}).`, 'success');
-                await ambilSemuaData(true);
+                let alasan = '';
+                if (keputusan === 'Ditolak') {
+                    alasan = await showPrompt('Tuliskan alasan penolakan untuk Sales:');
+                    if (alasan === null) return;
+                    if (!alasan.trim()) { showToast('Alasan penolakan wajib diisi.', 'warning'); return; }
+                } else if (!await showConfirm(`Terima klaim ${idTiket} (${cabang}) dari ${tiket.sales_pengaju}? Nama Sales pada tiket akan diperbarui.`, false)) return;
+                const hasil = await kirimKeBackend_(API_AUTH_URL, 'responBanding', { idTiket, cabang, statusBanding: keputusan, alasanAdmin: alasan });
+                if (!hasil || hasil.status !== 'sukses') throw new Error('Keputusan belum tersimpan.');
+                // Pembaruan lokal mencegah keputusan diulang jika pembacaan ulang gagal.
+                tiket.status_banding = keputusan;
+                tiket.alasan_admin = keputusan === 'Ditolak' ? alasan.trim() : null;
+                if (keputusan === 'Diterima') tiket.sales = tiket.sales_pengaju;
+                tiket.klaim_sales_diputuskan_pada = new Date().toISOString();
+                tiket.klaim_sales_admin = penggunaAktif.Username;
+                const notifTertunda = hasil.notifikasi && (hasil.notifikasi.gagal || hasil.notifikasi.tertunda);
+                showToast(`Klaim ${keputusan.toLowerCase()}.` + (notifTertunda ? ' Notifikasi WA ke Sales masih dalam antrean pengiriman ulang.' : ' Notifikasi WA ke Sales diproses otomatis.'), notifTertunda ? 'warning' : 'success');
+                await muatKlaimSales(true);
             } catch (err) {
-                showToast('Afwan, gagal memproses klaim: ' + err.message, 'error');
+                showToast('Gagal memproses klaim: ' + err.message, 'error');
+                await muatKlaimSales(true);
             } finally {
-                document.getElementById('loading').style.display = 'none';
+                klaimSalesSedangDiproses_.delete(kunci);
+                if (menuKlaimSalesTerbuka_) renderKlaimSales();
             }
         }
 
