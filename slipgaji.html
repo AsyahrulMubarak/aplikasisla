@@ -1721,7 +1721,11 @@
                     select.value = namaPreferensi;
                 }
             } else {
-                select.innerHTML = `<option value="${penggunaAktif['Nama Asli']}" selected>${penggunaAktif['Nama Asli']}</option>`;
+                if (profilPayrollAkunPercobaan_(penggunaAktif)) {
+                    select.innerHTML = '<option value="" selected>-- Akun percobaan tidak termasuk slip gaji --</option>';
+                } else {
+                    select.innerHTML = `<option value="${penggunaAktif['Nama Asli']}" selected>${penggunaAktif['Nama Asli']}</option>`;
+                }
                 select.disabled = true;
             }
             
@@ -1857,7 +1861,13 @@
             return namaUnik.map(cariProfilPayroll).filter(Boolean);
         }
 
+        function profilPayrollAkunPercobaan_(profil) {
+            return normalisasiNamaProfilPayroll_(profil && profil['Nama Asli']) === 'asyahrul mubarak';
+        }
+
+
         function profilLayakTampilPayroll_(profil) {
+            if (profilPayrollAkunPercobaan_(profil)) return false;
             const gaji = parseFloat(profil['Gaji Pokok'] ?? profil['Gaji Pokok (Rp)']) || 0;
             if (gaji > 0) return true;
             if (String(profil.Role || '').toLowerCase() === 'freelance') return false;
@@ -2080,6 +2090,15 @@
                 let isFutureDate = (isCurrentMonth && i > todayDate); // Mencegah tanggal masa depan dihitung
 
                 let events = [...(rekapanMentah[dateKey] || [])];
+                const waktuMulaiIzinSakit = events.filter(e => /Sakit|Izin/.test(String(e['Tipe Absen'] || '')))
+                    .map(e => new Date(e['Waktu Absen'])).filter(d => !isNaN(d.getTime())).sort((a,b) => a - b)[0] || null;
+                const waktuKembaliFisik = events.filter(e => {
+                    const tipe = String(e['Tipe Absen'] || '');
+                    const status = String(e['Status Disiplin'] || '');
+                    const waktu = new Date(e['Waktu Absen']);
+                    return tipe.includes('Masuk') && !/Lupa Absen Masuk|Koreksi|Auto/i.test(status) &&
+                        !isNaN(waktu.getTime()) && (!waktuMulaiIzinSakit || waktu >= waktuMulaiIzinSakit);
+                }).map(e => new Date(e['Waktu Absen'])).sort((a,b) => a - b)[0] || null;
                 // Cadangan untuk catatan lama saat trigger penutup absen belum
                 // berjalan. Gunakan kuota yang sama dengan penutup di backend.
                 const sudahAutoKeluar = events.some(e => String(e['Status Disiplin'] || '').includes('Auto Keluar'));
@@ -2093,6 +2112,7 @@
                 const sakitPertama = events.filter(e => String(e['Tipe Absen'] || '').includes('Sakit'))
                     .sort((a, b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen']))[0];
                 const sakitPagiBerkuota = !!sakitPertama && kuotaSakitTerpakai < 3 &&
+                    !waktuKembaliFisik &&
                     !events.some(e => String(e['Tipe Absen'] || '').includes('Masuk') &&
                         new Date(e['Waktu Absen']) < new Date(sakitPertama['Waktu Absen']));
                 const lewatBatasFinalisasi = now.getTime() >= new Date(dateKey + 'T06:00:00+08:00').getTime() + 86400000;
@@ -2112,18 +2132,9 @@
                 const waktuKembaliPengajuan = events.map(e => new Date(e['Kembali Bekerja'] || NaN))
                     .filter(d => !isNaN(d.getTime()) && d.getFullYear() === currDate.getFullYear() && d.getMonth() === currDate.getMonth() && d.getDate() === currDate.getDate())
                     .sort((a,b) => a - b)[0] || null;
-                const waktuMulaiIzinSakit = events.filter(e => /Sakit|Izin/.test(String(e['Tipe Absen'] || '')))
-                    .map(e => new Date(e['Waktu Absen'])).filter(d => !isNaN(d.getTime())).sort((a,b) => a - b)[0] || null;
                 // Data lama tidak selalu memiliki kolom "Kembali Bekerja". Masuk fisik
                 // pertama setelah izin/sakit menjadi batas akhir warna izin pada hari itu.
-                const waktuKembaliFisik = events.filter(e => {
-                    const tipe = String(e['Tipe Absen'] || '');
-                    const status = String(e['Status Disiplin'] || '');
-                    const waktu = new Date(e['Waktu Absen']);
-                    return tipe.includes('Masuk') && !/Lupa Absen Masuk|Koreksi|Auto/i.test(status) &&
-                        !isNaN(waktu.getTime()) && (!waktuMulaiIzinSakit || waktu >= waktuMulaiIzinSakit);
-                }).map(e => new Date(e['Waktu Absen'])).sort((a,b) => a - b)[0] || null;
-                const waktuKembaliEfektif = waktuKembaliPengajuan || waktuKembaliFisik;
+                const waktuKembaliEfektif = waktuKembaliFisik || waktuKembaliPengajuan;
                 let adaAbsenFisik = events.some(e => String(e['Tipe Absen']).includes('Masuk') || String(e['Tipe Absen']).includes('Keluar') || String(e['Tipe Absen']).includes('Pulang'));
                 const adaKeluarFisik = events.some(e => {
                     const tipe = String(e['Tipe Absen'] || '');
@@ -2149,6 +2160,7 @@
                 if (isIzinExplicit && !isHariLibur && !isFutureDate) countIzin++;
 
                 let applySakitFull = false; let applySakitKosong = false;
+                let applySakitSebelumMasuk = false;
                 let applySakitSisaHari = false;
                 // Hari izin yang memiliki absen fisik tetap mengikuti sesi kerja nyata.
                 let applyIzin = isIzinExplicit && !adaAbsenFisik;
@@ -2171,7 +2183,9 @@
                 if (!isHariLibur && !isFutureDate && isSakitExplicit) {
                     const kuotaSakitTersedia = kuotaSakitTerpakai < 3;
                     kuotaSakitTerpakai++;
-                    if (!statusMenutupSesiFisik) {
+                    if (kuotaSakitTersedia && waktuKembaliFisik) {
+                        applySakitSebelumMasuk = true;
+                    } else if (!statusMenutupSesiFisik) {
                         if (kuotaSakitTersedia) applySakitFull = true;
                         else applySakitKosong = true;
                     } else if (kuotaSakitTersedia && !waktuKembaliEfektif) {
@@ -2302,6 +2316,21 @@
                     const maksimumPotonganIstirahatDetik = 90 * 60;
                     const sesiKerjaHariIni = [];
                     events.sort((a,b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen']));
+                    const waktuSakitAwal = sakitPertama ? new Date(sakitPertama['Waktu Absen']) : null;
+                    const detikSakitAwal = waktuSakitAwal
+                        ? waktuSakitAwal.getHours() * 3600 + waktuSakitAwal.getMinutes() * 60 + waktuSakitAwal.getSeconds()
+                        : 0;
+                    const detikKembaliFisik = waktuKembaliFisik
+                        ? waktuKembaliFisik.getHours() * 3600 + waktuKembaliFisik.getMinutes() * 60 + waktuKembaliFisik.getSeconds()
+                        : 0;
+                    const detikSakitSebelumMasuk = applySakitSebelumMasuk
+                        ? Math.min(kebijakanKerja.durasiMenit * 60, Math.max(0,
+                            Math.min(detikKembaliFisik, kebijakanKerja.selesaiMenit * 60) -
+                            Math.max(detikSakitAwal, kebijakanKerja.mulaiMenit * 60)))
+                        : 0;
+                    if (applySakitSebelumMasuk) {
+                        ketList.push('Sakit berhenti saat absen fisik ' + formatDurasiDetikPayroll(detikKembaliFisik));
+                    }
 
                     events.forEach(e => {
                         let ed = new Date(e['Waktu Absen']);
@@ -2450,10 +2479,10 @@
 
                     potonganIstirahatHariIniDetik = Math.max(potonganCheckpointIstirahatDetik, potonganIstirahatTerekamDetik);
 
-                    if (sesiKerjaHariIni.length > 0) {
-                        let totalDetikReguler = 0;
+                    if (sesiKerjaHariIni.length > 0 || detikSakitSebelumMasuk > 0) {
+                        let totalDetikReguler = detikSakitSebelumMasuk;
                         let totalDetikLembur = 0;
-                        let totalDetikArgo = 0;
+                        let totalDetikArgo = detikSakitSebelumMasuk;
 
                         sesiKerjaHariIni.forEach((sesi, indexSesi) => {
                             const awalArgo = Math.max(sesi.mulai, kebijakanKerja.mulaiMenit * 60);
@@ -2487,7 +2516,7 @@
 
                         // Hanya checkpoint masuk pagi yang memengaruhi bonus/denda disiplin.
                         // Seluruh menit 08:45 masih tepat waktu; telat dimulai pada 08:46.
-                        if (!isHariLibur && detikMasukPagiPertama !== null && Math.floor(detikMasukPagiPertama / 60) > kebijakanKerja.batasTelatMenit) countTelatPagi++;
+                        if (!isHariLibur && !applySakitSebelumMasuk && detikMasukPagiPertama !== null && Math.floor(detikMasukPagiPertama / 60) > kebijakanKerja.batasTelatMenit) countTelatPagi++;
                         if (totalDetikLembur > 0) {
                             lemHariIni += totalDetikLembur * (5000 / 3600); // Tetap memakai tarif lembur yang telah berlaku.
                             txtLemburJam = formatDurasiDetikPayroll(totalDetikLembur);
