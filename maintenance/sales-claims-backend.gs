@@ -21,7 +21,7 @@ function prosesKlaimSales_(data) {
   var admin = adminKendariUntukKlaim_(aktor);
   if (action === 'getKlaimSales') {
     if (!admin) throw new Error('Menu Klaim Sales hanya dapat diakses oleh Admin Kendari.');
-    var fields = 'id_tiket,cabang,klien_lokasi,pekerjaan,sales,status_banding,sales_pengaju,' +
+    var fields = 'id_tiket,cabang,klien_lokasi,pekerjaan:jenis_pekerjaan,sales,status_banding,sales_pengaju,' +
       'keterangan_sales,alasan_admin,klaim_sales_id,klaim_sales_username,' +
       'klaim_sales_diajukan_pada,klaim_sales_diputuskan_pada,klaim_sales_admin';
     var rows = [], page;

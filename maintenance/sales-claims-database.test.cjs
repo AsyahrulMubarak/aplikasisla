@@ -12,7 +12,7 @@ async function role(name = 'service_role') {
 }
 async function ticket(id, cabang = 'Kendari', sales = '') {
   await role();
-  await db.query('insert into public.tiket(id_tiket,cabang,sales,klien_lokasi,pekerjaan) values ($1,$2,$3,$4,$5)', [id,cabang,sales,'Klien Uji','Pekerjaan Uji']);
+  await db.query('insert into public.tiket(id_tiket,cabang,sales,klien_lokasi,jenis_pekerjaan) values ($1,$2,$3,$4,$5)', [id,cabang,sales,'Klien Uji','Pekerjaan Uji']);
 }
 const submit = (id, branch = 'Kendari', actor = 'sales-k', evidence = photo) =>
   db.query('select public.sla_ajukan_klaim_sales($1,$2,$3,$4,$5) as result', [actor,id,branch,'Keterangan Uji',evidence]);
@@ -28,7 +28,7 @@ before(async () => {
     grant usage on schema auth, public to anon, authenticated, service_role;
     create table public.users(username text, username_login text unique, nama_asli text, role text, hak_akses_cabang text, no_wa text);
     create table public.tiket(id_tiket text primary key, cabang text, sales text, status_banding text, sales_pengaju text,
-      bukti_banding text, keterangan_sales text, alasan_admin text, klien_lokasi text, pekerjaan text);
+      bukti_banding text, keterangan_sales text, alasan_admin text, klien_lokasi text, jenis_pekerjaan text);
     grant all on public.users, public.tiket to service_role, authenticated;
     insert into public.users values
       ('admin-k','admin-k','Admin K','admin','Kendari','081111111111'),
@@ -79,7 +79,7 @@ test('Both branches submit atomically, with WA only to Kendari admins including 
     assert.equal(t.status_banding, 'Diajukan'); assert.ok(t.klaim_sales_diajukan_pada);
     const events = await rows(`select * from public.sla_notif_klaim_sales where klaim_id='${t.klaim_sales_id}' order by penerima_username`);
     assert.deepEqual(events.map(n => n.penerima_username), ['admin-all','admin-blank','admin-k']);
-    assert.ok(events.every(n => n.snapshot.cabang === branch));
+    assert.ok(events.every(n => n.snapshot.cabang === branch && n.snapshot.pekerjaan === 'Pekerjaan Uji'));
     await assert.rejects(submit(id, branch, 'sales-r'), /sudah memiliki pengajuan/);
   }
 });
@@ -112,7 +112,7 @@ test('Browser cannot call privileged RPC with forged admin, update claim fields,
   await assert.rejects(db.exec("update public.tiket set sales='Fake' where id_tiket='GUARD'"), /wajib melalui backend/);
   await assert.rejects(db.exec("insert into public.tiket(id_tiket,status_banding,sales_pengaju) values('FORGED','Diajukan','Fake')"), /wajib melalui backend/);
   await assert.rejects(db.exec('select * from public.sla_notif_klaim_sales'), /permission denied/);
-  await db.exec("update public.tiket set pekerjaan='Perubahan biasa' where id_tiket='GUARD'");
+  await db.exec("update public.tiket set jenis_pekerjaan='Perubahan biasa' where id_tiket='GUARD'");
   await role();
 });
 test('Wrong branch, non-Sales, assigned tickets and invalid evidence never create claims', async () => {

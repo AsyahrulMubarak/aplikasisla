@@ -113,7 +113,7 @@ begin
   if new.status_banding is not distinct from old.status_banding
     or new.status_banding not in ('Diajukan', 'Diterima', 'Ditolak') then return new; end if;
   isi := jsonb_build_object('id_tiket', new.id_tiket, 'cabang', coalesce(new.cabang, 'Kendari'),
-    'klien', new.klien_lokasi, 'pekerjaan', new.pekerjaan, 'sales', new.sales_pengaju,
+    'klien', new.klien_lokasi, 'pekerjaan', new.jenis_pekerjaan, 'sales', new.sales_pengaju,
     'keterangan', new.keterangan_sales, 'alasan', new.alasan_admin);
   if new.status_banding = 'Diajukan' then
     insert into public.sla_notif_klaim_sales(klaim_id, jenis, penerima_username, snapshot)

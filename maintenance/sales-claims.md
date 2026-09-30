@@ -1,13 +1,24 @@
 # Klaim Sales Kendari dan Raha
 
 Rilis produksi pada 30 September 2026 di https://aplikasisla.vercel.app/.
-Backend Kendari memakai versi **244**, backend Raha versi **54**, dengan URL
+Backend Kendari memakai versi **245**, backend Raha versi **55**, dengan URL
 deployment yang tetap. Source produksi terbaru digabungkan dengan perubahan
 klaim; perubahan tracking penitipan dan modul lain dipertahankan.
 
 Migrasi Supabase berhasil. Satu pengajuan lama dipertahankan sebagai Riwayat,
 tanpa mengantrekan WA ulang. Cadangan riwayat sebelum migrasi disimpan pada
 `sla_klaim_sales_backup_20260930`, dengan RLS aktif dan akses browser dicabut.
+Pemeriksaan produksi memastikan enam RPC backend tersedia dan tidak dapat
+dieksekusi oleh role browser. Kedua backend berhasil membaca metadata dan
+kolom pekerjaan produksi `jenis_pekerjaan`, memeriksa konfigurasi Supabase,
+Fonnte, serta sesi, dan menjalankan antrean bersama. Pemicu Kendari
+`kirimUlangNotifKlaimSales` terpasang. Modul klaim pada HTML produksi cocok
+dengan source rilis, termasuk wadah cabang Kendari dan Raha.
+
+Pengiriman WA nyata belum dipicu sebagai pengujian. Tidak ada pengajuan atau
+keputusan buatan pada data produksi. Verifikasi tampilan dengan akun Admin
+Kendari dilakukan melalui pengujian UI lokal; browser produksi menampilkan
+halaman login karena tidak ada sesi Admin Kendari yang aktif.
 
 Menu **Klaim Sales** berada pada lobby. Hanya Admin Kendari dapat membukanya,
 melihat bukti, dan menerima atau menolak pengajuan. Kendari dan Raha ditampilkan
