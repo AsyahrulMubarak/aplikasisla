@@ -2487,7 +2487,7 @@
 
                         // Hanya checkpoint masuk pagi yang memengaruhi bonus/denda disiplin.
                         // Seluruh menit 08:45 masih tepat waktu; telat dimulai pada 08:46.
-                        if (detikMasukPagiPertama !== null && Math.floor(detikMasukPagiPertama / 60) > kebijakanKerja.batasTelatMenit) countTelatPagi++;
+                        if (!isHariLibur && detikMasukPagiPertama !== null && Math.floor(detikMasukPagiPertama / 60) > kebijakanKerja.batasTelatMenit) countTelatPagi++;
                         if (totalDetikLembur > 0) {
                             lemHariIni += totalDetikLembur * (5000 / 3600); // Tetap memakai tarif lembur yang telah berlaku.
                             txtLemburJam = formatDurasiDetikPayroll(totalDetikLembur);
