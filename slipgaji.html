@@ -660,7 +660,7 @@
         // ---------------------------------------------
 
         let penggunaAktif = null;
-        let globalUsers = []; let globalTickets = []; let globalAbsen = [];
+        let globalUsers = []; let globalTickets = []; let globalAbsen = [];        let poinRahaPribadi_ = null;
         let tiketPayrollPerCabang_ = Object.create(null);
         let periodeTiketPayroll_ = '';
         let janjiTiketPayrollCabang_ = Object.create(null);
@@ -1606,7 +1606,7 @@
                 // Commit data sekaligus agar kalkulasi tidak pernah memakai campuran dua periode.
                 globalUsers = usersBaru;
                 globalTickets = dataSLA.tickets;
-                globalAbsen = absenBaru;
+                globalAbsen = absenBaru;                poinRahaPribadi_ = dataSLA.poinRahaPribadi || null;
                 tiketPayrollPerCabang_ = Object.create(null);
                 tiketPayrollPerCabang_[cabangAktif] = dataSLA.tickets;
                 periodeTiketPayroll_ = periode;
@@ -1926,7 +1926,7 @@
                 const poin = parseFloat(tiket['Bobot Poin']) || 0;
                 const veto = String(tiket['Veto Admin'] || '').trim().toLowerCase() === 'ya';
                 if (poin <= 0 || (tiket['Status SLA'] !== 'TERPENUHI' && !veto)) return;
-                const namaDalamTiket = String(tiket.Teknisi || '').split(',').map(nama => normalisasiNamaProfilPayroll_(nama));
+                const namaDalamTiket = daftarNamaTeknisiPayroll_(tiket.Teknisi);
                 namaDalamTiket.forEach(nama => {
                     if (!teknisiRaha.has(nama)) return;
                     const bagian = poin / namaDalamTiket.length;
@@ -1937,7 +1937,8 @@
             return { perTeknisi, total: Math.round((total + Number.EPSILON) * 10) / 10 };
         }
 
-        function formatJamMenitPayroll(menit) {
+        function daftarNamaTeknisiPayroll_(nilai) { return [...new Set(String(nilai || '').split(/[,;
+]/).map(normalisasiNamaProfilPayroll_).filter(Boolean))]; } function formatJamMenitPayroll(menit) {
             const nilaiAman = Math.max(0, Math.round(menit));
             return String(Math.floor(nilaiAman / 60)).padStart(2, '0') + ':' + String(nilaiAman % 60).padStart(2, '0');
         }
@@ -2655,11 +2656,11 @@
                 labelBonusPoin = 'Bonus Poin Nota iPOS';
             } else if (adminNauraRaha || salesArdanRaha) {
                 const poinRaha = hitungPoinTeknisiRaha_(tiketSumberPoin, globalUsers, bulanTahun);
-                const sumberPoin = adminNauraRaha ? 'abu naura' : 'abu adibah';
-                totalPoinSla = Math.round(((poinRaha.perTeknisi[sumberPoin] || 0) + Number.EPSILON) * 10) / 10;
+                const sumberPoin = adminNauraRaha ? 'abu naura' : 'abu adibah'; const poinPribadi = poinRahaPribadi_ && poinRahaPribadi_.periode === bulanTahun && normalisasiNamaProfilPayroll_(poinRahaPribadi_.pemilik) === namaProfilPoin && normalisasiCabangPayroll(poinRahaPribadi_.cabang) === 'Raha'; const poinTeknisi = poinPribadi ? Number(poinRahaPribadi_.poinTeknisi) || 0 : (poinRaha.perTeknisi[sumberPoin] || 0);
+                totalPoinSla = Math.round((poinTeknisi + Number.EPSILON) * 10) / 10;
                 labelBonusPoin = adminNauraRaha ? 'Bonus Poin SLA Abu Naura (Teknisi)' : 'Bonus Poin SLA Abu Adibah';
                 if (salesArdanRaha) {
-                    totalPoinTeknisiRaha = poinRaha.total;
+                    totalPoinTeknisiRaha = poinPribadi ? Number(poinRahaPribadi_.poinTim) || 0 : poinRaha.total;
                     totalBonusPoinTeknisiRaha = totalPoinTeknisiRaha * 2500;
                 }
             } else {
@@ -2667,8 +2668,8 @@
                     if (t['Status'] === 'Selesai' && t['Status Pembayaran'] === 'Lunas') {
                         let tglTutup = new Date(t['Tanggal Lunas'] || t['Waktu Selesai'] || t[Object.keys(t)[9]]);
                         if (!isNaN(tglTutup.getTime()) && tglTutup.getFullYear() == thnPilih && String(tglTutup.getMonth()+1).padStart(2,'0') == blnPilih) {
-                            let tekArr = String(t['Teknisi'] || '').split(',').map(n => n.trim());
-                            if (tekArr.includes(namaTarget)) {
+                            let tekArr = daftarNamaTeknisiPayroll_(t['Teknisi']);
+                            if (tekArr.includes(normalisasiNamaProfilPayroll_(namaTarget))) {
                                 let poinTiket = parseFloat(t['Bobot Poin']) || 0;
                                 let isVeto = String(t['Veto Admin'] || '').trim().toLowerCase() === 'ya';
                                 if (poinTiket > 0 && (t['Status SLA'] === 'TERPENUHI' || isVeto)) {
