@@ -3,7 +3,7 @@
 const BASE = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
 const SECRET_KEYS = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}');
 const PUBLIC_KEYS = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') || '{}');
-const SECRET = SECRET_KEYS.default || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const SECRET = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || SECRET_KEYS.default;
 const PUBLIC = PUBLIC_KEYS.default || Deno.env.get('SUPABASE_ANON_KEY');
 const BUCKET = 'sla-attendance-private';
 const ORIGINS = new Set([
