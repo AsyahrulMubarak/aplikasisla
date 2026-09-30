@@ -1937,8 +1937,7 @@
             return { perTeknisi, total: Math.round((total + Number.EPSILON) * 10) / 10 };
         }
 
-        function daftarNamaTeknisiPayroll_(nilai) { return [...new Set(String(nilai || '').split(/[,;
-]/).map(normalisasiNamaProfilPayroll_).filter(Boolean))]; } function formatJamMenitPayroll(menit) {
+        function daftarNamaTeknisiPayroll_(nilai) { return [...new Set(String(nilai || '').replaceAll(String.fromCharCode(13), ',').replaceAll(String.fromCharCode(10), ',').replaceAll(';', ',').split(',').map(normalisasiNamaProfilPayroll_).filter(Boolean))]; } function formatJamMenitPayroll(menit) {
             const nilaiAman = Math.max(0, Math.round(menit));
             return String(Math.floor(nilaiAman / 60)).padStart(2, '0') + ':' + String(nilaiAman % 60).padStart(2, '0');
         }
