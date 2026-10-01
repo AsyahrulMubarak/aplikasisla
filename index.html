@@ -1008,6 +1008,7 @@
                     <label for="filter-status-tiket">Status Pekerjaan</label>
                     <select id="filter-status-tiket" onchange="renderTickets()">
                         <option value="all">Semua Status</option>
+                        <option value="Claim Garansi">Claim Garansi</option>
                         <option value="Menunggu Teknisi">Menunggu Teknisi</option>
                         <option value="Menunggu">Menunggu</option>
                         <option value="On Progress">On Progress</option>
@@ -5809,7 +5810,7 @@
                     let teknisiVal = String(t['Teknisi'] || '').trim();
                     let isUnassigned = (teknisiVal === 'Belum Ditugaskan' || teknisiVal === '-' || teknisiVal === '');
 
-                    if (isUnassigned || textStatus === 'Pending' || textStatus === 'Menunggu') return 1;
+                    if (isUnassigned || ['Pending', 'Menunggu', 'Claim Garansi'].includes(textStatus)) return 1;
                     if (textStatus === 'Selesai' && !refsDiGaransi.includes(String(t['ID Tiket']).trim())) return 1;
                     return 2;
                 }
@@ -5837,7 +5838,7 @@
 
                 let statusPengerjaanKartu = ticket['Status SLA']; if(textStatus === 'Pending') statusPengerjaanKartu = 'AMAN';
 
-                let isAktif = ['Menunggu', 'On Progress', 'Pending', 'Outsource'].includes(textStatus);
+                let isAktif = ['Menunggu', 'Claim Garansi', 'On Progress', 'Pending', 'Outsource'].includes(textStatus);
                 let isRiwayat = ['Selesai', 'Cancel'].includes(textStatus);
                 if (isUnassigned) { textStatus = 'Menunggu Teknisi'; isAktif = true; isRiwayat = false; }
 
