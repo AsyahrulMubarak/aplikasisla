@@ -500,7 +500,8 @@
         #main-lobby-wrapper { position:fixed; inset:0; z-index:9999; width:100%; height:100vh; height:100dvh; min-height:0; margin:0; overflow-y:auto; align-items:flex-start; justify-content:center; padding:32px 24px calc(32px + env(safe-area-inset-bottom)); background:linear-gradient(160deg,#559eeb 0%,#68adf0 55%,#bedafb 100%); }
         #main-lobby-wrapper *, #main-lobby-wrapper *::before, #main-lobby-wrapper *::after { box-sizing:border-box; }
         #main-lobby-wrapper .main-lobby-card { max-width:900px; max-height:none; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; overflow:visible; text-align:left; }
-        .lobby-brand { margin:0 0 20px; color:rgba(255,255,255,.88); font-size:12px; font-weight:700; letter-spacing:.09em; }
+        .lobby-brand { display:flex; align-items:center; justify-content:center; margin:0 0 24px; padding:14px 24px; background:#fff; border-radius:18px; }
+        .lobby-brand img { display:block; width:min(100%,210px); height:auto; }
         .lobby-header { display:flex; align-items:center; gap:14px; margin-bottom:27px; color:white; }
         .lobby-avatar { flex:0 0 52px; width:52px; height:52px; border-radius:50%; display:grid; place-items:center; background:white; color:#2563a9; font-size:23px; font-weight:800; }
         .lobby-greeting { flex:1; min-width:0; }
@@ -753,7 +754,7 @@
     <!-- LOBI UTAMA DATAR: PILIH CABANG SLA ATAU MODUL PENDUKUNG -->
     <div id="main-lobby-wrapper" aria-hidden="true">
         <main class="main-lobby-card" aria-labelledby="main-lobby-title">
-            <p class="lobby-brand">ALFACOM · SLA</p>
+            <div class="lobby-brand"><img src="depan_001.png" alt="Logo Alfacom Multi Solution"></div>
             <div class="lobby-header">
                 <div id="lobby-avatar" class="lobby-avatar" aria-hidden="true">A</div>
                 <div class="lobby-greeting"><h2 id="main-lobby-title">Selamat datang</h2><p id="main-lobby-user"></p><p id="lobby-point-preview">Ringkasan pribadi</p></div>
