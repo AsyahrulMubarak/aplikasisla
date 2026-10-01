@@ -1,7 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{test}=require('node:test');
 const source=fs.readFileSync(__dirname+'/../supabase/functions/sla-payroll-attendance/index.ts','utf8');
-function harness(mode='ok'){
- const calls=[],acks=[];let handler;const user={username:'tech',nama_asli:'Teknisi',role:'teknisi',hak_akses_cabang:'Kendari',gaji_pokok:1750000,no_wa:'081234567890'};
+function harness(mode='ok',profile={}){
+ const calls=[],acks=[];let handler;const user={username:'tech',nama_asli:'Teknisi',role:'teknisi',hak_akses_cabang:'Kendari',gaji_pokok:1750000,no_wa:'081234567890',...profile};
  const c=vm.createContext({console,Response,Request,URLSearchParams,AbortSignal,Date,Intl,crypto,Number,
   Deno:{env:{get:n=>({SUPABASE_URL:'https://db.test',SUPABASE_SERVICE_ROLE_KEY:'server-only',SUPABASE_ANON_KEY:'public-test',FONNTE_TOKEN:'wa-test'})[n]},serve:fn=>handler=fn},
   fetch:async(url,o={})=>{calls.push({url,...o});const body=o.body&&String(o.body).startsWith('{')?JSON.parse(o.body):{};
@@ -38,6 +38,19 @@ test('Historical payroll uses audited month salary and never the latest raised b
  assert.equal(result.users[0]['Gaji Pokok'],1500000);assert.equal(result.users[0]['Gaji Pokok Saat Ini'],1750000);
  assert.deepEqual(JSON.parse(calls.find(x=>x.url.includes('sla_ringkasan')).body).p_usernames,['tech']);
  assert.ok(calls.find(x=>x.url.includes('/users?')).url.includes('auth_id=eq.self'));
+});
+
+test('Raha payroll omits the automatic programme while retaining audited salary',async()=>{
+ for(const profile of [{hak_akses_cabang:'Raha'},{hak_akses_cabang:'Semua',cabang:'Raha'},{hak_akses_cabang:' raha ',cabang:'Kendari'}]){
+  const {c}=harness('empty',profile);
+  const result=await c.dispatch({action:'getPayrollData',periode:'2026-10',cabang:'Raha'},{role:'teknisi',name:'Teknisi',branch:'Raha',salary:1750000,authId:'self'});
+  assert.equal(result.users[0]['Program Gaji'],null);
+  assert.equal(result.users[0]['Gaji Pokok'],1500000);
+  assert.equal(result.users[0]['Gaji Pokok Saat Ini'],1750000);
+ }
+ const {c}=harness('empty');
+ const result=await c.dispatch({action:'getPayrollData',periode:'2026-10',cabang:'Raha'},{role:'direktur',name:'Direktur',branch:'Raha',access:'Semua'});
+ assert.ok(result.users[0]['Program Gaji'],'Eligibility follows the employee profile, including management viewing another branch');
 });
 test('WA targets stored employee phone, provider failure does not undo salary and remains queued',async()=>{
  for(const mode of ['ok','fail']){const {c,calls,acks}=harness(mode);const r=await c.changeSalary({usernameTarget:'tech',gajiLama:1500000,gajiBaru:1750000,alasan:'Prestasi',no_wa:'089999999999'},{role:'manager',branch:'Kendari',authId:'verified'});

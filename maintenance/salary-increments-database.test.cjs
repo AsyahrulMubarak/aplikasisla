@@ -23,6 +23,8 @@ before(async()=>{
  create table pengajuan_cuti(id_pengajuan text,nama_pegawai text,status text,jenis text,tanggal_mulai date,tanggal_selesai date,cabang text,kembali_bekerja_pada timestamptz);
  set request.jwt.claim.role='service_role';`);
  await db.exec(migration);await db.exec(migration);
+ const scopeMigration=fs.readFileSync(__dirname+'/salary-increments-kendari-only.sql','utf8');
+ await db.exec(scopeMigration);await db.exec(scopeMigration);
 });
 beforeEach(async()=>{await db.exec('truncate sla_notif_kenaikan_gaji,sla_gaji_disiplin_bulan,sla_gaji_riwayat,sla_gaji_program,users,absensi,payroll_bulanan,pengajuan_cuti restart identity cascade');await clock('2026-10-01T08:00:00+08:00');await db.exec("set request.jwt.claim.role='service_role'");});
 after(()=>db.close());
@@ -31,6 +33,37 @@ test('Only closed months from October count; day 5 stays editable and day 6 eval
  await clock('2026-11-05T23:59:59+08:00');assert.equal((await evaluate()).result.bulanDievaluasi,0);
  await clock('2026-11-06T00:00:00+08:00');assert.equal((await evaluate()).result.bulanDievaluasi,1);
  assert.deepEqual((await db.query('select periode from sla_gaji_disiplin_bulan')).rows,[{periode:'2026-10'}]);assert.equal((await evaluate()).result.bulanDievaluasi,0);
+});
+
+test('Raha stays outside enrolment and evaluation, including existing programmes and qualified months',async()=>{
+ for(const role of ['teknisi','sales','admin_raha']){
+  await user(role,2000000,role,'Raha');
+  assert.equal((await db.query('select * from sla_gaji_program where username=$1',[role])).rows.length,0);
+  await db.query("insert into sla_gaji_program(username,mulai_periode) values($1,'2026-10')",[role]);
+  await db.query("insert into sla_gaji_disiplin_bulan(username,periode,telat_pagi,alpa,memenuhi_syarat,gaji_pokok) select $1,to_char(d,'YYYY-MM'),0,0,true,2000000 from generate_series('2026-10-01'::date,'2027-03-01'::date,interval '1 month') d",[role]);
+  await attendance(role,'2027-04',{branch:'Raha'});
+ }
+ await clock('2027-05-06T06:15:00+08:00');
+ const result=(await evaluate()).result;
+ assert.equal(result.bulanDievaluasi,0);assert.equal(result.kenaikan,0);
+ assert.equal((await db.query('select * from sla_gaji_disiplin_bulan')).rows.length,18);
+ assert.equal((await db.query("select * from sla_gaji_riwayat where jenis='Otomatis'")).rows.length,0);
+ assert.equal((await db.query('select * from sla_notif_kenaikan_gaji')).rows.length,0);
+ for(const role of ['teknisi','sales','admin_raha'])assert.equal(await amount(role,'2027-05'),'2000000');
+ const summary=(await scalar("select sla_ringkasan_gaji(array['teknisi','sales','admin_raha'],'2027-05') result")).result;
+ assert.ok(summary.every(r=>r.berlakuOtomatis===false));
+ await user('admin',0,'direktur','Semua');
+ await db.query('select sla_ubah_gaji_manual($1,$2,$3,$4,$5)',['11111111-1111-1111-1111-111111111111','teknisi',2000000,2250000,'Penyesuaian manajemen']);
+ assert.equal(await amount('teknisi','2027-04'),'2000000');assert.equal(await amount('teknisi','2027-05'),'2250000');
+});
+
+test('Branch eligibility follows profile access and fallback home branch',async()=>{
+ await user('tech',1500000,'teknisi','Kendari');
+ await db.exec("update users set hak_akses_cabang='Semua',cabang='Raha' where username='tech'");
+ await attendance('tech','2026-10',{branch:'Raha'});await clock('2026-11-06T06:15:00+08:00');
+ assert.equal((await evaluate()).result.bulanDievaluasi,0);
+ await db.exec("update users set hak_akses_cabang=' Kendari ' where username='tech'");
+ assert.equal((await evaluate()).result.bulanDievaluasi,1);
 });
 test('Six good months accumulate across a failed month and are consumed exactly once',async()=>{
  await user();for(const p of ['2026-10','2026-11','2026-12','2027-01','2027-02','2027-03','2027-04'])await attendance('tech',p,{late:p==='2027-01'?4:3,alpa:2,lunch:true});

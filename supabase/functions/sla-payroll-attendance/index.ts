@@ -19,7 +19,7 @@ const OFFICE = {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'salary-increments-20261001' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'salary-kendari-only-20261002' };
 }
 function reply(data, origin, status = 200) { return Response.json(data, { status, headers: cors(origin) }); }
 function fail(message, origin, status = 200) { return reply({ status: 'gagal', pesan: message }, origin, status); }
@@ -241,7 +241,7 @@ function rahaTeamPoints(rows,profiles,period) { const team=new Set(profiles.filt
   if (!own&&!canManagePayrollBranch(u,target))
     throw new Error('Akses payroll lintas cabang ditolak.');
   const next=period.slice(5)==='12'?String(Number(period.slice(0,4))+1)+'-01':period.slice(0,5)+String(Number(period.slice(5))+1).padStart(2,'0');
-  let users=await allRows('users','select=username,role,nama_asli,email,target_sales_rp,no_wa,gaji_pokok,bonus_tambahan,hak_akses_cabang'+
+  let users=await allRows('users','select=username,role,nama_asli,email,target_sales_rp,no_wa,gaji_pokok,bonus_tambahan,hak_akses_cabang,cabang'+
     (own?'&auth_id=eq.'+encode(u.authId):'')+'&order=nama_asli.asc');
   if (own&&users.length!==1) throw new Error('Profil payroll pegawai tidak ditemukan.');
   const base='select=id_tiket,no_transaksi,status,status_pembayaran,tanggal_lunas,waktu_selesai,teknisi,bobot_poin,veto_admin,status_sla,cabang'+
@@ -260,8 +260,8 @@ function rahaTeamPoints(rows,profiles,period) { const team=new Set(profiles.filt
   const salaryByUser=new Map((await salarySummary(users,period)).map(r=>[r.username,r]));
   return {status:'sukses',periode:period,cabang:target,users:users.map(r=>({'Username':r.username,'Role':r.role,'Nama Asli':r.nama_asli,
     'Email':r.email,'Target Sales (Rp)':r.target_sales_rp,'No WA':r.no_wa,'Gaji Pokok':salaryByUser.get(r.username)?.gajiPeriode ?? r.gaji_pokok,
-    'Gaji Pokok Saat Ini':r.gaji_pokok,'Program Gaji':salaryByUser.get(r.username)||null,
-    'Bonus Tambahan':r.bonus_tambahan,'Hak_Akses_Cabang':r.hak_akses_cabang})),tickets,poinRahaPribadi,
+    'Gaji Pokok Saat Ini':r.gaji_pokok,'Program Gaji':salaryProgramApplies(r)?salaryByUser.get(r.username)||null:null,
+    'Bonus Tambahan':r.bonus_tambahan,'Hak_Akses_Cabang':r.hak_akses_cabang,'Cabang':r.cabang})),tickets,poinRahaPribadi,
     payroll:(await payrollRows(period,own?u.name:'')).filter(r=>names.has(norm(r.namaPegawai)))};
 }
 function dates(value,period) {
@@ -565,6 +565,9 @@ async function salaryJobAuthorized(request) {
   const headers={apikey:key};if(!key.startsWith('sb_secret_'))headers.Authorization='Bearer '+key;
   const response=await fetch(BASE+'/rest/v1/sla_gaji_program?select=username&limit=0',{headers});
   return response.ok;
+}
+function salaryProgramApplies(profile) {
+  return (branch(String(profile.hak_akses_cabang||'').trim())||branch(String(profile.cabang||'').trim())||'Kendari')==='Kendari';
 }
 async function salarySummary(users,period) {
   if(!users.length)return [];

@@ -1,5 +1,9 @@
 # Kenaikan gaji pokok berkala
 
+Saat ini program hanya berlaku untuk pegawai Kendari. Pegawai Raha tidak didaftarkan, tidak dievaluasi atau mengumpulkan bulan, dan panel Kenaikan Gaji Otomatis disembunyikan pada slip mereka. Enrolmen Raha yang sudah ada juga dilewati oleh evaluasi. Riwayat nominal serta penyesuaian gaji manual tetap tersedia.
+
+Untuk instalasi yang sudah berjalan, terapkan `salary-increments-kendari-only.sql`, lalu publikasikan Edge Function dan frontend yang diperbarui. Migrasi ini hanya mengganti tiga fungsi; tidak mengubah nominal, menghapus riwayat, menjalankan evaluasi, atau mengubah jadwal cron.
+
 Program dimulai Oktober 2026 sesuai keputusan pengguna. Pegawai dengan gaji pokok lebih dari Rp0 dan kurang dari Rp3.000.000 memperoleh kenaikan Rp250.000 setelah mengumpulkan enam bulan yang memenuhi disiplin. Bulan memenuhi syarat jika telat masuk pagi paling banyak tiga kali dan alpa paling banyak dua hari; izin tidak digabungkan ke batas ini. Bulan melanggar dilewati tanpa mereset akumulasi. Setiap enam bulan hanya digunakan sekali. Kenaikan terakhir dibatasi sampai Rp3.000.000; setelah batas tercapai program otomatis selesai permanen. Manajemen tetap dapat menyesuaikan nominal secara manual.
 
 Evaluasi berjalan setiap hari pukul 06.15 WITA lewat pg_cron dan pg_net. Bulan sebelumnya baru dinilai pada tanggal 6, setelah masa tenggang komponen bulanan berakhir. Kenaikan berlaku pada bulan evaluasi, bukan mengubah slip yang sudah lewat. Jadwal yang terlewat mengejar bulan yang belum dinilai secara berurutan dan tidak menggandakan kenaikan. Akun baru dimulai pada bulan penuh berikutnya, atau bulan berjalan jika dibuat tanggal 1. Pegawai tanpa gaji pokok tidak memperoleh akumulasi bulan tanpa gaji.

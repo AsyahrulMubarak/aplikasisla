@@ -51,7 +51,8 @@ begin
  if coalesce(NEW.gaji_pokok,0)<0 then raise exception 'Gaji pokok tidak boleh negatif.'; end if;
  if TG_OP='INSERT' then
    insert into public.sla_gaji_program(username,mulai_periode,otomatis_selesai)
-    values(NEW.username,greatest('2026-10',to_char(date_trunc('month',v_now at time zone 'Asia/Makassar')+case when extract(day from v_now at time zone 'Asia/Makassar')=1 then interval '0 months' else interval '1 month' end,'YYYY-MM')),coalesce(NEW.gaji_pokok,0)>=3000000) on conflict do nothing;
+    select NEW.username,greatest('2026-10',to_char(date_trunc('month',v_now at time zone 'Asia/Makassar')+case when extract(day from v_now at time zone 'Asia/Makassar')=1 then interval '0 months' else interval '1 month' end,'YYYY-MM')),coalesce(NEW.gaji_pokok,0)>=3000000
+    where public.sla_gaji_cabang(NEW)='Kendari' on conflict do nothing;
    v_kind:='Awal'; v_old:=coalesce(NEW.gaji_pokok,0); v_actor:='Sistem';
  else
    v_old:=coalesce(OLD.gaji_pokok,0);
@@ -72,7 +73,7 @@ end $$;
 -- A named trigger is replaced without removing any unrelated trigger.
 create or replace trigger sla_salary_audit after insert or update of gaji_pokok on public.users for each row execute function public.sla_catat_perubahan_gaji();
 insert into public.sla_gaji_program(username,mulai_periode,otomatis_selesai)
- select username,'2026-10',coalesce(gaji_pokok,0)>=3000000 from public.users on conflict do nothing;
+ select u.username,'2026-10',coalesce(u.gaji_pokok,0)>=3000000 from public.users u where public.sla_gaji_cabang(u)='Kendari' on conflict do nothing;
 insert into public.sla_gaji_riwayat(username,nama_pegawai,gaji_lama,gaji_baru,berlaku_periode,jenis,diubah_oleh)
  select u.username,u.nama_asli,coalesce(u.gaji_pokok,0),coalesce(u.gaji_pokok,0),'2026-10','Awal','Sistem'
  from public.users u where not exists(select 1 from public.sla_gaji_riwayat h where h.username=u.username);
@@ -146,6 +147,7 @@ begin
  for v_program in select * from public.sla_gaji_program where not otomatis_selesai order by username loop
    select * into v_user from public.users where username=v_program.username for update;
    if not found or coalesce(v_user.gaji_pokok,0)<=0 or v_user.gaji_pokok>=3000000 then continue; end if;
+   if public.sla_gaji_cabang(v_user)<>'Kendari' then continue; end if;
    v_start:=greatest('2026-10-01'::date,(v_program.mulai_periode||'-01')::date);
    for v_period in select to_char(d,'YYYY-MM') from generate_series(v_start::timestamp,v_last::timestamp,interval '1 month') d loop
      if exists(select 1 from public.sla_gaji_disiplin_bulan where username=v_user.username and periode=v_period) then continue; end if;
@@ -198,7 +200,7 @@ create or replace function public.sla_ringkasan_gaji(p_usernames text[],p_period
 begin
  if coalesce(auth.role(),'')<>'service_role' then raise exception 'Akses server diperlukan.'; end if;
  return coalesce((select jsonb_agg(jsonb_build_object('username',u.username,'gajiPeriode',public.sla_gaji_nominal_periode(u.username,p_periode),
-   'gajiSekarang',coalesce(u.gaji_pokok,0),'mulaiPeriode',p.mulai_periode,'selesai',p.otomatis_selesai,
+   'gajiSekarang',coalesce(u.gaji_pokok,0),'berlakuOtomatis',public.sla_gaji_cabang(u)='Kendari','mulaiPeriode',p.mulai_periode,'selesai',p.otomatis_selesai,
    'bulanTerkumpul',(select count(*) from public.sla_gaji_disiplin_bulan d where d.username=u.username and d.memenuhi_syarat and d.kenaikan_id is null),
    'evaluasi',(select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (select periode,telat_pagi,alpa,memenuhi_syarat,alasan,kenaikan_id is not null as dipakai from public.sla_gaji_disiplin_bulan where username=u.username order by periode desc limit 12) q),
    'riwayat',(select coalesce(jsonb_agg(to_jsonb(q)),'[]') from (select berlaku_periode,jenis,gaji_lama,gaji_baru,alasan,diubah_oleh from public.sla_gaji_riwayat where username=u.username and jenis<>'Awal' order by urutan desc limit 5) q)

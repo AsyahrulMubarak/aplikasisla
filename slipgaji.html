@@ -1619,7 +1619,8 @@
                     "Gaji Pokok": u['Gaji Pokok'] ?? u.gaji_pokok,
                     "Program Gaji": u['Program Gaji'] || null,
                     "Bonus Tambahan": u['Bonus Tambahan'] || u.bonus_tambahan,
-                    "Hak_Akses_Cabang": u.Hak_Akses_Cabang || u.hak_akses_cabang
+                    "Hak_Akses_Cabang": u.Hak_Akses_Cabang || u.hak_akses_cabang,
+                    "Cabang": u.Cabang || u.cabang
                 }));
                 const headersAbsen = dataAbsen.data[0];
                 const absenBaru = dataAbsen.data.slice(1).map(row => {
@@ -2874,7 +2875,10 @@
 
         function renderProgramGaji_(profil) {
             const panel=document.getElementById('salary-progress'),p=profil && profil['Program Gaji'];
-            panel.hidden=!p;if(!p)return;
+            const akses=normalisasiCabangSesi(profil && (profil.Hak_Akses_Cabang || profil.hak_akses_cabang));
+            const cabang=['Kendari','Raha'].includes(akses)?akses:
+                normalisasiCabangSesi(profil && (profil.Cabang || profil.cabang)) || normalisasiCabangSesi(cabangAktif);
+            panel.hidden=!p || cabang!=='Kendari' || p.berlakuOtomatis===false;if(panel.hidden)return;
             const count=Math.min(6,Number(p.bulanTerkumpul)||0),done=p.selesai || Number(p.gajiSekarang)>=3000000;
             document.getElementById('salary-progress-count').textContent=done?'Program selesai':count+' / 6 bulan';
             document.getElementById('salary-progress-current').textContent=formatRp(Number(p.gajiSekarang)||0);
