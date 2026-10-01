@@ -25,7 +25,7 @@ const functions = [
   'tanggalNotaDariNomorTransaksi_', 'rekapStatusNotaIpos_', 'renderDashboard',
   'petakanTiketSupabase_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
   'hentikanRingkasanLobby_', 'muatRingkasanLobby_', 'amanTeks_', 'buatHtmlPerformaAdmin_',
-  'buatHtmlKartuTeknisi_', 'buatHtmlKartuSales_', 'buatIdentitasDashboardLobby_'
+  'buatHtmlKartuTeknisi_', 'buatHtmlKartuSales_'
 ];
 function harness(activeUser = user()) {
   const elements = new Map();
@@ -86,7 +86,7 @@ function enableRendering(c) {
   c.tetapkanHtmlAman_ = (element, value) => { element.innerHTML = value; };
   vm.runInContext(extract('tampilkanRingkasanLobby_'), c);
 }
-test('Admin Kendari lobby renders identity, live invoice totals and all three SLA panels', () => {
+test('Admin Kendari lobby renders live invoice totals and all three SLA panels', () => {
   const profile = { ...user('admin', 2000000, 'Kendari'), 'Nama Asli': 'Admin Kendari A' };
   const { c, node } = harness(profile);
   c.cabangAktif = 'Kendari';
@@ -99,8 +99,6 @@ test('Admin Kendari lobby renders identity, live invoice totals and all three SL
   enableRendering(c);
   c.tampilkanRingkasanLobby_(rekap, profile, c.globalTickets, 'Kendari');
   const content = node('lobby-dashboard-content').innerHTML;
-  assert.match(content, /Admin Kendari A/);
-  assert.match(content, /Admin · Kendari/);
   for (const heading of ['Rekap Pelunasan Nota iPOS', 'SLA 1: Distribusi Tugas Teknisi', 'SLA 2: Pembuatan Nota & Garansi', 'SLA 3: Serah Terima Barang']) assert.ok(content.includes(heading), heading);
   assert.match(content, />1<\/div>\s*<div[^>]*>Total Nota — September 2026/);
   assert.match(content, />1<\/div>\s*<div[^>]*>Nota Dilunasi — September 2026/);
@@ -122,7 +120,6 @@ test('Sales and technicians render only their complete personal card and safely 
     assert.ok(content.includes('A &lt;img src=x onerror=alert(1)&gt;'));
     assert.ok(!content.includes('<img'));
     assert.ok(!content.includes('Other Sales') && !content.includes('Other Technician'));
-    assert.ok(content.includes(role === 'sales' ? 'Sales · Raha' : 'Teknisi · Raha'));
     const headings = role === 'sales' ? ['PENCAPAIAN TARGET', 'STATUS TRANSAKSI', 'Potensi Pipeline', 'Tingkat Konversi'] : ['TOTAL POIN KINERJA BULAN INI', 'SLA RESPON', 'SLA PENGERJAAN', 'Tuntas Tanpa Pending', 'Kebocoran Garansi'];
     for (const heading of headings) assert.ok(content.includes(heading), heading);
     assert.equal(node('lobby-point-preview').textContent, role === 'sales' ? 'Omzet pribadi · Rp 1.000.000' : 'Poin pribadi · 6');

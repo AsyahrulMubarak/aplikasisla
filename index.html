@@ -500,15 +500,14 @@
         #main-lobby-wrapper { position:fixed; inset:0; z-index:9999; width:100%; height:100vh; height:100dvh; min-height:0; margin:0; overflow-y:auto; align-items:flex-start; justify-content:center; padding:32px 24px calc(32px + env(safe-area-inset-bottom)); background:linear-gradient(160deg,#559eeb 0%,#68adf0 55%,#bedafb 100%); }
         #main-lobby-wrapper *, #main-lobby-wrapper *::before, #main-lobby-wrapper *::after { box-sizing:border-box; }
         #main-lobby-wrapper .main-lobby-card { max-width:900px; max-height:none; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; overflow:visible; text-align:left; }
-        .lobby-brand { display:flex; align-items:center; justify-content:center; margin:0 0 24px; padding:14px 24px; background:#fff; border-radius:18px; }
-        .lobby-brand img { display:block; width:min(100%,210px); height:auto; }
-        .lobby-header { display:flex; align-items:center; gap:14px; margin-bottom:27px; color:white; }
-        .lobby-avatar { flex:0 0 52px; width:52px; height:52px; border-radius:50%; display:grid; place-items:center; background:white; color:#2563a9; font-size:23px; font-weight:800; }
+        .lobby-brand { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:0 0 24px; padding:14px 24px; background:#fff; border-radius:18px; }
+        .lobby-brand img { display:block; width:min(70%,210px); height:auto; }
+        .lobby-profile { display:flex; align-items:center; gap:12px; min-width:0; flex:1; }
+        .lobby-avatar { flex:0 0 46px; width:46px; height:46px; border-radius:50%; display:grid; place-items:center; background:#eff6ff; color:#2563a9; font-size:21px; font-weight:800; }
         .lobby-greeting { flex:1; min-width:0; }
-        #main-lobby-wrapper .lobby-greeting h2 { color:white; font-size:23px; margin:0; overflow-wrap:anywhere; }
-        #main-lobby-user { margin:3px 0 0; color:#eff6ff; font-size:12px; }
-        #lobby-point-preview { margin:5px 0 0; color:white; font-size:12px; font-weight:600; }
-        .lobby-header-action { width:42px; height:42px; padding:8px; flex-shrink:0; background:transparent; border:1px solid rgba(255,255,255,.4); border-radius:14px; color:white; cursor:pointer; }
+        #main-lobby-wrapper .lobby-greeting h3 { color:#245a9d; font-size:19px; margin:0; overflow-wrap:anywhere; }
+        #main-lobby-user { margin:4px 0 0; color:#7a8798; font-size:12px; }
+        .lobby-header-action { display:grid; place-items:center; width:42px; height:42px; margin:0; padding:8px; flex-shrink:0; background:#eff6ff; border:1px solid #dbeafe; border-radius:14px; color:#346cb2; cursor:pointer; }
         .lobby-header-action svg { width:24px; height:24px; }
         .lobby-panel { padding:25px; background:white; border-radius:25px; box-shadow:0 8px 30px rgba(39,102,172,.07); margin-bottom:22px; }
         .lobby-panel-title { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
@@ -552,9 +551,7 @@
         @keyframes lobbyLoading { to { background-position:-200% 0; } }
         @media(max-width:600px) {
             #main-lobby-wrapper { padding:25px 17px calc(26px + env(safe-area-inset-bottom)); }
-            #main-lobby-wrapper .lobby-greeting h2 { font-size:19px; }
-            .lobby-header { gap:11px; margin-bottom:23px; }
-            .lobby-avatar { flex-basis:46px; width:46px; height:46px; font-size:20px; }
+            #main-lobby-wrapper .lobby-greeting h3 { font-size:17px; }
             .lobby-panel { padding:20px 18px; border-radius:22px; margin-bottom:19px; }
             .lobby-panel-title h3 { font-size:18px; }
             .lobby-controls { width:100%; }
@@ -567,9 +564,6 @@
             #main-lobby-wrapper .lobby-lock-indicator { top:35px; }
         }
 
-        .lobby-dashboard-identity { display:flex; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:18px; padding:13px 15px; background:#eff6ff; border:1px solid #dbeafe; border-radius:12px; }
-        .lobby-dashboard-identity span { display:block; color:#718096; font-size:10px; margin-bottom:4px; }
-        .lobby-dashboard-identity strong { display:block; color:#245a9d; font-size:15px; overflow-wrap:anywhere; }
         .lobby-detail-dashboard .section-title { font-size:15px; margin-bottom:14px; }
         .lobby-detail-dashboard .card { padding:17px; border-left-width:3px; box-shadow:none; }
         .lobby-detail-dashboard .card:last-child { margin-bottom:0; }
@@ -580,6 +574,26 @@
         @media(max-width:600px) {
             .lobby-detail-dashboard .charts-container { grid-template-columns:minmax(0,1fr); }
             .lobby-detail-dashboard .card { padding:13px; }
+        }
+
+        @media(min-width:768px) {
+            #main-lobby-wrapper .main-lobby-card { max-width:1680px; }
+            .lobby-brand { padding:12px 20px; }
+            .lobby-brand img { width:auto; max-width:70%; height:72px; object-fit:contain; }
+        }
+        @media(min-width:1100px) {
+            #main-lobby-wrapper { padding:24px 28px; }
+            #main-lobby-wrapper .main-lobby-card { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:20px; align-items:start; }
+            .lobby-brand { grid-column:1 / -1; margin:0; }
+            .lobby-dashboard-panel { min-width:0; margin:0; }
+            .lobby-menu-panel { position:sticky; top:24px; margin:0; padding:22px 18px; }
+            #main-lobby-wrapper .lobby-menu-panel .main-lobby-options { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 10px; }
+            .lobby-menu-panel .lobby-panel-title h3 { font-size:18px; }
+            .lobby-admin-dashboard { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+            .lobby-admin-dashboard > .section-title { grid-column:1 / -1; margin:0; }
+            .lobby-admin-dashboard > .card { min-width:0; margin:0 !important; }
+            #main-lobby-status, .lobby-footer { grid-column:1 / -1; }
+            #main-lobby-status:empty { display:none; }
         }
 
     </style>
@@ -769,20 +783,22 @@
     <!-- LOBI UTAMA DATAR: PILIH CABANG SLA ATAU MODUL PENDUKUNG -->
     <div id="main-lobby-wrapper" aria-hidden="true">
         <main class="main-lobby-card" aria-labelledby="main-lobby-title">
-            <div class="lobby-brand"><img src="depan_001.png" alt="Logo Alfacom Multi Solution"></div>
-            <div class="lobby-header">
-                <div id="lobby-avatar" class="lobby-avatar" aria-hidden="true">A</div>
-                <div class="lobby-greeting"><h2 id="main-lobby-title">Selamat datang</h2><p id="main-lobby-user"></p><p id="lobby-point-preview">Ringkasan pribadi</p></div>
+            <div class="lobby-brand">
+                <img src="depan_001.png" alt="Logo Alfacom Multi Solution">
                 <button class="lobby-header-action" type="button" onclick="prosesLogout()" aria-label="Keluar aplikasi" title="Keluar aplikasi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10"/></svg></button>
             </div>
-            <section class="lobby-panel" aria-labelledby="lobby-dashboard-title">
-                <div class="lobby-panel-title"><div><h3 id="lobby-dashboard-title">Dashboard Saya</h3><p>Performa dan pekerjaan Anda</p></div>
+            <section class="lobby-panel lobby-dashboard-panel" aria-labelledby="main-lobby-title">
+                <div class="lobby-panel-title">
+                    <div class="lobby-profile">
+                        <div id="lobby-avatar" class="lobby-avatar" aria-hidden="true">A</div>
+                        <div class="lobby-greeting"><h3 id="main-lobby-title">Profil Pegawai</h3><p id="main-lobby-user"></p><span id="lobby-point-preview" hidden></span></div>
+                    </div>
                     <div class="lobby-controls"><select id="lobby-cabang" aria-label="Cabang ringkasan" onchange="muatRingkasanLobby_()"></select><input id="lobby-periode" type="month" aria-label="Periode ringkasan" onchange="muatRingkasanLobby_()"><button class="lobby-refresh" type="button" onclick="muatRingkasanLobby_()" aria-label="Muat ulang ringkasan" title="Muat ulang ringkasan">↻</button></div>
                 </div>
                 <div id="lobby-dashboard-content" aria-busy="false"><div class="lobby-skeleton" aria-hidden="true"></div></div>
                 <p id="lobby-dashboard-status" role="status" aria-live="polite"></p>
             </section>
-            <section class="lobby-panel" aria-labelledby="lobby-menu-title">
+            <section class="lobby-panel lobby-menu-panel" aria-labelledby="lobby-menu-title">
                 <div class="lobby-panel-title"><div><h3 id="lobby-menu-title">Semua Menu</h3><p>Menu dengan penanda kunci belum tersedia untuk akun Anda.</p></div></div>
                 <div class="main-lobby-options">
                 <button type="button" id="btn-lobby-kpi" class="main-lobby-option " data-lobby-menu="kpi" onclick="bukaAplikasiKpi()"><span class="lobby-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v17h17M8 15v-4M13 15V7M18 15V4"/></svg></span>KPI<strong class="lobby-lock-indicator" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></strong></button>
@@ -3406,12 +3422,6 @@
             return htmlSales;
         }
 
-        function buatIdentitasDashboardLobby_(user, cabang) {
-            const nama = user['Nama Asli'] || user.Username || 'User';
-            const role = rolePengguna(user).replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
-            return '<div class="lobby-dashboard-identity"><div><span>Nama</span><strong>' + amanTeks_(nama) + '</strong></div><div><span>Role · Cabang</span><strong>' + amanTeks_(role) + ' · ' + amanTeks_(cabang) + '</strong></div></div>';
-        }
-
         function tampilkanRingkasanLobby_(rekap, user, tickets, cabang) {
             const norm = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
             const nama = norm(user['Nama Asli']);
@@ -3436,7 +3446,7 @@
                     preview = 'Poin pribadi · ' + n(s.poin_terkumpul);
                 }
                 document.getElementById('lobby-point-preview').textContent = preview;
-                tetapkanHtmlAman_(document.getElementById('lobby-dashboard-content'), '<div class="lobby-detail-dashboard' + (role === 'admin' ? ' lobby-admin-dashboard' : '') + '">' + buatIdentitasDashboardLobby_(user, cabang) + kartu + '</div>');
+                tetapkanHtmlAman_(document.getElementById('lobby-dashboard-content'), '<div class="lobby-detail-dashboard' + (role === 'admin' ? ' lobby-admin-dashboard' : '') + '">' + kartu + '</div>');
                 return;
             }
             let label, nilai, keterangan, tiles = [], detail = '';
