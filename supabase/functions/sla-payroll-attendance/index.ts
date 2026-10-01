@@ -19,7 +19,7 @@ const OFFICE = {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'payroll-grace-20261001' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'salary-increments-20261001' };
 }
 function reply(data, origin, status = 200) { return Response.json(data, { status, headers: cors(origin) }); }
 function fail(message, origin, status = 200) { return reply({ status: 'gagal', pesan: message }, origin, status); }
@@ -257,8 +257,10 @@ function rahaTeamPoints(rows,profiles,period) { const team=new Set(profiles.filt
       'Teknisi':r.teknisi,'Bobot Poin':r.bobot_poin,'Veto Admin':r.veto_admin,'Status SLA':r.status_sla,'Cabang':r.cabang||target});
   }
   let poinRahaPribadi=null; const naura=own&&target==='Raha'&&norm(u.name)==='abu naura'&&(u.role==='admin_raha'||u.role==='admin'); const ardan=own&&target==='Raha'&&norm(u.name)==='ardan'&&u.role==='sales'; if(naura||ardan) { const team=await allRows('users','select=nama_asli,role,hak_akses_cabang&role=eq.teknisi&hak_akses_cabang=eq.Raha'); const points=rahaTeamPoints([...paid,...fallback],team,period); const source=naura?'abu naura':'abu adibah'; poinRahaPribadi={periode:period,cabang:'Raha',pemilik:u.name,poinTeknisi:Math.round(((points.perTechnician[source]||0)+Number.EPSILON)*10)/10,poinTim:ardan?points.total:0}; } const names=new Set(users.map(r=>norm(r.nama_asli)));
+  const salaryByUser=new Map((await salarySummary(users,period)).map(r=>[r.username,r]));
   return {status:'sukses',periode:period,cabang:target,users:users.map(r=>({'Username':r.username,'Role':r.role,'Nama Asli':r.nama_asli,
-    'Email':r.email,'Target Sales (Rp)':r.target_sales_rp,'No WA':r.no_wa,'Gaji Pokok':r.gaji_pokok,
+    'Email':r.email,'Target Sales (Rp)':r.target_sales_rp,'No WA':r.no_wa,'Gaji Pokok':salaryByUser.get(r.username)?.gajiPeriode ?? r.gaji_pokok,
+    'Gaji Pokok Saat Ini':r.gaji_pokok,'Program Gaji':salaryByUser.get(r.username)||null,
     'Bonus Tambahan':r.bonus_tambahan,'Hak_Akses_Cabang':r.hak_akses_cabang})),tickets,poinRahaPribadi,
     payroll:(await payrollRows(period,own?u.name:'')).filter(r=>names.has(norm(r.namaPegawai)))};
 }
@@ -300,7 +302,7 @@ async function manageProfile(body,u) {
     if (u.access!=='Semua'&&branch(old[0].hak_akses_cabang)!==u.branch) throw new Error('Cabang profil tidak sesuai hak akses.');
     return {status:'sukses',data:await rest('users','username=eq.'+encode(username),'DELETE',undefined,'return=representation')};
   }
-  const old=await rest('users','select=username,auth_id,role,hak_akses_cabang&username=eq.'+encode(username)+'&limit=2');
+  const old=await rest('users','select=username,auth_id,role,hak_akses_cabang,gaji_pokok&username=eq.'+encode(username)+'&limit=2');
   if (old.length>1) throw new Error('Profil tidak unik.');
   if (body.action==='buatProfil'&&old.length) throw new Error('Username sudah digunakan.');
   if (body.action==='ubahProfil'&&!old.length) throw new Error('Profil tidak ditemukan.');
@@ -326,6 +328,8 @@ async function manageProfile(body,u) {
   if(!name||name.length>180||email.length>254||phone.length>30) throw new Error('Data profil tidak valid.');
   const record={nama_asli:name,email,no_wa:phone,role,target_sales_rp:sales,gaji_pokok:salary,
     hak_akses_cabang:data.hak_akses_cabang};
+  if(body.action==='ubahProfil'&&salary!==Number(old[0].gaji_pokok||0))
+    throw new Error('Gaji pokok sudah berbeda. Muat ulang profil dan gunakan bagian Gaji Pokok — Manajemen untuk perubahan gaji.');
   if(body.action==='buatProfil') {
     const authId=String(data.auth_id||'');
     if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(authId))
@@ -335,7 +339,10 @@ async function manageProfile(body,u) {
     record.username=username;record.auth_id=authId;
     return {status:'sukses',data:await rest('users','','POST',record,'return=representation')};
   }
-  return {status:'sukses',data:await rest('users','username=eq.'+encode(username),'PATCH',record,'return=representation')};
+  delete record.gaji_pokok; // Contact/profile edits cannot overwrite an automatic salary increase.
+  const saved=await rest('users','username=eq.'+encode(username),'PATCH',record,'return=representation');
+  await salaryNotificationsSafe(username);
+  return {status:'sukses',data:saved};
 }
 async function listLeave(action,u) {
   if (!management(u)) throw new Error('Approval absensi khusus Manajemen.');
@@ -525,9 +532,63 @@ async function claimWarranty(body,u) {
     return {...result,notifikasiTertunda:pending.length};
   } catch { return {...result,notifikasiTertunda:Math.max(1,result.notifikasiTertunda||0)}; }
 }
+
+// Salary updates are recorded transactionally in PostgreSQL; WhatsApp is a durable outbox.
+async function salaryNotifications(username=null) {
+  const events=await rest('rpc/sla_ambil_notif_gaji','','POST',{p_username:username});
+  const token=Deno.env.get('FONNTE_TOKEN')||Deno.env.get('FONNTE_TOKEN_CADANGAN');
+  for(let i=0;i<events.length;i+=4) await Promise.all(events.slice(i,i+4).map(async event=>{
+    let success=false,error='';
+    try {
+      const phone=normalizePhone(event.no_wa);
+      if(!phone)throw new Error('Nomor WhatsApp pegawai belum tersedia atau tidak valid.');
+      if(!token)throw new Error('Token Fonnte belum dikonfigurasi.');
+      const response=await fetch('https://api.fonnte.com/send',{method:'POST',
+        headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({target:phone,message:event.pesan,delay:'2'}),signal:AbortSignal.timeout(15000)});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||data.status!==true)throw new Error('Provider WhatsApp menolak notifikasi.');
+      success=true;
+    } catch(e) {error=String(e.message||e);}
+    await rest('rpc/sla_selesai_notif_gaji','','POST',{p_id:event.id,p_lease:event.lease,p_sukses:success,p_galat:error}).catch(()=>{});
+  }));
+  const pending=await rest('sla_notif_kenaikan_gaji','select=id&terkirim_pada=is.null'+(username?'&username=eq.'+encode(username):''));
+  return pending.length;
+}
+async function salaryNotificationsSafe(username) {
+  try {return await salaryNotifications(username);}catch {return null;}
+}
+async function salaryJobAuthorized(request) {
+  const key=request.headers.get('x-sla-job-key')||'';
+  if(!key||key.length>4096)return false;
+  // Validate the existing server credential against a table with no public/user grants.
+  const headers={apikey:key};if(!key.startsWith('sb_secret_'))headers.Authorization='Bearer '+key;
+  const response=await fetch(BASE+'/rest/v1/sla_gaji_program?select=username&limit=0',{headers});
+  return response.ok;
+}
+async function salarySummary(users,period) {
+  if(!users.length)return [];
+  return rest('rpc/sla_ringkasan_gaji','','POST',{p_usernames:users.map(r=>r.username),p_periode:period});
+}
+async function salaryManagement(u) {
+  if(!management(u))throw new Error('Gaji pokok hanya dapat dikelola Admin Kendari, Manager, atau Direktur.');
+  const profiles=(await allRows('users','select=username,nama_asli,role,hak_akses_cabang,cabang,gaji_pokok&order=nama_asli.asc'))
+    .filter(r=>canManageBranch(u,branch(r.hak_akses_cabang)||branch(r.cabang)||'Kendari'));
+  return {status:'sukses',data:profiles.map(r=>({username:r.username,nama:r.nama_asli,role:r.role,cabang:branch(r.hak_akses_cabang)||branch(r.cabang)||'Kendari',gajiPokok:Number(r.gaji_pokok)||0}))};
+}
+async function changeSalary(body,u) {
+  if(!management(u))throw new Error('Gaji pokok hanya dapat dikelola Admin Kendari, Manager, atau Direktur.');
+  const username=String(body.usernameTarget||'').trim(),old=Number(body.gajiLama),salary=Number(body.gajiBaru);
+  if(!username||!Number.isSafeInteger(old)||old<0||!Number.isSafeInteger(salary)||salary<0)throw new Error('Nominal gaji tidak valid.');
+  const result=await rest('rpc/sla_ubah_gaji_manual','','POST',{p_auth_id:u.authId,p_username:username,p_gaji_lama:old,p_gaji_baru:salary,p_alasan:String(body.alasan||'')});
+  return {...result,notifikasiTertunda:await salaryNotificationsSafe(username)};
+}
+
 async function dispatch(body,u) {
   const action=String(body.action||'');
   if(action==='klaimGaransi')return claimWarranty(body,u);
+  if(action==='getDaftarGaji')return salaryManagement(u);
+  if(action==='ubahGajiPokok')return changeSalary(body,u);
   if(['getKonfigurasiAbsensi','getAbsen','getTinjauanAbsen','getDaftarPengajuan','getRiwayatPengajuan','ajukanSakitIzin','responPengajuan','syncPengecualianKoreksiLuarKota'].includes(action)||body.tipeAbsen) {
     if(!canAttend(u))throw new Error('Absensi dan Slip Gaji hanya untuk pegawai dengan gaji pokok, kecuali Direktur.');
     if(action==='getKonfigurasiAbsensi')return {status:'sukses',kebijakan:policy(u)};
@@ -570,6 +631,11 @@ Deno.serve(async request => {
     if(!BASE||!SECRET||!PUBLIC)throw new Error('Konfigurasi server belum siap.');
     const body=await request.json();
     if(JSON.stringify(body).length>8*1024*1024)throw new Error('Permintaan terlalu besar.');
+    if(body.action==='prosesKenaikanGajiOtomatis') {
+      if(!await salaryJobAuthorized(request))return fail('Akses server diperlukan.',origin,403);
+      const result=await rest('rpc/sla_evaluasi_kenaikan_gaji','','POST',{});
+      return reply({...result,notifikasiTertunda:await salaryNotificationsSafe(null)},origin);
+    }
     const actor=await authenticate(request);
     // Fail closed until profile writes from ordinary JWTs are removed. Roles,
     // salary and Auth links in public.users determine payroll authorization.

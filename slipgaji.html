@@ -363,6 +363,7 @@
         .toast-warning { border-left-color: var(--warning); color: #78350f; }
         @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
+        @media print { #salary-progress { display:none !important; } }
     </style>
 </head>
 <body>
@@ -443,6 +444,16 @@
                 </div>
             </div>
 
+            <section id="salary-progress" hidden style="margin:18px 0;padding:20px;border:1px solid #bfdbfe;border-radius:14px;background:#f8fbff;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+                    <div><strong style="color:#1e40af;">Kenaikan Gaji Otomatis</strong><p style="margin:6px 0;color:#64748b;font-size:12px;">Status program saat ini · Rp250.000 setiap 6 bulan memenuhi syarat</p></div>
+                    <strong id="salary-progress-count" style="font-size:20px;color:#1d4ed8;"></strong>
+                </div>
+                <div style="height:7px;background:#dbeafe;border-radius:8px;margin:12px 0;overflow:hidden;"><div id="salary-progress-bar" style="height:100%;background:#2563eb;border-radius:8px;"></div></div>
+                <p style="font-size:13px;margin:10px 0;">Gaji pokok saat ini: <strong id="salary-progress-current"></strong></p>
+                <p id="salary-progress-note" style="font-size:12px;line-height:1.6;color:#64748b;"></p>
+                <details><summary style="cursor:pointer;font-size:12px;font-weight:600;color:#1e40af;">Evaluasi bulanan &amp; riwayat gaji</summary><div id="salary-progress-months" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;margin-top:12px;"></div><div id="salary-progress-history"></div></details>
+            </section>
             <div id="loading">Menghubungkan ke Database, mohon tunggu...</div>
 
             <!-- AREA 1: SLIP GAJI INDIVIDU -->
@@ -1597,7 +1608,8 @@
                     "Email": u.Email || u.email,
                     "Target Sales (Rp)": u['Target Sales (Rp)'] || u.target_sales_rp,
                     "No WA": u['No WA'] || u.no_wa,
-                    "Gaji Pokok": u['Gaji Pokok'] || u.gaji_pokok,
+                    "Gaji Pokok": u['Gaji Pokok'] ?? u.gaji_pokok,
+                    "Program Gaji": u['Program Gaji'] || null,
                     "Bonus Tambahan": u['Bonus Tambahan'] || u.bonus_tambahan,
                     "Hak_Akses_Cabang": u.Hak_Akses_Cabang || u.hak_akses_cabang
                 }));
@@ -2852,6 +2864,24 @@
             area.classList.toggle('mobile-cards-ready', jumlahKartu > 0);
         }
 
+        function renderProgramGaji_(profil) {
+            const panel=document.getElementById('salary-progress'),p=profil && profil['Program Gaji'];
+            panel.hidden=!p;if(!p)return;
+            const count=Math.min(6,Number(p.bulanTerkumpul)||0),done=p.selesai || Number(p.gajiSekarang)>=3000000;
+            document.getElementById('salary-progress-count').textContent=done?'Program selesai':count+' / 6 bulan';
+            document.getElementById('salary-progress-current').textContent=formatRp(Number(p.gajiSekarang)||0);
+            document.getElementById('salary-progress-bar').style.width=(done?100:count/6*100)+'%';
+            document.getElementById('salary-progress-note').textContent=done?'Gaji telah mencapai batas otomatis Rp3.000.000. Penyesuaian berikutnya oleh Manajemen.':
+                Number(p.gajiSekarang)<=0?'Program berlaku setelah pegawai memiliki gaji pokok.':
+                'Mulai '+(p.mulaiPeriode||'2026-10')+' · Maksimal 3 kali telat pagi dan 2 hari alpa per bulan. Bulan melanggar dilewati. Evaluasi setelah masa tenggang, tanggal 6.';
+            const list=document.getElementById('salary-progress-months');list.replaceChildren();
+            (p.evaluasi||[]).slice(0,6).forEach(m=>{const item=document.createElement('div');item.style.cssText='padding:9px 12px;border-radius:8px;background:'+(m.memenuhi_syarat?'#ecfdf5':'#fff1f2')+';font-size:12px;';
+                item.textContent=m.periode+' · '+(m.memenuhi_syarat?(m.dipakai?'Sudah dihitung':'Memenuhi syarat'):'Dilewati')+' · Telat '+m.telat_pagi+', alpa '+m.alpa;list.appendChild(item);});
+            if(!(p.evaluasi||[]).length){const note=document.createElement('p');note.textContent='Belum ada bulan yang selesai dievaluasi.';note.style.cssText='margin:0;color:#64748b;font-size:12px;';list.appendChild(note);}
+            const history=document.getElementById('salary-progress-history');history.replaceChildren();
+            (p.riwayat||[]).forEach(h=>{const item=document.createElement('p');item.style.cssText='margin:8px 0 0;font-size:12px;color:#475569;';item.textContent=h.berlaku_periode+' · '+h.jenis+' · '+formatRp(Number(h.gaji_lama))+' → '+formatRp(Number(h.gaji_baru));history.appendChild(item);});
+        }
+
         function generateSlipIndividu() {
             let namaTarget = document.getElementById('pilih-pegawai').value;
             let bulanTahun = document.getElementById('pilih-bulan').value;
@@ -2870,6 +2900,7 @@
 
             document.getElementById('res-nama').innerText = data.profil['Nama Asli'] || namaTarget;
             document.getElementById('res-role').innerText = String(data.profil.Role || 'Staff').toUpperCase();
+            renderProgramGaji_(data.profil);
             document.getElementById('res-gapok').innerText = formatRp(data.gajiPokok);
             document.getElementById('res-upah-jam').innerText = formatRp(data.upahPerJam) + " / Jam";
             if (data.gajiPokok === 0 && penggunaBolehKelolaPayroll_()) {

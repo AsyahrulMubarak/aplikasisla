@@ -1535,6 +1535,18 @@
                     <button type="submit" id="btn-tambah-user" class="btn-solid-primary">Simpan Profil</button>
                     <button type="button" id="btn-batal-edit-user" class="btn-outline-cancel" style="display:none;" onclick="batalEditUser()">Batal Edit</button>
                 </form>
+                <section id="salary-management-panel" hidden style="margin-top:24px;padding:20px;border:1px solid #bfdbfe;border-radius:14px;background:#f8fbff;">
+                    <h3 style="margin:0 0 8px;color:#1e40af;">Gaji Pokok — Manajemen</h3>
+                    <p style="font-size:12px;color:#64748b;line-height:1.6;">Kenaikan otomatis Rp250.000 setiap 6 bulan yang memenuhi disiplin, mulai Oktober 2026, hingga Rp3.000.000. Perubahan manual tersedia bagi Admin Kendari, Manager, dan Direktur.</p>
+                    <form onsubmit="simpanGajiManajemen_(event)">
+                        <label for="salary-employee">Pegawai</label><select id="salary-employee" onchange="pilihGajiManajemen_()"></select>
+                        <p id="salary-current" style="font-weight:600;color:#334155;"></p>
+                        <label for="salary-new">Gaji pokok baru (Rp)</label><input id="salary-new" type="number" min="0" max="999999999999" step="1" required>
+                        <label for="salary-reason">Alasan perubahan</label><input id="salary-reason" maxlength="1000" required placeholder="Contoh: penyesuaian oleh Manajemen">
+                        <button id="salary-save" type="submit" class="btn-solid-primary">Simpan Gaji Pokok</button>
+                        <p id="salary-status" style="font-size:12px;color:#64748b;line-height:1.6;" aria-live="polite"></p>
+                    </form>
+                </section>
                 <div class="biometric-profile-card" id="biometric-profile-card">
                     <h4>🔐 Keamanan Biometrik Akun Aktif</h4>
                     <p>Daftarkan Passkey pada perangkat pribadi ini untuk login tanpa password. Jika pernah mendaftar sebelum pembaruan sistem login, daftarkan sekali lagi. Sidik jari tetap tersimpan di perangkat.</p>
@@ -4345,6 +4357,7 @@
                     void rekonsiliasiAuthIdProfilKosong_();
                 }
                 else if (penggunaAktif) { siapkanProfilPribadi(); }
+                void muatGajiManajemen_();
             }
             window.scrollTo(0,0);
         }
@@ -8782,6 +8795,61 @@
 
         function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).filter(dataSesuaiCabangAktif_).forEach(u => { if(!u || !u.Username) return; const usernameAman = kunciProfilUserAman_(u.Username); if (!usernameAman) return; tambahkanHtmlAman_(tbody, `<tr><td><strong>${amanTeks_(u.Username)}</strong></td><td>${amanTeks_(u['Nama Asli'])}</td><td>${amanTeks_(u['No WA'] || '-')}</td><td><span class="badge badge-aman">${amanTeks_(u.Role)}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${usernameAman}')">Edit</button><button class="btn-del" onclick="hapusUser('${usernameAman}')">Del</button></div></td></tr>`); }); }
 
+        let daftarGajiManajemen_ = [];
+        function bolehKelolaGaji_() {
+            const role = String(penggunaAktif && penggunaAktif.Role || '').toLowerCase();
+            const cabang = normalisasiCabang(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
+            return ['manager','direktur'].includes(role) || (role === 'admin' && cabang !== 'Raha');
+        }
+        async function apiGajiManajemen_(payload, ulangi = true) {
+            const token = await pastikanTokenSupabaseAktif_();
+            const response = await fetch(SUPABASE_URL+'/functions/v1/sla-payroll-attendance', {
+                method:'POST', headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'},
+                body:JSON.stringify(payload),signal:AbortSignal.timeout(90000)
+            });
+            if(response.status===401 && ulangi) {await pastikanTokenSupabaseAktif_(true);return apiGajiManajemen_(payload,false);}
+            const result = await response.json();
+            if(!response.ok || result.status!=='sukses') throw new Error(result.pesan || 'Perubahan gaji belum berhasil.');
+            return result;
+        }
+        async function muatGajiManajemen_() {
+            const panel=document.getElementById('salary-management-panel');
+            panel.hidden=!bolehKelolaGaji_();if(panel.hidden)return;
+            const status=document.getElementById('salary-status'),select=document.getElementById('salary-employee'),save=document.getElementById('salary-save');
+            status.textContent='Memuat gaji pegawai...';save.disabled=true;select.replaceChildren();daftarGajiManajemen_=[];
+            try {
+                const result=await apiGajiManajemen_({action:'getDaftarGaji'});
+                if(!bolehKelolaGaji_())return;
+                daftarGajiManajemen_=result.data;
+                daftarGajiManajemen_.forEach((u,i)=>{const option=document.createElement('option');option.value=String(i);option.textContent=u.nama+' · '+u.role+' · '+u.cabang;select.appendChild(option);});
+                pilihGajiManajemen_();status.textContent='Setiap kenaikan gaji mengirim pemberitahuan WhatsApp kepada pegawai.';
+            }catch(e){status.textContent=e.message;}
+        }
+        function pilihGajiManajemen_() {
+            const u=daftarGajiManajemen_[Number(document.getElementById('salary-employee').value)];
+            document.getElementById('salary-save').disabled=!u;
+            document.getElementById('salary-current').textContent=u?'Gaji pokok saat ini: '+new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(u.gajiPokok):'Belum ada pegawai yang dapat dikelola.';
+            document.getElementById('salary-new').value=u?u.gajiPokok:'';document.getElementById('salary-reason').value='';
+        }
+        async function simpanGajiManajemen_(event) {
+            event.preventDefault();if(!bolehKelolaGaji_())return;
+            const u=daftarGajiManajemen_[Number(document.getElementById('salary-employee').value)],button=document.getElementById('salary-save');
+            if(!u || button.disabled)return;
+            const salary=Number(document.getElementById('salary-new').value),reason=document.getElementById('salary-reason').value.trim();
+            if(!reason || !Number.isSafeInteger(salary) || salary<0)return;
+            const old=u.gajiPokok;button.disabled=true;
+            try {
+                const result=await apiGajiManajemen_({action:'ubahGajiPokok',usernameTarget:u.username,gajiLama:old,gajiBaru:salary,alasan:reason});
+                u.gajiPokok=salary;pilihGajiManajemen_();
+                if(penggunaAktif && penggunaAktif.Username===u.username){penggunaAktif['Gaji Pokok']=salary;simpanSesiAktif(waktuLoginAktif);}
+                const notice=salary>old?(result.notifikasiTertunda===0?' WhatsApp pegawai telah dikirim.':' WhatsApp tersimpan dalam antrean pengiriman ulang.') : '';
+                document.getElementById('salary-status').textContent='Gaji pokok berhasil disimpan.'+notice;
+                showToast('Gaji pokok berhasil disimpan.'+notice,'success');
+                await ambilSemuaData(true);
+            }catch(e){document.getElementById('salary-status').textContent=e.message;showToast(e.message,'error');}
+            finally{button.disabled=false;}
+        }
+
         function siapkanProfilPribadi() {
             modeEditUser = true;
             document.getElementById('form-user-title').innerText = '👤 Profil Saya';
@@ -8834,12 +8902,16 @@
             document.getElementById('btn-batal-edit-user').style.display = 'block';
             window.scrollTo(0,0);
             document.getElementById('new-gapok').value = u['Gaji Pokok'] || u['Gaji Pokok (Rp)'] || '';
+            document.getElementById('new-gapok').readOnly = true;
+            document.getElementById('new-gapok').title = 'Ubah gaji melalui bagian Gaji Pokok — Manajemen.';
             document.getElementById('new-bonus').value = u['Bonus Tambahan'] || u['Bonus'] || '';
         }
 
         function batalEditUser() {
             modeEditUser = false;
             document.getElementById('form-user-title').innerText = 'Tambah User Baru';
+            document.getElementById('new-gapok').readOnly = false;
+            document.getElementById('new-gapok').title = '';
             document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = '';
             document.getElementById('new-username').value = '';
             document.getElementById('new-wa').value = '';
