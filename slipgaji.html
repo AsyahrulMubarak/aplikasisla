@@ -1074,15 +1074,22 @@
             }, 800);
         }
 
+        function tanggalPayrollWita_(sekarang = new Date()) {
+            return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar', year: 'numeric', month: '2-digit', day: '2-digit' }).format(sekarang);
+        }
+
+        function periodePayrollTerkunci_(periode, sekarang = new Date()) {
+            if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(periode || ''))) return true;
+            const [tahun, bulan] = periode.split('-').map(Number);
+            const bulanBerikutnya = bulan === 12 ? String(tahun + 1).padStart(4, '0') + '-01' : periode.slice(0, 5) + String(bulan + 1).padStart(2, '0');
+            return tanggalPayrollWita_(sekarang) >= bulanBerikutnya + '-06';
+        }
+
         function cekKunciBulan() {
             let bulanDipilihStr = document.getElementById('pilih-bulan').value;
-            if (!bulanDipilihStr || !/^\d{4}-\d{2}$/.test(bulanDipilihStr)) return false;
-
-            let bagianPeriode = bulanDipilihStr.split('-');
-            let datePilih = new Date(parseInt(bagianPeriode[0]), parseInt(bagianPeriode[1]) - 1, 1);
-            let dateSekarang = new Date();
-            let bulanIni = new Date(dateSekarang.getFullYear(), dateSekarang.getMonth(), 1);
-            let isPastMonth = datePilih < bulanIni;
+            const isLocked = periodePayrollTerkunci_(bulanDipilihStr);
+            const masaTenggang = !isLocked && bulanDipilihStr < periodePayrollSaatIni_();
+            const batasTenggang = masaTenggang ? new Date(periodePayrollSaatIni_() + '-05T23:59:59+08:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' }) : '';
             let inputBulanan = [
                 document.getElementById('input-fee'),
                 document.getElementById('input-kasbon'),
@@ -1090,36 +1097,36 @@
                 document.getElementById('input-libur-tambahan')
             ];
             const bolehKelola = penggunaBolehKelolaPayroll_();
-            let bgWarna = (isPastMonth || !bolehKelola) ? '#f1f5f9' : '#ffffff';
+            let bgWarna = (isLocked || !bolehKelola) ? '#f1f5f9' : '#ffffff';
 
             inputBulanan.forEach(input => {
                 if (!input) return;
-                input.disabled = isPastMonth || !bolehKelola;
+                input.disabled = isLocked || !bolehKelola;
                 input.style.background = bgWarna;
                 input.title = !bolehKelola
                     ? 'Komponen payroll hanya dapat dilihat. Perubahan khusus Manajemen.'
-                    : (isPastMonth ? 'Periode lampau telah dikunci untuk menjaga audit payroll.' : '');
+                    : (isLocked ? 'Periode lampau telah dikunci untuk menjaga audit payroll.' : '');
             });
 
             let btnSimpan = document.getElementById('btn-simpan-variabel');
-            if (btnSimpan) btnSimpan.disabled = isPastMonth || !bolehKelola;
+            if (btnSimpan) btnSimpan.disabled = isLocked || !bolehKelola;
 
             let infoKunci = document.getElementById('info-kunci-bulan');
             if (infoKunci) {
                 infoKunci.innerText = !bolehKelola
                     ? '👁️ Mode baca saja—komponen payroll ditetapkan oleh Manajemen.'
-                    : (isPastMonth
+                    : (isLocked
                         ? '🔒 Periode lampau terkunci dan hanya dapat dilihat.'
-                        : '🔓 Periode aktif—perubahan masih dapat disimpan.');
-                infoKunci.style.color = (isPastMonth || !bolehKelola) ? '#b45309' : '#047857';
+                        : (masaTenggang ? '🔓 Masa tenggang—perubahan dapat disimpan sampai ' + batasTenggang + ', 23.59 WITA.' : '🔓 Periode aktif—perubahan masih dapat disimpan.'));
+                infoKunci.style.color = (isLocked || !bolehKelola) ? '#b45309' : '#047857';
             }
-            return isPastMonth;
+            return isLocked;
         }
 
         function terapkanVariabelPayrollKeForm(namaPegawai) {
             let dataPayroll = globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] || {};
             const periode = document.getElementById('pilih-bulan').value;
-            const bolehPulihkanDraf = penggunaBolehKelolaPayroll_() && periode === periodePayrollSaatIni_();
+            const bolehPulihkanDraf = penggunaBolehKelolaPayroll_() && periode <= periodePayrollSaatIni_() && !periodePayrollTerkunci_(periode);
             const kolom = [
                 ['input-fee', 'fee', '0'],
                 ['input-kasbon', 'kasbon', '0'],
@@ -1155,8 +1162,7 @@
         }
 
         function periodePayrollSaatIni_() {
-            const sekarang = new Date();
-            return `${sekarang.getFullYear()}-${String(sekarang.getMonth() + 1).padStart(2, '0')}`;
+            return tanggalPayrollWita_().slice(0, 7);
         }
 
         function daftarPengecualianKoreksiLuarKota_(dataPayroll) {
@@ -1167,7 +1173,7 @@
         }
 
         async function sinkronkanPengecualianKoreksiLuarKota_(dataPayroll, periode) {
-            if (!penggunaBolehKelolaPayroll_() || periode !== periodePayrollSaatIni_()) return false;
+            if (!penggunaBolehKelolaPayroll_() || periode > periodePayrollSaatIni_() || periodePayrollTerkunci_(periode)) return false;
             const daftarPayroll = daftarPengecualianKoreksiLuarKota_(dataPayroll);
             const hasil = await fetchJsonDenganTimeout_(
                 API_ABSEN,
@@ -1615,7 +1621,7 @@
 
                 // Sinkronisasi ini juga menangani data Luar Kota yang sudah tersimpan
                 // sebelum aturan pengecualian kuota koreksi diterapkan.
-                if (penggunaBolehKelolaPayroll_() && periode === periodePayrollSaatIni_()) {
+                if (penggunaBolehKelolaPayroll_() && periode <= periodePayrollSaatIni_() && !periodePayrollTerkunci_(periode)) {
                     sinkronkanPengecualianKoreksiLuarKota_(dataSLA.payroll, periode).catch(errorSinkronLuarKota => {
                         console.warn('Pengecualian kuota koreksi Luar Kota belum tersinkron:', errorSinkronLuarKota);
                     });

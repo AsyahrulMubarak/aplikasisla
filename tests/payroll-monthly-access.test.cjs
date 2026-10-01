@@ -46,7 +46,7 @@ test('Kendari technicians can open only the personal read-only payroll view', ()
   slipContext.penggunaAktif = { Role: 'teknisi', Hak_Akses_Cabang: 'Raha' };
   assert.equal(slipContext.penggunaBolehMembukaSlipGaji_(), false);
 
-  assert.match(slipHtml, /input\.disabled = isPastMonth \|\| !bolehKelola/);
+  assert.match(slipHtml, /input\.disabled = isLocked \|\| !bolehKelola/);
   assert.match(slipHtml, /Komponen payroll hanya dapat diubah oleh Manajemen/);
   assert.match(slipHtml, /btn-simpan-variabel'\)\.style\.display = 'none'/);
   assert.match(backend, /simpanVariabelPayroll:\s*manajemenUtama/);
@@ -120,6 +120,7 @@ test('outside-city dates are stored per month and return when an older month is 
     ambilDrafTanggalPayroll_: () => null,
     penggunaBolehKelolaPayroll_: () => true,
     periodePayrollSaatIni_: () => '2026-09',
+    periodePayrollTerkunci_: period => period < '2026-09',
     setTimeout,
     String,
     parseFloat
@@ -175,6 +176,7 @@ test('technician and past-month views use saved server dates, never an unsaved l
     document: { getElementById: id => fields[id] },
     penggunaBolehKelolaPayroll_: () => true,
     periodePayrollSaatIni_: () => '2026-09',
+    periodePayrollTerkunci_: period => period < '2026-09',
     ambilDrafTanggalPayroll_: () => { draftReads++; return '31'; },
     String,
     parseFloat

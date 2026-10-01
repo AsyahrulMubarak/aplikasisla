@@ -19,7 +19,7 @@ const OFFICE = {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'salary-warranty-20261001' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'payroll-grace-20261001' };
 }
 function reply(data, origin, status = 200) { return Response.json(data, { status, headers: cors(origin) }); }
 function fail(message, origin, status = 200) { return reply({ status: 'gagal', pesan: message }, origin, status); }
@@ -71,6 +71,13 @@ const day = value => wita(value).slice(0, 10);
 const minute = value => Number(wita(value).slice(11,13)) * 60 + Number(wita(value).slice(14,16));
 const second = value => minute(value) * 60 + Number(wita(value).slice(17,19));
 const monthNow = () => day().slice(0,7);
+function payrollPeriodLocked(period, now = new Date()) {
+  if (!safePeriod(period)) return true;
+  const [year,month] = period.split('-').map(Number);
+  const next = month === 12 ? String(year + 1).padStart(4,'0') + '-01' : period.slice(0,5) + String(month + 1).padStart(2,'0');
+  return day(now) >= next + '-06';
+}
+
 const localTime = (d, h, m = 0) => new Date(d + 'T' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':00+08:00');
 const addDay = (d, n = 1) => day(new Date(localTime(d, 12).getTime() + n * 86400000));
 const workDay = r => /Keluar|Pulang/.test(String(r.tipe_absen || '')) && minute(r.waktu_absen) < 360 ? addDay(day(r.waktu_absen), -1) : day(r.waktu_absen);
@@ -263,7 +270,7 @@ async function savePayroll(body,u) {
   if (!canPayrollManage(u)) throw new Error('Komponen payroll hanya dapat diubah Manajemen.');
   const period=safePeriod(body.periode),name=String(body.namaPegawai||'').trim();
   if (!period||!name) throw new Error('Periode atau pegawai tidak valid.');
-  if (period<monthNow()) throw new Error('Periode payroll yang sudah lewat telah dikunci.');
+  if (payrollPeriodLocked(period)) throw new Error('Periode payroll telah dikunci setelah masa tenggang 5 hari.');
   const target=await allRows('users','select=nama_asli,hak_akses_cabang&nama_asli=eq.'+encode(name));
   const targetBranches=new Set(target.map(r=>payrollProfileBranch(r.hak_akses_cabang)));
   if (!target.length||targetBranches.size!==1) throw new Error('Cabang profil payroll tidak unik atau tidak ditemukan.');
@@ -393,7 +400,7 @@ async function approveLeave(body,u) {
 }
 async function syncCorrection(body,u) {
   if (!management(u)) throw new Error('Sinkronisasi Luar Kota khusus Manajemen.');
-  const period=safePeriod(body.periode); if (!period||period!==monthNow()) throw new Error('Sinkronisasi hanya untuk bulan berjalan.');
+  const period=safePeriod(body.periode); if (!period||period>monthNow()||payrollPeriodLocked(period)) throw new Error('Sinkronisasi hanya untuk bulan berjalan atau masa tenggang 5 hari.');
   if (!Array.isArray(body.daftarPayroll)||body.daftarPayroll.length>200) throw new Error('Daftar payroll tidak valid.');
   const rows=body.daftarPayroll.filter(x=>String(x.namaPegawai||'').trim()).map(x=>({periode:period,nama_pegawai:String(x.namaPegawai).trim(),
     tanggal:dates(x.luarKota,period).split(',').map(x=>Number(x.trim())).filter(Boolean),diperbarui_pada:new Date().toISOString(),diperbarui_oleh:u.name}));
