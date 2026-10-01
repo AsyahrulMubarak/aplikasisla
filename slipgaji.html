@@ -720,20 +720,19 @@
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
             const cabang = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
             const gaji = Number(penggunaAktif && penggunaAktif['Gaji Pokok']);
-            const bergaji = !!String(penggunaAktif && penggunaAktif['Nama Asli'] || '').trim() &&
-                ['Kendari', 'Raha'].includes(cabang) && Number.isFinite(gaji) && gaji > 0;
-            return (['teknisi', 'sales'].includes(role) && cabang === 'Kendari') || bergaji;
+            return !!String(penggunaAktif && penggunaAktif['Nama Asli'] || '').trim() &&
+                (['admin', 'manager'].includes(role) || ['Kendari', 'Raha'].includes(cabang)) && Number.isFinite(gaji) && gaji > 0;
         }
 
         function penggunaBolehMembukaSlipGaji_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
-            return ['admin', 'manager', 'direktur'].includes(role) || penggunaAdalahPegawaiKendariPayroll_();
+            return role === 'direktur' || penggunaAdalahPegawaiKendariPayroll_();
         }
 
         function penggunaBolehKelolaPayroll_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
             const cabang = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
-            return role === 'manager' || role === 'direktur' || (role === 'admin' && cabang !== 'Raha');
+            return penggunaBolehMembukaSlipGaji_() && (role === 'manager' || role === 'direktur' || (role === 'admin' && cabang !== 'Raha'));
         }
 
         function waktuKedaluwarsaJwt_(token) {

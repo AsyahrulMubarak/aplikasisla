@@ -35,6 +35,18 @@ create table if not exists public.sla_notif_klaim_sales (
   error_terakhir text,
   unique (klaim_id, jenis, penerima_username)
 );
+
+-- Arsip bukti dan keputusan lama sebelum tiket diklaim Sales lain.
+create table if not exists public.sla_riwayat_klaim_sales (
+  klaim_id uuid primary key,
+  id_tiket text not null,
+  cabang text not null,
+  snapshot jsonb not null,
+  diarsipkan_pada timestamptz not null default now()
+);
+alter table public.sla_riwayat_klaim_sales enable row level security;
+revoke all on public.sla_riwayat_klaim_sales from public, anon, authenticated;
+grant select, insert on public.sla_riwayat_klaim_sales to service_role;
 alter table public.sla_notif_klaim_sales enable row level security;
 revoke all on public.sla_notif_klaim_sales from public, anon, authenticated;
 grant select, insert, update, delete on public.sla_notif_klaim_sales to service_role;
@@ -155,7 +167,21 @@ begin
   select * into strict t from public.tiket where id_tiket = p_id_tiket
     and coalesce(cabang, 'Kendari') = p_cabang for update;
   if coalesce(btrim(t.sales), '') not in ('', '-') then raise exception 'Tiket sudah memiliki Sales.'; end if;
-  if coalesce(btrim(t.status_banding), '') <> '' then raise exception 'Tiket sudah memiliki pengajuan klaim.'; end if;
+  if coalesce(btrim(t.status_banding), '') not in ('', 'Ditolak') then raise exception 'Tiket sudah memiliki pengajuan klaim.'; end if;
+  if t.status_banding = 'Ditolak' then
+    if t.klaim_sales_username = u.username_login
+      or (t.klaim_sales_username is null and lower(btrim(t.sales_pengaju)) = lower(btrim(u.nama_asli))) then
+      raise exception 'Klaim Anda telah ditolak. Tiket ini dapat diklaim oleh Sales lain.';
+    end if;
+    insert into public.sla_riwayat_klaim_sales(klaim_id, id_tiket, cabang, snapshot)
+      values (t.klaim_sales_id, t.id_tiket, coalesce(t.cabang, 'Kendari'),
+        jsonb_build_object('status_banding', t.status_banding, 'sales_pengaju', t.sales_pengaju,
+          'bukti_banding', t.bukti_banding, 'keterangan_sales', t.keterangan_sales,
+          'alasan_admin', t.alasan_admin, 'klaim_sales_username', t.klaim_sales_username,
+          'klaim_sales_diajukan_pada', t.klaim_sales_diajukan_pada,
+          'klaim_sales_diputuskan_pada', t.klaim_sales_diputuskan_pada, 'klaim_sales_admin', t.klaim_sales_admin))
+      on conflict (klaim_id) do nothing;
+  end if;
   update public.tiket set status_banding = 'Diajukan', sales_pengaju = btrim(u.nama_asli),
     bukti_banding = p_bukti, keterangan_sales = btrim(coalesce(p_keterangan, '')), alasan_admin = null,
     klaim_sales_id = gen_random_uuid(), klaim_sales_username = u.username_login,

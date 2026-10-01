@@ -711,7 +711,7 @@
                     <small style="display:block; margin-top:6px; font-weight:500;">Pengajuan Kendari &amp; Raha · Admin Kendari</small>
                 </button>
             </div>
-            <p class="main-lobby-note">Pegawai Kendari dan Raha yang memiliki gaji pokok dapat membuka Absensi dan slip gajinya sendiri. Menu approval dan pengelolaan komponen payroll tetap khusus Manajemen.</p>
+            <p class="main-lobby-note">Absensi dan Slip Gaji hanya untuk pegawai dengan gaji pokok, kecuali Direktur.</p>
             <div id="main-lobby-status" role="status" aria-live="polite"></div>
             <button type="button" class="main-lobby-logout" onclick="prosesLogout()">🚪 Keluar Aplikasi</button>
         </div>
@@ -722,7 +722,7 @@
             <div class="klaim-sales-header">
                 <div><h2 id="klaim-sales-title">📌 Klaim Sales</h2><p>Pengajuan tiket Kendari dan Raha · Persetujuan khusus Admin Kendari</p></div>
                 <div class="btn-grid" style="margin:0;">
-                    <button type="button" class="btn-edit" id="btn-refresh-klaim-sales" onclick="muatKlaimSales()">↻ Muat ulang</button>
+                    <button type="button" class="btn-edit" id="btn-refresh-klaim-sales" onclick="muatKlaimSales(true)">↻ Muat ulang</button>
                     <button type="button" class="btn-action-primary" style="margin:0; width:auto;" onclick="tutupMenuKlaimSales()">← Kembali ke Lobby</button>
                 </div>
             </div>
@@ -742,6 +742,16 @@
                 <section class="klaim-sales-branch" aria-labelledby="klaim-raha-title"><h3 id="klaim-raha-title">🏢 Raha</h3><div id="klaim-raha-container"></div></section>
             </div>
         </main>
+    </div>
+
+    <div id="modal-foto-klaim" class="modal" role="dialog" aria-modal="true" aria-labelledby="judul-foto-klaim" style="display:none; z-index:14000; box-sizing:border-box;">
+        <div class="modal-content" style="max-width:960px; width:95%; max-height:95vh; overflow:auto;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px;">
+                <h3 id="judul-foto-klaim" style="margin:0;">Foto bukti klaim</h3>
+                <button type="button" id="btn-tutup-foto-klaim" class="btn-outline-cancel" style="width:auto; margin:0;" onclick="tutupFotoKlaimSales()">Tutup</button>
+            </div>
+            <img id="foto-klaim-penuh" alt="Foto bukti klaim" style="display:block; max-width:100%; max-height:80vh; object-fit:contain; margin:auto;">
+        </div>
     </div>
 
     <div id="modal-banding" class="modal">
@@ -862,7 +872,7 @@
                 <input type="hidden" id="update-id">
                 <label>Status Pekerjaan</label>
                 <select id="update-status" required onchange="cekKeterangan(); toggleKanvasByStatus(this.value)">
-                    <option value="Menunggu">Menunggu</option>
+                    <option value="Menunggu">Menunggu</option><option value="Claim Garansi">Claim Garansi</option>
                     <option value="On Progress">On Progress (Sedang Dikerjakan)</option>
                     <option value="Pending">Pending (Ditunda)</option>
                     <option value="Outsource">Outsource (Diopor ke Rekanan)</option>
@@ -1730,7 +1740,7 @@
                     "Status SLA Respon": row.status_sla_respon, "Status Peringatan": row.status_peringatan,
                     "Deskripsi Pekerjaan (BA)": row.deskripsi_pekerjaan_ba, "Nama Customer": row.nama_customer,
                     "Kritik & Saran": row.kritik_saran, "Tanda Tangan": row.tanda_tangan, "Status Banding": row.status_banding,
-                    "Sales Pengaju": row.sales_pengaju, "Bukti Banding": row.bukti_banding, "Keterangan Sales": row.keterangan_sales,
+                    "Sales Pengaju": row.sales_pengaju, "Klaim Sales Username": row.klaim_sales_username, "Bukti Banding": row.bukti_banding, "Keterangan Sales": row.keterangan_sales,
                     "Alasan Admin": row.alasan_admin, "Nilai Penjualan": row.nilai_penjualan, "Link PDF BA": row.link_pdf_ba,
                     "No WA Klien": row.no_wa_klien, "Bobot Poin": row.bobot_poin, "Veto Admin": row.veto_admin,
                     "Status Pembayaran": row.status_pembayaran, "Tanggal Lunas": row.tanggal_lunas,
@@ -1820,7 +1830,7 @@
                 const record = {
                     "ID Garansi": row.id_garansi, "Referensi (Tiket/Nota)": row.referensi_tiket_nota,
                     "Nama Pelanggan": row.nama_pelanggan, "Barang / Jasa": row.barang_jasa,
-                    "Durasi (Hari)": row.durasi_hari, "Status": row.status, "Tanggal Mulai": row.tanggal_mulai,
+                    "Durasi (Hari)": row.durasi_hari, "Tiket Klaim Garansi": row.tiket_klaim_garansi, "Status": row.status, "Tanggal Mulai": row.tanggal_mulai,
                     "Tanggal Habis": row.tanggal_habis, "No Transaksi": row.no_transaksi, "Sales": row.sales,
                     "Omzet": row.omzet, "Keterangan": row.keterangan,
                     "Follow Up After-Sales Terkirim": row.follow_up_after_sales_terkirim,
@@ -2083,6 +2093,7 @@
             const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|lihatBuktiChatProspek|unduhBuktiChatProspek)';
             if (new RegExp('^' + fungsiSatuId + "\\('[A-Za-z0-9._-]{1,120}'\\)$").test(handler)) return true;
             if (/^responBanding\('[A-Za-z0-9._-]{1,120}',\s*'(?:Diterima|Ditolak)'(?:,\s*'(?:Kendari|Raha)')?\)$/.test(handler)) return true;
+            if (/^bukaFotoKlaimSales\('[A-Za-z0-9._-]{1,120}',\s*'(?:Kendari|Raha)',\s*[0-2]\)$/.test(handler)) return true;
             if (/^lihatBuktiKlaimSales\('[A-Za-z0-9._-]{1,120}',\s*'(?:Kendari|Raha)'\)$/.test(handler)) return true;
             if (/^responPemulihan\('[A-Za-z0-9._-]{1,120}',\s*'[A-Za-z ]{1,40}'\)$/.test(handler)) return true;
             if (/^kirimWAdanCatat\('[A-Za-z0-9._-]{1,120}',\s*'628\d{7,12}',\s*'[A-Za-z0-9%._~!*()\-]{1,6000}',\s*this\)$/.test(handler)) return true;
@@ -2906,23 +2917,17 @@
             const cabang = hakAksesCabangPengguna(user);
             const nama = String(user && user['Nama Asli'] || '').trim();
             const gaji = Number(user && user['Gaji Pokok']);
-            return !!nama && ['Kendari', 'Raha'].includes(cabang) && Number.isFinite(gaji) && gaji > 0;
+            const manajemen = ['admin', 'manager'].includes(rolePengguna(user));
+            return !!nama && (manajemen || ['Kendari', 'Raha'].includes(cabang)) && Number.isFinite(gaji) && gaji > 0;
         }
 
         // Akses ini hanya untuk modul Absensi/Payroll; tidak mengubah hak akses SLA cabang.
         function penggunaBolehMengaksesAbsensi_(user = penggunaAktif) {
-            const role = rolePengguna(user);
-            const cabang = hakAksesCabangPengguna(user);
-            const adminRaha = role === 'admin_raha' || (role === 'admin' && cabang === 'Raha');
-            const manajemen = ['admin', 'manager', 'direktur'].includes(role);
-            return (manajemen && !adminRaha) || penggunaKendariDiizinkanAbsensi_(user) ||
-                penggunaBergajiDiizinkanModul_(user);
+            return rolePengguna(user) === 'direktur' || penggunaBergajiDiizinkanModul_(user);
         }
 
         function penggunaBolehMengaksesSlipGaji_(user = penggunaAktif) {
-            const pegawaiKendari = ['teknisi', 'sales'].includes(rolePengguna(user)) && hakAksesCabangPengguna(user) === 'Kendari';
-            return roleAdalahManajemenUtama_(rolePengguna(user)) || pegawaiKendari ||
-                penggunaBergajiDiizinkanModul_(user);
+            return rolePengguna(user) === 'direktur' || penggunaBergajiDiizinkanModul_(user);
         }
 
         function penggunaSalesLintasCabang_(user = penggunaAktif) {
@@ -4001,7 +4006,7 @@
                                 "Target SLA Respon (Jam)": r.target_sla_respon_jam, "Tenggat Respon": r.tenggat_respon, "Waktu Respon": r.waktu_respon,
                                 "Status SLA Respon": r.status_sla_respon, "Status Peringatan": r.status_peringatan, "Deskripsi Pekerjaan (BA)": r.deskripsi_pekerjaan_ba,
                                 "Nama Customer": r.nama_customer, "Kritik & Saran": r.kritik_saran, "Tanda Tangan": r.tanda_tangan,
-                                "Status Banding": r.status_banding, "Sales Pengaju": r.sales_pengaju, "Bukti Banding": r.bukti_banding,
+                                "Status Banding": r.status_banding, "Sales Pengaju": r.sales_pengaju, "Klaim Sales Username": r.klaim_sales_username, "Bukti Banding": r.bukti_banding,
                                 "Keterangan Sales": r.keterangan_sales, "Alasan Admin": r.alasan_admin, "Nilai Penjualan": r.nilai_penjualan,
                                 "Link PDF BA": r.link_pdf_ba, "No WA Klien": r.no_wa_klien, "Bobot Poin": r.bobot_poin, "Veto Admin": r.veto_admin,
                                 "Status Pembayaran": r.status_pembayaran, "Tanggal Lunas": r.tanggal_lunas, "Teknisi Sebelumnya": r.teknisi_sebelumnya,
@@ -4078,7 +4083,7 @@
                         globalGaransi = (dbGaransi || []).map(g => {
                             let rec = {
                                 "ID Garansi": g.id_garansi, "Referensi (Tiket/Nota)": g.referensi_tiket_nota, "Nama Pelanggan": g.nama_pelanggan,
-                                "Barang / Jasa": g.barang_jasa, "Durasi (Hari)": g.durasi_hari, "Status": g.status, "Tanggal Mulai": g.tanggal_mulai,
+                                "Barang / Jasa": g.barang_jasa, "Durasi (Hari)": g.durasi_hari, "Tiket Klaim Garansi": g.tiket_klaim_garansi, "Status": g.status, "Tanggal Mulai": g.tanggal_mulai,
                                 "Tanggal Habis": g.tanggal_habis, "No Transaksi": g.no_transaksi, "Sales": g.sales, "Omzet": g.omzet,
                                 "Keterangan": g.keterangan, "Follow Up After-Sales Terkirim": g.follow_up_after_sales_terkirim,
                                 "Riwayat Pengingat Penitipan": g.riwayat_follow_up, "Cabang": g.cabang, "Admin SLA": g.admin_sla
@@ -5946,7 +5951,12 @@
                     if (!ticket['Sales'] || ticket['Sales'].trim() === '-' || ticket['Sales'].trim() === '') {
                         if (!ticket['Status Banding']) { htmlBanding = `<button class="btn-action-primary" style="background:#f3e8ff; color:var(--purple); border-color:#d8b4fe;" onclick="bukaModalBanding('${ticket['ID Tiket']}')">📌 Klaim Pekerjaan Ini</button>`; }
                         else if (ticket['Status Banding'] === 'Diajukan') { htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fefce8; border:1px solid #fde047; border-radius:6px; font-size:12px; font-weight:600; color:#b45309; text-align:center;">Klaim Menunggu Admin</div>`; }
-                        else if (ticket['Status Banding'] === 'Ditolak') { htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; font-weight:600; color:#991b1b; text-align:center;">Klaim Ditolak (${ticket['Alasan Admin'] || 'Tanpa Alasan'})</div>`; }
+                        else if (ticket['Status Banding'] === 'Ditolak') {
+                            htmlBanding = `<div style="margin-top:10px; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; font-size:12px; font-weight:600; color:#991b1b; text-align:center;">Klaim sebelumnya ditolak (${amanTeks_(ticket['Alasan Admin'] || 'Tanpa Alasan')})</div>`;
+                            if ((ticket['Klaim Sales Username'] ? String(ticket['Klaim Sales Username']).trim().toLowerCase() !== String(penggunaAktif.Username || '').trim().toLowerCase() : String(ticket['Sales Pengaju'] || '').trim().toLowerCase() !== String(penggunaAktif['Nama Asli'] || '').trim().toLowerCase())) {
+                                htmlBanding += `<button class="btn-action-primary" style="background:#f3e8ff; color:var(--purple); border-color:#d8b4fe;" onclick="bukaModalBanding('${ticket['ID Tiket']}')">📌 Ajukan Klaim Pekerjaan Ini</button>`;
+                            }
+                        }
                     } else { btnHtml = `<div style="margin-top:10px; padding:10px; text-align:center; font-size:12px; color:var(--text-muted); border-top:1px dashed var(--border);">Hanya dapat diedit oleh Teknisi/Admin</div>`; }
                 }
                 else if (roleAdalahAdminOperasional_() || rolePengguna() === 'manager') {
@@ -6293,8 +6303,9 @@
                     if (textStatus === 'Masa Tunggu') {
                         btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#2563eb; border-color:#bfdbfe;" onclick="aktifkanGaransi('${idGrs}')">🚀 Aktifkan Garansi (Barang Diambil)</button>`;
                     } else if (textStatus === 'Aktif') {
-                        btnHtml += `<button class="btn-action-primary" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;" onclick="prosesKlaimGaransi('${idGrs}')">⚠️ Proses Klaim (Hanguskan)</button>`;
+                        btnHtml += `<button class="btn-action-primary" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;" onclick="prosesKlaimGaransi('${idGrs}')">⚠️ Klaim Garansi & Buat Tiket</button>`;
                     }
+                    if (g['Tiket Klaim Garansi']) btnHtml += `<button class="btn-action-primary" onclick="prosesKlaimGaransi('${idGrs}')">Tiket ${amanTeks_(g['Tiket Klaim Garansi'])} · Kirim ulang notifikasi tertunda</button>`;
                     if (roleAdalahAdminOperasional_()) {
                         btnHtml += `<div class="btn-grid"><button class="btn-del" onclick="hapusGaransi('${idGrs}')">Hapus Data</button></div>`;
                     }
@@ -6608,24 +6619,33 @@
             }
         }
 
+        const klaimGaransiSedangDiproses_ = new Set();
         async function prosesKlaimGaransi(id) {
-            let acc = await showConfirm(`Bismillah, Klien melakukan klaim garansi untuk ID ${id}? \nStatus garansi ini akan langsung berubah menjadi HANGUS/HABIS setelah diklaim.`);
-            if(!acc) return;
-            document.getElementById('loading').style.display = 'block';
+            if (!['admin','admin_raha','manager','direktur'].includes(rolePengguna()) || klaimGaransiSedangDiproses_.has(id)) return;
+            const garansi = (globalGaransi || []).find(g => String(g['ID Garansi']) === String(id));
+            if (!garansi) return showToast('Garansi tidak ditemukan. Muat ulang data.', 'error');
+            klaimGaransiSedangDiproses_.add(id);
             try {
-                const payload = {
-                    status: 'Diklaim (Hangus)',
-                    tanggal_habis: tanggalIsoSupabase_()
-                };
-                const hasil = await callSupabase(endpointFilterSupabase_('garansi', 'id_garansi', id), 'PATCH', payload);
-                pastikanHasilMutasiSupabase_(hasil, `Garansi ${id}`);
-                showToast('Alhamdulillah! Garansi berhasil diklaim (Hangus).', 'success');
+                const sudahAda = !!garansi['Tiket Klaim Garansi'];
+                const acc = await showConfirm(sudahAda
+                    ? 'Periksa tiket '+garansi['Tiket Klaim Garansi']+' dan coba kirim kembali notifikasi yang tertunda?'
+                    : 'Klaim garansi '+id+' akan membuat tiket baru berstatus Claim Garansi, ditugaskan kepada teknisi pada tiket asal, dan mengirim notifikasi kepada pelanggan serta teknisi. Garansi akan menjadi hangus. Lanjutkan?');
+                if (!acc) return;
+                document.getElementById('loading').style.display = 'block';
+                const token = await pastikanTokenSupabaseAktif_();
+                const response = await fetch(SUPABASE_URL+'/functions/v1/sla-payroll-attendance', {
+                    method:'POST', headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'},
+                    body:JSON.stringify({action:'klaimGaransi',idGaransi:id,cabang:garansi.Cabang || cabangAktif}),
+                    signal:AbortSignal.timeout(90000)
+                });
+                const hasil = await response.json();
+                if (!response.ok || hasil.status !== 'sukses' || !hasil.idTiket) throw new Error(hasil.pesan || 'Klaim belum berhasil. Muat ulang dan coba kembali.');
+                showToast('Tiket '+hasil.idTiket+' '+(hasil.sudahAda ? 'sudah tersedia.' : 'berhasil dibuat.')+(hasil.notifikasiTertunda
+                    ? ' Notifikasi WhatsApp masih tertunda; gunakan tombol kirim ulang pada kartu garansi setelah 5 menit.'
+                    : ' Notifikasi pelanggan dan teknisi berhasil dikirim.'), hasil.notifikasiTertunda ? 'warning' : 'success');
                 await ambilSemuaData(true);
-            } catch(err) {
-                showToast('Afwan, Gagal memproses klaim garansi: ' + err.message, 'error');
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
+            } catch(err) { showToast('Gagal memproses klaim garansi: '+err.message, 'error'); }
+            finally { klaimGaransiSedangDiproses_.delete(id); document.getElementById('loading').style.display = 'none'; }
         }
 
         async function hapusGaransi(id) {
@@ -7794,17 +7814,19 @@
         }
 
         function klaimSalesMasukRiwayat_(klaim) {
-            return !klaim.klaim_sales_diajukan_pada || klaim.status_banding !== 'Diajukan';
+            return klaim.status_banding !== 'Diajukan';
         }
 
         function pilihTampilanKlaimSales(tampilan) {
             if (!['baru', 'riwayat'].includes(tampilan) || !penggunaAdminKendariKlaim_()) return;
             tampilanKlaimSales_ = tampilan;
             document.getElementById('filter-status-klaim-sales').value = 'all';
+            document.getElementById('search-klaim-sales').value = '';
             renderKlaimSales();
         }
 
         function hentikanMenuKlaimSales_() {
+            tutupFotoKlaimSales();
             menuKlaimSalesTerbuka_ = false;
             if (intervalKlaimSales_) clearInterval(intervalKlaimSales_);
             intervalKlaimSales_ = null;
@@ -7831,12 +7853,15 @@
             document.getElementById('klaim-sales-wrapper').style.display = 'block';
             document.getElementById('klaim-sales-wrapper').setAttribute('aria-hidden', 'false');
             menuKlaimSalesTerbuka_ = true;
+            tampilanKlaimSales_ = 'baru';
+            document.getElementById('filter-status-klaim-sales').value = 'all';
+            document.getElementById('search-klaim-sales').value = '';
             renderKlaimSales();
             if (intervalKlaimSales_) clearInterval(intervalKlaimSales_);
             intervalKlaimSales_ = setInterval(() => {
                 if (menuKlaimSalesTerbuka_ && document.visibilityState !== 'hidden') void muatKlaimSales();
             }, 30000);
-            await muatKlaimSales();
+            await muatKlaimSales(true);
         }
 
         function tutupMenuKlaimSales() {
@@ -7861,7 +7886,7 @@
                     globalKlaimSales = hasil.data.map(k => cacheBuktiKlaimSales_.has(k.klaim_sales_id)
                         ? { ...k, bukti_banding: cacheBuktiKlaimSales_.get(k.klaim_sales_id) } : k);
                     renderKlaimSales();
-                    status.textContent = 'Data diperbarui otomatis setiap 30 detik. Pengajuan sebelum menu dibuat tersedia di Riwayat.';
+                    status.textContent = 'Data diperbarui otomatis setiap 30 detik. Semua klaim menunggu ada di Pengajuan Baru; keputusan tersedia di Riwayat.';
                     return true;
                 } catch (error) {
                     if (menuKlaimSalesTerbuka_ && urutan === urutanMuatKlaimSales_) status.textContent = 'Gagal memuat klaim: ' + error.message + ' Gunakan Muat ulang untuk mencoba kembali.';
@@ -7898,7 +7923,7 @@
                     const badge = menunggu ? 'badge-pending' : k.status_banding === 'Diterima' ? 'badge-selesai' : 'badge-cancel';
                     const bukti = String(k.bukti_banding || '').split('|#|').map((foto, i) => {
                         const url = foto.trim() ? urlAman_(foto, true) : '';
-                        return url ? `<div><img src="${amanTeks_(url)}" alt="Bukti klaim ${amanTeks_(id)} foto ${i + 1}" loading="lazy"><a href="${amanTeks_(url)}" target="_blank" class="dl-btn" download="Bukti_${amanTeks_(id)}_${i + 1}.jpg">Buka foto ${i + 1}</a></div>` : '';
+                        return url ? `<div><img src="${amanTeks_(url)}" alt="Bukti klaim ${amanTeks_(id)} foto ${i + 1}" loading="lazy"><button type="button" class="dl-btn" onclick="bukaFotoKlaimSales('${id}', '${cabang}', ${i})">Buka foto ${i + 1}</button></div>` : '';
                     }).join('');
                     const muatBukti = k.bukti_banding === undefined && id
                         ? `<button class="btn-action-primary" ${buktiKlaimSalesSedangDimuat_.has(k.klaim_sales_id) ? 'disabled' : ''} onclick="lihatBuktiKlaimSales('${id}', '${cabang}')">${buktiKlaimSalesSedangDimuat_.has(k.klaim_sales_id) ? 'Memuat bukti...' : '📷 Lihat bukti pengajuan'}</button>`
@@ -7914,10 +7939,43 @@
                         ${menunggu && !k.klaim_sales_username ? '<p style="color:var(--warning);">Identitas akun Sales pengaju perlu diperiksa sebelum pengajuan lama diproses.</p>' : ''}
                         ${muatBukti}<div class="img-grid">${bukti}</div>${aksi}</article>`;
                 }
-                if (!html) html = `<div class="card"><p>${cari || status !== 'all' ? 'Tidak ada pengajuan yang sesuai filter.' : riwayat ? 'Belum ada riwayat pengajuan di cabang ini.' : 'Belum ada pengajuan baru di cabang ini. Pengajuan lama dapat dilihat di Riwayat.'}</p></div>`;
+                if (!html) html = `<div class="card"><p>${cari || status !== 'all' ? 'Tidak ada pengajuan yang sesuai filter.' : riwayat ? 'Belum ada riwayat pengajuan di cabang ini.' : 'Belum ada klaim yang menunggu persetujuan di cabang ini.'}</p></div>`;
                 tetapkanHtmlAman_(document.getElementById(`klaim-${cabang.toLowerCase()}-container`), html);
             }
         }
+
+        let fokusSebelumFotoKlaim_ = null;
+
+        function bukaFotoKlaimSales(idTiket, cabang, indeks) {
+            if (!penggunaAdminKendariKlaim_() || !menuKlaimSalesTerbuka_ || !Number.isInteger(indeks) || indeks < 0 || indeks > 2) return;
+            const klaim = globalKlaimSales.find(k => k.id_tiket === idTiket && (normalisasiCabang(k.cabang) || 'Kendari') === cabang);
+            const foto = String(klaim && klaim.bukti_banding || '').split('|#|')[indeks];
+            const url = foto ? urlAman_(foto, true) : '';
+            if (!url) return showToast('Foto bukti belum tersedia. Muat ulang bukti pengajuan.', 'warning');
+            fokusSebelumFotoKlaim_ = document.activeElement;
+            document.getElementById('judul-foto-klaim').textContent = `Bukti ${idTiket} · Foto ${indeks + 1}`;
+            const gambar = document.getElementById('foto-klaim-penuh');
+            gambar.src = url;
+            gambar.alt = `Bukti klaim ${idTiket} foto ${indeks + 1}`;
+            document.getElementById('modal-foto-klaim').style.display = 'flex';
+            document.getElementById('btn-tutup-foto-klaim').focus();
+        }
+
+        function tutupFotoKlaimSales() {
+            const modal = document.getElementById('modal-foto-klaim');
+            if (!modal) return;
+            modal.style.display = 'none';
+            document.getElementById('foto-klaim-penuh').removeAttribute('src');
+            if (fokusSebelumFotoKlaim_ && fokusSebelumFotoKlaim_.isConnected) fokusSebelumFotoKlaim_.focus();
+            fokusSebelumFotoKlaim_ = null;
+        }
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') tutupFotoKlaimSales();
+        });
+        window.addEventListener('focus', () => {
+            if (menuKlaimSalesTerbuka_) void muatKlaimSales();
+        });
 
         async function lihatBuktiKlaimSales(idTiket, cabang) {
             if (!penggunaAdminKendariKlaim_() || !menuKlaimSalesTerbuka_) return;
@@ -8171,7 +8229,7 @@
                 admin_sla: adminSlaSupabase_(cabangTiket)
             };
 
-            if (statusLama === 'Menunggu' && status !== 'Menunggu' && !t['Waktu Respon']) {
+            if (['Menunggu','Claim Garansi'].includes(statusLama) && !['Menunggu','Claim Garansi'].includes(status) && !t['Waktu Respon']) {
                 payload.waktu_respon = tanggalIsoSupabase_(sekarang);
                 const tenggatRespon = new Date(t['Tenggat Respon']);
                 payload.status_sla_respon = !Number.isNaN(tenggatRespon.getTime()) && sekarang > tenggatRespon ? 'GAGAL' : 'TERPENUHI';

@@ -15,12 +15,11 @@ const OFFICE = {
   Kendari: { lat: -3.9641006831731826, lon: 122.54316001476751 },
   Raha: { lat: -4.8268920873652625, lon: 122.72467110301972 }
 };
-const LEGACY_KENDARI = new Set(['alif','ardan','ardi s','asyahrul mubarak','dafa','fauzan','juna','muaz','mubarak','muhammad bintang restu prabowo','muhammad syawal','rendi','wawan']);
 
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'salary-warranty-20261001' };
 }
 function reply(data, origin, status = 200) { return Response.json(data, { status, headers: cors(origin) }); }
 function fail(message, origin, status = 200) { return reply({ status: 'gagal', pesan: message }, origin, status); }
@@ -35,7 +34,10 @@ async function rest(table, query = '', method = 'GET', body, prefer = 'return=re
   const response = await fetch(url, { method,
     headers: { ...serviceHeaders(body === undefined ? undefined : 'application/json'), Prefer: prefer },
     body: body === undefined ? undefined : JSON.stringify(body) });
-  if (!response.ok) throw new Error('Database ' + table + ' HTTP ' + response.status);
+  if (!response.ok) {
+    const detail=await response.json().catch(()=>({}));
+    throw new Error(response.status===400 && table.startsWith('rpc/') && detail.message ? detail.message : 'Database ' + table + ' HTTP ' + response.status);
+  }
   const raw = await response.text();
   return raw ? JSON.parse(raw) : [];
 }
@@ -53,10 +55,10 @@ const norm = value => String(value || '').trim().toLowerCase().replace(/\s+/g, '
 const branch = value => /^(kendari|raha)$/i.test(String(value || '')) ? (String(value).toLowerCase() === 'raha' ? 'Raha' : 'Kendari') : '';
 const absenceBranchScope = value => value === 'Kendari' ? '&or=(cabang.eq.Kendari,cabang.is.null)' : '&cabang=eq.Raha';
 const management = u => ['admin','manager','direktur'].includes(u.role) && !(u.role === 'admin' && (u.homeBranch || u.branch) === 'Raha');
-const salaried = u => !!u.name && !!u.branch && Number(u.salary) > 0;
-const canAttend = u => management(u) || (u.branch === 'Kendari' && LEGACY_KENDARI.has(norm(u.name))) || salaried(u);
-const canOwnSlip = u => salaried(u) || (u.branch === 'Kendari' && ['teknisi','sales'].includes(u.role));
-const canPayrollManage = u => management(u);
+const salaried = u => !!u.name && !!u.branch && Number.isFinite(Number(u.salary)) && Number(u.salary) > 0;
+const canAttend = u => u.role === 'direktur' || salaried(u);
+const canOwnSlip = u => canAttend(u);
+const canPayrollManage = u => canAttend(u) && management(u);
 const canManageBranch = (u,target) => u.access === 'Semua' || target === u.branch;
 const canManagePayrollBranch = (u,target) => canPayrollManage(u) && (!!branch(target) || target === 'Semua'); const payrollProfileBranch = value => norm(value) === 'semua' ? 'Semua' : branch(value);
 const safePeriod = value => /^\d{4}-(0[1-9]|1[0-2])$/.test(String(value || '')) ? String(value) : null;
@@ -483,10 +485,44 @@ async function recordAttendance(body,u) {
   await rest('rpc/sla_insert_absensi_batch','','POST',{p_employee:u.name,p_work_day:work,p_expected_last:expected,p_rows:extra});
   return {status:'sukses',pesan:'Absen berhasil dicatat.'};
 }
+async function claimWarranty(body,u) {
+  if(!['admin','admin_raha','manager','direktur'].includes(u.role))throw new Error('Hanya manajemen yang dapat memproses klaim garansi.');
+  const id=String(body.idGaransi||'');
+  if(!/^[A-Za-z0-9_-]{1,100}$/.test(id))throw new Error('ID garansi tidak valid.');
+  const target=branch(body.cabang)||u.branch;
+  if(!canManageBranch(u,target))throw new Error('Cabang di luar hak akses.');
+  const result=await rest('rpc/sla_klaim_garansi','','POST',{p_auth_id:u.authId,p_id_garansi:id,p_cabang:target});
+  let events=[];
+  try { events=await rest('rpc/sla_ambil_notif_garansi','','POST',{p_id_garansi:id}); }
+  catch { return {...result,notifikasiTertunda:Math.max(1,result.notifikasiTertunda||0)}; }
+  const token=Deno.env.get('FONNTE_TOKEN')||Deno.env.get('FONNTE_TOKEN_CADANGAN');
+  for(const event of events) {
+    let success=false,error='';
+    try {
+      const phone=normalizePhone(event.no_wa);
+      if(!phone)throw new Error('Nomor WhatsApp penerima belum tersedia atau tidak valid.');
+      if(!token)throw new Error('Token Fonnte belum dikonfigurasi.');
+      const response=await fetch('https://api.fonnte.com/send',{method:'POST',
+        headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({target:phone,message:event.pesan,delay:'2'}),signal:AbortSignal.timeout(20000)});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||data.status!==true)throw new Error('Provider WhatsApp menolak notifikasi.');
+      success=true;
+    } catch(e) {error=String(e.message||e);}
+    try {
+      await rest('rpc/sla_selesai_notif_garansi','','POST',{p_id:event.id,p_lease:event.lease,p_sukses:success,p_galat:error});
+    } catch { /* Preserve the lease when delivery outcome cannot be recorded. */ }
+  }
+  try {
+    const pending=await rest('sla_notif_klaim_garansi','select=id&id_garansi=eq.'+encode(id)+'&terkirim_pada=is.null');
+    return {...result,notifikasiTertunda:pending.length};
+  } catch { return {...result,notifikasiTertunda:Math.max(1,result.notifikasiTertunda||0)}; }
+}
 async function dispatch(body,u) {
   const action=String(body.action||'');
+  if(action==='klaimGaransi')return claimWarranty(body,u);
   if(['getKonfigurasiAbsensi','getAbsen','getTinjauanAbsen','getDaftarPengajuan','getRiwayatPengajuan','ajukanSakitIzin','responPengajuan','syncPengecualianKoreksiLuarKota'].includes(action)||body.tipeAbsen) {
-    if(!canAttend(u)&&!(action==='getAbsen'&&canOwnSlip(u)))throw new Error('Akun ini belum diizinkan memakai absensi.');
+    if(!canAttend(u))throw new Error('Absensi dan Slip Gaji hanya untuk pegawai dengan gaji pokok, kecuali Direktur.');
     if(action==='getKonfigurasiAbsensi')return {status:'sukses',kebijakan:policy(u)};
     if(action==='getAbsen')return getAbsence(body,u);
     if(action==='getTinjauanAbsen')return getReview(u);

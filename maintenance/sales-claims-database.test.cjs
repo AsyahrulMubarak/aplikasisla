@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, before, after } = require('node:test');
-const { PGlite } = require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite');
+const { PGlite } = require('@electric-sql/pglite');
 const db = new PGlite();
 const migration = fs.readFileSync(path.join(__dirname, 'sales-claims.sql'), 'utf8');
 const photo = 'data:image/jpeg;base64,' + 'A'.repeat(100);
@@ -103,6 +103,25 @@ test('Two decisions produce exactly one outcome and one WA result event', async 
   const t = (await rows("select * from public.tiket where id_tiket='NEW-Kendari'"))[0];
   assert.equal(t.sales, 'Sales K');
   assert.equal((await rows(`select * from public.sla_notif_klaim_sales where klaim_id='${t.klaim_sales_id}' and jenis in ('Diterima','Ditolak')`)).length, 1);
+});
+test('Another Sales can reclaim a rejected ticket atomically, keeping old evidence and decision', async () => {
+  await ticket('RECLAIM');
+  const first=(await submit('RECLAIM')).rows[0].result;
+  await decide('RECLAIM','Kendari','Ditolak','admin-k','Bukti tidak sesuai');
+  await assert.rejects(submit('RECLAIM'), /Sales lain/);
+  const second=(await submit('RECLAIM','Kendari','sales-r')).rows[0].result;
+  assert.notEqual(second.klaim_id,first.klaim_id);
+  const current=(await rows("select * from public.tiket where id_tiket='RECLAIM'"))[0];
+  assert.equal(current.sales_pengaju,'Sales R');assert.equal(current.status_banding,'Diajukan');
+  assert.equal(current.alasan_admin,null);assert.equal(current.klaim_sales_diputuskan_pada,null);
+  const archive=(await rows("select * from public.sla_riwayat_klaim_sales where id_tiket='RECLAIM'"))[0];
+  assert.equal(archive.klaim_id,first.klaim_id);assert.equal(archive.snapshot.sales_pengaju,'Sales K');
+  assert.equal(archive.snapshot.alasan_admin,'Bukti tidak sesuai');assert.equal(archive.snapshot.bukti_banding,photo);
+  await assert.rejects(submit('RECLAIM'), /sudah memiliki pengajuan/);
+  assert.equal((await rows("select * from public.sla_riwayat_klaim_sales where id_tiket='RECLAIM'")).length,1);
+  await decide('RECLAIM');
+  assert.equal((await rows("select sales from public.tiket where id_tiket='RECLAIM'"))[0].sales,'Sales R');
+  await assert.rejects(submit('RECLAIM'), /sudah memiliki Sales/);
 });
 test('Browser cannot call privileged RPC with forged admin, update claim fields, insert claims, or bypass via Sales edits', async () => {
   await ticket('GUARD'); await submit('GUARD');
