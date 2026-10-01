@@ -52,6 +52,19 @@
         #loading { display: none; text-align: center; padding: 40px; font-weight: 600; color: var(--primary); }
         .btn-print { background: #475569; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
         .dashboard-table th { background: #0f766e; }
+        .payroll-branch { margin:22px 0; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+        .payroll-branch-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; background:#f0fdfa; }
+        .payroll-branch-heading h4 { margin:0; font-size:15px; color:#0f766e; }
+        .payroll-branch-heading span { font-size:12px; color:var(--text-muted); }
+        .payroll-branch-scroll { overflow-x:auto; }
+        .payroll-branch .dashboard-table { margin:0; min-width:960px; }
+        .payroll-branch-raha .payroll-branch-heading { background:#eff6ff; }
+        .payroll-branch-raha .payroll-branch-heading h4 { color:#1d4ed8; }
+        .payroll-branch-raha .dashboard-table th { background:#1d4ed8; }
+        .payroll-grand-total { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; padding:16px; border:1px solid #a7f3d0; border-radius:10px; background:#ecfdf5; font-weight:700; color:#065f46; }
+        .payroll-grand-total strong { font-size:20px; }
+        @media print { .payroll-branch { break-inside:avoid; } .payroll-branch-scroll { overflow:visible; } .payroll-branch .dashboard-table { min-width:0; } }
+
 
         /* 1. PERHALUS WARNA DASAR (Lebih Clean & Modern) */
         :root {
@@ -595,32 +608,27 @@
             <!-- AREA 2: DASHBOARD REKAPITULASI MASTER -->
             <div id="area-dashboard" style="display: none;">
                 <h3 style="color:#0f766e; border-bottom: 2px solid #0f766e; padding-bottom:10px;">Master Rekapitulasi Gaji Karyawan</h3>
-                
-                <div style="overflow-x: auto;">
-                    <table class="dashboard-table">
-                        <thead>
-                            <tr>
-                                <th>Nama Pegawai</th>
-                                <th>Role</th>
-                                <th>Hadir</th>
-                                <th>Gaji Pokok</th>
-                                <th>Potongan + Kasbon</th>
-                                <th>Lembur</th>
-                                <th>Tunjangan + Poin + Fee</th>
-                                <th>TOTAL DIBAYARKAN</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabel-dashboard">
-                            <!-- Otomatis dari JS -->
-                        </tbody>
-                        <tfoot>
-                            <tr style="background:#f1f5f9; font-weight:bold;">
-                                <td colspan="7" style="text-align:right;">GRAND TOTAL PAYROLL ALFACOM:</td>
-                                <td id="dash-grand-total" style="color:var(--success); font-size:16px;">Rp 0</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
+                <section class="payroll-branch payroll-branch-kendari" aria-labelledby="rekap-kendari-title">
+                    <div class="payroll-branch-heading"><h4 id="rekap-kendari-title">Cabang Kendari</h4><span id="rekap-kendari-count">0 pegawai</span></div>
+                    <div class="payroll-branch-scroll">
+                        <table class="dashboard-table" aria-label="Rekap gaji cabang Kendari">
+                            <thead><tr><th>Nama Pegawai</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
+                            <tbody id="tabel-dashboard-kendari"></tbody>
+                            <tfoot><tr style="background:#f1f5f9;font-weight:bold;"><td colspan="7" style="text-align:right;">TOTAL PAYROLL KENDARI:</td><td id="dash-total-kendari" style="color:var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
+                        </table>
+                    </div>
+                </section>
+                <section class="payroll-branch payroll-branch-raha" aria-labelledby="rekap-raha-title">
+                    <div class="payroll-branch-heading"><h4 id="rekap-raha-title">Cabang Raha</h4><span id="rekap-raha-count">0 pegawai</span></div>
+                    <div class="payroll-branch-scroll">
+                        <table class="dashboard-table" aria-label="Rekap gaji cabang Raha">
+                            <thead><tr><th>Nama Pegawai</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
+                            <tbody id="tabel-dashboard-raha"></tbody>
+                            <tfoot><tr style="background:#f1f5f9;font-weight:bold;"><td colspan="7" style="text-align:right;">TOTAL PAYROLL RAHA:</td><td id="dash-total-raha" style="color:var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
+                        </table>
+                    </div>
+                </section>
+                <div class="payroll-grand-total"><span>GRAND TOTAL PAYROLL ALFACOM:</span><strong id="dash-grand-total">Rp 0</strong></div>
             </div>
             </div>
         </div>
@@ -3021,47 +3029,58 @@
         }
         siapkanScrollbarSlip_();
 
-        function generateDashboardRekap() {
-            let bulanTahun = document.getElementById('pilih-bulan').value;
-            if(!bulanTahun) { showToast("Lengkapi pilihan Bulan!", "warning"); return; }
+        function cabangRekapPayroll_(profil) {
+            return normalisasiCabangPayroll(profil.Hak_Akses_Cabang || profil.hak_akses_cabang) ||
+                normalisasiCabangPayroll(profil.Cabang || profil.cabang) ||
+                (String(profil.Role || '').trim().toLowerCase() === 'admin_raha' ? 'Raha' : 'Kendari');
+        }
 
-            let [thn, bln] = bulanTahun.split('-');
-            let totalHariBulan = new Date(thn, bln, 0).getDate();
+        function generateDashboardRekap() {
+            const bulanTahun = document.getElementById('pilih-bulan').value;
+            if(!bulanTahun) { showToast("Lengkapi pilihan Bulan!", "warning"); return; }
+            const [thn, bln] = bulanTahun.split('-');
+            const totalHariBulan = new Date(thn, bln, 0).getDate();
             let hk = totalHariBulan;
             for(let i = 1; i <= totalHariBulan; i++) { if(new Date(thn, bln - 1, i).getDay() === 0) hk--; }
-
             document.getElementById('loading').style.display = 'block';
             document.getElementById('area-dashboard').style.display = 'none';
-            
-            let tbody = document.getElementById('tabel-dashboard');
-            tbody.innerHTML = '';
-            
+            const kelompok = {};
+            for(const cabang of ['Kendari','Raha']) {
+                const id = cabang.toLowerCase(), tbody = document.getElementById('tabel-dashboard-' + id);
+                tbody.replaceChildren();
+                kelompok[cabang] = { tbody, total:0, jumlah:0, id };
+            }
             let grandTotal = 0;
-            let sortedUsers = daftarProfilPayroll().filter(u => u.Role !== 'direktur' && profilLayakTampilPayroll_(u)).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
-
+            const sortedUsers = daftarProfilPayroll().filter(u => u.Role !== 'direktur' && profilLayakTampilPayroll_(u))
+                .sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
             sortedUsers.forEach(u => {
-                let data = kalkulasiGajiPegawai(u['Nama Asli'], bulanTahun, hk);
-                if(data.countKehadiran > 0 || data.gajiPokok > 0) { 
-                    grandTotal += data.totalBersih;
-                    let totalPotonganGabungan = data.totalPotongan + data.kasbon;
-                    let totalBonusGabungan = data.totalBonusPoin + data.totalBonusPoinTeknisiRaha +
-                        data.totalTunjanganTetap + data.feeMarketing;
-                    
-                    tbody.innerHTML += `
-                        <tr>
-                            <td style="text-align:left;"><strong>${data.profil['Nama Asli']}</strong></td>
-                            <td>${String(data.profil.Role).toUpperCase()}</td>
-                            <td>${data.countKehadiran} Hari</td>
-                            <td>${formatRp(data.gajiPokok)}</td>
-                            <td style="color:var(--danger);">${formatRp(totalPotonganGabungan)}</td>
-                            <td style="color:var(--success);">${formatRp(data.totalLembur)}</td>
-                            <td style="color:var(--primary);">${formatRp(totalBonusGabungan)}</td>
-                            <td style="font-weight:bold; color:var(--success); font-size:14px;">${formatRp(data.totalBersih)}</td>
-                        </tr>
-                    `;
+                const data = kalkulasiGajiPegawai(u['Nama Asli'], bulanTahun, hk);
+                if(data.countKehadiran > 0 || data.gajiPokok > 0) {
+                    const group = kelompok[cabangRekapPayroll_(data.profil)];
+                    group.total += data.totalBersih; group.jumlah++; grandTotal += data.totalBersih;
+                    const row = document.createElement('tr');
+                    const values = [data.profil['Nama Asli'],String(data.profil.Role).toUpperCase(),data.countKehadiran + ' Hari',
+                        formatRp(data.gajiPokok),formatRp(data.totalPotongan + data.kasbon),formatRp(data.totalLembur),
+                        formatRp(data.totalBonusPoin + data.totalBonusPoinTeknisiRaha + data.totalTunjanganTetap + data.feeMarketing),formatRp(data.totalBersih)];
+                    values.forEach((value,index) => {
+                        const cell = document.createElement('td');cell.textContent = value;
+                        if(index === 0) {cell.style.textAlign='left';cell.style.fontWeight='bold';}
+                        if(index === 4) cell.style.color='var(--danger)';
+                        if(index === 5 || index === 7) cell.style.color='var(--success)';
+                        if(index === 6) cell.style.color='var(--primary)';
+                        if(index === 7) {cell.style.fontWeight='bold';cell.style.fontSize='14px';}
+                        row.appendChild(cell);
+                    });
+                    group.tbody.appendChild(row);
                 }
             });
-
+            for(const [cabang,group] of Object.entries(kelompok)) {
+                document.getElementById('rekap-' + group.id + '-count').textContent = group.jumlah + ' pegawai';
+                document.getElementById('dash-total-' + group.id).innerText = formatRp(group.total);
+                if(!group.jumlah) {const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=8;
+                    cell.textContent='Belum ada data pegawai untuk cabang ' + cabang + ' pada periode ini.';
+                    cell.style.color='var(--text-muted)';row.appendChild(cell);group.tbody.appendChild(row);}
+            }
             document.getElementById('dash-grand-total').innerText = formatRp(grandTotal);
             document.getElementById('loading').style.display = 'none';
             document.getElementById('area-dashboard').style.display = 'block';

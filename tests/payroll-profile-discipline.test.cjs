@@ -17,7 +17,7 @@ const staff=[
 function harness(users=staff){
  class FixedDate extends Date {constructor(...args){super(...(args.length?args:['2026-09-30T21:00:00+08:00']));}}
  const el={};
- const c=vm.createContext({Date:FixedDate,globalUsers:structuredClone(users),globalAbsen:[],globalTickets:[],formatRp:n=>'Rp '+Math.round(n),
+ const c=vm.createContext({Date:FixedDate,globalUsers:structuredClone(users),globalAbsen:[],globalTickets:[],poinRahaPribadi_:null,formatRp:n=>'Rp '+Math.round(n),
   ambilVariabelPayroll:()=>({luarKota:'',fee:0,kasbon:0}),document:{getElementById:id=>el[id]||(el[id]={value:'2026-09',style:{},innerHTML:'',innerText:''})},penggunaAktif:{Role:'admin'}});
  vm.runInContext(html.slice(html.indexOf('        function normalisasiCabangPayroll'),html.indexOf('        function generateSlipIndividu')),c);
  return {c,el};
@@ -111,9 +111,15 @@ test('All registered discipline components expire together without changing anot
 test('Rekap renders correct roles, wages and one entry per person',()=>{
  const {c,el}=harness();
  c.globalAbsen=['Abu Abdillah','Abu Naura','ABU ABID'].flatMap(n=>monthEvents(n));
- vm.runInContext(html.slice(html.indexOf('        function generateDashboardRekap()'),html.indexOf('        function kembaliKeLobiAman()')),c);
- c.generateDashboardRekap();const rows=el['tabel-dashboard'].innerHTML;
- assert.match(rows,/MANAGER/);assert.match(rows,/ADMIN_RAHA/);assert.doesNotMatch(rows,/SALES|TEKNISI|1500000/);assert.equal((rows.match(/<tr/g)||[]).length,3);
+ const expected=c.daftarProfilPayroll().reduce((sum,u)=>sum+c.kalkulasiGajiPegawai(u['Nama Asli'],'2026-09',26).totalBersih,0);
+ c.document.createElement=tag=>({tag,style:{},children:[],textContent:'',appendChild(node){this.children.push(node);}});
+ for(const branch of ['kendari','raha'])el['tabel-dashboard-'+branch]={children:[],replaceChildren(){this.children=[];},appendChild(node){this.children.push(node);}};
+ vm.runInContext(html.slice(html.indexOf('        function cabangRekapPayroll_('),html.indexOf('        function kembaliKeLobiAman()')),c);
+ c.generateDashboardRekap();const kendari=el['tabel-dashboard-kendari'].children,raha=el['tabel-dashboard-raha'].children;
+ const rows=[...kendari,...raha].map(row=>row.children.map(cell=>cell.textContent).join('|')).join('\n');
+ assert.match(rows,/MANAGER/);assert.match(rows,/ADMIN_RAHA/);assert.doesNotMatch(rows,/SALES|TEKNISI|1500000/);
+ assert.equal(kendari.length,2);assert.equal(raha.length,1);assert.match(raha[0].children[0].textContent,/Abu Naura/);
+ assert.equal(el['dash-grand-total'].innerText,'Rp '+Math.round(expected));
 });
 test('Dropdown uses canonical profile and has no duplicate names',()=>{
  const {c,el}=harness();
