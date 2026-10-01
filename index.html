@@ -596,6 +596,56 @@
             #main-lobby-status:empty { display:none; }
         }
 
+        /* Ringkasan pendek menyatukan statistik dan menu dalam satu panel. */
+        #main-lobby-wrapper.lobby-compact .lobby-dashboard-panel { margin:0; padding:26px; border-radius:24px 24px 0 0; box-shadow:none; }
+        #main-lobby-wrapper.lobby-compact .lobby-menu-panel { position:static; margin:0; padding:22px 26px 26px; border-top:1px solid #e8eef6; border-radius:0 0 24px 24px; box-shadow:0 12px 30px rgba(39,102,172,.08); }
+        .lobby-compact .lobby-dashboard-panel > .lobby-panel-title { margin-bottom:22px; }
+        .lobby-compact #lobby-dashboard-content { display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.4fr); gap:18px; }
+        .lobby-compact .lobby-skeleton, .lobby-compact .lobby-empty, .lobby-compact .lobby-detail-row { grid-column:1 / -1; }
+        .lobby-compact .lobby-main-value { position:relative; align-items:flex-start; margin:0; padding:22px; border-radius:17px; background:linear-gradient(135deg,#245a9d,#397bd0); }
+        .lobby-summary-kicker { display:block; margin-bottom:13px; color:#d7e8ff; font-size:10px; letter-spacing:.8px; text-transform:uppercase; }
+        .lobby-compact .lobby-main-value p { color:#e6f0ff; font-size:14px; padding-right:35px; }
+        .lobby-compact .lobby-main-value strong { color:#fff; font-size:40px; margin:8px 0; }
+        .lobby-compact .lobby-main-value small { color:#d7e8ff; font-size:11px; line-height:1.6; }
+        .lobby-compact .lobby-value-icon { position:absolute; top:18px; right:18px; width:32px; height:32px; border-radius:10px; background:rgba(255,255,255,.13); color:#e6f0ff; }
+        .lobby-compact .lobby-value-icon svg { width:20px; height:20px; }
+        .lobby-compact .lobby-metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .lobby-compact .lobby-metric { display:flex; flex-direction:column; justify-content:center; min-height:94px; padding:16px 18px; border-radius:15px; background:#f1f6ff; border-color:#e1ebfb; }
+        .lobby-compact .lobby-metric span { color:#526b8c; font-size:12px; line-height:1.4; margin-bottom:7px; }
+        .lobby-compact .lobby-metric strong { color:#245a9d; font-size:26px; line-height:1.2; }
+        .lobby-compact .lobby-metric:nth-child(2) { background:#f0faf7; border-color:#dcefe7; }
+        .lobby-compact .lobby-metric:nth-child(2) strong { color:#13866a; }
+        .lobby-compact .lobby-metric:nth-child(3) { background:#fff9ed; border-color:#f5ebd4; }
+        .lobby-compact .lobby-metric:nth-child(3) strong { color:#b67a10; }
+        .lobby-compact .lobby-metric:nth-child(4) { background:#f7f3ff; border-color:#ebe3f8; }
+        .lobby-compact .lobby-metric:nth-child(4) strong { color:#7a53ac; }
+        #main-lobby-wrapper.lobby-compact .lobby-menu-panel .main-lobby-options { grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; }
+        #main-lobby-wrapper.lobby-compact .main-lobby-option { min-height:108px; padding:12px 6px; background:#f8fafd; border:1px solid #eaf0f7; border-radius:15px; font-size:12px; }
+        #main-lobby-wrapper.lobby-compact .main-lobby-option.is-locked { background:#fafbfd; border-color:#f0f2f6; }
+        #main-lobby-wrapper.lobby-compact .lobby-lock-indicator { top:51px; }
+        .lobby-compact .lobby-menu-panel .lobby-panel-title h3 { font-size:17px; }
+        .lobby-compact .lobby-footer { margin-top:18px; }
+        #main-lobby-wrapper.lobby-compact #main-lobby-status:empty { display:none; }
+        @media(min-width:768px) {
+            #main-lobby-wrapper.lobby-compact .main-lobby-card { display:grid; grid-template-columns:minmax(0,1fr); gap:0; max-width:1280px; }
+            .lobby-compact .lobby-brand { margin-bottom:20px; }
+        }
+        @media(max-width:767px) {
+            .lobby-compact #lobby-dashboard-content { grid-template-columns:minmax(0,1fr); gap:14px; }
+            .lobby-compact .lobby-main-value { padding:20px; }
+            .lobby-compact .lobby-main-value strong { font-size:34px; }
+            .lobby-compact .lobby-metric { padding:14px; }
+            .lobby-compact .lobby-metric span { font-size:11px; }
+            .lobby-compact .lobby-metric strong { font-size:23px; }
+            #main-lobby-wrapper.lobby-compact .lobby-dashboard-panel { padding:20px 18px; }
+            #main-lobby-wrapper.lobby-compact .lobby-menu-panel { padding:20px 18px; }
+            #main-lobby-wrapper.lobby-compact .lobby-menu-panel .main-lobby-options { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+            #main-lobby-wrapper.lobby-compact .main-lobby-option { font-size:11px; }
+        }
+        @media(max-width:600px) {
+            #main-lobby-wrapper.lobby-compact .lobby-lock-indicator { top:47px; }
+        }
+
     </style>
 </head>
 <body>
@@ -3258,6 +3308,13 @@
             }
         }
 
+        function aturTataLetakLobby_(user, cabang) {
+            const role = rolePengguna(user);
+            const terperinci = role === 'sales' || role === 'teknisi' || (role === 'admin' && cabang === 'Kendari');
+            document.getElementById('main-lobby-wrapper').classList.toggle('lobby-compact', !terperinci);
+            return terperinci;
+        }
+
         async function muatRingkasanLobby_() {
             const lobby = document.getElementById('main-lobby-wrapper');
             if (!punyaAksesLobby() || !lobby || lobby.style.display === 'none') return false;
@@ -3267,6 +3324,7 @@
             permintaanRingkasanLobby_ = controller;
             const user = penggunaAktif;
             const cabang = document.getElementById('lobby-cabang').value;
+            aturTataLetakLobby_(user, cabang);
             const periode = document.getElementById('lobby-periode').value;
             const target = document.getElementById('lobby-dashboard-content');
             const status = document.getElementById('lobby-dashboard-status');
@@ -3429,7 +3487,7 @@
             const pribadi = daftar => Object.values(daftar).find(r => norm(r.nama) === nama || (nama === 'syawal' && norm(r.nama) === 'muhammad syawal'));
             const n = value => Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 });
             const aktif = rows => rows.filter(t => !['Selesai', 'Cancel'].includes(t.Status)).length;
-            if (role === 'sales' || role === 'teknisi' || (role === 'admin' && cabang === 'Kendari')) {
+            if (aturTataLetakLobby_(user, cabang)) {
                 let kartu, preview;
                 if (role === 'admin') {
                     const periode = document.getElementById('lobby-periode').value;
@@ -3466,7 +3524,7 @@
                 detail = `<div class="lobby-detail-row"><span>Tuntas tanpa pending <strong>${n(Math.max(0, (s.tiket_selesai || 0) - (s.pending_count || 0)))}</strong></span><span>Klaim garansi <strong>${n(s.garansi_bocor)}</strong></span></div>`;
             }
             document.getElementById('lobby-point-preview').textContent = label + ' · ' + nilai;
-            tetapkanHtmlAman_(document.getElementById('lobby-dashboard-content'), `<div class="lobby-main-value"><div><p>${amanTeks_(label)}</p><strong>${amanTeks_(nilai)}</strong><small>${amanTeks_(keterangan)}</small></div><div class="lobby-value-icon" aria-hidden="true">↗</div></div><div class="lobby-metric-grid">${tiles.map(([title, value]) => `<div class="lobby-metric"><span>${amanTeks_(title)}</span><strong>${amanTeks_(value)}</strong></div>`).join('')}</div>${detail}`);
+            tetapkanHtmlAman_(document.getElementById('lobby-dashboard-content'), `<div class="lobby-main-value"><div><span class="lobby-summary-kicker">Kinerja periode ini</span><p>${amanTeks_(label)}</p><strong>${amanTeks_(nilai)}</strong><small>${amanTeks_(keterangan)}</small></div><div class="lobby-value-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v17h17M8 15v-4M13 15V7M18 15V4"/></svg></div></div><div class="lobby-metric-grid">${tiles.map(([title, value]) => `<div class="lobby-metric"><span>${amanTeks_(title)}</span><strong>${amanTeks_(value)}</strong></div>`).join('')}</div>${detail}`);
         }
 
         window.addEventListener('focus', () => {

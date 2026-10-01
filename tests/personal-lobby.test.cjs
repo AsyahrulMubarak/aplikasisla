@@ -24,13 +24,13 @@ const functions = [
   'poinHangusKarenaSLA_', 'statusPoinSudahCair_', 'normalisasiNoTransaksiNota_',
   'tanggalNotaDariNomorTransaksi_', 'rekapStatusNotaIpos_', 'renderDashboard',
   'petakanTiketSupabase_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
-  'hentikanRingkasanLobby_', 'muatRingkasanLobby_', 'amanTeks_', 'buatHtmlPerformaAdmin_',
+  'hentikanRingkasanLobby_', 'aturTataLetakLobby_', 'muatRingkasanLobby_', 'amanTeks_', 'buatHtmlPerformaAdmin_',
   'buatHtmlKartuTeknisi_', 'buatHtmlKartuSales_'
 ];
 function harness(activeUser = user()) {
   const elements = new Map();
   const node = id => {
-    if (!elements.has(id)) elements.set(id, { style: {}, innerHTML: '', textContent: '', value: '', selectedOptions: [], setAttribute() {} });
+    if (!elements.has(id)) elements.set(id, { style: {}, innerHTML: '', textContent: '', value: '', selectedOptions: [], classList: { toggle() {} }, setAttribute() {} });
     return elements.get(id);
   };
   class FixedDate extends Date {
