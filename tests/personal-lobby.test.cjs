@@ -24,7 +24,8 @@ const functions = [
   'poinHangusKarenaSLA_', 'statusPoinSudahCair_', 'normalisasiNoTransaksiNota_',
   'tanggalNotaDariNomorTransaksi_', 'rekapStatusNotaIpos_', 'renderDashboard',
   'petakanTiketSupabase_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
-  'hentikanRingkasanLobby_', 'muatRingkasanLobby_'
+  'hentikanRingkasanLobby_', 'muatRingkasanLobby_', 'amanTeks_', 'buatHtmlPerformaAdmin_',
+  'buatHtmlKartuTeknisi_', 'buatHtmlKartuSales_', 'buatIdentitasDashboardLobby_'
 ];
 function harness(activeUser = user()) {
   const elements = new Map();
@@ -68,6 +69,76 @@ test('Visible menu permissions enforce salary, branch and each role without wide
   assert.equal(c.penggunaBolehMenuLobby_('kpi', { ...user('sales', 2000000, 'Kendari'), Username: 'juna' }), true);
   assert.equal(c.penggunaBolehMenuLobby_('tiket', { ...technician, SessionToken: '' }), false);
   assert.equal(c.penggunaBolehMenuLobby_('unknown', user()), false);
+  assert.equal(c.penggunaBolehMenuLobby_('klaim-sales', user('admin', 0, 'Kendari')), true);
+  assert.equal(c.penggunaBolehMenuLobby_('klaim-sales', user('admin', 0, 'Semua')), true);
+  for (const role of ['admin_raha', 'teknisi', 'sales', 'manager', 'direktur']) {
+    assert.equal(c.penggunaBolehMenuLobby_('klaim-sales', user(role, 2000000, 'Semua')), false, role);
+  }
+});
+test('Lobby lists KPI, attendance, payroll, both SLA branches and Sales claims for every account', () => {
+  const menu = html.slice(html.indexOf('id="lobby-menu-title"'), html.indexOf('id="main-lobby-status"', html.indexOf('id="lobby-menu-title"')));
+  assert.deepEqual([...menu.matchAll(/data-lobby-menu="([^"]+)"/g)].map(m => m[1]),
+    ['kpi', 'absen', 'gaji', 'sla-kendari', 'sla-raha', 'klaim-sales']);
+  assert.ok(!/style="display:none/.test(menu));
+});
+function enableRendering(c) {
+  c.formatRp = value => 'Rp ' + Number(value).toLocaleString('id-ID');
+  c.tetapkanHtmlAman_ = (element, value) => { element.innerHTML = value; };
+  vm.runInContext(extract('tampilkanRingkasanLobby_'), c);
+}
+test('Admin Kendari lobby renders identity, live invoice totals and all three SLA panels', () => {
+  const profile = { ...user('admin', 2000000, 'Kendari'), 'Nama Asli': 'Admin Kendari A' };
+  const { c, node } = harness(profile);
+  c.cabangAktif = 'Kendari';
+  c.globalTickets = [
+    ticket('paid', 0, { Cabang: 'Kendari', 'No Transaksi': '001/KSR/UTM/0926', 'Status SLA': 'TERLAMBAT' }),
+    ticket('old-unpaid', 0, { Cabang: 'Kendari', 'No Transaksi': '002/KSR/UTM/0826', 'Status Pembayaran': 'Belum Lunas',
+      'Waktu Selesai': '2026-08-31T16:00:00+08:00', 'Waktu Lapor': '2026-08-31T08:00:00+08:00', 'Tanggal Lunas': null })
+  ];
+  const rekap = c.renderDashboard({ hitungSaja: true, bulan: '09', tahun: '2026' });
+  enableRendering(c);
+  c.tampilkanRingkasanLobby_(rekap, profile, c.globalTickets, 'Kendari');
+  const content = node('lobby-dashboard-content').innerHTML;
+  assert.match(content, /Admin Kendari A/);
+  assert.match(content, /Admin · Kendari/);
+  for (const heading of ['Rekap Pelunasan Nota iPOS', 'SLA 1: Distribusi Tugas Teknisi', 'SLA 2: Pembuatan Nota & Garansi', 'SLA 3: Serah Terima Barang']) assert.ok(content.includes(heading), heading);
+  assert.match(content, />1<\/div>\s*<div[^>]*>Total Nota — September 2026/);
+  assert.match(content, />1<\/div>\s*<div[^>]*>Nota Dilunasi — September 2026/);
+  assert.match(content, />1<\/div>\s*<div[^>]*>Nota Belum Lunas — Seluruh Riwayat/);
+  assert.equal(node('lobby-point-preview').textContent, 'Poin Admin Kendari · 1');
+  assert.ok(!content.includes('Papan Performa Teknisi'));
+});
+test('Sales and technicians render only their complete personal card and safely escape names', () => {
+  for (const role of ['sales', 'teknisi']) {
+    const profile = { ...user(role), 'Nama Asli': 'A <img src=x onerror=alert(1)>' };
+    const { c, node } = harness(profile);
+    enableRendering(c);
+    const rekap = {
+      statsSales: { mine: { nama: profile['Nama Asli'], target: 5000000, revenue: 1000000, total: 2, selesai: 1, progress: 1, potensi_omzet: 2000000, prospek_deal: 1 }, other: { nama: 'Other Sales' } },
+      statsTeknisi: { mine: { nama: profile['Nama Asli'], poin_terkumpul: 6, resp_tepat: 1, resp_total: 1, peng_tepat: 1, peng_total: 1, tiket_selesai: 1 }, other: { nama: 'Other Technician' } }
+    };
+    c.tampilkanRingkasanLobby_(rekap, profile, [], 'Raha');
+    const content = node('lobby-dashboard-content').innerHTML;
+    assert.ok(content.includes('A &lt;img src=x onerror=alert(1)&gt;'));
+    assert.ok(!content.includes('<img'));
+    assert.ok(!content.includes('Other Sales') && !content.includes('Other Technician'));
+    assert.ok(content.includes(role === 'sales' ? 'Sales · Raha' : 'Teknisi · Raha'));
+    const headings = role === 'sales' ? ['PENCAPAIAN TARGET', 'STATUS TRANSAKSI', 'Potensi Pipeline', 'Tingkat Konversi'] : ['TOTAL POIN KINERJA BULAN INI', 'SLA RESPON', 'SLA PENGERJAAN', 'Tuntas Tanpa Pending', 'Kebocoran Garansi'];
+    for (const heading of headings) assert.ok(content.includes(heading), heading);
+    assert.equal(node('lobby-point-preview').textContent, role === 'sales' ? 'Omzet pribadi · Rp 1.000.000' : 'Poin pribadi · 6');
+  }
+});
+test('Sales target remains personal when opening an authorized branch other than the profile branch', async () => {
+  const sales = { ...user('sales'), 'Nama Asli': 'Sales A' };
+  const { c, node } = harness(sales);
+  node('lobby-cabang').value = 'Kendari';
+  c.callSupabase = async () => [{ target_sales_rp: 50000000 }];
+  c.ambilTabelRingkasanLobby_ = async () => [];
+  let shown;
+  c.tampilkanRingkasanLobby_ = rekap => { shown = rekap; };
+  assert.equal(await c.muatRingkasanLobby_(), true);
+  assert.equal(shown.statsSales['Sales A'].target, 50000000);
+  assert.equal(c.globalUsers[0], sales);
 });
 test('Personal points share team work and exclude unpaid, other branches, failed SLA and next-month payment', () => {
   const { c, node } = harness();
