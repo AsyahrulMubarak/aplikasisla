@@ -348,11 +348,11 @@
         // ==========================================
         // KONFIGURASI SISTEM
         // ==========================================
-        const API_ABSEN_URL = 'https://oozkqjgllubhjctnkxwl.supabase.co/functions/v1/sla-payroll-attendance';
-        const API_URL_KENDARI = "https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec";
-        const API_URL_RAHA = "https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec";
-        const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
         const SUPABASE_URL = 'https://oozkqjgllubhjctnkxwl.supabase.co';
+        const API_ABSEN_URL = SUPABASE_URL + '/functions/v1/sla-payroll-attendance';
+        const API_URL_KENDARI = API_ABSEN_URL;
+        const API_URL_RAHA = API_ABSEN_URL;
+        const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
         const SUPABASE_ANON_KEY = 'sb_publishable_Wa3EUtroPjqwfCkJOyRSSw_MWnMXH6E';
         const SUPABASE_REFRESH_MARGIN_MS = 60000;
         let promiseRefreshSupabase_ = null;
@@ -365,7 +365,7 @@
             if (sesiTersimpan) {
                 const sesi = JSON.parse(sesiTersimpan);
                 cabangAktif = sesi.cabangAktif || 'Kendari';
-                apiUrl = sesi.apiUrl || API_URL_KENDARI;
+                apiUrl = API_URL_CABANG[cabangAktif] || API_URL_KENDARI;
             }
         } catch (e) {
             console.error("Gagal membaca sesi SLA:", e);
@@ -532,31 +532,24 @@
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 25000);
             try {
-                const payloadAktif = payloadDenganTokenTerbaru_(payload);
-                const response = await fetch(url, {
+                const token = await pastikanTokenSupabaseAktif_();
+                const response = await fetch(API_ABSEN_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': 'Bearer ' + payloadAktif.user.SessionToken
-                    },
-                    body: JSON.stringify(payloadAktif),
-                    redirect: 'follow',
+                    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token },
+                    body: JSON.stringify(Object.assign({}, payload, { cabang: cabangAktif })),
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
                 if (response.status === 401 && izinkanRefresh) {
                     await pastikanTokenSupabaseAktif_(true);
-                    return await fetchAntiCORS(url, payload, false);
+                    return await fetchAntiCORS(API_ABSEN_URL, payload, false);
                 }
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const hasil = await response.json();
                 if (izinkanRefresh && responsMenandakanSesiTidakSah_(hasil)) {
-                    // Token dapat habis di antara halaman dibuka dan request Supabase.
-                    // Refresh lalu ulang satu kali agar tidak terjadi pengulangan tanpa batas.
                     await pastikanTokenSupabaseAktif_(true);
-                    return await fetchAntiCORS(url, payload, false);
+                    return await fetchAntiCORS(API_ABSEN_URL, payload, false);
                 }
+                if (!response.ok) throw new Error(hasil.pesan || `HTTP ${response.status}`);
                 return hasil;
             } catch (error) {
                 clearTimeout(timeoutId);
@@ -593,10 +586,7 @@
             if (!apiCabang || (hakAkses !== 'Semua' && hakAkses !== cabangAktif)) {
                 throw new Error('Cabang aktif tidak sesuai dengan hak akses user.');
             }
-            if (session.apiUrl && session.apiUrl !== apiCabang) {
-                throw new Error('URL API sesi tidak valid.');
-            }
-
+            // Sesi lobby lama boleh berisi alamat GAS; transport selalu ditentukan halaman ini.
             apiUrl = apiCabang;
             document.documentElement.dataset.cabangAktif = cabangAktif;
             return session;

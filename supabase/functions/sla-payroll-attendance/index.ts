@@ -19,7 +19,7 @@ const OFFICE = {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'claims-supabase-salary-positive-20261002' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'attendance-storage-notifications-20261002' };
 }
 function reply(data, origin, status = 200) { return Response.json(data, { status, headers: cors(origin) }); }
 function fail(message, origin, status = 200) { return reply({ status: 'gagal', pesan: message }, origin, status); }
@@ -36,7 +36,9 @@ async function rest(table, query = '', method = 'GET', body, prefer = 'return=re
     body: body === undefined ? undefined : JSON.stringify(body) });
   if (!response.ok) {
     const detail=await response.json().catch(()=>({}));
-    throw new Error(response.status===400 && table.startsWith('rpc/') && detail.message ? detail.message : 'Database ' + table + ' HTTP ' + response.status);
+    const error = new Error(response.status===400 && table.startsWith('rpc/') && detail.message ? detail.message : 'Database ' + table + ' HTTP ' + response.status);
+    error.databaseHttpStatus = response.status;
+    throw error;
   }
   const raw = await response.text();
   return raw ? JSON.parse(raw) : [];
@@ -138,6 +140,7 @@ async function photos(rows) {
   return Promise.all(rows.map(async row => ({ ...row, bukti_foto: await photoUrl(row.bukti_foto) })));
 }
 async function uploadPhoto(base64, prefix, actor) {
+  if (String(base64 || '').length > Math.ceil(5*1024*1024/3)*4+64) throw new Error('Foto bukti melebihi batas 5 MB.');
   const match = String(base64 || '').match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
   if (!match) throw new Error('Format foto bukti tidak valid.');
   const binary = atob(match[2]);
@@ -148,6 +151,74 @@ async function uploadPhoto(base64, prefix, actor) {
     body: Uint8Array.from(binary, c => c.charCodeAt(0)) });
   if (!response.ok) throw new Error('Foto bukti gagal disimpan di Storage.');
   return 'storage:' + key;
+}
+async function cleanupRejectedPhoto(photo,error) {
+  // A timeout can occur after the database commits. Only clean a confirmed rejection.
+  if (!String(photo||'').startsWith('storage:') || ![400,401,403,404,409,422].includes(error?.databaseHttpStatus)) return;
+  try {
+    const response=await fetch(BASE+'/storage/v1/object/'+BUCKET, {
+      method:'DELETE',headers:serviceHeaders('application/json'),
+      body:JSON.stringify({prefixes:[photo.slice(8)]}),signal:AbortSignal.timeout(10000)
+    });
+    if(!response.ok)console.error('Pembersihan foto yang ditolak belum berhasil.');
+  } catch {console.error('Pembersihan foto yang ditolak tertunda.');}
+}
+async function migrateLegacyAttendancePhotos() {
+  const audit=await allRows('sla_migrasi_foto_absensi','select=*');
+  const previous=new Map(audit.map(r=>[r.table_name+':'+r.record_id,r]));
+  const candidates=[];
+  for(const [table,primary] of [['absensi','id_absen'],['pengajuan_cuti','id_pengajuan']]) {
+    const rows=await allRows(table,'select='+primary+',bukti_foto&bukti_foto=like.*drive.google.com*&order='+primary+'.asc');
+    for(const r of rows)candidates.push({table,primary,id:r[primary],original:r.bukti_foto});
+  }
+  const summary={migrated:0,failed:0,changed:0,remaining:candidates.length,needsAttention:0};
+  const imported=new Map(),started=Date.now();let count=0;
+  for(const item of candidates) {
+    const old=previous.get(item.table+':'+item.id);
+    if(old?.original===item.original&&old.percobaan>=3){summary.needsAttention++;continue;}
+    if(count>=10||Date.now()-started>60000)continue;
+    count++;
+    const log={table_name:item.table,record_id:item.id,original:item.original,status:'pending',
+      percobaan:old?.original===item.original?Number(old.percobaan)+1:1,galat:null,diperbarui_pada:new Date().toISOString()};
+    await rest('sla_migrasi_foto_absensi','on_conflict=table_name,record_id','POST',log,'resolution=merge-duplicates,return=representation');
+    try {
+      const source=new URL(item.original),id=source.pathname.match(/^\/file\/d\/([A-Za-z0-9_-]+)/)?.[1]||source.searchParams.get('id');
+      if(source.protocol!=='https:'||source.hostname!=='drive.google.com'||!/^[A-Za-z0-9_-]{10,200}$/.test(id||''))throw new Error('Tautan Drive tidak valid.');
+      let reference=imported.get(id);
+      if(!reference) {
+        const response=await fetch('https://drive.usercontent.google.com/download?id='+encode(id)+'&export=download',{
+          redirect:'follow',signal:AbortSignal.timeout(15000)});
+        if(!response.ok)throw new Error('Drive HTTP '+response.status);
+        const reader=response.body.getReader(),chunks=[];let length=0;
+        try {
+          for(;;){const {done,value}=await reader.read();if(done)break;length+=value.length;
+            if(length>5*1024*1024)throw new Error('Foto lama lebih besar dari 5 MB.');chunks.push(value);}
+        } finally {await reader.cancel().catch(()=>{});}
+        const bytes=new Uint8Array(length);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}
+        let mime='',extension='';
+        if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255){mime='image/jpeg';extension='.jpg';}
+        else if([137,80,78,71,13,10,26,10].every((n,i)=>bytes[i]===n)){mime='image/png';extension='.png';}
+        else if(String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP'){mime='image/webp';extension='.webp';}
+        if(!mime)throw new Error('Drive belum memberikan foto. Periksa izin atau file sumber.');
+        const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(n=>n.toString(16).padStart(2,'0')).join('');
+        const key='legacy/'+digest+extension;
+        const uploaded=await fetch(BASE+'/storage/v1/object/'+BUCKET+'/'+key,{method:'POST',
+          headers:{...serviceHeaders(mime),'x-upsert':'false'},body:bytes,signal:AbortSignal.timeout(15000)});
+        if(!uploaded.ok) {
+          const detail=await uploaded.json().catch(()=>({}));
+          if(![400,409].includes(uploaded.status)||!/duplicate|already exists/i.test(JSON.stringify(detail)))throw new Error('Storage HTTP '+uploaded.status);
+        }
+        reference='storage:'+key;imported.set(id,reference);
+      }
+      const saved=await rest(item.table,item.primary+'=eq.'+encode(item.id)+'&bukti_foto=eq.'+encode(item.original),'PATCH',{bukti_foto:reference});
+      log.status=saved.length===1&&saved[0].bukti_foto===reference?'migrated':'changed';log.storage=reference;
+      summary[log.status]++;
+    } catch(error) {log.status='failed';log.galat=String(error.message||error).slice(0,500);summary.failed++;}
+    log.diperbarui_pada=new Date().toISOString();
+    await rest('sla_migrasi_foto_absensi','on_conflict=table_name,record_id','POST',log,'resolution=merge-duplicates,return=representation');
+  }
+  summary.remaining-=summary.migrated;
+  return {status:'sukses',...summary};
 }
 async function effectiveAbsence(rows, start, end, employee = '', cabang = '') {
   const q = 'select=*&status=eq.Disetujui&tanggal_mulai=lte.' + encode(end) +
@@ -364,34 +435,72 @@ function normalizePhone(value) {
   else if(number.startsWith('8'))number='62'+number;
   return /^\d{8,15}$/.test(number)?number:'';
 }
-async function notifyManagers(u,reason,type) {
-  const token=Deno.env.get('FONNTE_TOKEN') || Deno.env.get('FONNTE_TOKEN_CADANGAN');
-  if (!token) throw new Error('Token Fonnte belum dikonfigurasi pada Edge Function.');
-  const users=await allRows('users','select=role,no_wa,hak_akses_cabang');
-  const recipients=users.filter(x=>x.no_wa&&canApprove({role:norm(x.role),branch:branch(x.hak_akses_cabang),access:x.hak_akses_cabang},u))
-    .map(x=>normalizePhone(x.no_wa)).filter(Boolean);
-  if (!recipients.length) return;
-  const applicant=normalizePhone(u.phone);
-  const contact=applicant?'\nWA Pengaju: +'+applicant+'\nHubungi Pengaju: https://wa.me/'+applicant:'\nWA Pengaju: belum terdaftar';
-  const form=new URLSearchParams({target:recipients.join(','),message:'PENGAJUAN '+type+' BARU\nNama: '+u.name+contact+
-    '\nAlasan: '+reason+'\nBuka aplikasi SLA untuk approval: https://aplikasisla.vercel.app/',delay:'2'});
-  const r=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},body:form});
-  if (!r.ok) throw new Error('Pengajuan tersimpan tetapi notifikasi WA gagal dikirim.');
+function leaveRecipient(profile) {
+  const role=norm(profile.role),access=String(profile.hak_akses_cabang||profile.cabang||'').trim();
+  return {role,access,branch:branch(access)||branch(profile.cabang)||(['admin','manager','direktur'].includes(role)?'Kendari':'')};
+}
+async function leaveNotifications(requestId=null,max=3) {
+  const result={terkirim:0,gagal:0,tertunda:true};
+  for(let i=0;i<max;i++) {
+    const events=await rest('rpc/sla_ambil_notif_absensi','','POST',{p_pengajuan:requestId});
+    if(!events.length)break;
+    const event=events[0];let success=false,error='';
+    try {
+      const requests=await rest('pengajuan_cuti','select=*&id_pengajuan=eq.'+encode(event.id_pengajuan)+'&limit=2');
+      const recipients=await rest('users','select=username,role,hak_akses_cabang,cabang,no_wa&username=eq.'+encode(event.penerima_username)+'&limit=2');
+      if(requests.length!==1||recipients.length!==1||!canApprove(leaveRecipient(recipients[0]),requests[0]))
+        throw new Error('Penerima pengajuan tidak lagi berhak melakukan approval.');
+      const p=requests[0],phone=normalizePhone(recipients[0].no_wa);
+      const token=Deno.env.get('FONNTE_TOKEN')||Deno.env.get('FONNTE_TOKEN_CADANGAN');
+      if(!phone)throw new Error('Nomor WhatsApp penerima belum valid.');
+      if(!token)throw new Error('Token Fonnte belum dikonfigurasi.');
+      if(p.status!=='Menunggu') {
+        // No stale reminder after approval; acknowledge the obsolete queue item.
+        success=true;
+      } else {
+        const applicants=p.pengaju_auth_id?await rest('users','select=no_wa&auth_id=eq.'+encode(p.pengaju_auth_id)+'&limit=2'):[];
+        const contact=applicants.length===1?normalizePhone(applicants[0].no_wa):'';
+        const message='PENGAJUAN '+p.jenis+' BARU\nNama: '+p.nama_pegawai+'\nCabang: '+(p.cabang||'Kendari')+
+          (contact?'\nWA Pengaju: +'+contact+'\nHubungi Pengaju: https://wa.me/'+contact:'')+
+          '\nAlasan: '+p.alasan+'\nBuka aplikasi: https://aplikasisla.vercel.app/\nSetelah login, pilih Absensi > Approval Pengajuan.';
+        await new Promise(resolve=>setTimeout(resolve,2000));
+        const response=await fetch('https://api.fonnte.com/send',{method:'POST',
+          headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams({target:phone,message,delay:'2'}),signal:AbortSignal.timeout(15000)});
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||data.status!==true)throw new Error('Provider WhatsApp menolak notifikasi.');
+        success=true;
+      }
+    } catch(e) {error=String(e.message||e);}
+    const ack=await rest('rpc/sla_selesai_notif_absensi','','POST',{
+      p_id:event.id,p_lease_id:event.lease_id,p_terkirim:success,p_error:error});
+    if(ack!==true)throw new Error('Konfirmasi antrean WhatsApp belum berhasil.');
+    result[success?'terkirim':'gagal']++;
+  }
+  const pending=await rest('sla_notif_absensi','select=id&terkirim_pada=is.null'+
+    (requestId?'&id_pengajuan=eq.'+encode(requestId):'')+'&limit=1');
+  result.tertunda=pending.length>0;
+  return result;
 }
 async function submitLeave(body,u) {
   if (u.role==='direktur') throw new Error('Direktur tidak perlu mengajukan izin.');
   const kind=String(body.jenis||''),from=String(body.tanggalMulai||''),to=kind==='Sakit'?null:String(body.selesai||''),reason=String(body.alasan||'').trim();
   if (!['Sakit','Izin'].includes(kind)||!/^\d{4}-\d{2}-\d{2}$/.test(from)||(kind==='Izin'&&(!/^\d{4}-\d{2}-\d{2}$/.test(to)||to<from))||!reason)
     throw new Error('Data pengajuan sakit/izin tidak valid.');
+  if(await rest('rpc/sla_attendance_supabase_active','','POST',{})!==true)
+    throw new Error('Migrasi foto dan notifikasi absensi belum aktif.');
   const photo=await uploadPhoto(body.buktiFotoBase64,'leave',u);
   const id='PGJ-'+wita().replace(/[- :]/g,'').slice(0,14)+'-'+crypto.randomUUID().slice(0,5).toUpperCase();
-  await rest('pengajuan_cuti','','POST',{id_pengajuan:id,waktu_pengajuan:new Date().toISOString(),nama_pegawai:u.name,role:u.role,
-    jenis:kind,tanggal_mulai:from,tanggal_selesai:to,alasan:reason,bukti_foto:photo,status:'Menunggu',cabang:u.branch});
-  let notified=true;
-  try { await notifyManagers(u,reason,kind); } catch(e) { notified=false; console.error(String(e)); }
-  return {status:'sukses',notifikasiWaTerkirim:notified,
+  try {
+    await rest('pengajuan_cuti','','POST',{id_pengajuan:id,waktu_pengajuan:new Date().toISOString(),nama_pegawai:u.name,role:u.role,
+      jenis:kind,tanggal_mulai:from,tanggal_selesai:to,alasan:reason,bukti_foto:photo,status:'Menunggu',cabang:u.branch,pengaju_auth_id:u.authId});
+  } catch(error) {await cleanupRejectedPhoto(photo,error);throw error;}
+  let notifications={terkirim:0,gagal:0,tertunda:true};
+  try {notifications=await leaveNotifications(id,3);} catch {console.error('Notifikasi absensi tetap menunggu di antrean.');}
+  const notified=notifications.terkirim>0&&!notifications.tertunda;
+  return {status:'sukses',idPengajuan:id,notifikasi:notifications,notifikasiWaTerkirim:notified,
     pesan:notified?'Pengajuan berhasil disimpan dan menunggu approval.':
-      'Pengajuan tersimpan, tetapi notifikasi WhatsApp belum terkirim. Hubungi Manajemen.'};
+      'Pengajuan tersimpan. Notifikasi WhatsApp masih menunggu pengiriman otomatis.'};
 }
 async function approveLeave(body,u) {
   if (!management(u)) throw new Error('Approval absensi khusus Manajemen.');
@@ -496,7 +605,9 @@ async function recordAttendance(body,u) {
         tipe_absen:'Hukuman Sistem',jarak_meter:0,status_disiplin:'Lupa Absen Istirahat (Potongan '+duration+')',
         keterangan:'Otomatis sistem; potongan istirahat '+duration,bukti_foto:'-',lokasi_maps:'-'});}
   }
-  await rest('rpc/sla_insert_absensi_batch','','POST',{p_employee:u.name,p_work_day:work,p_expected_last:expected,p_rows:extra});
+  try {
+    await rest('rpc/sla_insert_absensi_batch','','POST',{p_employee:u.name,p_work_day:work,p_expected_last:expected,p_rows:extra});
+  } catch(error) {await cleanupRejectedPhoto(proof,error);throw error;}
   return {status:'sukses',pesan:'Absen berhasil dicatat.'};
 }
 async function claimWarranty(body,u) {
@@ -644,6 +755,14 @@ Deno.serve(async request => {
     if(body.action==='prosesNotifKlaimSales') {
       if(!await salaryJobAuthorized(request))return fail('Akses server diperlukan.',origin,403);
       return reply({status:'sukses',notifikasi:await salesClaimNotifications(null,3)},origin);
+    }
+    if(body.action==='prosesNotifAbsensi') {
+      if(!await salaryJobAuthorized(request))return fail('Akses server diperlukan.',origin,403);
+      return reply({status:'sukses',notifikasi:await leaveNotifications(null,3)},origin);
+    }
+    if(body.action==='migrasiFotoAbsensiLama') {
+      if(!await salaryJobAuthorized(request))return fail('Akses server diperlukan.',origin,403);
+      return reply(await migrateLegacyAttendancePhotos(),origin);
     }
     const actor=await authenticate(request);
     // Fail closed until profile writes from ordinary JWTs are removed. Roles,

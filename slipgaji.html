@@ -650,31 +650,30 @@
         // ==========================================
         // KONFIGURASI API (WAJIB DIISI)
         // ==========================================
-        const API_URL_KENDARI = "https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec";
-        const API_URL_RAHA = "https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec";
+        const SUPABASE_URL = 'https://oozkqjgllubhjctnkxwl.supabase.co';
+        const API_ABSEN = SUPABASE_URL + '/functions/v1/sla-payroll-attendance';
+        const API_URL_KENDARI = API_ABSEN;
+        const API_URL_RAHA = API_ABSEN;
         const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
-        const API_SLA_SUPABASE = 'https://oozkqjgllubhjctnkxwl.supabase.co/functions/v1/sla-payroll-attendance';
-        const API_ABSEN = API_SLA_SUPABASE;
         const API_KEY = "ALFACOM_SECURE_KEY_2026";
         const FETCH_TIMEOUT_MS = 30000;
-        const SUPABASE_URL = 'https://oozkqjgllubhjctnkxwl.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_Wa3EUtroPjqwfCkJOyRSSw_MWnMXH6E';
         const SUPABASE_REFRESH_MARGIN_MS = 60000;
         let promiseRefreshSupabase_ = null;
 
         // --- RESTORASI SESI CABANG DARI LOBI UTAMA ---
         let cabangAktif = 'Kendari'; // Fallback aman
-        let apiUrl = API_SLA_SUPABASE;
+        let apiUrl = API_ABSEN;
         try {
             const sesiTersimpan = sessionStorage.getItem('sesiLoginSLA');
             if (sesiTersimpan) {
                 const sesi = JSON.parse(sesiTersimpan);
                 cabangAktif = sesi.cabangAktif || 'Kendari';
-                apiUrl = API_SLA_SUPABASE;
+                apiUrl = API_ABSEN;
             }
         } catch (e) {
             console.error("Gagal membaca sesi SLA:", e);
-            apiUrl = API_SLA_SUPABASE;
+            apiUrl = API_ABSEN;
         }
         // ---------------------------------------------
 
@@ -872,11 +871,8 @@
             if (!apiCabang || (hakAkses !== 'Semua' && hakAkses !== cabangAktif)) {
                 throw new Error('Cabang aktif tidak sesuai dengan hak akses user.');
             }
-            if (session.apiUrl && session.apiUrl !== apiCabang) {
-                throw new Error('URL API sesi tidak valid.');
-            }
-
-            apiUrl = API_SLA_SUPABASE;
+            // Alamat pada sesi lobby tidak dipakai sebagai tujuan permintaan payroll.
+            apiUrl = apiCabang;
             document.documentElement.dataset.cabangAktif = cabangAktif;
             return session;
         }
@@ -899,6 +895,26 @@
             }, 3500);
         }
 
+        async function mintaPayrollSupabase_(payload, signal, izinkanRefresh = true) {
+            const token = await pastikanTokenSupabaseAktif_();
+            if (signal && signal.aborted) throw buatErrorBatalPayroll_();
+            const response = await fetch(API_ABSEN, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token },
+                body: JSON.stringify(Object.assign({}, payload, { cabang: payload.cabang || cabangAktif })),
+                signal
+            });
+            if (response.status === 401 && izinkanRefresh) {
+                await pastikanTokenSupabaseAktif_(true);
+                return mintaPayrollSupabase_(payload, signal, false);
+            }
+            if (!response.ok) {
+                const hasil = await response.json().catch(() => ({}));
+                throw new Error(hasil.pesan || `HTTP ${response.status}`);
+            }
+            return response;
+        }
+
         async function fetchJsonDenganTimeout_(url, payload, label, timeoutMs = FETCH_TIMEOUT_MS, opsiRequest = {}) {
             const controller = new AbortController();
             const sinyalEksternal = opsiRequest && opsiRequest.signal;
@@ -909,19 +925,7 @@
             }
             const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
             try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': 'Bearer ' + payload.user.SessionToken
-                    },
-                    redirect: 'follow',
-                    body: JSON.stringify(payload),
-                    signal: controller.signal
-                });
-                if (response.status === 401) throw new Error('Sesi Anda tidak sah atau telah kedaluwarsa.');
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const response = await mintaPayrollSupabase_(payload, controller.signal);
 
                 const responseText = await response.text();
                 if (!responseText.trim()) throw new Error('respons server kosong');
@@ -1465,20 +1469,12 @@
                 const profilTarget = cariProfilPayroll(namaTarget);
                 if (!profilTarget || !profilTarget.Username) throw new Error('Profil payroll tidak tersedia. Muat ulang data pegawai.');
                 await pastikanTokenSupabaseAktif_();
-                const res = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': 'Bearer ' + penggunaAktif.SessionToken
-                    },
-                    body: JSON.stringify(payloadSesiSlip('updateTunjangan', {
+                const json = await fetchJsonDenganTimeout_(API_ABSEN,
+                    payloadSesiSlip('updateTunjangan', {
                         namaAsli: profilTarget['Nama Asli'],
                         usernameTarget: profilTarget.Username,
                         tunjanganData: finalStr
-                    }))
-                });
-                const json = await res.json();
+                    }), 'Simpan tunjangan');
                 if(json.status === 'sukses') {
                     // Memperbarui array lokal agar tidak perlu ditarik ulang dari server
                     let profil = cariProfilPayroll(namaTarget);
