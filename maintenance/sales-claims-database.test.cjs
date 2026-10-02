@@ -3,12 +3,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, before, after } = require('node:test');
-const { PGlite } = require('@electric-sql/pglite');
+let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require(path.resolve(__dirname,fs.existsSync(path.resolve(__dirname,'../tmp/sales-claims-qa'))?'../tmp/sales-claims-qa/node_modules/@electric-sql/pglite':'../../sales-claims-qa/node_modules/@electric-sql/pglite')));}
 const db = new PGlite();
 const migration = fs.readFileSync(path.join(__dirname, 'sales-claims.sql'), 'utf8');
 const photo = 'data:image/jpeg;base64,' + 'A'.repeat(100);
 async function role(name = 'service_role') {
   await db.exec(`reset role; set role ${name}; select set_config('request.jwt.claim.role', '${name}', false);`);
+  await db.query("select set_config('request.headers',$1,false)",[JSON.stringify(name==='service_role'?{'x-sla-claims-runtime':'supabase-edge'}:{})]);
 }
 async function ticket(id, cabang = 'Kendari', sales = '') {
   await role();
@@ -48,9 +49,21 @@ before(async () => {
   `);
   await db.exec(migration);
   await db.exec(migration);
+  const edgeMigration=fs.readFileSync(path.join(__dirname,'sales-claims-supabase.sql'),'utf8');
+  await db.exec(edgeMigration);await db.exec(edgeMigration);
   await role();
 });
 after(async () => { await db.close(); });
+
+test('Supabase migration blocks old Apps Script mutations and queue workers without changing claims',async()=>{
+ await role();
+ await db.exec("set request.headers='{}'");
+ assert.equal((await db.query('select public.sla_mulai_pengiriman_klaim_sales() as lease')).rows[0].lease,null);
+ await assert.rejects(submit('OLD-K'),/Supabase Edge Function/);
+ await assert.rejects(decide('OLD-K'),/Supabase Edge Function/);
+ await role();
+ assert.equal((await db.query('select public.sla_claims_edge_active() as active')).rows[0].active,true);
+});
 
 test('Migration compiles, repeats safely, and preserves all old statuses in history without retrospective WA', async () => {
   const old = await rows('select * from public.tiket order by id_tiket');

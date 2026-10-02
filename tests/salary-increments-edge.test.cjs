@@ -52,6 +52,17 @@ test('Raha payroll omits the automatic programme while retaining audited salary'
  const result=await c.dispatch({action:'getPayrollData',periode:'2026-10',cabang:'Raha'},{role:'direktur',name:'Direktur',branch:'Raha',access:'Semua'});
  assert.ok(result.users[0]['Program Gaji'],'Eligibility follows the employee profile, including management viewing another branch');
 });
+
+test('Payroll excludes employees without a current base salary even with historical programme data',async()=>{
+ for(const salary of [0,null,'0']){
+  const {c}=harness('empty',{gaji_pokok:salary});
+  const result=await c.dispatch({action:'getPayrollData',periode:'2026-10',cabang:'Kendari'},{role:'direktur',name:'Direktur',branch:'Kendari',access:'Semua'});
+  assert.equal(result.users[0]['Program Gaji'],null);
+  assert.equal(result.users[0]['Gaji Pokok'],1500000,'Historical salary remains available');
+ }
+ const {c}=harness('empty',{gaji_pokok:3000000});
+ assert.equal(c.salaryProgramApplies({hak_akses_cabang:'Kendari',gaji_pokok:3000000}),true,'Salaried employees at the cap keep their completed programme');
+});
 test('WA targets stored employee phone, provider failure does not undo salary and remains queued',async()=>{
  for(const mode of ['ok','fail']){const {c,calls,acks}=harness(mode);const r=await c.changeSalary({usernameTarget:'tech',gajiLama:1500000,gajiBaru:1750000,alasan:'Prestasi',no_wa:'089999999999'},{role:'manager',branch:'Kendari',authId:'verified'});
  assert.equal(r.status,'sukses');assert.equal(r.notifikasiTertunda,mode==='fail'?1:0);assert.equal(acks[0].p_sukses,mode!=='fail');

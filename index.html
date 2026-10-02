@@ -1715,6 +1715,9 @@
         // 🚀 GATEWAY GOOGLE APPS SCRIPT TERBATAS
         // =========================================================================
         async function kirimKeBackend_(url, action, payload = {}, perluSesi = true, opsiFetch = {}) {
+            if (['getKlaimSales', 'getBuktiKlaimSales', 'ajukanBanding', 'responBanding'].includes(action)) {
+                return kirimKlaimSalesSupabase_(action, payload);
+            }
             const request = Object.assign({ apiKey: API_KEY, action: action }, payload || {});
             if (perluSesi) {
                 if (!penggunaAktif || !penggunaAktif.Username || !penggunaAktif.SessionToken) {
@@ -1758,6 +1761,21 @@
                 }
                 throw error;
             }
+        }
+
+        async function kirimKlaimSalesSupabase_(action, payload = {}, ulangi = true) {
+            const token = await pastikanTokenSupabaseAktif_();
+            const response = await fetch(SUPABASE_URL + '/functions/v1/sla-payroll-attendance', {
+                method: 'POST', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, action }), signal: AbortSignal.timeout(60000)
+            });
+            if (response.status === 401 && ulangi) {
+                await pastikanTokenSupabaseAktif_(true);
+                return kirimKlaimSalesSupabase_(action, payload, false);
+            }
+            const result = await response.json();
+            if (!response.ok || result.status !== 'sukses') throw new Error(result.pesan || 'Permintaan klaim belum berhasil.');
+            return result;
         }
 
         // Tracking pelanggan memakai POST tanpa sesi login agar identitas pelanggan
