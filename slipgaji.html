@@ -2878,13 +2878,13 @@
             const akses=normalisasiCabangSesi(profil && (profil.Hak_Akses_Cabang || profil.hak_akses_cabang));
             const cabang=['Kendari','Raha'].includes(akses)?akses:
                 normalisasiCabangSesi(profil && (profil.Cabang || profil.cabang)) || normalisasiCabangSesi(cabangAktif);
-            panel.hidden=!p || cabang!=='Kendari' || p.berlakuOtomatis===false;if(panel.hidden)return;
+            const gajiSekarang=Number(profil && (profil['Gaji Pokok Saat Ini'] ?? profil.gaji_pokok ?? p?.gajiSekarang ?? profil['Gaji Pokok']));
+            panel.hidden=!p || !(gajiSekarang>0) || cabang!=='Kendari' || p.berlakuOtomatis===false;if(panel.hidden)return;
             const count=Math.min(6,Number(p.bulanTerkumpul)||0),done=p.selesai || Number(p.gajiSekarang)>=3000000;
             document.getElementById('salary-progress-count').textContent=done?'Program selesai':count+' / 6 bulan';
             document.getElementById('salary-progress-current').textContent=formatRp(Number(p.gajiSekarang)||0);
             document.getElementById('salary-progress-bar').style.width=(done?100:count/6*100)+'%';
             document.getElementById('salary-progress-note').textContent=done?'Gaji telah mencapai batas otomatis Rp3.000.000. Penyesuaian berikutnya oleh Manajemen.':
-                Number(p.gajiSekarang)<=0?'Program berlaku setelah pegawai memiliki gaji pokok.':
                 'Mulai '+(p.mulaiPeriode||'2026-10')+' · Maksimal 3 kali telat pagi dan 2 hari alpa per bulan. Bulan melanggar dilewati. Evaluasi setelah masa tenggang, tanggal 6.';
             const list=document.getElementById('salary-progress-months');list.replaceChildren();
             (p.evaluasi||[]).slice(0,6).forEach(m=>{const item=document.createElement('div');item.style.cssText='padding:9px 12px;border-radius:8px;background:'+(m.memenuhi_syarat?'#ecfdf5':'#fff1f2')+';font-size:12px;';

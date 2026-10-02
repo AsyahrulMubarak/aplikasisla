@@ -19,12 +19,12 @@ const OFFICE = {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'salary-kendari-only-20261002' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'claims-supabase-salary-positive-20261002' };
 }
 function reply(data, origin, status = 200) { return Response.json(data, { status, headers: cors(origin) }); }
 function fail(message, origin, status = 200) { return reply({ status: 'gagal', pesan: message }, origin, status); }
 function serviceHeaders(contentType) {
-  const h = { apikey: SECRET };
+  const h = { apikey: SECRET, 'x-sla-claims-runtime': 'supabase-edge' };
   if (!String(SECRET).startsWith('sb_secret_')) h.Authorization = 'Bearer ' + SECRET;
   if (contentType) h['Content-Type'] = contentType;
   return h;
@@ -203,12 +203,12 @@ async function getReview(u) {
   const today=day(), tomorrow=addDay(today);
   const scope=management(u)?'':'&nama_pegawai=eq.'+encode(u.name)+absenceBranchScope(u.branch);
   let rows=await allRows('absensi','select=id_absen,waktu_absen,nama_pegawai,role,tipe_absen,keterangan,status_disiplin,lokasi_maps,bukti_foto'+
-    '&waktu_absen=gte.'+encode(today+'T00:00:00+08:00')+'&waktu_absen=lt.'+encode(tomorrow+'T00:00:00+08:00')+
+    '&waktu_absen=gte.'+encode(today+'T00:00:00+08:00')+'&waktu_absen=lt.'+encode(tomorrow+'T06:00:00+08:00')+
     scope+'&order=waktu_absen.asc');
   rows=await photos(await effectiveAbsence(rows,today,today,management(u)?'':u.name,management(u)?'':u.branch));
   const result=new Map();
   for (const r of rows) {
-    if (day(r.waktu_absen)!==today) continue;
+    if (workDay(r)!==today) continue;
     const name=String(r.nama_pegawai||'').trim(), time=wita(r.waktu_absen).slice(11,16), type=String(r.tipe_absen||'');
     if (!result.has(name)) result.set(name,{tanggal:new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Makassar',day:'2-digit',month:'short',year:'numeric'}).format(new Date()),
       nama:name,status:'Hadir',masuk1:'-',keluar1:'-',masuk2:'-',keluar2:'-',keterangan:r.keterangan||'-',gps:r.lokasi_maps||'-',foto:[]});
@@ -218,7 +218,7 @@ async function getReview(u) {
       if ((minute(r.waktu_absen)<720||r.status_disiplin==='Terlambat Masuk')&&item.masuk1==='-') item.masuk1=time;
       else if (item.masuk2==='-') item.masuk2=time;
     } else if (/Keluar|Pulang/.test(type)) {
-      if (minute(r.waktu_absen)<=840) item.keluar1=time; else item.keluar2=time;
+      if (day(r.waktu_absen)===today&&minute(r.waktu_absen)<=840) item.keluar1=time; else item.keluar2=time;
     }
     if (r.keterangan&&r.keterangan!=='-') item.keterangan=r.keterangan;
     if (r.lokasi_maps&&r.lokasi_maps!=='-') item.gps=r.lokasi_maps;
@@ -567,7 +567,8 @@ async function salaryJobAuthorized(request) {
   return response.ok;
 }
 function salaryProgramApplies(profile) {
-  return (branch(String(profile.hak_akses_cabang||'').trim())||branch(String(profile.cabang||'').trim())||'Kendari')==='Kendari';
+  return Number(profile.gaji_pokok)>0 &&
+    (branch(String(profile.hak_akses_cabang||'').trim())||branch(String(profile.cabang||'').trim())||'Kendari')==='Kendari';
 }
 async function salarySummary(users,period) {
   if(!users.length)return [];
@@ -589,6 +590,7 @@ async function changeSalary(body,u) {
 
 async function dispatch(body,u) {
   const action=String(body.action||'');
+  if(['getKlaimSales','getBuktiKlaimSales','ajukanBanding','responBanding'].includes(action))return salesClaims(body,u);
   if(action==='klaimGaransi')return claimWarranty(body,u);
   if(action==='getDaftarGaji')return salaryManagement(u);
   if(action==='ubahGajiPokok')return changeSalary(body,u);
@@ -639,6 +641,10 @@ Deno.serve(async request => {
       const result=await rest('rpc/sla_evaluasi_kenaikan_gaji','','POST',{});
       return reply({...result,notifikasiTertunda:await salaryNotificationsSafe(null)},origin);
     }
+    if(body.action==='prosesNotifKlaimSales') {
+      if(!await salaryJobAuthorized(request))return fail('Akses server diperlukan.',origin,403);
+      return reply({status:'sukses',notifikasi:await salesClaimNotifications(null,3)},origin);
+    }
     const actor=await authenticate(request);
     // Fail closed until profile writes from ordinary JWTs are removed. Roles,
     // salary and Auth links in public.users determine payroll authorization.
@@ -652,3 +658,89 @@ Deno.serve(async request => {
     return fail(String(error?.message||error),origin,/Sesi Anda tidak sah/.test(String(error))?401:200);
   }
 });
+// Included in index.ts: Supabase owns claim reads, decisions and durable delivery.
+function salesClaimAdmin(u) {
+  return norm(u.role)==='admin' && ['', 'kendari', 'semua'].includes(norm(u.access));
+}
+async function salesClaims(body,u) {
+  const action=body.action,admin=salesClaimAdmin(u);
+  if(action==='ajukanBanding' ? u.role!=='sales' : !admin)
+    throw new Error(action==='ajukanBanding'?'Pengajuan klaim khusus Sales.':'Menu dan keputusan klaim hanya untuk Admin Kendari.');
+  if(await rest('rpc/sla_claims_edge_active','','POST',{})!==true)
+    throw new Error('Migrasi Klaim Sales Supabase belum aktif.');
+  if(action==='getKlaimSales') {
+    const fields='id_tiket,cabang,klien_lokasi,pekerjaan:jenis_pekerjaan,sales,status_banding,sales_pengaju,keterangan_sales,alasan_admin,klaim_sales_id,klaim_sales_username,klaim_sales_diajukan_pada,klaim_sales_diputuskan_pada,klaim_sales_admin';
+    return {status:'sukses',data:await allRows('tiket','select='+fields+'&status_banding=in.(Diajukan,Diterima,Ditolak)&or=(cabang.eq.Kendari,cabang.eq.Raha,cabang.is.null)&order=klaim_sales_diajukan_pada.desc.nullslast,id_tiket.asc')};
+  }
+  const id=String(body.idTiket||'').trim(),target=branch(body.cabang);
+  if(!/^[A-Za-z0-9._-]{1,120}$/.test(id)||!target)throw new Error('ID tiket atau cabang tidak valid.');
+  if(action==='getBuktiKlaimSales') {
+    const rows=await rest('tiket','select=bukti_banding&id_tiket=eq.'+encode(id)+absenceBranchScope(target)+'&status_banding=in.(Diajukan,Diterima,Ditolak)&limit=2');
+    if(rows.length!==1)throw new Error('Pengajuan klaim tidak ditemukan atau ambigu.');
+    return {status:'sukses',data:String(rows[0].bukti_banding||'')};
+  }
+  const payload={p_actor:norm(u.username).replace(/\s+/g,''),p_id_tiket:id,p_cabang:target};
+  let rpc;
+  if(action==='ajukanBanding') {
+    payload.p_bukti=String(body.buktiBanding||'');payload.p_keterangan=String(body.keteranganSales||'').trim();
+    const images=payload.p_bukti.split('|#|');
+    if(images.length>3||payload.p_bukti.length>3500000||images.some(image=>!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(image)))
+      throw new Error('Unggah 1 sampai 3 foto bukti yang valid (maksimal total 3,5 MB).');
+    if(payload.p_keterangan.length>3000)throw new Error('Keterangan maksimal 3000 karakter.');
+    rpc='sla_ajukan_klaim_sales';
+  } else {
+    payload.p_keputusan=String(body.statusBanding||'');payload.p_alasan=String(body.alasanAdmin||'').trim();
+    if(!['Diterima','Ditolak'].includes(payload.p_keputusan))throw new Error('Keputusan klaim tidak valid.');
+    if(payload.p_keputusan==='Ditolak'&&!payload.p_alasan)throw new Error('Alasan penolakan wajib diisi.');
+    if(payload.p_alasan.length>3000)throw new Error('Alasan maksimal 3000 karakter.');
+    rpc='sla_respon_klaim_sales';
+  }
+  const result=await rest('rpc/'+rpc,'','POST',payload);
+  if(!result?.klaim_id)throw new Error('Respons penyimpanan klaim tidak valid.');
+  let notifications;
+  try {notifications=await salesClaimNotifications(result.klaim_id,2);}catch {notifications={terkirim:0,gagal:0,tertunda:true};}
+  return {status:'sukses',klaim:result,notifikasi:notifications};
+}
+function salesClaimMessage(event) {
+  const t=event.snapshot||{},submitted=event.jenis==='Diajukan';
+  let message='ALFACOM — '+(submitted?'PENGAJUAN KLAIM SALES':'HASIL KLAIM SALES')+'\n'+
+    (submitted?'Admin Kendari, ada pengajuan klaim baru.':'Klaim Anda telah '+event.jenis.toUpperCase()+' oleh Admin Kendari.')+
+    '\nCabang: '+(t.cabang||'Kendari')+'\nTiket: '+t.id_tiket+'\nSales pengaju: '+(t.sales||'-')+'\nKlien: '+(t.klien||'-')+'\nPekerjaan: '+(t.pekerjaan||'-');
+  if(submitted&&t.keterangan)message+='\nKeterangan: '+t.keterangan;
+  if(event.jenis==='Ditolak')message+='\nAlasan penolakan: '+(t.alasan||'-');
+  return message+'\n'+(submitted?'Buka menu Klaim Sales di lobby.':'Lihat status pada tiket SLA.')+'\nhttps://aplikasisla.vercel.app/';
+}
+async function salesClaimNotifications(claimId=null,max=3) {
+  const lease=await rest('rpc/sla_mulai_pengiriman_klaim_sales','','POST',{});
+  const result={terkirim:0,gagal:0,tertunda:true};
+  if(!lease)return result;
+  try {
+    for(let i=0;i<max;i++) {
+      const events=await rest('rpc/sla_ambil_notif_klaim_sales','','POST',{p_klaim_id:null});
+      if(!events.length)break;
+      const event=events[0];let success=false,error='';
+      try {
+        const profiles=await rest('users','select=username_login,role,hak_akses_cabang,no_wa&username_login=eq.'+encode(event.penerima_username)+'&limit=2');
+        if(profiles.length!==1)throw new Error('Akun penerima tidak ditemukan atau ambigu.');
+        const recipient=profiles[0];
+        if(event.jenis==='Diajukan'&&!salesClaimAdmin({role:recipient.role,access:recipient.hak_akses_cabang}))throw new Error('Penerima sudah bukan Admin Kendari.');
+        if(event.jenis!=='Diajukan'&&norm(recipient.role)!=='sales')throw new Error('Penerima sudah bukan Sales.');
+        const phone=normalizePhone(recipient.no_wa),token=Deno.env.get('FONNTE_TOKEN')||Deno.env.get('FONNTE_TOKEN_CADANGAN');
+        if(!phone)throw new Error('Nomor WhatsApp penerima belum valid.');
+        if(!token)throw new Error('Token Fonnte belum dikonfigurasi.');
+        await new Promise(resolve=>setTimeout(resolve,2000));
+        const response=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams({target:phone,message:salesClaimMessage(event),delay:'2'}),signal:AbortSignal.timeout(15000)});
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||data.status!==true)throw new Error('Provider WhatsApp menolak notifikasi.');
+        success=true;
+      } catch(e) {error=String(e.message||e);}
+      await rest('rpc/sla_selesaikan_notif_klaim_sales','','POST',{p_id:event.id,p_lease_id:event.lease_id,p_terkirim:success,p_error:error});
+      if(!claimId||event.klaim_id===claimId)result[success?'terkirim':'gagal']++;
+    }
+    const pending=await rest('sla_notif_klaim_sales','select=id&terkirim_pada=is.null'+(claimId?'&klaim_id=eq.'+encode(claimId):'')+'&limit=1');
+    result.tertunda=pending.length>0;return result;
+  } finally {
+    await rest('rpc/sla_akhiri_pengiriman_klaim_sales','','POST',{p_lease_id:lease}).catch(()=>{});
+  }
+}

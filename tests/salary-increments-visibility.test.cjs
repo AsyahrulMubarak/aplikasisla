@@ -25,3 +25,12 @@ test('Server ineligibility and absent programme hide the panel; Kendari retains 
  c.renderProgramGaji_({Hak_Akses_Cabang:'Kendari','Program Gaji':{...program,berlakuOtomatis:false}});assert.equal(panel().hidden,true);
  c.renderProgramGaji_({Hak_Akses_Cabang:'Kendari','Program Gaji':null});assert.equal(panel().hidden,true);
 });
+
+test('Current zero salary hides cached programme progress and historical positive salary',()=>{
+ const {c,panel}=harness();
+ c.renderProgramGaji_({Hak_Akses_Cabang:'Kendari','Gaji Pokok Saat Ini':1500000,'Program Gaji':program});assert.equal(panel().hidden,false);
+ for(const profile of [{'Gaji Pokok Saat Ini':0,'Gaji Pokok':1500000},{gaji_pokok:0},{'Program Gaji':{...program,gajiSekarang:0}}]){
+  c.renderProgramGaji_({Hak_Akses_Cabang:'Kendari','Program Gaji':program,...profile});assert.equal(panel().hidden,true);
+ }
+ c.renderProgramGaji_({Hak_Akses_Cabang:'Kendari','Program Gaji':{...program,gajiSekarang:3000000,selesai:true}});assert.equal(panel().hidden,false);
+});
