@@ -1934,7 +1934,9 @@
                 globalTickets = upsertRecordRealtime_(globalTickets, 'ID Tiket', row.id_tiket, perbaruiStatusSLAAktualTiket_(record));
                 renderDashboard();
                 renderTickets();
-                return true;
+                // Klaim mengubah tiket dan kartu garansi dalam transaksi yang sama.
+                // Muat ulang metadata garansi agar hitungan dashboard ikut diperbarui.
+                return !row.garansi_asal;
             }
 
             if (tabel === 'users') {
@@ -2017,6 +2019,7 @@
                 };
                 record.Status = statusGaransiEfektif_(record.Status, record["Tanggal Habis"]);
                 globalGaransi = upsertRecordRealtime_(globalGaransi, 'ID Garansi', row.id_garansi, record);
+                renderDashboard();
                 renderGaransi();
                 return true;
             }
@@ -3324,13 +3327,20 @@
             }
         }
 
+        function kolomGaransiPengguna_(user = penggunaAktif) {
+            return rolePengguna(user) === 'teknisi'
+                ? 'id_garansi,referensi_tiket_nota,status,tanggal_habis,tiket_klaim_garansi,cabang'
+                : '*';
+        }
+
         async function ambilTabelRingkasanLobby_(table, cabang, signal) {
             const scope = cabang === 'Kendari' ? 'or=(cabang.eq.Kendari,cabang.is.null)' : 'cabang=eq.Raha';
             const rows = [];
             const order = { tiket: 'id_tiket', garansi: 'id_garansi', penjualan: 'id_penjualan', prospek: 'id_prospek' }[table];
             if (!order) throw new Error('Sumber ringkasan tidak valid.');
+            const kolom = table === 'garansi' ? kolomGaransiPengguna_() : '*';
             for (;;) {
-                const page = await callSupabase(`${table}?select=*&${scope}&order=${order}.asc&limit=500&offset=${rows.length}`, 'GET', null, { signal, dariLobby: true });
+                const page = await callSupabase(`${table}?select=${kolom}&${scope}&order=${order}.asc&limit=500&offset=${rows.length}`, 'GET', null, { signal, dariLobby: true });
                 if (!Array.isArray(page)) throw new Error('Data ringkasan belum dapat dibaca.');
                 rows.push(...page);
                 if (page.length < 500) return rows;
@@ -3368,7 +3378,7 @@
                 const sales = rolePengguna(user) === 'sales';
                 const [tiket, garansi, penjualan, prospek, profilTarget] = await Promise.all([
                     ambilTabelRingkasanLobby_('tiket', cabang, controller.signal),
-                    manajemen ? ambilTabelRingkasanLobby_('garansi', cabang, controller.signal) : Promise.resolve([]),
+                    manajemen || rolePengguna(user) === 'teknisi' ? ambilTabelRingkasanLobby_('garansi', cabang, controller.signal) : Promise.resolve([]),
                     manajemen || sales ? ambilTabelRingkasanLobby_('penjualan', cabang, controller.signal) : Promise.resolve([]),
                     manajemen || sales ? ambilTabelRingkasanLobby_('prospek', cabang, controller.signal) : Promise.resolve([]),
                     sales ? callSupabase('users?select=target_sales_rp&username=eq.' + encodeURIComponent(user.Username), 'GET', null, { signal: controller.signal, dariLobby: true }) : Promise.resolve([])
@@ -3468,7 +3478,7 @@
                     <div style="flex:1; background:#fef2f2; padding:10px; border-radius:6px; border:1px solid #fecaca;">
                         <div style="font-size:10px; color:var(--text-muted);">Kebocoran Garansi</div>
                         <div style="font-size:16px; font-weight:bold; color:var(--danger);">${s.garansi_bocor} Tiket</div>
-                        <div style="font-size:9px; color:var(--text-muted);">Pernah diklaim Klien</div>
+                        <div style="font-size:9px; color:var(--text-muted);">Diklaim pada periode terpilih</div>
                     </div>
                 </div></div>`;
             return htmlTeknisi;
@@ -4552,10 +4562,12 @@
 
                         // Mulai dataset pendukung setelah data utama selesai. Ini
                         // mengurangi lonjakan koneksi di PWA tanpa mengubah isi data.
-                        const hasilTambahan = await Promise.allSettled(isManajemen ? [
-                            callSupabase(`garansi?select=*&${cabangFilter}&order=id_garansi.desc`, 'GET', null, { signal: sinyalMuat }),
-                            callSupabase(`database_klien?select=*&${cabangFilter}`, 'GET', null, { signal: sinyalMuat })
-                        ] : [Promise.resolve([]), Promise.resolve([])]);
+                        const hasilTambahan = await Promise.allSettled([
+                            isManajemen || rolePengguna() === 'teknisi'
+                                ? callSupabase(`garansi?select=${kolomGaransiPengguna_()}&${cabangFilter}&order=id_garansi.desc`, 'GET', null, { signal: sinyalMuat })
+                                : Promise.resolve([]),
+                            isManajemen ? callSupabase(`database_klien?select=*&${cabangFilter}`, 'GET', null, { signal: sinyalMuat }) : Promise.resolve([])
+                        ]);
                         if (sinyalMuat && sinyalMuat.aborted) {
                             const errorBatal = new Error('Pengunduhan data lama dibatalkan.');
                             errorBatal.code = 'REQUEST_ABORTED';
@@ -5880,7 +5892,10 @@
                 }
             });
 
-            (globalTickets || []).filter(dataSesuaiCabangAktif_).forEach(t => {
+            const tiketCabang = (globalTickets || []).filter(dataSesuaiCabangAktif_);
+            const tiketPerId = new Map(tiketCabang.filter(Boolean).map(t => [String(t['ID Tiket'] || '').trim(), t]));
+            const garansiCabang = (globalGaransi || []).filter(dataSesuaiCabangAktif_);
+            tiketCabang.forEach(t => {
                 if(!t) return;
                 let idTkt = String(t['ID Tiket'] || ''); if(!idTkt || idTkt.startsWith('SLS-')) return;
 
@@ -5900,8 +5915,16 @@
                     isInPeriodePoin = inPeriode(tLunas);
                 }
 
-                // Abaikan sepenuhnya jika tiket ini tidak masuk di bulan Dasbor untuk SLA maupun Poin
-                if (!isInPeriodeSLA && !isInPeriodePoin) return;
+                // Klaim mengikuti bulan klaim terjadi, sekalipun pekerjaan asal selesai bulan sebelumnya.
+                const refsDiGaransi = garansiCabang.filter(g => g && String(g['Referensi (Tiket/Nota)'] || '').trim() === idTkt);
+                const isKlaimDalamPeriode = refsDiGaransi.some(g => {
+                    const statusGaransi = String(g.Status || '').trim().toLowerCase();
+                    if (!statusGaransi.includes('klaim')) return false;
+                    const tiketKlaim = tiketPerId.get(String(g['Tiket Klaim Garansi'] || '').trim());
+                    const waktuKlaim = (tiketKlaim && tiketKlaim['Waktu Lapor']) || g['Tanggal Habis'] || acuanWaktuSLA;
+                    return inPeriode(waktuKlaim);
+                });
+                if (!isInPeriodeSLA && !isInPeriodePoin && !isKlaimDalamPeriode) return;
 
                 const statusRespon = t['Status SLA Respon']; const statusPengerjaan = t['Status SLA']; const statusTiket = t['Status'] || 'Menunggu';
                 let teknisiVal = String(t['Teknisi'] || '').trim();
@@ -5912,6 +5935,8 @@
                     let n = nama; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
                     let key = Object.keys(statsTeknisi).find(k => k.toLowerCase() === n.toLowerCase());
                     if(!key) { statsTeknisi[n] = { nama: n, resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0, tiket_selesai: 0, pending_count: 0, garansi_bocor: 0, poin_terkumpul: 0 }; }
+                    // Satu tiket asal dihitung sekali untuk setiap teknisinya, bukan teknisi pengganti.
+                    if (isKlaimDalamPeriode) statsTeknisi[key || n].garansi_bocor++;
                 });
                 // [KODE BLOK 1 TETAP SAMA SEPERTI ASLINYA, TIDAK ADA YANG DIUBAH DI SINI] ...
                 // ==========================================
@@ -5919,12 +5944,6 @@
                 // ==========================================
                 if (isInPeriodeSLA) {
                     let isPendingEver = Object.values(t).some(v => String(v).toLowerCase().includes('pending'));
-                    let isBocor = false;
-                    let refsDiGaransi = (globalGaransi || []).filter(dataSesuaiCabangAktif_).filter(g => g && String(g['Referensi (Tiket/Nota)']).trim() === idTkt);
-                    if (refsDiGaransi.length > 0) {
-                        let statGrs = String(refsDiGaransi[0]['Status']).toLowerCase();
-                        if (statGrs.includes('klaim') || statGrs.includes('hangus') || statGrs.includes('diklaim')) isBocor = true;
-                    }
                     let isSlaAdminFail = Object.values(t).some(v => String(v).includes('ADMIN_SLA_FAILED'));
                     let isNotaAdminFail = Object.values(t).some(v => String(v).includes('ADMIN_NOTA_FAILED'));
 
@@ -5956,7 +5975,6 @@
                                 if(statusPengerjaan === 'TERPENUHI') { statsTeknisi[key].peng_tepat++; statsTeknisi[key].peng_total++; } else if(statusPengerjaan === 'TERLAMBAT') { statsTeknisi[key].peng_telat++; statsTeknisi[key].peng_total++; }
                                 statsTeknisi[key].tiket_selesai++;
                                 if(isPendingEver) statsTeknisi[key].pending_count++;
-                                if(isBocor) statsTeknisi[key].garansi_bocor++;
                             }
                         }
                     });
