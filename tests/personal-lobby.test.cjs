@@ -24,7 +24,7 @@ const functions = [
   'poinHangusKarenaSLA_', 'statusPoinSudahCair_', 'normalisasiNoTransaksiNota_',
   'tanggalNotaDariNomorTransaksi_', 'rekapStatusNotaIpos_', 'renderDashboard',
   'petakanTiketSupabase_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
-  'hentikanRingkasanLobby_', 'aturTataLetakLobby_', 'muatRingkasanLobby_', 'amanTeks_', 'buatHtmlPerformaAdmin_',
+  'kolomGaransiPengguna_', 'hentikanRingkasanLobby_', 'aturTataLetakLobby_', 'muatRingkasanLobby_', 'amanTeks_', 'buatHtmlPerformaAdmin_',
   'buatHtmlKartuTeknisi_', 'buatHtmlKartuSales_'
 ];
 function harness(activeUser = user()) {
@@ -184,11 +184,11 @@ test('Loading the lobby restores existing workspace and cancels stale results on
   assert.equal(await c.muatRingkasanLobby_(), true);
   assert.equal(c.cabangAktif, null);
   assert.equal(c.globalTickets, existing);
-  assert.deepEqual(requests, ['tiket']);
+  assert.deepEqual(requests, ['tiket', 'garansi']);
   assert.match(node('lobby-dashboard-status').textContent, /Diperbarui/);
   let resolve;
   let renders = 0;
-  c.ambilTabelRingkasanLobby_ = () => new Promise(done => { resolve = done; });
+  c.ambilTabelRingkasanLobby_ = table => table === 'tiket' ? new Promise(done => { resolve = done; }) : Promise.resolve([]);
   c.tampilkanRingkasanLobby_ = () => { renders++; };
   const pending = c.muatRingkasanLobby_();
   c.hentikanRingkasanLobby_();
