@@ -19,7 +19,7 @@ const OFFICE = {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'attendance-storage-notifications-20261002' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'payroll-bank-transfer-20261004' };
 }
 function reply(data, origin, status = 200) { return Response.json(data, { status, headers: cors(origin) }); }
 function fail(message, origin, status = 200) { return reply({ status: 'gagal', pesan: message }, origin, status); }
@@ -339,15 +339,35 @@ function dates(value,period) {
   const [year,month]=period.split('-').map(Number),max=new Date(Date.UTC(year,month,0)).getUTCDate();
   return [...new Set(String(value||'').split(',').map(x=>Number(x.trim())).filter(x=>Number.isInteger(x)&&x>=1&&x<=max))].sort((a,b)=>a-b).join(', ');
 }
+// Match pilihProfilPayroll_ in the slip: one payroll profile per normalized name.
+// Secondary Sales/technician accounts must not decide the payroll branch.
+function selectPayrollProfile(profiles, name) {
+  const normalized = norm(name);
+  if (!normalized) return null;
+  let candidates = profiles.filter(r => norm(r.nama_asli) === normalized);
+  if (normalized === 'abu abdillah') {
+    candidates = candidates.filter(r => norm(r.role) === 'manager');
+  } else if (normalized === 'abu naura' || normalized === 'abu naurah') {
+    candidates = candidates.filter(r => norm(r.role) === 'admin_raha' ||
+      (norm(r.role) === 'admin' && norm(r.hak_akses_cabang) === 'raha'));
+  } else if (normalized === 'ardan') {
+    candidates = candidates.filter(r => norm(r.role) === 'sales');
+  }
+  const paid = candidates.filter(r => (parseFloat(r.gaji_pokok) || 0) > 0);
+  if (paid.length) candidates = paid;
+  return candidates.length === 1 ? candidates[0] : null;
+}
 async function savePayroll(body,u) {
   if (!canPayrollManage(u)) throw new Error('Komponen payroll hanya dapat diubah Manajemen.');
-  const period=safePeriod(body.periode),name=String(body.namaPegawai||'').trim();
-  if (!period||!name) throw new Error('Periode atau pegawai tidak valid.');
+  const period=safePeriod(body.periode),requestedName=String(body.namaPegawai||'').trim();
+  if (!period||!requestedName) throw new Error('Periode atau pegawai tidak valid.');
   if (payrollPeriodLocked(period)) throw new Error('Periode payroll telah dikunci setelah masa tenggang 5 hari.');
-  const target=await allRows('users','select=nama_asli,hak_akses_cabang&nama_asli=eq.'+encode(name));
-  const targetBranches=new Set(target.map(r=>payrollProfileBranch(r.hak_akses_cabang)));
-  if (!target.length||targetBranches.size!==1) throw new Error('Cabang profil payroll tidak unik atau tidak ditemukan.');
-  const targetBranch=[...targetBranches][0];
+  const profiles=await allRows('users','select=username,nama_asli,role,gaji_pokok,hak_akses_cabang,cabang&order=username.asc');
+  const target=selectPayrollProfile(profiles,requestedName);
+  if (!target) throw new Error('Profil payroll tidak ditemukan atau ambigu. Muat ulang data pegawai.');
+  const name=String(target.nama_asli).trim();
+  const targetBranch=payrollProfileBranch(String(target.hak_akses_cabang||'').trim()) ||
+    payrollProfileBranch(String(target.cabang||'').trim());
   if(!targetBranch||!canManagePayrollBranch(u,targetBranch))throw new Error('Cabang payroll tidak sesuai hak akses.');
   const fee=Number(body.fee),kasbon=Number(body.kasbon);
   if (!Number.isFinite(fee)||!Number.isFinite(kasbon)||fee<0||kasbon<0) throw new Error('Nominal payroll tidak valid.');
@@ -359,6 +379,35 @@ async function savePayroll(body,u) {
     diperbarui_pada:new Date().toISOString(),diperbarui_oleh:u.name};
   await rest('payroll_bulanan','on_conflict=kunci_payroll','POST',[record],'resolution=merge-duplicates,return=representation');
   return {status:'sukses',data:(await payrollRows(period,name))[0]};
+}
+async function getBankAccounts(u) {
+  if (!management(u)) throw new Error('Nomor rekening hanya dapat diakses Admin Kendari, Manager, atau Direktur.');
+  const rows = await allRows('sla_rekening_pegawai','select=username,nomor_rekening&order=username.asc');
+  return {status:'sukses',data:rows.map(r=>({username:r.username,nomorRekening:r.nomor_rekening}))};
+}
+async function saveBankAccount(body,u) {
+  if (!management(u)) throw new Error('Nomor rekening hanya dapat diubah Admin Kendari, Manager, atau Direktur.');
+  const username = String(body.usernameTarget || '').trim();
+  if (!username || username.length > 80 || typeof body.nomorRekening !== 'string' || typeof body.nomorLama !== 'string')
+    throw new Error('Data rekening pegawai tidak valid.');
+  const number = body.nomorRekening.replace(/\s/g,'');
+  if (number && !/^[0-9]{1,34}$/.test(number)) throw new Error('Nomor rekening harus berisi angka, maksimal 34 digit.');
+  return rest('rpc/sla_simpan_rekening_pegawai','','POST',
+    {p_auth_id:u.authId,p_username:username,p_nomor_rekening:number,p_nomor_lama:body.nomorLama});
+}
+async function getSalaryTransfers(body,u) {
+  if (!management(u)) throw new Error('Status transfer gaji hanya untuk Admin Kendari, Manager, atau Direktur.');
+  const period = safePeriod(body.periode);
+  if (!period) throw new Error('Periode gaji tidak valid.');
+  return rest('rpc/sla_status_transfer_gaji','','POST',{p_auth_id:u.authId,p_periode:period});
+}
+async function saveSalaryTransfer(body,u) {
+  if (!management(u)) throw new Error('Status transfer gaji hanya dapat diubah Admin Kendari, Manager, atau Direktur.');
+  const period = safePeriod(body.periode), username = String(body.usernameTarget || '').trim(), cycle = String(body.siklus || '');
+  if (!period || !username || username.length > 80 || !/^\d{4}-\d{2}-\d{2}$/.test(cycle) ||
+      typeof body.sudahTransfer !== 'boolean' || typeof body.statusLama !== 'boolean') throw new Error('Data status transfer gaji tidak valid.');
+  return rest('rpc/sla_simpan_transfer_gaji','','POST',{p_auth_id:u.authId,p_username:username,p_periode:period,
+    p_siklus:cycle,p_sudah_transfer:body.sudahTransfer,p_status_lama:body.statusLama});
 }
 async function manageProfile(body,u) {
   const data=body.profil||{}, username=String(data.username||body.usernameTarget||'').trim();
@@ -705,6 +754,10 @@ async function dispatch(body,u) {
   if(action==='klaimGaransi')return claimWarranty(body,u);
   if(action==='getDaftarGaji')return salaryManagement(u);
   if(action==='ubahGajiPokok')return changeSalary(body,u);
+  if(action==='getRekeningPegawai')return getBankAccounts(u);
+  if(action==='simpanRekeningPegawai')return saveBankAccount(body,u);
+  if(action==='getStatusTransferGaji')return getSalaryTransfers(body,u);
+  if(action==='simpanStatusTransferGaji')return saveSalaryTransfer(body,u);
   if(['getKonfigurasiAbsensi','getAbsen','getTinjauanAbsen','getDaftarPengajuan','getRiwayatPengajuan','ajukanSakitIzin','responPengajuan','syncPengecualianKoreksiLuarKota'].includes(action)||body.tipeAbsen) {
     if(!canAttend(u))throw new Error('Absensi dan Slip Gaji hanya untuk pegawai dengan gaji pokok, kecuali Direktur.');
     if(action==='getKonfigurasiAbsensi')return {status:'sukses',kebijakan:policy(u)};
