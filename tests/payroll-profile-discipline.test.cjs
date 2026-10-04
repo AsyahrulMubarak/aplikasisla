@@ -113,6 +113,8 @@ test('Rekap renders correct roles, wages and one entry per person',()=>{
  c.globalAbsen=['Abu Abdillah','Abu Naura','ABU ABID'].flatMap(n=>monthEvents(n));
  const expected=c.daftarProfilPayroll().reduce((sum,u)=>sum+c.kalkulasiGajiPegawai(u['Nama Asli'],'2026-09',26).totalBersih,0);
  c.document.createElement=tag=>({tag,style:{},children:[],textContent:'',appendChild(node){this.children.push(node);}});
+ c.buatSelRekeningPegawai_=()=>c.document.createElement('td');
+ c.kontrolTransferGaji_=new Map();c.buatTandaTransferGaji_=()=>{};
  for(const branch of ['kendari','raha'])el['tabel-dashboard-'+branch]={children:[],replaceChildren(){this.children=[];},appendChild(node){this.children.push(node);}};
  vm.runInContext(html.slice(html.indexOf('        function cabangRekapPayroll_('),html.indexOf('        function kembaliKeLobiAman()')),c);
  c.generateDashboardRekap();const kendari=el['tabel-dashboard-kendari'].children,raha=el['tabel-dashboard-raha'].children;

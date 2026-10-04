@@ -61,6 +61,19 @@
         .payroll-branch-raha .payroll-branch-heading { background:#eff6ff; }
         .payroll-branch-raha .payroll-branch-heading h4 { color:#1d4ed8; }
         .payroll-branch-raha .dashboard-table th { background:#1d4ed8; }
+        .payroll-transfer-toggle { display:flex; align-items:center; gap:6px; margin:6px 0 0; font-size:11px; font-weight:500; color:var(--text-muted); cursor:pointer; }
+        .payroll-transfer-toggle input { width:16px; height:16px; margin:0; padding:0; accent-color:#059669; }
+        .payroll-name-paid { color:#047857; }
+        .payroll-transfer-paid td:first-child { background:#ecfdf5; }
+        @media print { .payroll-transfer-toggle input { display:none; } }
+        .payroll-bank-cell { min-width:225px; text-align:left; }
+        .payroll-bank-editor { display:flex; gap:6px; align-items:center; }
+        .payroll-bank-editor input { min-width:140px; padding:8px; font-variant-numeric:tabular-nums; }
+        .payroll-bank-editor button { padding:8px 10px; height:auto; white-space:nowrap; }
+        .payroll-bank-editor button:disabled { opacity:.55; cursor:default; }
+        .payroll-bank-status { display:block; margin-top:4px; font-size:11px; color:var(--text-muted); }
+        .payroll-bank-print { display:none; overflow-wrap:anywhere; }
+        @media print { .payroll-bank-editor,.payroll-bank-status { display:none; } .payroll-bank-print { display:inline; } .payroll-bank-cell { min-width:0; } }
         .payroll-grand-total { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; padding:16px; border:1px solid #a7f3d0; border-radius:10px; background:#ecfdf5; font-weight:700; color:#065f46; }
         .payroll-grand-total strong { font-size:20px; }
         @media print { .payroll-branch { break-inside:avoid; } .payroll-branch-scroll { overflow:visible; } .payroll-branch .dashboard-table { min-width:0; } }
@@ -608,13 +621,15 @@
             <!-- AREA 2: DASHBOARD REKAPITULASI MASTER -->
             <div id="area-dashboard" style="display: none;">
                 <h3 style="color:#0f766e; border-bottom: 2px solid #0f766e; padding-bottom:10px;">Master Rekapitulasi Gaji Karyawan</h3>
+                <p style="color:var(--text-muted);">Nomor rekening disimpan untuk semua bulan. Pengisian rekening dan tanda transfer hanya oleh Admin Kendari, Manager, dan Direktur.</p>
+                <p style="color:var(--text-muted);">Centang nama pegawai setelah gajinya ditransfer. Tanda berlaku untuk bulan gaji yang dipilih dan direset setiap tanggal 29 pukul 00.00 WITA (Februari tanpa tanggal 29: hari terakhir bulan). <span id="transfer-reset-info"></span></p>
                 <section class="payroll-branch payroll-branch-kendari" aria-labelledby="rekap-kendari-title">
                     <div class="payroll-branch-heading"><h4 id="rekap-kendari-title">Cabang Kendari</h4><span id="rekap-kendari-count">0 pegawai</span></div>
                     <div class="payroll-branch-scroll">
                         <table class="dashboard-table" aria-label="Rekap gaji cabang Kendari">
-                            <thead><tr><th>Nama Pegawai</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
+                            <thead><tr><th>Nama Pegawai</th><th>Nomor Rekening</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
                             <tbody id="tabel-dashboard-kendari"></tbody>
-                            <tfoot><tr style="background:#f1f5f9;font-weight:bold;"><td colspan="7" style="text-align:right;">TOTAL PAYROLL KENDARI:</td><td id="dash-total-kendari" style="color:var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
+                            <tfoot><tr style="background:#f1f5f9;font-weight:bold;"><td colspan="8" style="text-align:right;">TOTAL PAYROLL KENDARI:</td><td id="dash-total-kendari" style="color:var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
                         </table>
                     </div>
                 </section>
@@ -622,9 +637,9 @@
                     <div class="payroll-branch-heading"><h4 id="rekap-raha-title">Cabang Raha</h4><span id="rekap-raha-count">0 pegawai</span></div>
                     <div class="payroll-branch-scroll">
                         <table class="dashboard-table" aria-label="Rekap gaji cabang Raha">
-                            <thead><tr><th>Nama Pegawai</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
+                            <thead><tr><th>Nama Pegawai</th><th>Nomor Rekening</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
                             <tbody id="tabel-dashboard-raha"></tbody>
-                            <tfoot><tr style="background:#f1f5f9;font-weight:bold;"><td colspan="7" style="text-align:right;">TOTAL PAYROLL RAHA:</td><td id="dash-total-raha" style="color:var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
+                            <tfoot><tr style="background:#f1f5f9;font-weight:bold;"><td colspan="8" style="text-align:right;">TOTAL PAYROLL RAHA:</td><td id="dash-total-raha" style="color:var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
                         </table>
                     </div>
                 </section>
@@ -682,6 +697,14 @@
         let tiketPayrollPerCabang_ = Object.create(null);
         let periodeTiketPayroll_ = '';
         let janjiTiketPayrollCabang_ = Object.create(null);
+        let statusTransferGaji_ = Object.create(null);
+        let statusTransferSiap_ = false, periodeTransferGaji_ = '', siklusTransferGaji_ = '';
+        let batasResetTransferGaji_ = 0, timerResetTransferGaji_ = null, urutanStatusTransferGaji_ = 0;
+        const penyimpananTransferGaji_ = new Set(), kontrolTransferGaji_ = new Map();
+        let rekeningPegawai_ = Object.create(null);
+        let drafRekeningPegawai_ = Object.create(null);
+        let rekeningPegawaiSiap_ = false;
+        const penyimpananRekeningPegawai_ = new Set();
         let globalPayrollBulanan = {};
         let periodePayrollTermuat = '';
         let periodeDataPayrollTermuat = '';
@@ -1792,6 +1815,7 @@
         }
 
         async function prosesData() {
+            if (penyimpananRekeningPegawai_.size || penyimpananTransferGaji_.size) { showToast('Tunggu penyimpanan data payroll selesai.', 'warning'); return; }
             const periode = document.getElementById('pilih-bulan').value;
             const areaLama = document.getElementById(currentTab === 'slip' ? 'area-slip' : 'area-dashboard');
             if (areaLama) areaLama.style.display = 'none';
@@ -1814,6 +1838,7 @@
                     if (penggunaBolehKelolaPayroll_()) {
                         await pastikanTiketPayrollCabang_(cabangAktif === 'Raha' ? 'Kendari' : 'Raha', periode);
                     }
+                    await Promise.all([muatRekeningPegawai_(), muatStatusTransferGaji_(periode)]);
                     generateDashboardRekap();
                 }
             } catch (error) {
@@ -3029,6 +3054,171 @@
         }
         siapkanScrollbarSlip_();
 
+        function penggunaBolehKelolaRekening_() {
+            const role = String(penggunaAktif && penggunaAktif.Role || '').trim().toLowerCase();
+            const akses = normalisasiCabangSesi(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
+            const rumah = (akses === 'Kendari' || akses === 'Raha') ? akses :
+                normalisasiCabangSesi(penggunaAktif && penggunaAktif.Cabang) || 'Kendari';
+            return ['admin', 'manager', 'direktur'].includes(role) && !(role === 'admin' && rumah === 'Raha');
+        }
+
+        async function muatRekeningPegawai_() {
+            rekeningPegawaiSiap_ = false;
+            if (!penggunaBolehKelolaRekening_()) { rekeningPegawai_ = Object.create(null); return; }
+            const json = await fetchJsonDenganTimeout_(apiUrl, payloadSesiSlip('getRekeningPegawai'), 'Nomor rekening pegawai');
+            if (!json || json.status !== 'sukses' || !Array.isArray(json.data)) throw new Error('Data rekening pegawai belum berhasil dimuat.');
+            const terbaru = Object.create(null);
+            for (const row of json.data) {
+                if (!row || typeof row.username !== 'string' || typeof row.nomorRekening !== 'string') throw new Error('Format data rekening pegawai tidak valid.');
+                terbaru[row.username] = row.nomorRekening;
+            }
+            rekeningPegawai_ = terbaru;
+            rekeningPegawaiSiap_ = true;
+        }
+
+        function buatSelRekeningPegawai_(profil) {
+            const cell = document.createElement('td');
+            cell.className = 'payroll-bank-cell';
+            const username = String(profil.Username || '').trim();
+            if (!penggunaBolehKelolaRekening_() || !rekeningPegawaiSiap_ || !username) { cell.textContent = '—'; return cell; }
+            const saved = rekeningPegawai_[username] || '';
+            const editor = document.createElement('div'); editor.className = 'payroll-bank-editor';
+            const input = document.createElement('input'); input.type = 'text'; input.inputMode = 'numeric'; input.maxLength = 34;
+            input.autocomplete = 'off'; input.placeholder = 'Nomor rekening';
+            input.setAttribute('aria-label', 'Nomor rekening ' + profil['Nama Asli']);
+            input.value = Object.hasOwn(drafRekeningPegawai_, username) ? drafRekeningPegawai_[username] : saved;
+            const button = document.createElement('button'); button.type = 'button'; button.className = 'btn-primary'; button.textContent = 'Simpan';
+            button.setAttribute('aria-label', 'Simpan nomor rekening ' + profil['Nama Asli']);
+            const status = document.createElement('span'); status.className = 'payroll-bank-status'; status.setAttribute('aria-live', 'polite');
+            const printed = document.createElement('span'); printed.className = 'payroll-bank-print'; printed.textContent = saved || 'Belum diisi';
+            const refresh = () => {
+                const changed = input.value.replace(/\s/g, '') !== (rekeningPegawai_[username] || '');
+                const busy = penyimpananRekeningPegawai_.has(username);
+                input.disabled = busy; button.disabled = busy || !changed;
+                const current = rekeningPegawai_[username] || '';
+                status.textContent = busy ? 'Menyimpan...' : changed ? 'Belum disimpan' + (current ? ' · tersimpan: ' + current : '') : current ? 'Tersimpan' : 'Belum diisi';
+            };
+            input.addEventListener('input', () => { drafRekeningPegawai_[username] = input.value; refresh(); });
+            button.addEventListener('click', async () => {
+                if (!penggunaBolehKelolaRekening_() || penyimpananRekeningPegawai_.has(username)) return;
+                const number = input.value.replace(/\s/g, '');
+                if (number && !/^[0-9]{1,34}$/.test(number)) { showToast('Nomor rekening harus berisi angka, maksimal 34 digit.', 'warning'); return; }
+                const previous = rekeningPegawai_[username] || '';
+                penyimpananRekeningPegawai_.add(username); refresh();
+                let failure = '';
+                try {
+                    const json = await fetchJsonDenganTimeout_(apiUrl, payloadSesiSlip('simpanRekeningPegawai',
+                        { usernameTarget: username, nomorRekening: number, nomorLama: previous }), 'Simpan nomor rekening');
+                    if (!json || json.status !== 'sukses' || !json.data || json.data.username !== username || json.data.nomorRekening !== number)
+                        throw new Error('Konfirmasi penyimpanan rekening tidak valid. Klik Proses Data untuk memeriksa data terbaru.');
+                    rekeningPegawai_[username] = number; delete drafRekeningPegawai_[username];
+                    input.value = number; printed.textContent = number || 'Belum diisi';
+                    showToast('Nomor rekening ' + profil['Nama Asli'] + ' berhasil disimpan.', 'success');
+                } catch (error) { failure = error.message || 'Nomor rekening gagal disimpan.'; showToast(failure, 'error'); }
+                finally { penyimpananRekeningPegawai_.delete(username); refresh(); if (failure) status.textContent = 'Gagal disimpan'; }
+            });
+            refresh(); editor.appendChild(input); editor.appendChild(button);
+            cell.appendChild(editor); cell.appendChild(status); cell.appendChild(printed);
+            return cell;
+        }
+
+        function perbaruiTandaTransferGaji_() {
+            const ready = statusTransferSiap_ && periodeTransferGaji_ === document.getElementById('pilih-bulan').value;
+            for (const [username,control] of kontrolTransferGaji_) {
+                const paid = ready && !!statusTransferGaji_[username]?.sudahTransfer;
+                control.checkbox.checked = paid;
+                control.checkbox.disabled = !ready || !penggunaBolehKelolaRekening_() || penyimpananTransferGaji_.has(username);
+                control.label.textContent = penyimpananTransferGaji_.has(username) ? 'Menyimpan...' : !ready ? 'Status belum termuat' : paid ? 'Sudah ditransfer' : 'Belum ditransfer';
+                control.name.classList.toggle('payroll-name-paid', paid);
+                control.row.classList.toggle('payroll-transfer-paid', paid);
+            }
+        }
+
+        function jadwalkanResetTransferGaji_() {
+            clearTimeout(timerResetTransferGaji_);
+            if (!batasResetTransferGaji_ || !statusTransferSiap_) return;
+            const remaining = batasResetTransferGaji_ - Date.now();
+            timerResetTransferGaji_ = setTimeout(() => {
+                if (Date.now() < batasResetTransferGaji_) { jadwalkanResetTransferGaji_(); return; }
+                pulihkanStatusTransferGaji_();
+            }, Math.max(50, Math.min(remaining + 50, 3600000)));
+        }
+
+        async function muatStatusTransferGaji_(periode) {
+            const request = ++urutanStatusTransferGaji_;
+            clearTimeout(timerResetTransferGaji_);
+            statusTransferSiap_ = false;
+            perbaruiTandaTransferGaji_();
+            if (!penggunaBolehKelolaRekening_()) { statusTransferGaji_ = Object.create(null); return false; }
+            const json = await fetchJsonDenganTimeout_(apiUrl, payloadSesiSlip('getStatusTransferGaji', {periode}), 'Status transfer gaji');
+            if (request !== urutanStatusTransferGaji_ || periode !== document.getElementById('pilih-bulan').value) return false;
+            if (!json || json.status !== 'sukses' || json.periode !== periode || !/^\d{4}-\d{2}-\d{2}$/.test(json.siklus || '') || !Array.isArray(json.data))
+                throw new Error('Data status transfer gaji tidak valid.');
+            const remaining = Date.parse(json.resetPada) - Date.parse(json.waktuServer);
+            if (!Number.isFinite(remaining) || remaining <= 0) throw new Error('Waktu reset transfer tidak valid. Muat ulang data.');
+            const rows = Object.create(null);
+            for (const row of json.data) {
+                if (!row || typeof row.username !== 'string' || typeof row.sudahTransfer !== 'boolean') throw new Error('Format status transfer tidak valid.');
+                rows[row.username] = row;
+            }
+            statusTransferGaji_ = rows; periodeTransferGaji_ = periode; siklusTransferGaji_ = json.siklus;
+            batasResetTransferGaji_ = Date.now() + remaining; statusTransferSiap_ = true;
+            const hint = document.getElementById('transfer-reset-info');
+            if (hint) hint.textContent = 'Reset berikutnya: ' + new Date(json.resetPada).toLocaleString('id-ID', {timeZone:'Asia/Makassar',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}) + ' WITA.';
+            perbaruiTandaTransferGaji_(); jadwalkanResetTransferGaji_();
+            return true;
+        }
+
+        async function pulihkanStatusTransferGaji_() {
+            if (!penggunaBolehKelolaRekening_() || !periodeTransferGaji_) return;
+            try { await muatStatusTransferGaji_(document.getElementById('pilih-bulan').value); }
+            catch (error) {
+                showToast(error.message || 'Status transfer gagal dimuat.', 'error');
+                if (document.getElementById('transfer-reset-info')) document.getElementById('transfer-reset-info').textContent = 'Status transfer belum termuat. Klik Proses Data untuk mencoba lagi.';
+            }
+        }
+
+        function buatTandaTransferGaji_(profil,row,cell) {
+            if (!penggunaBolehKelolaRekening_() || !profil.Username) return;
+            const username = String(profil.Username).trim();
+            const name = document.createElement('span'); name.textContent = profil['Nama Asli'];
+            const toggle = document.createElement('label'); toggle.className = 'payroll-transfer-toggle';
+            const checkbox = document.createElement('input'); checkbox.type = 'checkbox';
+            checkbox.setAttribute('aria-label', 'Tandai gaji ' + profil['Nama Asli'] + ' sudah ditransfer');
+            const label = document.createElement('span'); label.setAttribute('aria-live','polite');
+            toggle.appendChild(checkbox); toggle.appendChild(label); cell.replaceChildren(name,toggle);
+            kontrolTransferGaji_.set(username,{checkbox,label,name,row});
+            checkbox.addEventListener('change', async () => {
+                const period = periodeTransferGaji_, cycle = siklusTransferGaji_, selected = checkbox.checked;
+                if (!penggunaBolehKelolaRekening_() || !statusTransferSiap_ || period !== document.getElementById('pilih-bulan').value || penyimpananTransferGaji_.has(username)) {
+                    perbaruiTandaTransferGaji_(); return;
+                }
+                if (Date.now() >= batasResetTransferGaji_) { await pulihkanStatusTransferGaji_(); return; }
+                const previous = !!statusTransferGaji_[username]?.sudahTransfer;
+                penyimpananTransferGaji_.add(username); perbaruiTandaTransferGaji_();
+                try {
+                    const json = await fetchJsonDenganTimeout_(apiUrl, payloadSesiSlip('simpanStatusTransferGaji',
+                        {usernameTarget:username,periode:period,siklus:cycle,sudahTransfer:selected,statusLama:previous}), 'Simpan status transfer');
+                    if (!json || json.status !== 'sukses' || json.periode !== period || json.siklus !== cycle ||
+                        !json.data || json.data.username !== username || json.data.sudahTransfer !== selected)
+                        throw new Error('Konfirmasi status transfer tidak valid. Muat ulang status transfer.');
+                    if (periodeTransferGaji_ === period && siklusTransferGaji_ === cycle) statusTransferGaji_[username] = json.data;
+                    showToast('Gaji ' + profil['Nama Asli'] + (selected ? ' ditandai sudah ditransfer.' : ' ditandai belum ditransfer.'), 'success');
+                } catch (error) {
+                    showToast(error.message || 'Status transfer gagal disimpan.', 'error');
+                    await pulihkanStatusTransferGaji_();
+                } finally { penyimpananTransferGaji_.delete(username); perbaruiTandaTransferGaji_(); }
+            });
+            perbaruiTandaTransferGaji_();
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && periodeTransferGaji_) pulihkanStatusTransferGaji_();
+        });
+        window.addEventListener('pageshow', () => {
+            if (periodeTransferGaji_ && Date.now() >= batasResetTransferGaji_) pulihkanStatusTransferGaji_();
+        });
+
         function cabangRekapPayroll_(profil) {
             return normalisasiCabangPayroll(profil.Hak_Akses_Cabang || profil.hak_akses_cabang) ||
                 normalisasiCabangPayroll(profil.Cabang || profil.cabang) ||
@@ -3036,6 +3226,7 @@
         }
 
         function generateDashboardRekap() {
+            kontrolTransferGaji_.clear();
             const bulanTahun = document.getElementById('pilih-bulan').value;
             if(!bulanTahun) { showToast("Lengkapi pilihan Bulan!", "warning"); return; }
             const [thn, bln] = bulanTahun.split('-');
@@ -3064,12 +3255,13 @@
                         formatRp(data.totalBonusPoin + data.totalBonusPoinTeknisiRaha + data.totalTunjanganTetap + data.feeMarketing),formatRp(data.totalBersih)];
                     values.forEach((value,index) => {
                         const cell = document.createElement('td');cell.textContent = value;
-                        if(index === 0) {cell.style.textAlign='left';cell.style.fontWeight='bold';}
+                        if(index === 0) {cell.style.textAlign='left';cell.style.fontWeight='bold';buatTandaTransferGaji_(data.profil,row,cell);}
                         if(index === 4) cell.style.color='var(--danger)';
                         if(index === 5 || index === 7) cell.style.color='var(--success)';
                         if(index === 6) cell.style.color='var(--primary)';
                         if(index === 7) {cell.style.fontWeight='bold';cell.style.fontSize='14px';}
                         row.appendChild(cell);
+                        if(index === 0) row.appendChild(buatSelRekeningPegawai_(data.profil));
                     });
                     group.tbody.appendChild(row);
                 }
@@ -3077,7 +3269,7 @@
             for(const [cabang,group] of Object.entries(kelompok)) {
                 document.getElementById('rekap-' + group.id + '-count').textContent = group.jumlah + ' pegawai';
                 document.getElementById('dash-total-' + group.id).innerText = formatRp(group.total);
-                if(!group.jumlah) {const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=8;
+                if(!group.jumlah) {const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=9;
                     cell.textContent='Belum ada data pegawai untuk cabang ' + cabang + ' pada periode ini.';
                     cell.style.color='var(--text-muted)';row.appendChild(cell);group.tbody.appendChild(row);}
             }
