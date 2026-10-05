@@ -65,6 +65,19 @@
         .payroll-transfer-toggle input { width:16px; height:16px; margin:0; padding:0; accent-color:#059669; }
         .payroll-name-paid { color:#047857; }
         .payroll-transfer-paid td:first-child { background:#ecfdf5; }
+        .payroll-evidence { order:34; margin:20px 0; padding:16px; border:1px solid var(--border); border-radius:12px; background:#f8fafc; }
+        .payroll-evidence-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+        .payroll-evidence h4 { margin:0; color:#1e40af; }
+        .payroll-evidence-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:12px; margin-top:12px; }
+        .payroll-evidence-card { min-width:0; padding:14px; background:white; border:1px solid var(--border); border-radius:8px; }
+        .payroll-evidence-card p { font-size:12px; line-height:1.6; margin:8px 0; overflow-wrap:anywhere; color:var(--text-muted); }
+        .payroll-evidence-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+        .payroll-evidence button { border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; background:white; color:#1e40af; cursor:pointer; font:600 12px Inter,sans-serif; }
+        .payroll-evidence button:disabled { opacity:.55; cursor:default; }
+        .payroll-evidence input[type=file] { width:100%; min-width:0; box-sizing:border-box; margin-top:6px; padding:8px; font-size:12px; }
+        .payroll-evidence .evidence-upload { background:#1e40af; border-color:#1e40af; color:white; }
+        .payroll-evidence .evidence-delete { color:#be123c; }
+        @media print { .payroll-evidence .evidence-controls { display:none !important; } .payroll-evidence-card { break-inside:avoid; } }
         @media print { .payroll-transfer-toggle input { display:none; } }
         .payroll-bank-cell { min-width:225px; text-align:left; }
         .payroll-bank-editor { display:flex; gap:6px; align-items:center; }
@@ -575,6 +588,15 @@
                     <div class="sum-title">TOTAL UPAH BERSIH DITERIMA</div>
                     <div class="sum-val" id="sum-total">Rp 0</div>
                 </div>
+
+                <section id="bukti-payroll" class="payroll-evidence" hidden aria-labelledby="bukti-payroll-title">
+                    <div class="payroll-evidence-heading">
+                        <h4 id="bukti-payroll-title">Bukti Fee Marketing &amp; Kasbon</h4>
+                        <button type="button" class="evidence-controls" onclick="muatBuktiPayroll_()">Muat Ulang Bukti</button>
+                    </div>
+                    <p id="bukti-payroll-status" role="status" aria-live="polite" style="font-size:12px;color:#64748b;line-height:1.6;"></p>
+                    <div id="bukti-payroll-list" class="payroll-evidence-grid"></div>
+                </section>
 
                 <!-- PAPAN INFORMASI & LEGENDA -->
                 <div class="slip-rules" style="margin-top:25px; display:flex; gap:20px; flex-wrap:wrap; border-top:2px solid var(--border); padding-top:20px;">
@@ -1290,6 +1312,7 @@
         }
 
         async function handleFilterPayrollChange() {
+            resetBuktiPayroll_();
             const periode = document.getElementById('pilih-bulan').value;
             if (periode && periode !== periodeDataPayrollTermuat) {
                 await tarikSemuaData(true);
@@ -3003,6 +3026,7 @@
 
             document.getElementById('loading').style.display = 'none';
             document.getElementById('area-slip').style.display = 'block';
+            muatBuktiPayroll_();
             document.getElementById('mobile-payroll-bar').classList.add('is-visible');
             requestAnimationFrame(perbaruiScrollbarSlip_);
         }
@@ -3060,6 +3084,201 @@
             const rumah = (akses === 'Kendari' || akses === 'Raha') ? akses :
                 normalisasiCabangSesi(penggunaAktif && penggunaAktif.Cabang) || 'Kendari';
             return ['admin', 'manager', 'direktur'].includes(role) && !(role === 'admin' && rumah === 'Raha');
+        }
+
+        let konteksBuktiPayroll_ = null, dataBuktiPayroll_ = {}, buktiPayrollSiap_ = false;
+        let urutanBuktiPayroll_ = 0, operasiBuktiPayroll_ = false, buktiPayrollPerluDimuat_ = false;
+        function penggunaBolehKelolaBuktiPayroll_() {
+            return penggunaBolehKelolaPayroll_() && penggunaBolehKelolaRekening_();
+        }
+        function resetBuktiPayroll_() {
+            ++urutanBuktiPayroll_;
+            konteksBuktiPayroll_ = null;
+            dataBuktiPayroll_ = {};
+            buktiPayrollSiap_ = false;
+            buktiPayrollPerluDimuat_ = false;
+            const panel = document.getElementById('bukti-payroll');
+            if (panel) panel.hidden = true;
+            const list = document.getElementById('bukti-payroll-list');
+            if (list) list.replaceChildren();
+        }
+        function konteksBuktiMasihAktif_(context) {
+            return context === konteksBuktiPayroll_ && context &&
+                document.getElementById('pilih-bulan').value === context.periode &&
+                document.getElementById('pilih-pegawai').value === context.namaPegawai;
+        }
+        function validasiMetadataBukti_(row) {
+            return row && /^[0-9a-f-]{36}$/i.test(row.id || '') && ['fee_marketing', 'kasbon'].includes(row.jenis) &&
+                typeof row.namaFile === 'string' && /\.pdf$/i.test(row.namaFile) &&
+                Number.isInteger(row.ukuran) && row.ukuran > 0 && row.ukuran <= 5 * 1024 * 1024;
+        }
+        async function muatBuktiPayroll_() {
+            if (operasiBuktiPayroll_) { buktiPayrollPerluDimuat_ = true; return; }
+            resetBuktiPayroll_();
+            const namaPegawai = document.getElementById('pilih-pegawai').value;
+            const periode = document.getElementById('pilih-bulan').value;
+            const profil = cariProfilPayroll(namaPegawai);
+            if (!profil || !profil.Username || !/^\d{4}-(0[1-9]|1[0-2])$/.test(periode)) return;
+            const context = { usernameTarget: profil.Username, namaPegawai, periode };
+            konteksBuktiPayroll_ = context;
+            const sequence = urutanBuktiPayroll_;
+            document.getElementById('bukti-payroll').hidden = false;
+            document.getElementById('bukti-payroll-status').textContent = 'Memuat bukti ' + namaPegawai + ' · ' + periode + '...';
+            renderBuktiPayroll_();
+            try {
+                const json = await fetchJsonDenganTimeout_(apiUrl, payloadSesiSlip('getBuktiPayroll', context), 'Bukti payroll');
+                if (!konteksBuktiMasihAktif_(context) || sequence !== urutanBuktiPayroll_) return;
+                if (json.status !== 'sukses' || json.username !== context.usernameTarget || json.periode !== periode ||
+                    !Array.isArray(json.data) || json.data.length > 2 || json.data.some(row => !validasiMetadataBukti_(row)) ||
+                    new Set(json.data.map(row => row.jenis)).size !== json.data.length) throw new Error('Data bukti payroll tidak valid.');
+                dataBuktiPayroll_ = Object.fromEntries(json.data.map(row => [row.jenis, row]));
+                buktiPayrollSiap_ = true;
+                perbaruiStatusBuktiPayroll_();
+                renderBuktiPayroll_();
+            } catch (error) {
+                if (!konteksBuktiMasihAktif_(context) || sequence !== urutanBuktiPayroll_) return;
+                document.getElementById('bukti-payroll-status').textContent = 'Bukti gagal dimuat. Klik Muat Ulang Bukti. ' + error.message;
+            }
+        }
+        function perbaruiStatusBuktiPayroll_() {
+            const context = konteksBuktiPayroll_;
+            if (!context) return;
+            if (!buktiPayrollSiap_) {
+                document.getElementById('bukti-payroll-status').textContent = 'Klik Muat Ulang Bukti untuk memeriksa bukti terbaru sebelum mengubahnya.';
+                return;
+            }
+            const mode = !penggunaBolehKelolaBuktiPayroll_() ? 'Anda dapat melihat dan mengunduh bukti milik Anda.' :
+                periodePayrollTerkunci_(context.periode) ? 'Bulan terkunci; bukti dapat dilihat dan diunduh.' :
+                'PDF maksimal 5 MB per bukti. Pilih berkas lalu tekan Unggah PDF. Bukti tersimpan terpisah dari nominal gaji.';
+            document.getElementById('bukti-payroll-status').textContent = context.namaPegawai + ' · ' + context.periode + '. ' + mode;
+        }
+        function renderBuktiPayroll_() {
+            const list = document.getElementById('bukti-payroll-list');
+            list.replaceChildren();
+            const context = konteksBuktiPayroll_;
+            if (!context) return;
+            const management = penggunaBolehKelolaBuktiPayroll_();
+            const writable = management && buktiPayrollSiap_ && !periodePayrollTerkunci_(context.periode) && !operasiBuktiPayroll_;
+            for (const [jenis, label] of [['fee_marketing', 'Bukti Fee Marketing'], ['kasbon', 'Bukti Kasbon']]) {
+                const row = dataBuktiPayroll_[jenis];
+                const card = document.createElement('div'); card.className = 'payroll-evidence-card';
+                const title = document.createElement('strong'); title.textContent = label; card.appendChild(title);
+                const detail = document.createElement('p');
+                detail.textContent = row ? row.namaFile + ' · ' + (row.ukuran / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' KB' :
+                    buktiPayrollSiap_ ? 'Belum ada bukti PDF.' : 'Bukti belum termuat.';
+                card.appendChild(detail);
+                const actions = document.createElement('div'); actions.className = 'payroll-evidence-actions evidence-controls';
+                if (row) {
+                    for (const [text, unduh] of [['Lihat PDF', false], ['Unduh PDF', true]]) {
+                        const button = document.createElement('button'); button.type = 'button'; button.textContent = text;
+                        button.disabled = operasiBuktiPayroll_;
+                        button.addEventListener('click', () => bukaBuktiPayroll_(context, row, unduh)); actions.appendChild(button);
+                    }
+                }
+                if (management) {
+                    const controls = document.createElement('div'); controls.className = 'evidence-controls';
+                    const labelFile = document.createElement('label'); labelFile.htmlFor = 'pdf-bukti-' + jenis;
+                    labelFile.textContent = row ? 'Pilih PDF pengganti' : 'Pilih PDF';
+                    const input = document.createElement('input'); input.type = 'file'; input.id = labelFile.htmlFor;
+                    input.accept = '.pdf,application/pdf'; input.disabled = !writable;
+                    const upload = document.createElement('button'); upload.type = 'button'; upload.className = 'evidence-upload';
+                    upload.textContent = row ? 'Ganti PDF' : 'Unggah PDF'; upload.disabled = true;
+                    input.addEventListener('change', () => { upload.disabled = !writable || !input.files?.length; });
+                    upload.addEventListener('click', () => unggahBuktiPayroll_(context, jenis, input.files?.[0]));
+                    controls.appendChild(labelFile); controls.appendChild(input); card.appendChild(controls); actions.appendChild(upload);
+                    if (row) {
+                        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'evidence-delete';
+                        remove.textContent = 'Hapus Bukti'; remove.disabled = !writable;
+                        remove.addEventListener('click', () => hapusBuktiPayroll_(context, row)); actions.appendChild(remove);
+                    }
+                }
+                card.appendChild(actions); list.appendChild(card);
+            }
+        }
+        async function bacaPdfPayroll_(file) {
+            if (!file || !/\.pdf$/i.test(file.name) || (file.type && file.type !== 'application/pdf')) throw new Error('Pilih berkas PDF.');
+            if (file.name.length > 180) throw new Error('Nama berkas maksimal 180 karakter.');
+            if (file.size <= 0 || file.size > 5 * 1024 * 1024) throw new Error('PDF harus berisi data dan maksimal 5 MB.');
+            const header = await file.slice(0, 8).text(), tail = await file.slice(Math.max(0, file.size - 1024)).text();
+            if (!/^%PDF-[12]\.\d/.test(header) || !/%%EOF\s*$/.test(tail)) throw new Error('Isi berkas bukan PDF yang valid.');
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve('data:application/pdf;base64,' + String(reader.result).split(',')[1]);
+                reader.onerror = () => reject(new Error('PDF gagal dibaca. Silakan pilih kembali.'));
+                reader.onabort = () => reject(new Error('Pembacaan PDF dibatalkan.'));
+                reader.readAsDataURL(file);
+            });
+        }
+        async function unggahBuktiPayroll_(context, jenis, file) {
+            if (!konteksBuktiMasihAktif_(context) || !penggunaBolehKelolaBuktiPayroll_() || !buktiPayrollSiap_ ||
+                periodePayrollTerkunci_(context.periode) || operasiBuktiPayroll_) return;
+            const old = dataBuktiPayroll_[jenis];
+            let submitted = false;
+            operasiBuktiPayroll_ = true;
+            renderBuktiPayroll_();
+            document.getElementById('bukti-payroll-status').textContent = 'Mengunggah PDF untuk ' + context.namaPegawai + ' · ' + context.periode + '...';
+            try {
+                const pdfBase64 = await bacaPdfPayroll_(file);
+                if (!konteksBuktiMasihAktif_(context)) return;
+                submitted = true;
+                const json = await fetchJsonDenganTimeout_(apiUrl, payloadSesiSlip('unggahBuktiPayroll',
+                    { ...context, jenis, namaFile: file.name, pdfBase64, idLama: old?.id || '' }), 'Unggah bukti payroll', 60000);
+                if (json.status !== 'sukses' || json.username !== context.usernameTarget || json.periode !== context.periode ||
+                    !validasiMetadataBukti_(json.data) || json.data.jenis !== jenis) throw new Error(json.pesan || 'PDF belum terkonfirmasi. Muat ulang bukti.');
+                if (konteksBuktiMasihAktif_(context)) dataBuktiPayroll_[jenis] = json.data;
+                showToast('Bukti ' + (jenis === 'kasbon' ? 'kasbon' : 'fee marketing') + ' ' + context.namaPegawai + ' · ' + context.periode + ' tersimpan.', 'success');
+            } catch (error) {
+                if (submitted && konteksBuktiMasihAktif_(context)) buktiPayrollSiap_ = false;
+                showToast(error.message + ' Klik Muat Ulang Bukti untuk memeriksa data tersimpan.', 'error');
+            } finally {
+                operasiBuktiPayroll_ = false;
+                if (konteksBuktiMasihAktif_(context)) { renderBuktiPayroll_(); perbaruiStatusBuktiPayroll_(); }
+                if (buktiPayrollPerluDimuat_) muatBuktiPayroll_();
+            }
+        }
+        async function hapusBuktiPayroll_(context, row) {
+            if (!konteksBuktiMasihAktif_(context) || !penggunaBolehKelolaBuktiPayroll_() || !buktiPayrollSiap_ ||
+                periodePayrollTerkunci_(context.periode) || operasiBuktiPayroll_) return;
+            if (!window.confirm('Hapus bukti ' + (row.jenis === 'kasbon' ? 'kasbon' : 'fee marketing') + ' ' + context.namaPegawai +
+                ' untuk ' + context.periode + '? (' + row.namaFile + ')')) return;
+            operasiBuktiPayroll_ = true; renderBuktiPayroll_();
+            document.getElementById('bukti-payroll-status').textContent = 'Menghapus bukti...';
+            try {
+                const json = await fetchJsonDenganTimeout_(apiUrl, payloadSesiSlip('hapusBuktiPayroll',
+                    { ...context, jenis: row.jenis, idLama: row.id }), 'Hapus bukti payroll');
+                if (json.status !== 'sukses' || json.username !== context.usernameTarget || json.periode !== context.periode ||
+                    json.jenis !== row.jenis || json.idTerhapus !== row.id) throw new Error(json.pesan || 'Penghapusan belum terkonfirmasi. Muat ulang bukti.');
+                if (konteksBuktiMasihAktif_(context)) delete dataBuktiPayroll_[row.jenis];
+                showToast('Bukti ' + context.namaPegawai + ' · ' + context.periode + ' dihapus.', 'success');
+            } catch (error) {
+                if (konteksBuktiMasihAktif_(context)) buktiPayrollSiap_ = false;
+                showToast(error.message + ' Klik Muat Ulang Bukti untuk memeriksa data tersimpan.', 'error');
+            } finally {
+                operasiBuktiPayroll_ = false;
+                if (konteksBuktiMasihAktif_(context)) { renderBuktiPayroll_(); perbaruiStatusBuktiPayroll_(); }
+                if (buktiPayrollPerluDimuat_) muatBuktiPayroll_();
+            }
+        }
+        async function bukaBuktiPayroll_(context, row, unduh) {
+            if (!konteksBuktiMasihAktif_(context) || operasiBuktiPayroll_) return;
+            const popup = unduh ? null : window.open('', '_blank');
+            if (popup) popup.opener = null;
+            try {
+                if (!unduh && !popup) throw new Error('Izinkan pop-up untuk melihat PDF, atau gunakan Unduh PDF.');
+                const json = await fetchJsonDenganTimeout_(apiUrl, payloadSesiSlip('bukaBuktiPayroll',
+                    { ...context, jenis: row.jenis, id: row.id, unduh }), 'Buka bukti payroll');
+                if (!konteksBuktiMasihAktif_(context)) { if (popup) popup.close(); return; }
+                const url = new URL(json.url);
+                if (json.status !== 'sukses' || url.origin !== new URL(SUPABASE_URL).origin ||
+                    !url.pathname.startsWith('/storage/v1/object/sign/sla-payroll-private/')) throw new Error('Tautan PDF tidak valid.');
+                if (unduh) {
+                    const link = document.createElement('a'); link.href = url.href; link.download = row.namaFile;
+                    document.body.appendChild(link); link.click(); link.remove();
+                } else popup.location.href = url.href;
+            } catch (error) {
+                if (popup) popup.close();
+                showToast(error.message || 'PDF gagal dibuka.', 'error');
+            }
         }
 
         async function muatRekeningPegawai_() {
@@ -3296,3 +3515,4 @@
     </script>
 </body>
 </html>
+

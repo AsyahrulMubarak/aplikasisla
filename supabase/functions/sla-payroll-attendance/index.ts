@@ -6,6 +6,8 @@ const PUBLIC_KEYS = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') || '{}'
 const SECRET = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || SECRET_KEYS.default;
 const PUBLIC = PUBLIC_KEYS.default || Deno.env.get('SUPABASE_ANON_KEY');
 const BUCKET = 'sla-attendance-private';
+const PAYROLL_EVIDENCE_BUCKET = 'sla-payroll-private';
+const PAYROLL_PDF_MAX_BYTES = 5 * 1024 * 1024;
 const ORIGINS = new Set([
   'https://aplikasisla.vercel.app',
   'https://aplikasisla-git-codex-supabase-ce8793-asyahrulmubaraks-projects.vercel.app'
@@ -19,7 +21,7 @@ const OFFICE = {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'payroll-bank-transfer-20261004' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'payroll-evidence-20261005' };
 }
 function reply(data, origin, status = 200) { return Response.json(data, { status, headers: cors(origin) }); }
 function fail(message, origin, status = 200) { return reply({ status: 'gagal', pesan: message }, origin, status); }
@@ -356,6 +358,104 @@ function selectPayrollProfile(profiles, name) {
   const paid = candidates.filter(r => (parseFloat(r.gaji_pokok) || 0) > 0);
   if (paid.length) candidates = paid;
   return candidates.length === 1 ? candidates[0] : null;
+}
+async function payrollEvidenceContext(body, u, write = false) {
+  if (write ? !canPayrollManage(u) : !canOwnSlip(u))
+    throw new Error(write ? 'Bukti payroll hanya dapat diunggah Manajemen.' : 'Akses bukti payroll ditolak.');
+  const period = safePeriod(body.periode), name = String(body.namaPegawai || '').trim();
+  if (!period || !name || typeof body.usernameTarget !== 'string' || !body.usernameTarget)
+    throw new Error('Periode atau pegawai bukti payroll tidak valid.');
+  if (!canPayrollManage(u) && norm(name) !== norm(u.name)) throw new Error('Bukti payroll hanya untuk slip pribadi.');
+  if (write && payrollPeriodLocked(period)) throw new Error('Periode payroll telah dikunci setelah masa tenggang 5 hari.');
+  const profiles = await allRows('users', 'select=username,nama_asli,role,gaji_pokok,hak_akses_cabang,cabang&order=username.asc');
+  const target = selectPayrollProfile(profiles, name);
+  if (!target || target.username !== body.usernameTarget) throw new Error('Profil bukti payroll tidak cocok. Muat ulang slip.');
+  const targetBranch = payrollProfileBranch(target.hak_akses_cabang) || payrollProfileBranch(target.cabang);
+  if (!targetBranch || (canPayrollManage(u) ? !canManagePayrollBranch(u, targetBranch) : targetBranch !== u.branch))
+    throw new Error('Cabang bukti payroll tidak sesuai hak akses.');
+  return { period, target };
+}
+function payrollEvidenceMetadata(row) {
+  return { id: row.id, jenis: row.jenis, namaFile: row.nama_file, ukuran: row.ukuran_byte,
+    diperbaruiPada: row.diperbarui_pada };
+}
+async function getPayrollEvidence(body, u) {
+  const { period, target } = await payrollEvidenceContext(body, u);
+  const rows = await rest('sla_bukti_payroll', 'select=id,jenis,nama_file,ukuran_byte,diperbarui_pada&username=eq.' +
+    encode(target.username) + '&periode=eq.' + encode(period) + '&order=jenis.asc');
+  return { status: 'sukses', username: target.username, periode: period, data: rows.map(payrollEvidenceMetadata) };
+}
+async function openPayrollEvidence(body, u) {
+  const { period, target } = await payrollEvidenceContext(body, u);
+  if (!['fee_marketing', 'kasbon'].includes(body.jenis) || !/^[0-9a-f-]{36}$/i.test(String(body.id || '')))
+    throw new Error('Bukti PDF tidak valid.');
+  const rows = await rest('sla_bukti_payroll', 'select=*&username=eq.' + encode(target.username) + '&periode=eq.' +
+    encode(period) + '&jenis=eq.' + encode(body.jenis) + '&id=eq.' + encode(body.id) + '&limit=2');
+  if (rows.length !== 1) throw new Error('Bukti telah diganti. Muat ulang bukti pada slip.');
+  const response = await fetch(BASE + '/storage/v1/object/sign/' + PAYROLL_EVIDENCE_BUCKET + '/' +
+    rows[0].object_path.split('/').map(encode).join('/'), {
+      method: 'POST', headers: serviceHeaders('application/json'), body: JSON.stringify({ expiresIn: 300 }) });
+  if (!response.ok) throw new Error('PDF gagal dibuka. Silakan coba lagi.');
+  const signed = await response.json();
+  if (!signed.signedURL) throw new Error('Tautan PDF tidak tersedia.');
+  const url = new URL(signed.signedURL.startsWith('/object/') ? BASE + '/storage/v1' + signed.signedURL : signed.signedURL, BASE);
+  if (url.origin !== new URL(BASE).origin || !url.pathname.startsWith('/storage/v1/object/sign/' + PAYROLL_EVIDENCE_BUCKET + '/'))
+    throw new Error('Tautan PDF tidak valid.');
+  if (body.unduh === true) url.searchParams.set('download', rows[0].nama_file);
+  return { status: 'sukses', url: url.href };
+}
+async function removePayrollEvidenceObject(path) {
+  try {
+    const response = await fetch(BASE + '/storage/v1/object/' + PAYROLL_EVIDENCE_BUCKET, {
+      method: 'DELETE', headers: serviceHeaders('application/json'), body: JSON.stringify({ prefixes: [path] }),
+      signal: AbortSignal.timeout(10000) });
+    if (!response.ok) console.error('Pembersihan PDF payroll tertunda.');
+  } catch { console.error('Pembersihan PDF payroll tertunda.'); }
+}
+async function uploadPayrollEvidence(body, u) {
+  const { period, target } = await payrollEvidenceContext(body, u, true);
+  const kind = body.jenis, filename = String(body.namaFile || '').trim();
+  if (!['fee_marketing', 'kasbon'].includes(kind) || typeof body.idLama !== 'string' ||
+    (body.idLama !== '' && !/^[0-9a-f-]{36}$/i.test(body.idLama))) throw new Error('Jenis atau versi bukti tidak valid.');
+  if (!filename || filename.length > 180 || !/\.pdf$/i.test(filename) || /[\x00-\x1f\x7f/\\]/.test(filename))
+    throw new Error('Nama berkas harus PDF, maksimal 180 karakter.');
+  const value = String(body.pdfBase64 || '');
+  if (value.length > Math.ceil(PAYROLL_PDF_MAX_BYTES / 3) * 4 + 64) throw new Error('PDF melebihi batas 5 MB.');
+  const match = value.match(/^data:application\/pdf;base64,([A-Za-z0-9+/]+={0,2})$/);
+  if (!match || match[1].length % 4 !== 0) throw new Error('Format berkas harus PDF.');
+  let binary;
+  try { binary = atob(match[1]); } catch { throw new Error('Data PDF tidak valid.'); }
+  if (!binary.length || binary.length > PAYROLL_PDF_MAX_BYTES) throw new Error('PDF kosong atau melebihi batas 5 MB.');
+  if (!/^%PDF-[12]\.\d/.test(binary) || !/%%EOF\s*$/.test(binary.slice(-1024))) throw new Error('Isi berkas bukan PDF yang valid.');
+  const id = crypto.randomUUID(), objectPath = target.username + '/' + period + '/' + kind + '/' + id + '.pdf';
+  const uploaded = await fetch(BASE + '/storage/v1/object/' + PAYROLL_EVIDENCE_BUCKET + '/' + objectPath.split('/').map(encode).join('/'), {
+    method: 'POST', headers: { ...serviceHeaders('application/pdf'), 'x-upsert': 'false' },
+    body: Uint8Array.from(binary, c => c.charCodeAt(0)) });
+  if (!uploaded.ok) throw new Error('PDF gagal diunggah. Bukti sebelumnya tetap tersimpan.');
+  let saved;
+  try {
+    saved = await rest('rpc/sla_simpan_bukti_payroll', '', 'POST', { p_auth_id: u.authId, p_username: target.username,
+      p_periode: period, p_jenis: kind, p_id: id, p_id_lama: body.idLama, p_object_path: objectPath,
+      p_nama_file: filename, p_ukuran_byte: binary.length, p_hapus: false });
+  } catch (error) {
+    // Network failure can follow a successful commit; preserve the uploaded object in that case.
+    if ([400, 401, 403, 404, 409, 422].includes(error.databaseHttpStatus)) await removePayrollEvidenceObject(objectPath);
+    throw error;
+  }
+  if (saved.status !== 'sukses' || saved.data?.id !== id) throw new Error('Konfirmasi penyimpanan PDF tidak valid. Muat ulang bukti.');
+  if (saved.objectPathLama && saved.objectPathLama !== objectPath) await removePayrollEvidenceObject(saved.objectPathLama);
+  return { status: 'sukses', username: target.username, periode: period, data: payrollEvidenceMetadata(saved.data) };
+}
+async function deletePayrollEvidence(body, u) {
+  const { period, target } = await payrollEvidenceContext(body, u, true);
+  if (!['fee_marketing', 'kasbon'].includes(body.jenis) || !/^[0-9a-f-]{36}$/i.test(String(body.idLama || '')))
+    throw new Error('Bukti yang akan dihapus tidak valid.');
+  const saved = await rest('rpc/sla_simpan_bukti_payroll', '', 'POST', { p_auth_id: u.authId, p_username: target.username,
+    p_periode: period, p_jenis: body.jenis, p_id: null, p_id_lama: body.idLama, p_object_path: null,
+    p_nama_file: null, p_ukuran_byte: null, p_hapus: true });
+  if (saved.status !== 'sukses' || saved.idTerhapus !== body.idLama) throw new Error('Konfirmasi penghapusan tidak valid. Muat ulang bukti.');
+  if (saved.objectPathLama) await removePayrollEvidenceObject(saved.objectPathLama);
+  return { status: 'sukses', username: target.username, periode: period, jenis: body.jenis, idTerhapus: saved.idTerhapus };
 }
 async function savePayroll(body,u) {
   if (!canPayrollManage(u)) throw new Error('Komponen payroll hanya dapat diubah Manajemen.');
@@ -758,6 +858,10 @@ async function dispatch(body,u) {
   if(action==='simpanRekeningPegawai')return saveBankAccount(body,u);
   if(action==='getStatusTransferGaji')return getSalaryTransfers(body,u);
   if(action==='simpanStatusTransferGaji')return saveSalaryTransfer(body,u);
+  if(action==='getBuktiPayroll')return getPayrollEvidence(body,u);
+  if(action==='bukaBuktiPayroll')return openPayrollEvidence(body,u);
+  if(action==='unggahBuktiPayroll')return uploadPayrollEvidence(body,u);
+  if(action==='hapusBuktiPayroll')return deletePayrollEvidence(body,u);
   if(['getKonfigurasiAbsensi','getAbsen','getTinjauanAbsen','getDaftarPengajuan','getRiwayatPengajuan','ajukanSakitIzin','responPengajuan','syncPengecualianKoreksiLuarKota'].includes(action)||body.tipeAbsen) {
     if(!canAttend(u))throw new Error('Absensi dan Slip Gaji hanya untuk pegawai dengan gaji pokok, kecuali Direktur.');
     if(action==='getKonfigurasiAbsensi')return {status:'sukses',kebijakan:policy(u)};
