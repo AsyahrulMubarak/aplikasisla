@@ -48,8 +48,8 @@ begin
     raise exception 'Periode, jenis, atau versi bukti payroll tidak valid.';
   end if;
   v_month := (p_periode || '-01')::date;
-  if (pg_catalog.now() at time zone 'Asia/Makassar')::date >= (v_month + interval '1 month 5 days')::date then
-    raise exception 'Periode payroll telah dikunci setelah masa tenggang 5 hari.';
+  if (pg_catalog.now() at time zone 'Asia/Makassar')::date >= (v_month + interval '1 month 7 days')::date then
+    raise exception 'Periode payroll telah dikunci setelah masa tenggang 7 hari.';
   end if;
   select * into strict v_target from public.users where username = p_username;
   if lower(trim(coalesce(nullif(trim(v_target.hak_akses_cabang), ''), v_target.cabang, ''))) not in ('kendari', 'raha', 'semua') then

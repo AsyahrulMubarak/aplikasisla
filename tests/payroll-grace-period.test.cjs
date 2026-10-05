@@ -1,11 +1,11 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
 const {test}=require('node:test');
-const root=path.resolve(__dirname,'..');
+const root=process.env.PAYROLL_GRACE_SOURCE_DIR||path.resolve(__dirname,'..');
 const html=fs.readFileSync(path.join(root,'slipgaji.html'),'utf8');
 const edge=fs.readFileSync(path.join(root,'supabase/functions/sla-payroll-attendance/index.ts'),'utf8');
 function extract(name){const m=html.match(new RegExp('^([ \\t]*)(?:async )?function '+name+'\\([^]*?^\\1\\}','m'));assert.ok(m,name);return m[0];}
-function harness(now='2026-10-05T23:59:59+08:00'){
+function harness(now='2026-10-07T23:59:59+08:00'){
  const state={now,manage:true,writes:[],draftReads:0};
  class Clock extends Date {constructor(...args){super(...(args.length?args:[state.now]));}}
  const fields=Object.fromEntries(['pilih-bulan','input-fee','input-kasbon','input-luar-kota','input-libur-tambahan','btn-simpan-variabel','info-kunci-bulan'].map(id=>[id,{value:'',style:{}}]));fields['pilih-bulan'].value='2026-09';
@@ -29,24 +29,25 @@ function harness(now='2026-10-05T23:59:59+08:00'){
  vm.runInContext(edge,back);
  return{front,back,fields,state};
 }
-test('Frontend and server lock after five calendar days in WITA, including year and leap-month boundaries',()=>{
+test('Frontend and server lock after seven calendar days in WITA, including year and leap-month boundaries',()=>{
  const {front,back}=harness();
  for(const[period,time,locked]of[
   ['2026-09','2026-09-30T15:59:59Z',false],['2026-09','2026-09-30T16:00:00Z',false],
-  ['2026-09','2026-10-05T15:59:59.999Z',false],['2026-09','2026-10-05T16:00:00Z',true],
+  ['2026-09','2026-10-05T16:00:00Z',false],['2026-09','2026-10-06T23:59:59+08:00',false],
+  ['2026-09','2026-10-07T15:59:59.999Z',false],['2026-09','2026-10-07T16:00:00Z',true],
   ['2026-08','2026-10-01T00:00:00+08:00',true],['2026-10','2026-10-06T00:00:00+08:00',false],
-  ['2026-11','2026-10-06T00:00:00+08:00',false],['2026-12','2027-01-05T23:59:59+08:00',false],
-  ['2026-12','2027-01-06T00:00:00+08:00',true],['2028-02','2028-03-05T23:59:59+08:00',false],
-  ['2028-02','2028-03-06T00:00:00+08:00',true],['2026-13','2026-10-01T00:00:00+08:00',true]
+  ['2026-11','2026-10-06T00:00:00+08:00',false],['2026-12','2027-01-07T23:59:59+08:00',false],
+  ['2026-12','2027-01-08T00:00:00+08:00',true],['2028-02','2028-03-07T23:59:59+08:00',false],
+  ['2028-02','2028-03-08T00:00:00+08:00',true],['2026-13','2026-10-01T00:00:00+08:00',true]
  ]){assert.equal(front.periodePayrollTerkunci_(period,new Date(time)),locked,period+' '+time+' UI');assert.equal(back.payrollPeriodLocked(period,new Date(time)),locked,period+' '+time+' API');}
 });
 test('All monthly controls share the grace deadline and remain read-only for ordinary employees',()=>{
  const {front,fields,state}=harness();
  assert.equal(front.cekKunciBulan(),false);
- assert.match(fields['info-kunci-bulan'].innerText,/5 Oktober 2026, 23\.59 WITA/);
+ assert.match(fields['info-kunci-bulan'].innerText,/7 Oktober 2026, 23\.59 WITA/);
  for(const id of ['input-fee','input-kasbon','input-luar-kota','input-libur-tambahan','btn-simpan-variabel'])assert.equal(fields[id].disabled,false,id);
  state.manage=false;front.cekKunciBulan();for(const id of ['input-fee','input-kasbon','input-luar-kota','input-libur-tambahan','btn-simpan-variabel'])assert.equal(fields[id].disabled,true,id);
- state.manage=true;state.now='2026-10-06T00:00:00+08:00';assert.equal(front.cekKunciBulan(),true);assert.match(fields['info-kunci-bulan'].innerText,/terkunci/);
+ state.manage=true;state.now='2026-10-08T00:00:00+08:00';assert.equal(front.cekKunciBulan(),true);assert.match(fields['info-kunci-bulan'].innerText,/terkunci/);
  for(const id of ['input-fee','input-kasbon','input-luar-kota','input-libur-tambahan','btn-simpan-variabel'])assert.equal(fields[id].disabled,true,id);
 });
 test('Server saves the selected previous month and rejects expired, older or unauthorized payroll writes',async()=>{
@@ -57,7 +58,7 @@ test('Server saves the selected previous month and rejects expired, older or una
  const count=state.writes.length;
  await assert.rejects(back.savePayroll(body,{...actor,role:'teknisi'}),/Manajemen/);
  await assert.rejects(back.savePayroll({...body,periode:'2026-08'},actor),/dikunci/);
- state.now='2026-10-06T00:00:00+08:00';await assert.rejects(back.savePayroll(body,actor),/dikunci/);assert.equal(state.writes.length,count);
+ state.now='2026-10-08T00:00:00+08:00';await assert.rejects(back.savePayroll(body,actor),/dikunci/);assert.equal(state.writes.length,count);
 });
 test('Outside-city correction exemptions and local draft recovery follow the same grace window',async()=>{
  const {front,back,state}=harness();
@@ -65,6 +66,6 @@ test('Outside-city correction exemptions and local draft recovery follow the sam
  const actor={name:'Manager',role:'manager',branch:'Raha',access:'Raha',salary:2000000};
  const body={periode:'2026-09',daftarPayroll:[{namaPegawai:'Pegawai',luarKota:'3, 9'}]};
  assert.equal((await back.syncCorrection(body,actor)).jumlah,1);
- state.now='2026-10-06T00:00:00+08:00';state.draftReads=0;front.terapkanVariabelPayrollKeForm('pegawai');assert.equal(state.draftReads,0);
+ state.now='2026-10-08T00:00:00+08:00';state.draftReads=0;front.terapkanVariabelPayrollKeForm('pegawai');assert.equal(state.draftReads,0);
  await assert.rejects(back.syncCorrection(body,actor),/masa tenggang/);
 });

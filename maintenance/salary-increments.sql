@@ -150,7 +150,7 @@ declare v_now timestamptz:=public.sla_gaji_sekarang(); v_local timestamp:=v_now 
 begin
  if coalesce(auth.role(),'')<>'service_role' then raise exception 'Akses server diperlukan.'; end if;
  if not pg_try_advisory_xact_lock(734252611) then return jsonb_build_object('status','sibuk'); end if;
- v_last:=(date_trunc('month',v_local)-case when extract(day from v_local)>=6 then interval '1 month' else interval '2 months' end)::date;
+ v_last:=(date_trunc('month',v_local)-case when extract(day from v_local)>=8 then interval '1 month' else interval '2 months' end)::date;
  for v_program in select * from public.sla_gaji_program where not otomatis_selesai order by username loop
    select * into v_user from public.users where username=v_program.username for update;
    if not found or coalesce(v_user.gaji_pokok,0)<=0 or v_user.gaji_pokok>=3000000 then continue; end if;

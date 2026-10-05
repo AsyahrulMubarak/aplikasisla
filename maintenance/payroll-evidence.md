@@ -2,7 +2,7 @@
 
 Each individual salary slip has separate fee marketing and kasbon evidence slots, keyed by the canonical payroll username, salary month and component. One current PDF per slot, maximum 5 MiB. Uploading/replacing/deleting evidence never changes payroll amounts.
 
-Admin Kendari, Manager and Director may upload, replace and delete, subject to the existing five-day payroll grace period. Admin Raha, legacy Admin Raha and all ordinary employees have read-only access to their own evidence. Identity is verified through Supabase Auth and the current database profile; browser-supplied roles are ignored.
+Admin Kendari, Manager and Director may upload, replace and delete, subject to the seven-day payroll grace period (through day 7 at 23:59 WITA, locked from day 8). Admin Raha, legacy Admin Raha and all ordinary employees have read-only access to their own evidence. Identity is verified through Supabase Auth and the current database profile; browser-supplied roles are ignored.
 
 Apply `maintenance/payroll-evidence.sql` through Supabase migrations, then deploy `supabase/functions/sla-payroll-attendance/index.ts`. The private `sla-payroll-private` Storage bucket accepts PDFs only. `sla_bukti_payroll` has RLS, a server-only policy, and no anon/authenticated grants. The write RPC is security invoker and executable only by the service role. All browser actions go through the authenticated Edge Function.
 

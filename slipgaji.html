@@ -1152,14 +1152,14 @@
             if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(periode || ''))) return true;
             const [tahun, bulan] = periode.split('-').map(Number);
             const bulanBerikutnya = bulan === 12 ? String(tahun + 1).padStart(4, '0') + '-01' : periode.slice(0, 5) + String(bulan + 1).padStart(2, '0');
-            return tanggalPayrollWita_(sekarang) >= bulanBerikutnya + '-06';
+            return tanggalPayrollWita_(sekarang) >= bulanBerikutnya + '-08';
         }
 
         function cekKunciBulan() {
             let bulanDipilihStr = document.getElementById('pilih-bulan').value;
             const isLocked = periodePayrollTerkunci_(bulanDipilihStr);
             const masaTenggang = !isLocked && bulanDipilihStr < periodePayrollSaatIni_();
-            const batasTenggang = masaTenggang ? new Date(periodePayrollSaatIni_() + '-05T23:59:59+08:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' }) : '';
+            const batasTenggang = masaTenggang ? new Date(periodePayrollSaatIni_() + '-07T23:59:59+08:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' }) : '';
             let inputBulanan = [
                 document.getElementById('input-fee'),
                 document.getElementById('input-kasbon'),
@@ -2931,7 +2931,7 @@
             document.getElementById('salary-progress-current').textContent=formatRp(Number(p.gajiSekarang)||0);
             document.getElementById('salary-progress-bar').style.width=(done?100:count/6*100)+'%';
             document.getElementById('salary-progress-note').textContent=done?'Gaji telah mencapai batas otomatis Rp3.000.000. Penyesuaian berikutnya oleh Manajemen.':
-                'Mulai '+(p.mulaiPeriode||'2026-10')+' · Maksimal 3 kali telat pagi dan 2 hari alpa per bulan. Bulan melanggar dilewati. Evaluasi setelah masa tenggang, tanggal 6.';
+                'Mulai '+(p.mulaiPeriode||'2026-10')+' · Maksimal 3 kali telat pagi dan 2 hari alpa per bulan. Bulan melanggar dilewati. Evaluasi setelah masa tenggang, tanggal 8.';
             const list=document.getElementById('salary-progress-months');list.replaceChildren();
             (p.evaluasi||[]).slice(0,6).forEach(m=>{const item=document.createElement('div');item.style.cssText='padding:9px 12px;border-radius:8px;background:'+(m.memenuhi_syarat?'#ecfdf5':'#fff1f2')+';font-size:12px;';
                 item.textContent=m.periode+' · '+(m.memenuhi_syarat?(m.dipakai?'Sudah dihitung':'Memenuhi syarat'):'Dilewati')+' · Telat '+m.telat_pagi+', alpa '+m.alpa;list.appendChild(item);});

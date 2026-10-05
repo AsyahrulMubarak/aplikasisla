@@ -26,7 +26,10 @@ before(async()=>{
     ('no-salary','${id(8)}','No Salary','manager','Semua','Kendari',0),
     ('null-role','${id(9)}','Null Role',null,'Kendari','Kendari',1500000),
     ('legacy-all-r','${id(10)}','Legacy All R','admin','Semua','Raha',1500000);`);
-  await db.exec(fs.readFileSync(path.join(__dirname,'payroll-evidence.sql'),'utf8'));
+  // Start at the former five-day limit, then exercise the actual upgrade twice.
+  await db.exec(fs.readFileSync(path.join(__dirname,'payroll-evidence.sql'),'utf8').replace('1 month 7 days','1 month 5 days').replace('masa tenggang 7 hari','masa tenggang 5 hari'));
+  const upgrade=fs.readFileSync(path.join(__dirname,'payroll-grace-seven-days.sql'),'utf8');
+  await db.exec(upgrade);await db.exec(upgrade);
   period=(await db.query("select to_char(now() at time zone 'Asia/Makassar','YYYY-MM') as period")).rows[0].period;
   await setRole();
 });
@@ -69,4 +72,29 @@ test('Bucket is private and restricted to 5 MB PDFs; metadata RLS is enabled',as
   const bucket=(await db.query("select * from storage.buckets where id='sla-payroll-private'")).rows[0];
   assert.equal(bucket.public,false);assert.equal(Number(bucket.file_size_limit),5242880);assert.deepEqual(bucket.allowed_mime_types,['application/pdf']);
   assert.equal((await db.query("select relrowsecurity from pg_class where oid='public.sla_bukti_payroll'::regclass")).rows[0].relrowsecurity,true);
+});
+
+test('Upgraded PostgreSQL guard permits writes through day 7 WITA and blocks upload/replacement/deletion at day 8',async()=>{
+  await db.exec('reset role');
+  const definition=(await db.query("select pg_get_functiondef('public.sla_simpan_bukti_payroll(uuid,text,text,text,uuid,text,text,text,integer,boolean)'::regprocedure) as definition")).rows[0].definition;
+  // Inject only the clock in the installed function, keeping its real authorization and write logic.
+  assert.equal(definition.split("(pg_catalog.now() at time zone 'Asia/Makassar')::date").length,2);
+  await db.exec(definition.replace("(pg_catalog.now() at time zone 'Asia/Makassar')::date","(current_setting('qa.payroll_now')::timestamptz at time zone 'Asia/Makassar')::date"));
+  await setRole();
+  for(const [selected,last,locked] of [
+    ['2026-09','2026-10-07T15:59:59.999Z','2026-10-07T16:00:00Z'],
+    ['2026-12','2027-01-07T23:59:59+08:00','2027-01-08T00:00:00+08:00'],
+    ['2028-02','2028-03-07T23:59:59+08:00','2028-03-08T00:00:00+08:00']
+  ]){
+    await db.exec('delete from public.sla_bukti_payroll');
+    await db.query("select set_config('qa.payroll_now',$1,false)",[last]);
+    const saved=await save({period:selected});
+    const replacement=await save({period:selected,old:saved.data.id,id:id(101)});
+    await save({period:selected,old:replacement.data.id,remove:true});
+    const retained=await save({period:selected});
+    await db.query("select set_config('qa.payroll_now',$1,false)",[locked]);
+    for(const patch of [{old:retained.data.id,id:id(101)},{old:retained.data.id,remove:true},{kind:'kasbon'}])
+      await assert.rejects(save({period:selected,...patch}),/masa tenggang 7 hari/);
+    assert.equal((await db.query('select count(*)::integer as n from public.sla_bukti_payroll')).rows[0].n,1);
+  }
 });

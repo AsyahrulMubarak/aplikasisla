@@ -15,9 +15,9 @@ const context = {periode:'2026-10',namaPegawai:'Worker K',usernameTarget:'worker
 const pdf = size => { const header='%PDF-1.7\n', tail='\n%%EOF\n'; return Buffer.from(header+'x'.repeat(Math.max(0,size-header.length-tail.length))+tail); };
 const upload = (patch={}) => ({action:'unggahBuktiPayroll',...context,jenis:'fee_marketing',idLama:'',namaFile:'bukti.pdf',
   pdfBase64:'data:application/pdf;base64,'+pdf(100).toString('base64'),...patch});
-function harness(mode='ok') {
+function harness(mode='ok',now='2026-10-05T12:00:00+08:00') {
   const calls=[], records=new Map(), objects=new Map(); let handler;
-  class FixedDate extends Date { constructor(...a) { super(...(a.length?a:['2026-10-05T12:00:00+08:00'])); } }
+  class FixedDate extends Date { constructor(...a) { super(...(a.length?a:[now])); } }
   const c=vm.createContext({Response,Request,console,Intl,crypto,AbortSignal,URLSearchParams,URL,atob,btoa,Uint8Array,Date:FixedDate,
     Deno:{env:{get:k=>({SUPABASE_URL:'https://pdf.test',SUPABASE_SERVICE_ROLE_KEY:'secret-test',SUPABASE_ANON_KEY:'public-test'})[k]},serve:fn=>{handler=fn;}},
     fetch:async(url,options={})=>{
@@ -106,6 +106,18 @@ test('Locked months forbid mutation but still permit viewing stored PDFs',async(
   await assert.rejects(h.c.dispatch(upload({periode:'2026-08'}),manager),/dikunci/);
   assert.equal(h.calls.length,0);
   assert.equal((await h.c.dispatch({action:'getBuktiPayroll',...context,periode:'2026-08'},manager)).data.length,0);
+});
+
+test('PDF upload, replacement and deletion accept day 7 and reject day 8 while viewing remains available',async()=>{
+  for(const now of ['2026-10-06T00:00:00+08:00','2026-10-07T23:59:59.999+08:00']) {
+    const h=harness('ok',now),first=await h.c.dispatch(upload({periode:'2026-09'}),manager);
+    const next=await h.c.dispatch(upload({periode:'2026-09',idLama:first.data.id}),manager);
+    assert.equal((await h.c.dispatch({action:'hapusBuktiPayroll',...context,periode:'2026-09',jenis:'fee_marketing',idLama:next.data.id},manager)).idTerhapus,next.data.id);
+  }
+  const h=harness('ok','2026-10-08T00:00:00+08:00');
+  for(const action of ['unggahBuktiPayroll','hapusBuktiPayroll']) await assert.rejects(h.c.dispatch({...upload({periode:'2026-09'}),action,idLama:'previous-document'},manager),/masa tenggang 7 hari/);
+  assert.equal(h.calls.length,0);
+  assert.equal((await h.c.dispatch({action:'getBuktiPayroll',...context,periode:'2026-09'},manager)).status,'sukses');
 });
 test('Invalid formats, empty files, spoofed PDFs, excessive size and bad names never reach Storage',async()=>{
   const bad=[{jenis:'other'},{idLama:undefined},{namaFile:'x.jpg'},{namaFile:'../x.pdf'},{namaFile:'x'.repeat(180)+'.pdf'},
