@@ -21,7 +21,7 @@ const OFFICE = {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'payroll-evidence-20261005' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'payroll-bank-name-20261005' };
 }
 function reply(data, origin, status = 200) { return Response.json(data, { status, headers: cors(origin) }); }
 function fail(message, origin, status = 200) { return reply({ status: 'gagal', pesan: message }, origin, status); }
@@ -482,8 +482,8 @@ async function savePayroll(body,u) {
 }
 async function getBankAccounts(u) {
   if (!management(u)) throw new Error('Nomor rekening hanya dapat diakses Admin Kendari, Manager, atau Direktur.');
-  const rows = await allRows('sla_rekening_pegawai','select=username,nomor_rekening&order=username.asc');
-  return {status:'sukses',data:rows.map(r=>({username:r.username,nomorRekening:r.nomor_rekening}))};
+  const rows = await allRows('sla_rekening_pegawai','select=username,nomor_rekening,nama_bank&order=username.asc');
+  return {status:'sukses',data:rows.map(r=>({username:r.username,nomorRekening:r.nomor_rekening,namaBank:r.nama_bank || ''}))};
 }
 async function saveBankAccount(body,u) {
   if (!management(u)) throw new Error('Nomor rekening hanya dapat diubah Admin Kendari, Manager, atau Direktur.');
@@ -492,6 +492,16 @@ async function saveBankAccount(body,u) {
     throw new Error('Data rekening pegawai tidak valid.');
   const number = body.nomorRekening.replace(/\s/g,'');
   if (number && !/^[0-9]{1,34}$/.test(number)) throw new Error('Nomor rekening harus berisi angka, maksimal 34 digit.');
+  // Older open pages may still save only the number; retain the stored bank name.
+  if (body.namaBank !== undefined || body.namaBankLama !== undefined) {
+    if (typeof body.namaBank !== 'string' || typeof body.namaBankLama !== 'string' ||
+        body.namaBank.length > 100 || body.namaBankLama.length > 100 || /[\x00-\x1f\x7f]/.test(body.namaBank + body.namaBankLama))
+      throw new Error('Nama bank harus berupa teks, maksimal 100 karakter.');
+    const bankName = body.namaBank.trim().replace(/\s+/g, ' ');
+    return rest('rpc/sla_simpan_rekening_bank_pegawai','','POST',
+      {p_auth_id:u.authId,p_username:username,p_nomor_rekening:number,p_nomor_lama:body.nomorLama,
+        p_nama_bank:bankName,p_nama_bank_lama:body.namaBankLama});
+  }
   return rest('rpc/sla_simpan_rekening_pegawai','','POST',
     {p_auth_id:u.authId,p_username:username,p_nomor_rekening:number,p_nomor_lama:body.nomorLama});
 }

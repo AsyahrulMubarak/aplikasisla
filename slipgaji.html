@@ -80,7 +80,8 @@
         @media print { .payroll-evidence .evidence-controls { display:none !important; } .payroll-evidence-card { break-inside:avoid; } }
         @media print { .payroll-transfer-toggle input { display:none; } }
         .payroll-bank-cell { min-width:225px; text-align:left; }
-        .payroll-bank-editor { display:flex; gap:6px; align-items:center; }
+        .payroll-bank-editor { display:grid; grid-template-columns:minmax(140px,1fr) auto; gap:6px; align-items:center; }
+        .payroll-bank-name { grid-column:1/-1; }
         .payroll-bank-editor input { min-width:140px; padding:8px; font-variant-numeric:tabular-nums; }
         .payroll-bank-editor button { padding:8px 10px; height:auto; white-space:nowrap; }
         .payroll-bank-editor button:disabled { opacity:.55; cursor:default; }
@@ -643,13 +644,13 @@
             <!-- AREA 2: DASHBOARD REKAPITULASI MASTER -->
             <div id="area-dashboard" style="display: none;">
                 <h3 style="color:#0f766e; border-bottom: 2px solid #0f766e; padding-bottom:10px;">Master Rekapitulasi Gaji Karyawan</h3>
-                <p style="color:var(--text-muted);">Nomor rekening disimpan untuk semua bulan. Pengisian rekening dan tanda transfer hanya oleh Admin Kendari, Manager, dan Direktur.</p>
+                <p style="color:var(--text-muted);">Nama bank dan nomor rekening disimpan untuk semua bulan. Pengisian bank, rekening, dan tanda transfer hanya oleh Admin Kendari, Manager, dan Direktur.</p>
                 <p style="color:var(--text-muted);">Centang nama pegawai setelah gajinya ditransfer. Tanda berlaku untuk bulan gaji yang dipilih dan direset setiap tanggal 29 pukul 00.00 WITA (Februari tanpa tanggal 29: hari terakhir bulan). <span id="transfer-reset-info"></span></p>
                 <section class="payroll-branch payroll-branch-kendari" aria-labelledby="rekap-kendari-title">
                     <div class="payroll-branch-heading"><h4 id="rekap-kendari-title">Cabang Kendari</h4><span id="rekap-kendari-count">0 pegawai</span></div>
                     <div class="payroll-branch-scroll">
                         <table class="dashboard-table" aria-label="Rekap gaji cabang Kendari">
-                            <thead><tr><th>Nama Pegawai</th><th>Nomor Rekening</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
+                            <thead><tr><th>Nama Pegawai</th><th>Bank &amp; Nomor Rekening</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
                             <tbody id="tabel-dashboard-kendari"></tbody>
                             <tfoot><tr style="background:#f1f5f9;font-weight:bold;"><td colspan="8" style="text-align:right;">TOTAL PAYROLL KENDARI:</td><td id="dash-total-kendari" style="color:var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
                         </table>
@@ -659,7 +660,7 @@
                     <div class="payroll-branch-heading"><h4 id="rekap-raha-title">Cabang Raha</h4><span id="rekap-raha-count">0 pegawai</span></div>
                     <div class="payroll-branch-scroll">
                         <table class="dashboard-table" aria-label="Rekap gaji cabang Raha">
-                            <thead><tr><th>Nama Pegawai</th><th>Nomor Rekening</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
+                            <thead><tr><th>Nama Pegawai</th><th>Bank &amp; Nomor Rekening</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
                             <tbody id="tabel-dashboard-raha"></tbody>
                             <tfoot><tr style="background:#f1f5f9;font-weight:bold;"><td colspan="8" style="text-align:right;">TOTAL PAYROLL RAHA:</td><td id="dash-total-raha" style="color:var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
                         </table>
@@ -725,6 +726,7 @@
         const penyimpananTransferGaji_ = new Set(), kontrolTransferGaji_ = new Map();
         let rekeningPegawai_ = Object.create(null);
         let drafRekeningPegawai_ = Object.create(null);
+        let namaBankPegawai_ = Object.create(null), drafNamaBankPegawai_ = Object.create(null);
         let rekeningPegawaiSiap_ = false;
         const penyimpananRekeningPegawai_ = new Set();
         let globalPayrollBulanan = {};
@@ -3283,15 +3285,19 @@
 
         async function muatRekeningPegawai_() {
             rekeningPegawaiSiap_ = false;
-            if (!penggunaBolehKelolaRekening_()) { rekeningPegawai_ = Object.create(null); return; }
+            if (!penggunaBolehKelolaRekening_()) { rekeningPegawai_ = Object.create(null); namaBankPegawai_ = Object.create(null); return; }
             const json = await fetchJsonDenganTimeout_(apiUrl, payloadSesiSlip('getRekeningPegawai'), 'Nomor rekening pegawai');
             if (!json || json.status !== 'sukses' || !Array.isArray(json.data)) throw new Error('Data rekening pegawai belum berhasil dimuat.');
             const terbaru = Object.create(null);
+            const bankTerbaru = Object.create(null);
             for (const row of json.data) {
                 if (!row || typeof row.username !== 'string' || typeof row.nomorRekening !== 'string') throw new Error('Format data rekening pegawai tidak valid.');
                 terbaru[row.username] = row.nomorRekening;
+                if (typeof row.namaBank !== 'string') throw new Error('Format nama bank pegawai tidak valid.');
+                bankTerbaru[row.username] = row.namaBank;
             }
             rekeningPegawai_ = terbaru;
+            namaBankPegawai_ = bankTerbaru;
             rekeningPegawaiSiap_ = true;
         }
 
@@ -3301,42 +3307,54 @@
             const username = String(profil.Username || '').trim();
             if (!penggunaBolehKelolaRekening_() || !rekeningPegawaiSiap_ || !username) { cell.textContent = '—'; return cell; }
             const saved = rekeningPegawai_[username] || '';
+            const savedBank = namaBankPegawai_[username] || '';
             const editor = document.createElement('div'); editor.className = 'payroll-bank-editor';
+            const bankInput = document.createElement('input'); bankInput.type = 'text'; bankInput.className = 'payroll-bank-name';
+            bankInput.maxLength = 100; bankInput.autocomplete = 'off'; bankInput.placeholder = 'Nama bank (contoh: BCA, BRI, BSI)';
+            bankInput.setAttribute('aria-label', 'Nama bank ' + profil['Nama Asli']);
+            bankInput.value = Object.hasOwn(drafNamaBankPegawai_, username) ? drafNamaBankPegawai_[username] : savedBank;
             const input = document.createElement('input'); input.type = 'text'; input.inputMode = 'numeric'; input.maxLength = 34;
             input.autocomplete = 'off'; input.placeholder = 'Nomor rekening';
             input.setAttribute('aria-label', 'Nomor rekening ' + profil['Nama Asli']);
             input.value = Object.hasOwn(drafRekeningPegawai_, username) ? drafRekeningPegawai_[username] : saved;
             const button = document.createElement('button'); button.type = 'button'; button.className = 'btn-primary'; button.textContent = 'Simpan';
-            button.setAttribute('aria-label', 'Simpan nomor rekening ' + profil['Nama Asli']);
+            button.setAttribute('aria-label', 'Simpan bank dan rekening ' + profil['Nama Asli']);
             const status = document.createElement('span'); status.className = 'payroll-bank-status'; status.setAttribute('aria-live', 'polite');
-            const printed = document.createElement('span'); printed.className = 'payroll-bank-print'; printed.textContent = saved || 'Belum diisi';
+            const printed = document.createElement('span'); printed.className = 'payroll-bank-print';
+            printed.textContent = [savedBank, saved].filter(Boolean).join(' · ') || 'Belum diisi';
             const refresh = () => {
-                const changed = input.value.replace(/\s/g, '') !== (rekeningPegawai_[username] || '');
+                const changed = input.value.replace(/\s/g, '') !== (rekeningPegawai_[username] || '') ||
+                    bankInput.value.trim().replace(/\s+/g, ' ') !== (namaBankPegawai_[username] || '');
                 const busy = penyimpananRekeningPegawai_.has(username);
-                input.disabled = busy; button.disabled = busy || !changed;
-                const current = rekeningPegawai_[username] || '';
+                input.disabled = busy; bankInput.disabled = busy; button.disabled = busy || !changed;
+                const current = [namaBankPegawai_[username], rekeningPegawai_[username]].filter(Boolean).join(' · ');
                 status.textContent = busy ? 'Menyimpan...' : changed ? 'Belum disimpan' + (current ? ' · tersimpan: ' + current : '') : current ? 'Tersimpan' : 'Belum diisi';
             };
             input.addEventListener('input', () => { drafRekeningPegawai_[username] = input.value; refresh(); });
+            bankInput.addEventListener('input', () => { drafNamaBankPegawai_[username] = bankInput.value; refresh(); });
             button.addEventListener('click', async () => {
                 if (!penggunaBolehKelolaRekening_() || penyimpananRekeningPegawai_.has(username)) return;
                 const number = input.value.replace(/\s/g, '');
                 if (number && !/^[0-9]{1,34}$/.test(number)) { showToast('Nomor rekening harus berisi angka, maksimal 34 digit.', 'warning'); return; }
+                if (bankInput.value.length > 100 || /[\x00-\x1f\x7f]/.test(bankInput.value)) { showToast('Nama bank maksimal 100 karakter dan tidak boleh memuat karakter kontrol.', 'warning'); return; }
+                const bankName = bankInput.value.trim().replace(/\s+/g, ' ');
                 const previous = rekeningPegawai_[username] || '';
+                const previousBank = namaBankPegawai_[username] || '';
                 penyimpananRekeningPegawai_.add(username); refresh();
                 let failure = '';
                 try {
                     const json = await fetchJsonDenganTimeout_(apiUrl, payloadSesiSlip('simpanRekeningPegawai',
-                        { usernameTarget: username, nomorRekening: number, nomorLama: previous }), 'Simpan nomor rekening');
-                    if (!json || json.status !== 'sukses' || !json.data || json.data.username !== username || json.data.nomorRekening !== number)
+                        { usernameTarget: username, nomorRekening: number, nomorLama: previous, namaBank: bankName, namaBankLama: previousBank }), 'Simpan bank dan rekening');
+                    if (!json || json.status !== 'sukses' || !json.data || json.data.username !== username || json.data.nomorRekening !== number || json.data.namaBank !== bankName)
                         throw new Error('Konfirmasi penyimpanan rekening tidak valid. Klik Proses Data untuk memeriksa data terbaru.');
                     rekeningPegawai_[username] = number; delete drafRekeningPegawai_[username];
-                    input.value = number; printed.textContent = number || 'Belum diisi';
-                    showToast('Nomor rekening ' + profil['Nama Asli'] + ' berhasil disimpan.', 'success');
+                    namaBankPegawai_[username] = bankName; delete drafNamaBankPegawai_[username];
+                    input.value = number; bankInput.value = bankName; printed.textContent = [bankName, number].filter(Boolean).join(' · ') || 'Belum diisi';
+                    showToast('Bank dan rekening ' + profil['Nama Asli'] + ' berhasil disimpan.', 'success');
                 } catch (error) { failure = error.message || 'Nomor rekening gagal disimpan.'; showToast(failure, 'error'); }
                 finally { penyimpananRekeningPegawai_.delete(username); refresh(); if (failure) status.textContent = 'Gagal disimpan'; }
             });
-            refresh(); editor.appendChild(input); editor.appendChild(button);
+            refresh(); editor.appendChild(bankInput); editor.appendChild(input); editor.appendChild(button);
             cell.appendChild(editor); cell.appendChild(status); cell.appendChild(printed);
             return cell;
         }
@@ -3515,4 +3533,5 @@
     </script>
 </body>
 </html>
+
 
