@@ -1,0 +1,17 @@
+# SLA pengerjaan sejak penugasan teknisi
+
+Masalah: tiket dibuat sebelum teknisi ditugaskan, tetapi form edit selalu mengisi ulang `tenggat_waktu` dari `waktu_lapor`. Akibatnya teknisi menerima sisa waktu yang sudah berkurang atau tiket langsung dinilai gagal. Frontend juga membuat ulang deadline dari waktu lapor ketika deadline kosong.
+
+Perbaikan memakai frontend produksi `ed2bb9e4ab2e82c6f339a1d4e79ea3bf9a887a68` sebagai dasar. Supabase mencatat `waktu_penugasan` dari jam server pada penugasan pertama dan menyimpan `sumber_waktu_penugasan`. Deadline mengikuti target SLA dan kalender jam kerja cabang yang sudah digunakan: Kendari hingga 17.00, Raha hingga 20.00, libur Ahad, serta jeda sholat. Form edit tidak lagi mengirim deadline berdasarkan waktu tiket dibuat. Realtime dan pembacaan awal membawa waktu penugasan yang sama.
+
+Tiket tanpa teknisi memiliki deadline pengerjaan kosong dan label **BELUM DIMULAI**. SLA distribusi Admin tetap dihitung dari waktu lapor. Edit catatan, perubahan urutan/nama tim biasa, dan penambahan anggota tidak mereset SLA. Perubahan target memakai waktu penugasan yang sama. Pergantian teknisi melalui mekanisme pengganti yang sudah ada memberi tim pengganti waktu baru dan mempertahankan metadata penalti teknisi lama. Pending/Outsource dan perpanjangan saat kembali dari pause dipertahankan. Riwayat tiket selesai/cancel tidak dihitung ulang.
+
+Data aktif lama dicadangkan dalam tabel privat `sla_backup_awal_pengerjaan` sebelum koreksi. Karena data lama tidak menyimpan waktu penugasan, acuan efektif diperkirakan dari batas/jam respon yang tersedia dan ditandai `riwayat_respon`; UI menyebutnya **Perkiraan penugasan**. Tidak ada fallback ke waktu lapor bila bukti penugasan tidak tersedia. Penugasan baru selalu memakai jam server. Tidak ada perubahan ACL kalender garansi, aturan RLS tiket, fungsi Edge payroll/KPI, atau sistem WA.
+
+Pengguna mengonfirmasi TKT-201 ditugaskan pukul **17.00**. Dengan konteks tanggal 7 Oktober 2026, waktu tersebut disimpan sebagai **2026-10-07 17.00 WITA**, sumber `konfirmasi_pengguna`. Target tiket 9 jam kerja; tenggat menjadi **9 Oktober 2026 10.30 WITA**, status AMAN. Waktu lapor dan waktu/status respon tidak diubah.
+
+Migrasi `20261007093221_sla_pengerjaan_sejak_penugasan.sql` menambahkan kolom/trigger dengan SECURITY INVOKER dan search_path tetap. Helper kalender murni hanya dapat dipanggil authenticated/service_role; anon tidak mendapat EXECUTE. Backup menggunakan RLS dan tidak dapat dibaca anon/authenticated. Data lama tidak diekspor ke repo.
+
+Verifikasi: 72 tes terkait tiket, klaim garansi, lobby, prospek, serta 12 tes Postgres/5 tes frontend untuk perbaikan ini lulus (12 dan 5 tersebut termasuk hitungan 72). Tes database diulang setelah penambahan perlindungan riwayat selesai dan lulus. Chrome memeriksa label AMAN, waktu penugasan/tenggat TKT-201, BELUM DIMULAI pada tiket kosong, serta desktop/ponsel tanpa overflow/error JavaScript. Data browser sintetis; tidak membuat tiket uji atau mengirim WA produksi. Tes CRM `new profiles persist the Auth UID returned before the profile insert` memiliki kegagalan yang sama pada baseline produksi sebelum perubahan; bagian profil tidak diubah.
+
+Migrasi telah diterapkan; koreksi TKT-201 dikonfirmasi dengan query produksi. Fingerprint 198 tiket selesai/cancel sebelum koreksi: `98b2b48869dc44e629791fd80da6a6c2`. Backup dan verifikasi produksi menjaga riwayat tersebut.

@@ -1908,9 +1908,9 @@
             const isSales = roleAktif === 'sales';
 
             if (tabel === 'tiket') {
-                const waktuLapor = row.waktu_lapor ? new Date(row.waktu_lapor) : new Date();
                 const record = {
                     "ID Tiket": row.id_tiket, "No Transaksi": row.no_transaksi || '', "Waktu Lapor": row.waktu_lapor,
+                    "Waktu Penugasan": row.waktu_penugasan, "Sumber Waktu Penugasan": row.sumber_waktu_penugasan,
                     "Target SLA (Jam)": row.target_sla_jam, "Tenggat Waktu": row.tenggat_waktu, "Klien & Lokasi": row.klien_lokasi,
                     "Jenis Pekerjaan": row.jenis_pekerjaan, "Teknisi": row.teknisi, "Status": row.status, "Waktu Selesai": row.waktu_selesai,
                     "Status SLA": row.status_sla, "Poin Performa": row.poin_performa, "Sales": row.sales, "Keterangan": row.keterangan,
@@ -1925,12 +1925,6 @@
                     "Teknisi Sebelumnya": row.teknisi_sebelumnya, "Penalti Teknisi Lama": row.penalti_teknisi_lama,
                     "Tenggat Pengganti": row.tenggat_pengganti, "Cabang": row.cabang || cabangAktif, "Admin SLA": row.admin_sla
                 };
-                if (!record["Tenggat Waktu"]) {
-                    record["Tenggat Waktu"] = hitungTenggatJamKerja(waktuLapor, parseFloat(record["Target SLA (Jam)"]) || 24, record.Cabang);
-                }
-                if (record.Teknisi !== 'Belum Ditugaskan' && record.Teknisi !== '' && !record["Tenggat Respon"]) {
-                    record["Tenggat Respon"] = hitungTenggatJamKerja(waktuLapor, parseFloat(record["Target SLA Respon (Jam)"]) || 1, record.Cabang);
-                }
                 globalTickets = upsertRecordRealtime_(globalTickets, 'ID Tiket', row.id_tiket, perbaruiStatusSLAAktualTiket_(record));
                 renderDashboard();
                 renderTickets();
@@ -2918,6 +2912,10 @@
             const sekarang = parseSafeDate(waktuAcuan);
             const tenggatRespon = parseSafeDate(ticket['Tenggat Respon']);
             const waktuRespon = parseSafeDate(ticket['Waktu Respon']);
+            const waktuPenugasan = parseSafeDate(ticket['Waktu Penugasan']);
+            if (!ticket['Tenggat Waktu'] && !Number.isNaN(waktuPenugasan.getTime())) {
+                ticket['Tenggat Waktu'] = hitungTenggatJamKerja(waktuPenugasan, parseFloat(ticket['Target SLA (Jam)']) || 24, ticket.Cabang);
+            }
             const tenggatPengerjaan = parseSafeDate(ticket['Tenggat Waktu']);
             const waktuSelesai = parseSafeDate(ticket['Waktu Selesai']);
             const statusTiket = String(ticket.Status || 'Menunggu').trim().toLowerCase();
@@ -2935,6 +2933,10 @@
             if (statusTiket === 'pending') ticket['Status SLA'] = 'DIPENDING';
             else if (statusTiket === 'outsource') ticket['Status SLA'] = 'DIOPOR';
             else if (statusTiket === 'cancel' || statusTiket === 'batal') ticket['Status SLA'] = 'BATAL';
+            else if (belumDitugaskan && statusTiket !== 'selesai') {
+                ticket['Status SLA'] = 'BELUM DIMULAI';
+                ticket['Tenggat Waktu'] = null;
+            }
             else if (statusTiket === 'selesai') {
                 const acuanSelesai = Number.isNaN(waktuSelesai.getTime()) ? sekarang : waktuSelesai;
                 if (!Number.isNaN(acuanSelesai.getTime()) && !Number.isNaN(tenggatPengerjaan.getTime())) {
@@ -3220,9 +3222,9 @@
         }
 
         function petakanTiketSupabase_(r) {
-            let dtLapor = r.waktu_lapor ? new Date(r.waktu_lapor) : new Date();
             let t = {
                 "ID Tiket": r.id_tiket, "No Transaksi": r.no_transaksi || "", "Waktu Lapor": r.waktu_lapor,
+                "Waktu Penugasan": r.waktu_penugasan, "Sumber Waktu Penugasan": r.sumber_waktu_penugasan,
                 "Target SLA (Jam)": r.target_sla_jam, "Tenggat Waktu": r.tenggat_waktu, "Klien & Lokasi": r.klien_lokasi,
                 "Jenis Pekerjaan": r.jenis_pekerjaan, "Teknisi": r.teknisi, "Status": r.status, "Waktu Selesai": r.waktu_selesai,
                 "Status SLA": r.status_sla, "Poin Performa": r.poin_performa, "Sales": r.sales, "Keterangan": r.keterangan,
@@ -3236,10 +3238,6 @@
                 "Penalti Teknisi Lama": r.penalti_teknisi_lama, "Tenggat Pengganti": r.tenggat_pengganti, "Cabang": r.cabang || cabangAktif,
                 "Admin SLA": r.admin_sla
             };
-            if (!t["Tenggat Waktu"]) t["Tenggat Waktu"] = hitungTenggatJamKerja(dtLapor, parseFloat(t["Target SLA (Jam)"]) || 24, t.Cabang);
-            if (t["Teknisi"] !== "Belum Ditugaskan" && t["Teknisi"] !== "") {
-                if (!t["Tenggat Respon"]) t["Tenggat Respon"] = hitungTenggatJamKerja(dtLapor, parseFloat(t["Target SLA Respon (Jam)"]) || 1, t.Cabang);
-            } else { t["Tenggat Respon"] = ""; }
 
             return perbaruiStatusSLAAktualTiket_(t);
         }
@@ -6302,7 +6300,7 @@
                     } else {
                         infoSlaTeks = `<div style="background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">⏱️ Menunggu Penugasan Teknisi</p></div>`;
                     }
-                    infoSlaTeks += `<div style="margin-top:10px; border-top:1px dashed var(--border); padding-top:10px;"><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas Selesai: ${formatWaktu(ticket['Tenggat Waktu'])}</p><p style="margin:0 0 5px 0; color:var(--warning); font-size:11px;">*SLA Respon di-pause hingga Teknisi ditugaskan.</p></div>`;
+                    infoSlaTeks += `<div style="margin-top:10px; border-top:1px dashed var(--border); padding-top:10px;"><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge badge-pending">BELUM DIMULAI</span></p><p style="margin:0; color:var(--text-muted); font-size:11px;">SLA respon dan pengerjaan mulai dihitung setelah teknisi ditugaskan.</p></div>`;
                 }
                 else if (textStatus === 'Outsource') {
                     let tglOutsourceStr = ticket['Waktu Respon'] || ticket['Waktu Lapor'];
@@ -6323,6 +6321,10 @@
                 }
                 else {
                     infoSlaTeks = `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Respon'])}</p><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Waktu'])}</p>`;
+                    if (ticket['Waktu Penugasan']) {
+                        const labelPenugasan = ticket['Sumber Waktu Penugasan'] === 'riwayat_respon' ? 'Perkiraan penugasan' : 'Ditugaskan';
+                        infoSlaTeks += `<p style="margin:0; color:var(--text-muted);">${labelPenugasan}: ${formatWaktu(ticket['Waktu Penugasan'])}</p>`;
+                    }
 
                     if (textStatus === 'Selesai') {
                         if (!refsDiGaransi.includes(String(ticket['ID Tiket']).trim())) {
@@ -7899,8 +7901,6 @@
                             const tiketLama = (globalTickets || []).find(item => item && String(item['ID Tiket']).trim() === String(currentId).trim());
                             if (!tiketLama) throw new Error(`Tiket ${currentId} tidak ditemukan pada data lokal.`);
 
-                            const waktuLapor = new Date(tiketLama['Waktu Lapor']);
-                            const waktuDasar = Number.isNaN(waktuLapor.getTime()) ? new Date() : waktuLapor;
                             const cabangTiket = normalisasiCabang(tiketLama.Cabang || cabangForm) || cabangForm;
                             const teknisiLama = String(tiketLama.Teknisi || 'Belum Ditugaskan').trim();
                             const gantiTeknisi = !!(document.getElementById('ganti-teknisi-cek') && document.getElementById('ganti-teknisi-cek').checked);
@@ -7908,7 +7908,6 @@
                             const tiketPatch = {
                                 no_transaksi: document.getElementById('input-notrans-sla').value || '',
                                 target_sla_jam: targetSLA,
-                                tenggat_waktu: tanggalIsoSupabase_(hitungTenggatJamKerja(waktuDasar, targetSLA, cabangTiket)),
                                 klien_lokasi: document.getElementById('input-klien').value,
                                 jenis_pekerjaan: listPekerjaan[i],
                                 teknisi: teknisiFinal,
@@ -7965,13 +7964,13 @@
                                 no_transaksi: document.getElementById('input-notrans-sla').value || '',
                                 waktu_lapor: tanggalIsoSupabase_(sekarang),
                                 target_sla_jam: targetSLA,
-                                tenggat_waktu: tanggalIsoSupabase_(hitungTenggatJamKerja(sekarang, targetSLA, cabangForm)),
+                                tenggat_waktu: teknisiFinal === 'Belum Ditugaskan' ? null : tanggalIsoSupabase_(hitungTenggatJamKerja(sekarang, targetSLA, cabangForm)),
                                 klien_lokasi: document.getElementById('input-klien').value,
                                 jenis_pekerjaan: listPekerjaan[i],
                                 teknisi: teknisiFinal,
                                 status: 'Menunggu',
                                 waktu_selesai: null,
-                                status_sla: 'AMAN',
+                                status_sla: teknisiFinal === 'Belum Ditugaskan' ? 'BELUM DIMULAI' : 'AMAN',
                                 poin_performa: 0,
                                 sales: s,
                                 keterangan: '',
