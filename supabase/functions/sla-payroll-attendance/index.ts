@@ -236,13 +236,14 @@ async function effectiveAbsence(rows, start, end, employee = '', cabang = '') {
   });
   for (const p of leaves) {
     if (!['Sakit','Izin'].includes(p.jenis)) continue;
-    let last = p.jenis === 'Sakit' ? day() : (String(p.tanggal_selesai || '').slice(0,10) || day());
+    const approvedEnd = String(p.tanggal_selesai_disetujui || p.tanggal_selesai || '').slice(0,10);
+    let last = p.jenis === 'Sakit' ? day() : (approvedEnd || day());
     let returned = p.kembali_bekerja_pada ? new Date(p.kembali_bekerja_pada) : null;
     for (const r of rows) {
       if (r.nama_pegawai !== p.nama_pegawai || !['Masuk','Masuk Setelah Istirahat'].includes(r.tipe_absen) ||
           /Lupa Absen Masuk|Koreksi|Auto/i.test(String(r.status_disiplin || ''))) continue;
       const t=new Date(r.waktu_absen), d=day(t);
-      if (d >= String(p.tanggal_mulai).slice(0,10) && (!returned || t < returned)) returned=t;
+      if (d >= String(p.tanggal_mulai).slice(0,10) && (p.jenis==='Sakit'||d<=approvedEnd) && (!returned || t < returned)) returned=t;
     }
     const returnDay = returned ? day(returned) : '';
     if (returnDay && returnDay < last) last=returnDay;
@@ -583,7 +584,9 @@ async function listLeave(action,u) {
   rows=await photos(rows);
   return {status:'sukses',data:rows.map(r=>({'ID Pengajuan':r.id_pengajuan,'Waktu Pengajuan':r.waktu_pengajuan,
     'Nama Pegawai':r.nama_pegawai,'Role':r.role,'Jenis (Sakit/Izin)':r.jenis,'Tanggal Mulai':r.tanggal_mulai,
-    'Selesai':r.tanggal_selesai,'Kembali Bekerja':r.kembali_bekerja_pada||null,'Alasan':r.alasan,'Bukti Foto':r.bukti_foto,
+    'Selesai':r.tanggal_selesai,
+    'Selesai Disetujui':r.jenis==='Izin'&&r.status==='Disetujui'?(r.tanggal_selesai_disetujui||r.tanggal_selesai):null,
+    'Kembali Bekerja':r.kembali_bekerja_pada||null,'Alasan':r.alasan,'Bukti Foto':r.bukti_foto,
     'Status (Menunggu/Disetujui/Ditolak)':r.status,'Disetujui Oleh':r.disetujui_oleh,'Waktu Disetujui':r.waktu_disetujui}))};
 }
 function normalizePhone(value) {
@@ -661,6 +664,22 @@ async function submitLeave(body,u) {
     pesan:notified?'Pengajuan berhasil disimpan dan menunggu approval.':
       'Pengajuan tersimpan. Notifikasi WhatsApp masih menunggu pengiriman otomatis.'};
 }
+function approvedLeaveEnd(request, value) {
+  const from=String(request.tanggal_mulai||'').slice(0,10),to=String(request.tanggal_selesai||'').slice(0,10);
+  const start=new Date(from+'T00:00:00Z'),end=new Date(to+'T00:00:00Z');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||
+      !Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||
+      start.toISOString().slice(0,10)!==from||end.toISOString().slice(0,10)!==to||end<start)
+    throw new Error('Rentang tanggal pengajuan izin tidak valid.');
+  const requested=(end.getTime()-start.getTime())/86400000+1;
+  // Older clients approve the full requested range when no duration is supplied.
+  const days=value===undefined?requested:Number(value);
+  const validValue=value===undefined||((typeof value==='string'||typeof value==='number')&&/^\d+$/.test(String(value)));
+  if (!validValue||
+      !Number.isSafeInteger(days)||days<1||days>requested)
+    throw new Error('Durasi izin yang disetujui harus 1 sampai '+requested+' hari.');
+  return {days,end:new Date(start.getTime()+(days-1)*86400000).toISOString().slice(0,10)};
+}
 async function approveLeave(body,u) {
   if (!management(u)) throw new Error('Approval absensi khusus Manajemen.');
   const decision=String(body.keputusan||''),id=String(body.idPengajuan||'');
@@ -668,10 +687,12 @@ async function approveLeave(body,u) {
   const rows=await rest('pengajuan_cuti','select=*&id_pengajuan=eq.'+encode(id)+'&limit=2');
   if (rows.length!==1||!canApprove(u,rows[0])) throw new Error('Pengajuan tidak ditemukan atau tidak berhak diputuskan.');
   if (rows[0].status!=='Menunggu') throw new Error('Pengajuan ini sudah diputuskan.');
-  const updated=await rest('pengajuan_cuti','id_pengajuan=eq.'+encode(id)+'&status=eq.Menunggu','PATCH',{
-    status:decision,disetujui_oleh:u.name,waktu_disetujui:new Date().toISOString()});
+  const approval=decision==='Disetujui'&&rows[0].jenis==='Izin'?approvedLeaveEnd(rows[0],body.durasiDisetujui):null;
+  const patch={status:decision,disetujui_oleh:u.name,waktu_disetujui:new Date().toISOString()};
+  if (approval) patch.tanggal_selesai_disetujui=approval.end;
+  const updated=await rest('pengajuan_cuti','id_pengajuan=eq.'+encode(id)+'&status=eq.Menunggu','PATCH',patch);
   if (updated.length!==1) throw new Error('Pengajuan sudah diputuskan oleh pengguna lain.');
-  return {status:'sukses',pesan:'Pengajuan berhasil '+decision.toLowerCase()+' oleh '+u.name};
+  return {status:'sukses',pesan:'Pengajuan berhasil '+decision.toLowerCase()+(approval?' untuk '+approval.days+' hari (sampai '+approval.end+')':'')+' oleh '+u.name};
 }
 async function syncCorrection(body,u) {
   if (!management(u)) throw new Error('Sinkronisasi Luar Kota khusus Manajemen.');

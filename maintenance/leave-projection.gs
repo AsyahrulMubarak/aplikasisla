@@ -19,14 +19,15 @@ function proyeksikanAbsensiPengajuan_(rows, pengajuan, mulai, selesai, sekarang)
     var batasAwal = String(p.tanggal_mulai || '').slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(batasAwal)) return;
     // Sakit lama juga berlangsung sampai masuk kembali; tanggal akhir asli hanya riwayat.
-    var batasAkhir = p.jenis === 'Sakit' ? hariIni : (p.tanggal_selesai ? String(p.tanggal_selesai).slice(0, 10) : hariIni);
+    var selesaiDisetujui = p.tanggal_selesai_disetujui || p.tanggal_selesai;
+    var batasAkhir = p.jenis === 'Sakit' ? hariIni : (selesaiDisetujui ? String(selesaiDisetujui).slice(0, 10) : hariIni);
     var kembali = p.kembali_bekerja_pada ? new Date(p.kembali_bekerja_pada) : null;
     if (kembali && isNaN(kembali.getTime())) kembali = null;
     // Cadangan untuk pembacaan yang bertepatan dengan transaksi absen masuk.
     (rows || []).forEach(function(row) {
       if (row.nama_pegawai !== p.nama_pegawai || !adalahMasukNyataPengajuan_(row)) return;
       var waktu = new Date(row.waktu_absen), hari = formatKunciTanggal_(waktu);
-      if (hari < batasAwal || (p.jenis !== 'Sakit' && p.tanggal_selesai && hari > String(p.tanggal_selesai).slice(0, 10))) return;
+      if (hari < batasAwal || (p.jenis !== 'Sakit' && selesaiDisetujui && hari > String(selesaiDisetujui).slice(0, 10))) return;
       if (!isNaN(waktu.getTime()) && (!kembali || waktu < kembali)) kembali = waktu;
     });
     var hariKembali = kembali ? formatKunciTanggal_(kembali) : '';

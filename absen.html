@@ -87,6 +87,9 @@
         .meta-box strong { display:block; color:#0f172a; font-size:11px; margin-top:3px; }
         .approval-reason { margin:0 0 12px; padding:11px 12px; background:#fffbeb; border-radius:9px; color:#713f12; font-size:11px; line-height:1.55; white-space:pre-wrap; }
         .approval-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+        .approval-duration { margin:0 0 12px; padding:12px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; }
+        .approval-duration label { margin:0 0 7px; font-size:12px; color:#1e3a8a; }
+        .approval-duration .form-control { max-width:160px; }
         .evidence-link { margin-right:auto; padding:8px 10px; color:#1d4ed8; background:#eff6ff; border-radius:8px; font-size:10px; font-weight:700; text-decoration:none; }
         .empty-state { padding:36px 18px; text-align:center; color:#64748b; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; font-size:12px; line-height:1.7; }
         body.modal-open { overflow:hidden; }
@@ -1016,6 +1019,39 @@
             return '<a class="btn-modal secondary evidence-link" href="' + escapeHTML(url) + '" target="_blank" rel="noopener noreferrer">📷 Lihat Foto Lampiran</a>';
         }
 
+        function jumlahHariIzin(mulai, selesai) {
+            const awal = new Date(String(mulai) + 'T00:00:00Z');
+            const akhir = new Date(String(selesai) + 'T00:00:00Z');
+            if (!Number.isFinite(awal.getTime()) || !Number.isFinite(akhir.getTime()) || akhir < awal ||
+                awal.toISOString().slice(0, 10) !== mulai || akhir.toISOString().slice(0, 10) !== selesai) return 0;
+            return (akhir.getTime() - awal.getTime()) / 86400000 + 1;
+        }
+
+        function pilihanDurasiIzin(idPengajuan) {
+            const input = document.getElementById('durasi-izin-' + idPengajuan);
+            if (!input) return null;
+            const hari = Number(input.value);
+            const maksimum = Number(input.max);
+            if (!/^\d+$/.test(input.value) || !Number.isSafeInteger(hari) || hari < 1 || hari > maksimum) {
+                throw new Error('Durasi yang disetujui harus 1 sampai ' + maksimum + ' hari.');
+            }
+            const mulai = new Date(input.dataset.mulai + 'T00:00:00Z');
+            return { hari, maksimum, mulai: input.dataset.mulai,
+                selesai: new Date(mulai.getTime() + (hari - 1) * 86400000).toISOString().slice(0, 10) };
+        }
+
+        function sinkronDurasiIzin(idPengajuan) {
+            const info = document.getElementById('durasi-izin-info-' + idPengajuan);
+            if (!info) return;
+            try {
+                const pilihan = pilihanDurasiIzin(idPengajuan);
+                info.textContent = 'Disetujui ' + pilihan.hari + ' dari ' + pilihan.maksimum + ' hari: ' +
+                    formatTanggalTampil(pilihan.mulai) + ' sampai ' + formatTanggalTampil(pilihan.selesai) + '.';
+            } catch (error) {
+                info.textContent = error.message;
+            }
+        }
+
         async function muatDaftarPengajuan() {
             const loading = document.getElementById('approval-loading');
             const list = document.getElementById('approval-list');
@@ -1047,6 +1083,12 @@
                     const jenis = String(item['Jenis (Sakit/Izin)'] || '-');
                     const classJenis = jenis.toLowerCase() === 'sakit' ? ' sakit' : '';
                     const linkBukti = tombolFotoLampiranPengajuan(item['Bukti Foto']);
+                    const hariDiajukan = jenis === 'Izin' ? jumlahHariIzin(item['Tanggal Mulai'], item.Selesai) : 0;
+                    const durasiIzin = jenis === 'Izin' ? `<div class="approval-duration">
+                        <label for="durasi-izin-${idPengajuan}">Durasi disetujui (hari)</label>
+                        <input type="number" class="form-control" id="durasi-izin-${idPengajuan}" min="1" max="${hariDiajukan}" step="1" value="${hariDiajukan}" data-mulai="${escapeHTML(item['Tanggal Mulai'])}" aria-describedby="durasi-izin-info-${idPengajuan}" oninput="sinkronDurasiIzin('${idPengajuan}')" required>
+                        <span class="field-help" id="durasi-izin-info-${idPengajuan}" aria-live="polite">Diajukan ${hariDiajukan} hari. Pilih 1–${hariDiajukan} hari sejak tanggal mulai pengajuan.</span>
+                    </div>` : '';
 
                     return `<article class="approval-card">
                         <div class="approval-card-head">
@@ -1062,6 +1104,7 @@
                             <div class="meta-box" style="grid-column:1 / -1;">Diajukan<strong>${formatTanggalTampil(item['Waktu Pengajuan'], true)}</strong></div>
                         </div>
                         <p class="approval-reason"><strong>Alasan:</strong> ${escapeHTML(item.Alasan || '-')}</p>
+                        ${durasiIzin}
                         <div class="approval-controls">
                             ${linkBukti}
                             <button type="button" class="btn-modal danger" onclick="prosesApproval('${idPengajuan}', 'Ditolak')">Tolak</button>
@@ -1108,6 +1151,9 @@
                     const status = String(item['Status (Menunggu/Disetujui/Ditolak)'] || '-');
                     const disetujuiOleh = escapeHTML(item['Disetujui Oleh'] || '-');
                     const waktuAcc = formatTanggalTampil(item['Waktu Disetujui'], true);
+                    const hariDiajukan = jenis === 'Izin' ? jumlahHariIzin(item['Tanggal Mulai'], item.Selesai) : 0;
+                    const selesaiDisetujui = status === 'Disetujui' && jenis === 'Izin' ? (item['Selesai Disetujui'] || item.Selesai) : null;
+                    const hariDisetujui = selesaiDisetujui ? jumlahHariIzin(item['Tanggal Mulai'], selesaiDisetujui) : 0;
 
                     let bgStatus = status === 'Disetujui' ? '#ecfdf5' : '#fef2f2';
                     let colStatus = status === 'Disetujui' ? '#065f46' : '#991b1b';
@@ -1123,7 +1169,9 @@
                         </div>
                         <div class="approval-meta">
                             <div class="meta-box">Tanggal Mulai<strong>${formatTanggalTampil(item['Tanggal Mulai'])}</strong></div>
-                            <div class="meta-box">Tanggal Selesai<strong>${item.Selesai ? formatTanggalTampil(item.Selesai) : 'Sampai kembali bekerja'}</strong></div>
+                            <div class="meta-box">${jenis === 'Izin' ? 'Selesai Diajukan' : 'Tanggal Selesai'}<strong>${item.Selesai ? formatTanggalTampil(item.Selesai) : 'Sampai kembali bekerja'}</strong></div>
+                            ${jenis === 'Izin' ? `<div class="meta-box">Durasi Diajukan<strong>${hariDiajukan} hari</strong></div>` : ''}
+                            ${selesaiDisetujui ? `<div class="meta-box">Durasi Disetujui<strong>${hariDisetujui} hari · sampai ${formatTanggalTampil(selesaiDisetujui)}</strong></div>` : ''}
                         </div>
                         <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-top:12px; font-size:11px; color:#475569; border:1px solid #e2e8f0;">
                             <div style="margin-bottom:6px;"><strong>Alasan Pegawai:</strong> <i>"${escapeHTML(item.Alasan || '-')}"</i></div>
@@ -1145,8 +1193,15 @@
         async function prosesApproval(idPengajuan, keputusan) {
             if (!roleManajemenAktif()) return showToast('Akses approval ditolak.', true);
 
+            let pilihan = null;
+            if (keputusan === 'Disetujui') {
+                try { pilihan = pilihanDurasiIzin(idPengajuan); }
+                catch (error) { return showToast(error.message, true); }
+            }
             const pesanConfirm = keputusan === 'Disetujui'
-                ? 'Bismillah, setujui pengajuan ini dan masukkan ke data Absen?'
+                ? (pilihan ? 'Setujui izin ' + pilihan.hari + ' dari ' + pilihan.maksimum + ' hari yang diajukan, mulai ' +
+                    formatTanggalTampil(pilihan.mulai) + ' sampai ' + formatTanggalTampil(pilihan.selesai) + '?'
+                    : 'Bismillah, setujui pengajuan ini dan masukkan ke data Absen?')
                 : 'Tolak pengajuan ini? Keputusan akan dicatat atas nama Anda.';
 
             // Gunakan custom modal confirm (Hijau untuk Setuju, Merah untuk Tolak)
@@ -1166,6 +1221,7 @@
                     keputusan: keputusan,
                     namaPemberiAcc: penggunaAktif['Nama Asli']
                 });
+                if (pilihan) payload.durasiDisetujui = pilihan.hari;
 
                 const hasil = await fetchAntiCORS(API_ABSEN_URL, payload);
 
