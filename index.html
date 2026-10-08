@@ -1782,59 +1782,46 @@
         // Tracking pelanggan memakai POST tanpa sesi login agar identitas pelanggan
         // tidak tercatat pada URL. Backend memverifikasi identitas sebelum mengirim
         // data publik dari tepat satu tiket.
+        async function kirimPelacakanSupabase_(action, payload = {}, perluSesi = false, ulangi = true) {
+            const headers = { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
+            if (perluSesi) headers.Authorization = 'Bearer ' + await pastikanTokenSupabaseAktif_();
+            const response = await fetch(SUPABASE_URL + '/functions/v1/sla-client-tracking', {
+                method: 'POST', headers: headers, credentials: 'omit',
+                body: JSON.stringify({ ...payload, action: action }), signal: AbortSignal.timeout(60000)
+            });
+            if (perluSesi && response.status === 401 && ulangi) {
+                await pastikanTokenSupabaseAktif_(true);
+                return kirimPelacakanSupabase_(action, payload, perluSesi, false);
+            }
+            const hasil = await response.json();
+            if (!response.ok || hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Layanan pelacakan belum tersedia.');
+            return hasil;
+        }
+
+        async function bukaDokumenBATiket_(idTiket) {
+            const tab = window.open('about:blank', '_blank');
+            if (tab) tab.opener = null;
+            try {
+                const hasil = await kirimPelacakanSupabase_('getTicketDocument', { idTiket: idTiket }, true);
+                const url = new URL(hasil.url);
+                if (url.origin !== new URL(SUPABASE_URL).origin || !urlAman_(url.href)) throw new Error('Tautan dokumen tidak valid.');
+                if (tab) tab.location.href = url.href;
+                else window.location.assign(url.href);
+            } catch (error) {
+                if (tab) tab.close();
+                showToast(error.message || 'Dokumen BA belum dapat dibuka.', 'error');
+            }
+        }
+
         async function ambilTrackingPublik_(idTiket, kunciVerifikasi) {
             const id = idAman_(idTiket);
             if (!id) throw new Error('Format ID tiket pada tautan tracking tidak valid.');
             const trackKey = String(kunciVerifikasi || '').trim();
-            if (!trackKey) throw new Error('Nomor WhatsApp atau nama pelanggan wajib diisi.');
-
-            const daftarApi = [API_URL_KENDARI, API_URL_RAHA];
-            const daftarError = [];
-            let adaResponsValid = false;
-
-            for (const endpoint of daftarApi) {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 25000);
-                try {
-                    const response = await fetch(endpoint, {
-                        method: 'POST', redirect: 'follow', signal: controller.signal,
-                        credentials: 'omit',
-                        body: JSON.stringify({
-                            apiKey: API_KEY,
-                            action: 'trackTicketPublic',
-                            trackId: id,
-                            trackKey: trackKey
-                        })
-                    });
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-                    let hasil;
-                    try { hasil = await response.json(); }
-                    catch (error) { throw new Error('Respons server tracking tidak valid.'); }
-                    if (hasil && hasil.status === 'gagal') {
-                        throw new Error(hasil.pesan || 'Permintaan tracking ditolak server.');
-                    }
-
-                    adaResponsValid = true;
-                    const tiket = Array.isArray(hasil && (hasil.tickets || hasil.tiket))
-                        ? (hasil.tickets || hasil.tiket) : [];
-                    if (tiket.length > 0) {
-                        return {
-                            tiket: tiket,
-                            garansi: Array.isArray(hasil && hasil.garansi) ? hasil.garansi : []
-                        };
-                    }
-                } catch (error) {
-                    daftarError.push(error && error.name === 'AbortError'
-                        ? 'Server tracking tidak merespons dalam 25 detik.'
-                        : (error && error.message ? error.message : 'Server tracking tidak dapat dihubungi.'));
-                } finally {
-                    clearTimeout(timeoutId);
-                }
-            }
-
-            if (adaResponsValid) throw new Error(`Tiket ${id} tidak ditemukan.`);
-            throw new Error(daftarError[0] || 'Server tracking tidak dapat dihubungi.');
+            if (!trackKey || trackKey.length > 160) throw new Error('Nomor WhatsApp atau nama lengkap pelanggan wajib diisi.');
+            const hasil = await kirimPelacakanSupabase_('trackTicketPublic', { trackId: id, trackKey: trackKey });
+            const tiket = Array.isArray(hasil.tickets) ? hasil.tickets : [];
+            if (tiket.length !== 1) throw new Error('Tiket atau identitas pelanggan tidak cocok.');
+            return { tiket: tiket, garansi: Array.isArray(hasil.garansi) ? hasil.garansi : [] };
         }
 
         // =========================================================================
@@ -2266,7 +2253,7 @@
             ]);
             if (handlerStatis.has(handler)) return true;
 
-            const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|lihatBuktiChatProspek|unduhBuktiChatProspek)';
+            const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|bukaDokumenBATiket_|lihatBuktiChatProspek|unduhBuktiChatProspek)';
             if (new RegExp('^' + fungsiSatuId + "\\('[A-Za-z0-9._-]{1,120}'\\)$").test(handler)) return true;
             if (/^responBanding\('[A-Za-z0-9._-]{1,120}',\s*'(?:Diterima|Ditolak)'(?:,\s*'(?:Kendari|Raha)')?\)$/.test(handler)) return true;
             if (/^bukaFotoKlaimSales\('[A-Za-z0-9._-]{1,120}',\s*'(?:Kendari|Raha)',\s*[0-2]\)$/.test(handler)) return true;
@@ -3977,7 +3964,7 @@
                 "ID Garansi": g["ID Garansi"] || g.id_garansi,
                 "Referensi (Tiket/Nota)": g["Referensi (Tiket/Nota)"] || g.referensi_tiket_nota,
                 "Barang / Jasa": g["Barang / Jasa"] || g.barang_jasa,
-                "Durasi (Hari)": g["Durasi (Hari)"] || g.durasi_hari,
+                "Durasi (Hari)": g["Durasi (Hari)"] ?? g.durasi_hari ?? 0,
                 "Status": statusGaransiEfektif_(g.Status || g.status, g["Tanggal Habis"] || g.tanggal_habis),
                 "Tanggal Mulai": g["Tanggal Mulai"] || g.tanggal_mulai,
                 "Tanggal Habis": g["Tanggal Habis"] || g.tanggal_habis,
@@ -4122,11 +4109,11 @@
 
                     htmlGaransi += `<div class="card ${scG}" style="padding:15px; margin-bottom:10px; background:#f8fafc; border-radius:8px;">
                         ${htmlPeringatanInap}
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px;">
-                            <h3 style="font-size:14px; margin:0; word-break:break-word; line-height:1.4;">${g['Barang / Jasa']}</h3>
+                        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px;">
+                            <h3 style="font-size:14px; margin:0; min-width:0; flex:1 1 180px; word-break:break-word; line-height:1.4;">${g['Barang / Jasa']}</h3>
                             <span class="badge ${bcG}" style="white-space:nowrap; flex-shrink:0;">${statGrs}</span>
                         </div>
-                        <p style="margin:0 0 5px 0; font-size:12px;"><strong>Durasi Garansi:</strong> ${g['Durasi (Hari)']} Hari</p>
+                        <p style="margin:0 0 5px 0; font-size:12px;"><strong>Durasi Garansi:</strong> ${Number(g['Durasi (Hari)']) > 0 ? g['Durasi (Hari)'] + ' Hari' : 'Tanpa Garansi'}</p>
                         <p style="margin:0 0 5px 0; font-size:12px;"><strong>Habis Pada:</strong> ${tglHabis}</p>
                         ${ketKlienHtml}
                         ${btnKlaim}
@@ -6403,7 +6390,7 @@
                 let pdfHtml = (pdfUrl && pdfUrl.length > 10) ?
                     `<div style="margin-top:10px; padding:10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;">
                         <p style="margin:0 0 5px 0; font-size:12px; color:#1e3a8a; font-weight:bold;">📄 Dokumen Berita Acara (PDF)</p>
-                        <a href="${pdfUrl}" target="_blank" class="dl-btn" style="background:#1e3a8a; color:white; border:none; display:block; text-align:center;">⬇️ Download / Cetak BA</a>
+                        <button type="button" onclick="bukaDokumenBATiket_('${ticket['ID Tiket']}')" class="dl-btn" style="background:#1e3a8a; color:white; border:none; display:block; width:100%; text-align:center;">⬇️ Download / Cetak BA</button>
                     </div>` : '';
 
                 let nilaiPenjualanCek = ticket['Nilai Penjualan (Rp)'] || ticket['Nilai Penjualan'] || 0; let infoPenjualanHtml = '';
@@ -8742,20 +8729,8 @@
                         }
 
                         try {
-                            const payloadPdf = {
-                                idTiket: idTiket,
-                                waktuSelesai: formatWaktu(payload.waktu_selesai || t['Waktu Selesai']),
-                                namaKlien: String(t['Klien & Lokasi'] || '').trim(),
-                                teknisi: String(t['Teknisi'] || '').trim(),
-                                deskripsi: String(payload.deskripsi_pekerjaan_ba || '').trim(),
-                                kritik: String(payload.kritik_saran || '').trim(),
-                                ttdImg: String(payload.tanda_tangan || ''),
-                                namaCustomer: String(payload.nama_customer || '').trim()
-                            };
-                            const hasilPdf = await kirimKeBackend_(apiUrl, 'buatPDF', payloadPdf);
-                            if (!hasilPdf || hasilPdf.status !== 'sukses' || !urlAman_(hasilPdf.url)) throw new Error('URL PDF tidak valid.');
-                            const hasilLinkPdf = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', { link_pdf_ba: hasilPdf.url });
-                            pastikanHasilMutasiSupabase_(hasilLinkPdf, `Link PDF tiket ${idTiket}`);
+                            const hasilPdf = await kirimPelacakanSupabase_('createTicketDocument', { idTiket: idTiket }, true);
+                            if (!hasilPdf || !String(hasilPdf.reference || '').startsWith('storage:') || !urlAman_(hasilPdf.url)) throw new Error('Dokumen BA belum berhasil disimpan.');
                             pdfTersimpan = true;
                         } catch (errorPdf) {
                             console.error(`Pembuatan PDF tiket ${idTiket} gagal:`, errorPdf);
