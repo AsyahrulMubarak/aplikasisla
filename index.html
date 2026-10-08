@@ -1171,6 +1171,7 @@
                         <option value="all">Semua Nota</option>
                         <option value="lunas">Nota Lunas</option>
                         <option value="belum_lunas">Nota Belum Lunas</option>
+                        <option value="tidak_berlaku">Nota Tidak Berlaku</option>
                     </select>
                 </div>
             </div>
@@ -5552,6 +5553,14 @@
             );
         }
 
+        function statusNotaTiket_(ticket) {
+            if (String(ticket && ticket['Status'] || '').trim().toLowerCase() === 'cancel') {
+                return 'tidak_berlaku';
+            }
+            const notaSudahLunas = notaTiketSudahLunas_(ticket);
+            return notaSudahLunas ? 'lunas' : 'belum_lunas';
+        }
+
         function tanggalNotaDariNomorTransaksi_(noTransaksi) {
             const nomorNormal = normalisasiNoTransaksiNota_(noTransaksi);
             const periodeIpos = nomorNormal.match(/(?:^|\/)(0[1-9]|1[0-2])(\d{2})$/);
@@ -6172,9 +6181,7 @@
             const statusTiket = statusTiketUntukFilter_(ticket);
             if (filterStatus !== 'all' && statusTiket !== filterStatus) return false;
 
-            const notaLunas = notaTiketSudahLunas_(ticket);
-            if (filterPembayaran === 'lunas' && !notaLunas) return false;
-            if (filterPembayaran === 'belum_lunas' && notaLunas) return false;
+            if (filterPembayaran !== 'all' && statusNotaTiket_(ticket) !== filterPembayaran) return false;
             return true;
         }
 
@@ -6403,8 +6410,10 @@
                 if (['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna()) && parseInt(nilaiPenjualanCek) > 0) {
                     infoPenjualanHtml = `<p style="color:var(--success);"><strong>Nilai Penjualan:</strong> ${formatRp(nilaiPenjualanCek)}</p>`;
                 }
-                const notaSudahLunas = notaTiketSudahLunas_(ticket);
-                const statusNotaHtml = `<p><strong>Status Nota:</strong> <span class="badge ${notaSudahLunas ? 'badge-selesai' : 'badge-pending'}">${notaSudahLunas ? 'Lunas' : 'Belum Lunas'}</span></p>`;
+                const statusNota = statusNotaTiket_(ticket);
+                const labelStatusNota = statusNota === 'tidak_berlaku' ? 'Tidak Berlaku' : (statusNota === 'lunas' ? 'Lunas' : 'Belum Lunas');
+                const badgeStatusNota = statusNota === 'tidak_berlaku' ? 'badge-aman' : (statusNota === 'lunas' ? 'badge-selesai' : 'badge-pending');
+                const statusNotaHtml = `<p><strong>Status Nota:</strong> <span class="badge ${badgeStatusNota}">${labelStatusNota}</span></p>`;
 
                 let teknisiSebelumnyaKey = Object.keys(ticket).find(k => String(k).trim() === 'Teknisi Sebelumnya');
                 let teknisiSebelumnyaHtml = teknisiSebelumnyaKey && String(ticket[teknisiSebelumnyaKey] || '').trim() !== ''

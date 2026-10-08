@@ -19,6 +19,7 @@ function createHarness() {
     'normalisasiNoTransaksiNota_',
     'nomorTransaksiNotaGratis_',
     'notaTiketSudahLunas_',
+    'statusNotaTiket_',
     'statusTiketUntukFilter_',
     'tiketCocokFilterTambahan_',
   ]) {
@@ -32,6 +33,7 @@ test('ticket page exposes status and invoice filters', () => {
   assert.match(html, /id="filter-pembayaran-tiket"[^>]*onchange="renderTickets\(\)"/);
   assert.match(html, /<option value="lunas">Nota Lunas<\/option>/);
   assert.match(html, /<option value="belum_lunas">Nota Belum Lunas<\/option>/);
+  assert.match(html, /<option value="tidak_berlaku">Nota Tidak Berlaku<\/option>/);
   assert.match(html, /Tidak ada tiket yang cocok dengan status, nota, periode, atau pencarian terpilih/);
 });
 
@@ -67,6 +69,26 @@ test('invoice filter treats canonical Lunas and exact free transaction labels as
   }
 });
 
+test('cancelled tickets have a separate invoice filter regardless of stored payment status', () => {
+  const context = createHarness();
+  for (const payment of ['', 'Poin Beku', 'Lunas']) {
+    for (const transaction of ['INV-001', 'FREE', 'GRATIS', 'GARANSI']) {
+      const ticket = { Status: 'Cancel', Teknisi: 'Teknisi Uji', 'Status Pembayaran': payment, 'No Transaksi': transaction };
+      const original = { ...ticket };
+      assert.equal(context.statusNotaTiket_(ticket), 'tidak_berlaku');
+      assert.equal(context.tiketCocokFilterTambahan_(ticket, 'Cancel', 'tidak_berlaku'), true);
+      assert.equal(context.tiketCocokFilterTambahan_(ticket, 'Cancel', 'all'), true);
+      assert.equal(context.tiketCocokFilterTambahan_(ticket, 'all', 'lunas'), false);
+      assert.equal(context.tiketCocokFilterTambahan_(ticket, 'all', 'belum_lunas'), false);
+      assert.deepEqual(ticket, original);
+      ticket.Status = 'Selesai';
+      assert.equal(context.tiketCocokFilterTambahan_(ticket, 'all', 'tidak_berlaku'), false);
+      assert.equal(context.statusNotaTiket_(ticket), context.notaTiketSudahLunas_(ticket) ? 'lunas' : 'belum_lunas');
+    }
+  }
+  assert.equal(context.statusNotaTiket_({ Status: ' cancel ', 'Status Pembayaran': 'Lunas' }), 'tidak_berlaku');
+});
+
 test('free transaction matching is exact after trimming and ignores case', () => {
   const context = createHarness();
 
@@ -77,3 +99,4 @@ test('free transaction matching is exact after trimming and ignores case', () =>
 
   assert.match(html, /const notaSudahLunas = notaTiketSudahLunas_\(ticket\);/);
 });
+
