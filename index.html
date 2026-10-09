@@ -1536,6 +1536,17 @@
                     <button type="submit" id="btn-tambah-user" class="btn-solid-primary">Simpan Profil</button>
                     <button type="button" id="btn-batal-edit-user" class="btn-outline-cancel" style="display:none;" onclick="batalEditUser()">Batal Edit</button>
                 </form>
+                <section id="password-reset-management-panel" hidden style="margin-top:24px;padding:20px;border:1px solid #bfdbfe;border-radius:14px;background:#f8fbff;">
+                    <h3 style="margin:0 0 8px;color:#1e40af;">Permintaan Reset Password</h3>
+                    <p style="font-size:12px;color:#64748b;">Pilih akun yang memerlukan password baru. Admin Raha hanya dapat mengelola akun cabang Raha.</p>
+                    <form onsubmit="simpanResetPasswordAdmin_(event)">
+                        <label for="reset-password-target">Akun</label><select id="reset-password-target" required></select>
+                        <label for="reset-password-new">Password baru</label><input id="reset-password-new" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+                        <button id="reset-password-save" type="submit" class="btn-solid-primary">Simpan Password Baru</button>
+                    </form>
+                    <p id="reset-password-status" style="font-size:12px;color:#64748b;" aria-live="polite"></p>
+                    <div id="reset-password-requests"></div>
+                </section>
                 <section id="salary-management-panel" hidden style="margin-top:24px;padding:20px;border:1px solid #bfdbfe;border-radius:14px;background:#f8fbff;">
                     <h3 style="margin:0 0 8px;color:#1e40af;">Gaji Pokok — Manajemen</h3>
                     <p style="font-size:12px;color:#64748b;line-height:1.6;">Kenaikan otomatis Rp250.000 setiap 6 bulan yang memenuhi disiplin, mulai Oktober 2026, hingga Rp3.000.000. Perubahan manual tersedia bagi Admin Kendari, Manager, dan Direktur.</p>
@@ -1582,7 +1593,7 @@
     </div>
 
     <script>
-        // Endpoint kanonis Master Kendari untuk seluruh proses autentikasi SSO.
+        // Endpoint Apps Script untuk integrasi operasional yang masih digunakan.
         const API_KEY = 'ALFACOM_SECURE_KEY_2026';
         const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
         const API_URL_RAHA = 'https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec';
@@ -1716,6 +1727,9 @@
         // 🚀 GATEWAY GOOGLE APPS SCRIPT TERBATAS
         // =========================================================================
         async function kirimKeBackend_(url, action, payload = {}, perluSesi = true, opsiFetch = {}) {
+            if (['validateSession', 'reconcileSupabaseAuthProfiles', 'lupaSandi'].includes(action)) {
+                return kirimProfilSupabase_(action, payload, action !== 'lupaSandi');
+            }
             if (['getKlaimSales', 'getBuktiKlaimSales', 'ajukanBanding', 'responBanding'].includes(action)) {
                 return kirimKlaimSalesSupabase_(action, payload);
             }
@@ -2981,7 +2995,23 @@
             return await response.json();
         }
 
-        async function kelolaAkunAuthOlehAdmin_(usernameTarget, passwordBaru, buatBaru) {
+        async function kirimProfilSupabase_(action, payload = {}, perluSesi = true, ulangi = true) {
+            const headers = { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' };
+            if (perluSesi) headers.Authorization = 'Bearer ' + await pastikanTokenSupabaseAktif_();
+            const response = await fetch(SUPABASE_URL + '/functions/v1/sla-profile', {
+                method: 'POST', headers, credentials: 'omit',
+                body: JSON.stringify({ ...payload, action }), signal: AbortSignal.timeout(90000)
+            });
+            if (perluSesi && response.status === 401 && ulangi) {
+                await pastikanTokenSupabaseAktif_(true);
+                return kirimProfilSupabase_(action, payload, perluSesi, false);
+            }
+            const result = await response.json();
+            if (!response.ok || result.status !== 'sukses') throw new Error(result.pesan || 'Layanan profil belum berhasil.');
+            return result;
+        }
+
+        async function kelolaAkunAuthOlehAdmin_(usernameTarget, passwordBaru) {
             const peranAktif = String(penggunaAktif && penggunaAktif.Role || '').toLowerCase();
             if (!['admin', 'admin_raha'].includes(peranAktif)) {
                 throw new Error('Hanya admin yang dapat mengelola password pengguna lain.');
@@ -2989,10 +3019,9 @@
             if (peranAktif === 'admin_raha' && normalisasiCabang(cabangAktif) !== 'Raha') {
                 throw new Error('Admin Raha hanya dapat mengelola password pada SLA Raha.');
             }
-            const hasil = await kirimKeBackend_(API_AUTH_URL, 'manageSupabaseAuthUser', {
+            const hasil = await kirimProfilSupabase_('resetPassword', {
                 targetUsername: String(usernameTarget || '').trim().toLowerCase(),
-                passwordBaru: validasiPasswordBaru_(passwordBaru),
-                buatBaru: Boolean(buatBaru)
+                passwordBaru: validasiPasswordBaru_(passwordBaru)
             });
             if (!hasil || hasil.status !== 'sukses') {
                 throw new Error((hasil && hasil.pesan) || 'Backend gagal memperbarui akun Supabase Auth.');
@@ -3011,7 +3040,7 @@
             if (rekonsiliasiAuthProfilPromise_) return rekonsiliasiAuthProfilPromise_;
 
             rekonsiliasiAuthProfilPromise_ = (async () => {
-                const hasil = await kirimKeBackend_(API_AUTH_URL, 'reconcileSupabaseAuthProfiles');
+                const hasil = await kirimProfilSupabase_('reconcileSupabaseAuthProfiles');
                 if (!hasil || hasil.status !== 'sukses') {
                     throw new Error((hasil && hasil.pesan) || 'Sinkronisasi Auth ID tidak berhasil.');
                 }
@@ -3894,9 +3923,9 @@
         async function mintaResetSandi(event) {
             if (event) event.preventDefault();
             const inputUsername = await showPrompt("Masukkan Username Anda:");
-            const username = String(inputUsername || '').trim().toLowerCase();
+            const username = normalisasiUsernameLogin_(inputUsername);
             if (!username) return false;
-            if (!/^[a-z0-9._-]{2,80}$/.test(username)) {
+            if (!/^[a-z0-9._-]{1,80}$/.test(username)) {
                 showToast('Username hanya boleh memakai huruf, angka, titik, garis bawah, atau tanda minus.', 'warning');
                 return false;
             }
@@ -3906,9 +3935,9 @@
             loading.innerHTML = 'Mengirim permintaan reset...';
             formLogin.style.display = 'none';
             try {
-                const json = await kirimKeBackend_(API_AUTH_URL, 'lupaSandi', { username: username }, false);
-                if (!json || json.resetSandiVersion !== 'v2') {
-                    throw new Error('Layanan reset sandi di server belum diperbarui. Admin perlu memperbarui dan men-deploy Google Apps Script.');
+                const json = await kirimProfilSupabase_('lupaSandi', { username: username }, false);
+                if (!json || json.resetSandiVersion !== 'supabase-v1') {
+                    throw new Error('Layanan reset password belum siap. Silakan hubungi admin.');
                 }
                 showToast(json.pesan || 'Jika akun terdaftar, admin akan menindaklanjuti permintaan reset.', 'success');
             } catch (error) {
@@ -4372,6 +4401,7 @@
                 }
                 else if (penggunaAktif) { siapkanProfilPribadi(); }
                 void muatGajiManajemen_();
+                void muatResetPasswordAdmin_();
             }
             window.scrollTo(0,0);
         }
@@ -8815,6 +8845,51 @@
         function renderTabelUser() { const tbody = document.getElementById('tabel-user-body'); tbody.innerHTML = ''; (globalUsers || []).filter(dataSesuaiCabangAktif_).forEach(u => { if(!u || !u.Username) return; const usernameAman = kunciProfilUserAman_(u.Username); if (!usernameAman) return; tambahkanHtmlAman_(tbody, `<tr><td><strong>${amanTeks_(u.Username)}</strong></td><td>${amanTeks_(u['Nama Asli'])}</td><td>${amanTeks_(u['No WA'] || '-')}</td><td><span class="badge badge-aman">${amanTeks_(u.Role)}</span></td><td><div class="btn-grid" style="margin:0;"><button class="btn-edit" onclick="aktifkanEditUser('${usernameAman}')">Edit</button><button class="btn-del" onclick="hapusUser('${usernameAman}')">Del</button></div></td></tr>`); }); }
 
         let daftarGajiManajemen_ = [];
+        async function muatResetPasswordAdmin_() {
+            const panel = document.getElementById('password-reset-management-panel');
+            const role = rolePengguna();
+            panel.hidden = !['admin', 'admin_raha'].includes(role);
+            if (panel.hidden) return;
+            const select = document.getElementById('reset-password-target'), status = document.getElementById('reset-password-status');
+            const targetSebelumnya = select.value;
+            const list = document.getElementById('reset-password-requests'), save = document.getElementById('reset-password-save');
+            status.textContent = 'Memuat akun dan permintaan reset...'; save.disabled = true;
+            select.replaceChildren(); list.replaceChildren();
+            try {
+                const result = await kirimProfilSupabase_('getPermintaanResetSandi');
+                const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.disabled = true;
+                placeholder.selected = true; placeholder.textContent = '-- Pilih akun --'; select.appendChild(placeholder);
+                result.users.forEach(u => {
+                    const option = document.createElement('option'); option.value = u.username;
+                    option.textContent = u.nama_asli + ' (' + u.username + ')'; select.appendChild(option);
+                });
+                if (result.users.some(u => u.username === targetSebelumnya)) select.value = targetSebelumnya;
+                result.data.forEach(r => {
+                    const item = document.createElement('p'), button = document.createElement('button');
+                    item.style.fontSize = '12px';
+                    item.append(document.createTextNode(r.nama_asli + ' · ' + new Date(r.requested_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }) + ' '));
+                    button.type = 'button'; button.className = 'btn-edit'; button.textContent = 'Pilih Akun';
+                    button.addEventListener('click', () => { select.value = r.username; document.getElementById('reset-password-new').focus(); });
+                    item.appendChild(button); list.appendChild(item);
+                });
+                save.disabled = result.users.length === 0;
+                status.textContent = result.data.length ? result.data.length + ' permintaan menunggu password baru.' : 'Belum ada permintaan reset yang menunggu.';
+            } catch (error) { status.textContent = error.message; }
+        }
+        async function simpanResetPasswordAdmin_(event) {
+            event.preventDefault();
+            const button = document.getElementById('reset-password-save'), input = document.getElementById('reset-password-new');
+            if (button.disabled) return;
+            button.disabled = true;
+            try {
+                const result = await kelolaAkunAuthOlehAdmin_(document.getElementById('reset-password-target').value, input.value);
+                input.value = '';
+                const message = result.resetSandiTerselesaikan ? 'Password diperbarui dan permintaan reset selesai.' : 'Password berhasil diperbarui.';
+                showToast(message, 'success'); await muatResetPasswordAdmin_();
+                document.getElementById('reset-password-status').textContent = result.auditTertunda ? message + ' Status permintaan belum dapat diperbarui.' : message;
+            } catch (error) { showToast(error.message, 'error'); document.getElementById('reset-password-status').textContent = error.message; }
+            finally { button.disabled = false; }
+        }
         function bolehKelolaGaji_() {
             const role = String(penggunaAktif && penggunaAktif.Role || '').toLowerCase();
             const cabang = normalisasiCabang(penggunaAktif && penggunaAktif.Hak_Akses_Cabang);
@@ -8873,6 +8948,7 @@
             modeEditUser = true;
             document.getElementById('form-user-title').innerText = '👤 Profil Saya';
             document.getElementById('new-nama').value = penggunaAktif['Nama Asli'];
+            document.getElementById('new-nama').readOnly = true;
             document.getElementById('new-email').value = penggunaAktif['Email'] || '';
             document.getElementById('new-wa').value = penggunaAktif['No WA'] || '';
             document.getElementById('new-username').value = penggunaAktif.Username;
@@ -8890,6 +8966,8 @@
             document.getElementById('new-role').value = penggunaAktif.Role;
             document.getElementById('new-cabang').value = normalisasiCabang(penggunaAktif.Hak_Akses_Cabang) || 'Kendari';
             document.getElementById('new-target-sales').value = penggunaAktif['Target Sales'] || '';
+            document.getElementById('new-gapok').value = penggunaAktif['Gaji Pokok'] || '';
+            document.getElementById('new-gapok').readOnly = true;
 
             document.getElementById('btn-tambah-user').innerText = 'Update Profil Saya';
             document.getElementById('btn-tambah-user').style.background = 'var(--primary)';
@@ -8910,6 +8988,7 @@
             document.getElementById('new-password').required = false;
 
             document.getElementById('role-wrapper').style.display = 'block';
+            document.getElementById('new-nama').readOnly = false;
             document.getElementById('new-role').value = u.Role; toggleTargetSales();
             document.getElementById('new-cabang').value = normalisasiCabang(u.Hak_Akses_Cabang) || (String(u.Role).toLowerCase() === 'admin_raha' ? 'Raha' : ['direktur', 'manager'].includes(String(u.Role).toLowerCase()) ? 'Semua' : 'Kendari');
             let targetVal = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || '';
@@ -8923,7 +9002,6 @@
             document.getElementById('new-gapok').value = u['Gaji Pokok'] || u['Gaji Pokok (Rp)'] || '';
             document.getElementById('new-gapok').readOnly = true;
             document.getElementById('new-gapok').title = 'Ubah gaji melalui bagian Gaji Pokok — Manajemen.';
-            document.getElementById('new-bonus').value = u['Bonus Tambahan'] || u['Bonus'] || '';
         }
 
         function batalEditUser() {
@@ -8931,6 +9009,7 @@
             document.getElementById('form-user-title').innerText = 'Tambah User Baru';
             document.getElementById('new-gapok').readOnly = false;
             document.getElementById('new-gapok').title = '';
+            document.getElementById('new-nama').readOnly = false;
             document.getElementById('new-nama').value = ''; document.getElementById('new-email').value = '';
             document.getElementById('new-username').value = '';
             document.getElementById('new-wa').value = '';
@@ -8994,46 +9073,24 @@
             }
 
             try {
-                let hasilAuthAwal = null;
-                if (!modeEditUser) {
-                    const usernameTargetBaru = String(payload.username || '').trim().toLowerCase();
-                    hasilAuthAwal = await kelolaAkunAuthOlehAdmin_(usernameTargetBaru, inputPw, true);
-                    const authIdBaru = authIdSupabaseAman_(hasilAuthAwal && hasilAuthAwal.userId);
-                    if (!authIdBaru) throw new Error('Backend tidak mengembalikan Auth ID yang valid.');
-                    payload.auth_id = authIdBaru;
-                }
-
-                if (modeEditUser) {
-                    const hasilUser = await kelolaProfilMelaluiSupabase_('ubahProfil', payload);
-                    pastikanHasilMutasiSupabase_(hasilUser, `User ${payload.username}`);
-                } else {
-                    const hasilUser = await kelolaProfilMelaluiSupabase_('buatProfil', payload);
-                    pastikanHasilMutasiSupabase_(hasilUser, `User ${payload.username}`);
-                }
-
-                let passwordDiubah = false;
-                let permintaanResetDiselesaikan = false;
-                if (inputPw !== '') {
-                    const usernameTarget = String(payload.username || '').trim().toLowerCase();
-                    const usernameAktif = String(penggunaAktif && penggunaAktif.Username || '').trim().toLowerCase();
-                    if (!modeEditUser) {
-                        passwordDiubah = Boolean(hasilAuthAwal);
-                    } else if (usernameTarget === usernameAktif) {
-                        await ubahPasswordSupabaseSendiri_(inputPw);
-                    } else {
-                        const hasilAuth = await kelolaAkunAuthOlehAdmin_(usernameTarget, inputPw, false);
-                        permintaanResetDiselesaikan = Boolean(hasilAuth && hasilAuth.resetSandiTerselesaikan);
-                    }
-                    passwordDiubah = true;
-                }
-
+                if (inputPw) validasiPasswordBaru_(inputPw);
+                const hasilProfil = await kirimProfilSupabase_(modeEditUser ? 'ubahProfil' : 'buatProfil', {
+                    profil: payload, passwordBaru: inputPw
+                });
+                pastikanHasilMutasiSupabase_(hasilProfil.data, `User ${payload.username}`);
+                const passwordDiubah = Boolean(hasilProfil.passwordDiubah);
+                const permintaanResetDiselesaikan = Boolean(hasilProfil.resetSandiTerselesaikan);
                 const pesanSimpan = permintaanResetDiselesaikan
                     ? 'Alhamdulillah! Password diperbarui dan permintaan reset ditandai selesai.'
                     : (passwordDiubah ? 'Alhamdulillah! Profil dan password Auth tersimpan.' : 'Alhamdulillah! Profil tersimpan.');
-                showToast(pesanSimpan, 'success');
+                const passwordBelumBerubah = Boolean(inputPw) && !passwordDiubah;
+                showToast(passwordBelumBerubah ? hasilProfil.pesan : pesanSimpan, passwordBelumBerubah ? 'warning' : 'success');
                 document.getElementById('new-password').value = '';
 
                 if (penggunaAktif && penggunaAktif.Username === payload.username) {
+                    const tersimpan = hasilProfil.data[0];
+                    penggunaAktif.Email = tersimpan.email; penggunaAktif['No WA'] = tersimpan.no_wa;
+                    penggunaAktif['Nama Asli'] = tersimpan.nama_asli;
                     simpanSesiAktif(waktuLoginAktif);
                 }
 
@@ -9087,8 +9144,8 @@
 
                 document.getElementById('loading').style.display = 'block';
 
-                const hasilHapusUser = await kelolaProfilMelaluiSupabase_('hapusProfil', null, un);
-                pastikanHasilMutasiSupabase_(hasilHapusUser, `User ${un}`);
+                const hasilHapusUser = await kirimProfilSupabase_('hapusProfil', { usernameTarget: un });
+                pastikanHasilMutasiSupabase_(hasilHapusUser.data, `User ${un}`);
 
                 showToast('Alhamdulillah! User berhasil dihapus.', 'success');
                 await ambilSemuaData(true);
@@ -9141,25 +9198,12 @@
                     if (!Number.isFinite(loginTimeAwal) || loginTimeAwal <= 0 || (new Date().getTime() - loginTimeAwal) > 86400000) throw new Error('Sesi kedaluwarsa.');
                     penggunaAktif = Object.assign({}, parsedSessionAwal.user);
                     waktuLoginAktif = loginTimeAwal;
-                    // Validasi token langsung ke Supabase Auth. GAS cabang Kendari
-                    // menolak akun Raha ketika kembali dari modul ke Lobby.
-                    const tokenValidasi = await pastikanTokenSupabaseAktif_();
-                    const responsValidasi = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-                        headers: {
-                            apikey: SUPABASE_ANON_KEY,
-                            Authorization: `Bearer ${tokenValidasi}`
-                        }
-                    });
-                    if (!responsValidasi.ok) throw new Error('Sesi Supabase ditolak.');
-                    const akunValidasi = await responsValidasi.json();
-                    const profilValidasi = await muatProfilLoginSupabase_(
-                        { user: akunValidasi, access_token: tokenValidasi },
-                        parsedSessionAwal.user.Username
-                    );
+                    const hasilValidasi = await kirimProfilSupabase_('validateSession');
+                    if (!hasilValidasi.user) throw new Error('Profil sesi tidak tersedia.');
                     const tokenAktif = penggunaAktif.SessionToken;
                     const refreshTokenAktif = penggunaAktif.RefreshToken || parsedSessionAwal.user.RefreshToken || '';
                     const expiresAtAktif = penggunaAktif.SessionExpiresAt || parsedSessionAwal.user.SessionExpiresAt || waktuKedaluwarsaJwt_(tokenAktif);
-                    penggunaAktif = Object.assign({}, profilValidasi, {
+                    penggunaAktif = Object.assign({}, hasilValidasi.user, {
                         SessionToken: tokenAktif,
                         RefreshToken: refreshTokenAktif,
                         SessionExpiresAt: expiresAtAktif
@@ -9698,3 +9742,4 @@
         // Router DOMContentLoaded lama dihapus agar validasi sesi dan pengunduhan
         // database tidak berjalan dua kali atau saling menimpa tampilan.
     </script>
+
