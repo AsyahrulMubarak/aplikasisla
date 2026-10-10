@@ -885,7 +885,7 @@
     <div id="klaim-sales-wrapper" aria-hidden="true">
         <main class="klaim-sales-panel" aria-labelledby="klaim-sales-title">
             <div class="klaim-sales-header">
-                <div><h2 id="klaim-sales-title">📌 Klaim Sales</h2><p>Pengajuan tiket Kendari dan Raha · Persetujuan khusus Admin Kendari</p></div>
+                <div><h2 id="klaim-sales-title">📌 Klaim Sales</h2><p>Pengajuan, bukti, dan riwayat persetujuan klaim Sales</p></div>
                 <div class="btn-grid" style="margin:0;">
                     <button type="button" class="btn-edit" id="btn-refresh-klaim-sales" onclick="muatKlaimSales(true)">↻ Muat ulang</button>
                     <button type="button" class="btn-action-primary" style="margin:0; width:auto;" onclick="tutupMenuKlaimSales()">← Kembali ke Lobby</button>
@@ -903,8 +903,8 @@
             </div>
             <p id="klaim-sales-status" role="status" aria-live="polite" style="font-size:12px; color:var(--text-muted);"></p>
             <div class="klaim-sales-branches">
-                <section class="klaim-sales-branch" aria-labelledby="klaim-kendari-title"><h3 id="klaim-kendari-title">🏢 Kendari</h3><div id="klaim-kendari-container"></div></section>
-                <section class="klaim-sales-branch" aria-labelledby="klaim-raha-title"><h3 id="klaim-raha-title">🏢 Raha</h3><div id="klaim-raha-container"></div></section>
+                <section id="klaim-cabang-kendari" class="klaim-sales-branch" aria-labelledby="klaim-kendari-title"><h3 id="klaim-kendari-title">🏢 Kendari</h3><div id="klaim-kendari-container"></div></section>
+                <section id="klaim-cabang-raha" class="klaim-sales-branch" aria-labelledby="klaim-raha-title"><h3 id="klaim-raha-title">🏢 Raha</h3><div id="klaim-raha-container"></div></section>
             </div>
         </main>
     </div>
@@ -3366,7 +3366,7 @@
             if (menu === 'absen') return penggunaBolehMengaksesAbsensi_(user);
             if (menu === 'gaji') return penggunaBolehMengaksesSlipGaji_(user);
             if (menu === 'kpi') return penggunaBolehMengaksesKpi_(user);
-            if (menu === 'klaim-sales') return penggunaAdminKendariKlaim_(user);
+            if (menu === 'klaim-sales') return penggunaBolehKelolaKlaimSales_(user);
             return penggunaBolehTabSLA_(menu, user);
         }
 
@@ -8415,12 +8415,24 @@
             return role === 'admin' && ['', 'kendari', 'semua'].includes(cabang);
         }
 
+        function cabangKlaimSalesDiizinkan_(user = penggunaAktif) {
+            if (!user) return [];
+            if (penggunaAdminKendariKlaim_(user)) return ['Kendari', 'Raha'];
+            if (!['manager', 'direktur'].includes(String(user.Role || '').trim().toLowerCase())) return [];
+            const akses = String(user.Hak_Akses_Cabang || user.Cabang || 'Kendari').trim().toLowerCase();
+            return akses === 'semua' ? ['Kendari', 'Raha'] : akses === 'kendari' ? ['Kendari'] : akses === 'raha' ? ['Raha'] : [];
+        }
+
+        function penggunaBolehKelolaKlaimSales_(user = penggunaAktif) {
+            return cabangKlaimSalesDiizinkan_(user).length > 0;
+        }
+
         function klaimSalesMasukRiwayat_(klaim) {
             return klaim.status_banding !== 'Diajukan';
         }
 
         function pilihTampilanKlaimSales(tampilan) {
-            if (!['baru', 'riwayat'].includes(tampilan) || !penggunaAdminKendariKlaim_()) return;
+            if (!['baru', 'riwayat'].includes(tampilan) || !penggunaBolehKelolaKlaimSales_()) return;
             tampilanKlaimSales_ = tampilan;
             document.getElementById('filter-status-klaim-sales').value = 'all';
             document.getElementById('search-klaim-sales').value = '';
@@ -8445,8 +8457,8 @@
 
         async function bukaMenuKlaimSales() {
             hentikanRingkasanLobby_();
-            if (!penggunaAdminKendariKlaim_()) {
-                showToast('Menu Klaim Sales khusus Admin Kendari.', 'warning');
+            if (!penggunaBolehKelolaKlaimSales_()) {
+                showToast('Menu Klaim Sales tersedia untuk Admin Kendari, Manager, dan Direktur.', 'warning');
                 return;
             }
             hentikanRealtimeSLA_();
@@ -8473,13 +8485,13 @@
         }
 
         async function muatKlaimSales(paksaBaru = false) {
-            if (!menuKlaimSalesTerbuka_ || !penggunaAdminKendariKlaim_()) return false;
+            if (!menuKlaimSalesTerbuka_ || !penggunaBolehKelolaKlaimSales_()) return false;
             if (promiseMuatKlaimSales_ && !paksaBaru) return promiseMuatKlaimSales_;
             const urutan = ++urutanMuatKlaimSales_;
             const username = penggunaAktif.Username;
             const status = document.getElementById('klaim-sales-status');
             const tombol = document.getElementById('btn-refresh-klaim-sales');
-            status.textContent = 'Memuat pengajuan Kendari dan Raha...';
+            status.textContent = 'Memuat pengajuan Klaim Sales...';
             tombol.disabled = true;
             const promise = (async () => {
                 try {
@@ -8503,19 +8515,23 @@
         }
 
         function renderKlaimSales() {
-            if (!penggunaAdminKendariKlaim_()) return;
+            if (!penggunaBolehKelolaKlaimSales_()) return;
+            const cabangDiizinkan = cabangKlaimSalesDiizinkan_();
             const riwayat = tampilanKlaimSales_ === 'riwayat';
             const cari = String(document.getElementById('search-klaim-sales').value || '').trim().toLowerCase();
             const status = document.getElementById('filter-status-klaim-sales').value;
-            const jumlahBaru = globalKlaimSales.filter(k => !klaimSalesMasukRiwayat_(k)).length;
+            const klaimDiizinkan = globalKlaimSales.filter(k => cabangDiizinkan.includes(normalisasiCabang(k.cabang) || 'Kendari'));
+            const jumlahBaru = klaimDiizinkan.filter(k => !klaimSalesMasukRiwayat_(k)).length;
             document.getElementById('btn-klaim-baru').textContent = `Pengajuan Baru (${jumlahBaru})`;
-            document.getElementById('btn-klaim-riwayat').textContent = `Riwayat (${globalKlaimSales.length - jumlahBaru})`;
+            document.getElementById('btn-klaim-riwayat').textContent = `Riwayat (${klaimDiizinkan.length - jumlahBaru})`;
             document.getElementById('btn-klaim-baru').classList.toggle('active', !riwayat);
             document.getElementById('btn-klaim-riwayat').classList.toggle('active', riwayat);
-            const daftar = globalKlaimSales.filter(k => klaimSalesMasukRiwayat_(k) === riwayat &&
+            const daftar = klaimDiizinkan.filter(k => klaimSalesMasukRiwayat_(k) === riwayat &&
                 (status === 'all' || k.status_banding === status) &&
                 [k.id_tiket, k.klien_lokasi, k.pekerjaan, k.sales_pengaju].some(v => String(v || '').toLowerCase().includes(cari)));
             for (const cabang of ['Kendari', 'Raha']) {
+                const section = document.getElementById('klaim-cabang-' + cabang.toLowerCase());
+                if (section) section.hidden = !cabangDiizinkan.includes(cabang);
                 const cabangRows = daftar.filter(k => (normalisasiCabang(k.cabang) || 'Kendari') === cabang);
                 document.getElementById(`klaim-${cabang.toLowerCase()}-title`).textContent = `🏢 ${cabang} (${cabangRows.length})`;
                 let html = '';
@@ -8550,7 +8566,7 @@
         let fokusSebelumFotoKlaim_ = null;
 
         function bukaFotoKlaimSales(idTiket, cabang, indeks) {
-            if (!penggunaAdminKendariKlaim_() || !menuKlaimSalesTerbuka_ || !Number.isInteger(indeks) || indeks < 0 || indeks > 2) return;
+            if (!penggunaBolehKelolaKlaimSales_() || !cabangKlaimSalesDiizinkan_().includes(cabang) || !menuKlaimSalesTerbuka_ || !Number.isInteger(indeks) || indeks < 0 || indeks > 2) return;
             const klaim = globalKlaimSales.find(k => k.id_tiket === idTiket && (normalisasiCabang(k.cabang) || 'Kendari') === cabang);
             const foto = String(klaim && klaim.bukti_banding || '').split('|#|')[indeks];
             const url = foto ? urlAman_(foto, true) : '';
@@ -8581,7 +8597,7 @@
         });
 
         async function lihatBuktiKlaimSales(idTiket, cabang) {
-            if (!penggunaAdminKendariKlaim_() || !menuKlaimSalesTerbuka_) return;
+            if (!penggunaBolehKelolaKlaimSales_() || !cabangKlaimSalesDiizinkan_().includes(cabang) || !menuKlaimSalesTerbuka_) return;
             const klaim = globalKlaimSales.find(k => k.id_tiket === idTiket && (normalisasiCabang(k.cabang) || 'Kendari') === cabang);
             if (!klaim || buktiKlaimSalesSedangDimuat_.has(klaim.klaim_sales_id)) return;
             const idKlaim = klaim.klaim_sales_id;
@@ -8649,7 +8665,7 @@
         }
 
         async function responBanding(idTiket, keputusan, cabang) {
-            if (!penggunaAdminKendariKlaim_() || !menuKlaimSalesTerbuka_) { showToast('Persetujuan klaim khusus Admin Kendari melalui menu lobby.', 'warning'); return; }
+            if (!penggunaBolehKelolaKlaimSales_() || !cabangKlaimSalesDiizinkan_().includes(cabang) || !menuKlaimSalesTerbuka_) { showToast('Persetujuan klaim tidak sesuai hak akses akun atau cabang.', 'warning'); return; }
             if (!['Diterima', 'Ditolak'].includes(keputusan)) { showToast('Keputusan klaim tidak valid.', 'error'); return; }
             const tiket = globalKlaimSales.find(k => String(k.id_tiket) === String(idTiket) && (normalisasiCabang(k.cabang) || 'Kendari') === cabang);
             if (!tiket || tiket.status_banding !== 'Diajukan') { showToast('Pengajuan tidak ditemukan atau sudah diproses.', 'warning'); return; }

@@ -1,6 +1,6 @@
 # Klaim Sales melalui Supabase
 
-Seluruh aksi Klaim Sales memakai `sla-payroll-attendance`: daftar Pengajuan Baru/Riwayat, bukti foto, pengajuan Sales, keputusan Admin Kendari, dan percobaan ulang WhatsApp. JWT Supabase diverifikasi di server; username, role, cabang, dan nomor penerima dibaca dari profil database. Admin Raha, Manager, dan Direktur tidak diberi hak baru.
+Seluruh aksi Klaim Sales memakai `sla-payroll-attendance`: daftar Pengajuan Baru/Riwayat, bukti foto, pengajuan Sales, keputusan Admin Kendari/Manager/Direktur, dan percobaan ulang WhatsApp. JWT Supabase diverifikasi di server; username, role, cabang, dan nomor penerima dibaca dari profil database. Manager dan Direktur dapat membaca bukti serta menerima atau menolak klaim sesuai hak akses cabangnya. Admin Raha tetap mengikuti izin lama. Rincian perubahan izin ada pada `manager-director-sales-claims.md`.
 
 Data klaim terbaru tetap berada di `tiket`. `sla_riwayat_klaim_sales` mengarsipkan pengajuan ditolak sebelum tiket diajukan ulang oleh Sales lain. Migrasi tidak mengubah atau menghapus klaim, bukti, keputusan, dan antrean. Daftar tidak mengunduh seluruh bukti foto; foto dimuat saat admin memilih pengajuan.
 
@@ -9,7 +9,7 @@ RPC menyimpan perubahan tiket dan antrean WhatsApp dalam satu transaksi. Edge Fu
 Penerapan pada instalasi yang sudah berjalan:
 
 1. Publikasikan Edge Function terbaru dengan konfigurasi JWT dan secret yang sudah ada.
-2. Jalankan `sales-claims-supabase.sql` setelah `sales-claims.sql`. Alur lama Apps Script ditolak oleh RPC dan pengirim lama tidak lagi memperoleh lease.
+2. Jalankan `sales-claims-supabase.sql` setelah `sales-claims.sql`, lalu `manager-director-sales-claims.sql` untuk izin manajemen terbaru. Alur lama Apps Script ditolak oleh RPC dan pengirim lama tidak lagi memperoleh lease.
 3. Publikasikan frontend terbaru. Gateway merutekan empat aksi klaim langsung ke Edge Function sebelum jalur Apps Script.
 4. Panggil `sla_installer_notif_klaim_sales()` menggunakan koneksi server yang terautentikasi. Installer memakai kunci scheduler yang sudah tersimpan terenkripsi di Supabase Vault; tidak membuat kunci baru atau mengubah job gaji/absensi.
 

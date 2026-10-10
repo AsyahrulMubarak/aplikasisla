@@ -29,7 +29,7 @@ function harness({role='admin',access='Kendari',events=[],provider=true,phone='0
 const actor={username:'Admin',role:'admin',access:'Semua',branch:'Kendari',authId:'verified-auth'};
 
 test('Supabase owns all four claim actions; disallowed roles cannot list, view proof or decide',async()=>{
- for(const u of [{...actor,role:'manager'},{...actor,role:'direktur'},{...actor,role:'sales'},{...actor,role:'admin_raha'},{...actor,access:'Raha'}]){
+ for(const u of [{...actor,role:'sales'},{...actor,role:'admin_raha'},{...actor,access:'Raha'}]){
   const h=harness();for(const action of ['getKlaimSales','getBuktiKlaimSales','responBanding'])await assert.rejects(h.c.dispatch({action,idTiket:'TKR-1',cabang:'Raha'},u),/Admin Kendari/);
   assert.equal(h.calls.length,0);
  }
@@ -43,6 +43,39 @@ test('Verified actor replaces browser identity and evidence stays lazy and branc
  assert.ok(h.calls.find(x=>x.url.includes('/tiket?')).url.includes('cabang=eq.Raha'));
  await h.c.dispatch({action:'responBanding',idTiket:'TKR-1',cabang:'Raha',statusBanding:'Diterima',p_actor:'forged',no_wa:'089999999999'},actor);
  const call=h.calls.find(x=>x.url.includes('sla_respon_klaim_sales'));assert.equal(call.data.p_actor,'admin');assert.equal(call.headers['x-sla-claims-runtime'],'supabase-edge');
+});
+
+test('Manager and Director can list, read evidence and decide within their stored branch access',async()=>{
+ for(const role of ['manager','direktur'])for(const access of ['Semua','Raha','Kendari']){
+  const h=harness({role,access}),u={...actor,role,access,branch:access==='Raha'?'Raha':'Kendari'};
+  await h.c.dispatch({action:'getKlaimSales',cabang:'Semua',user:{Role:'admin'}},u);
+  const read=h.calls.find(x=>x.url.includes('/tiket?'));
+  assert.equal(read.url.includes('cabang.eq.Raha'),access==='Semua');
+  assert.equal(read.url.includes('cabang.is.null'),access!=='Raha');
+  assert.equal(read.url.includes('cabang=eq.Raha'),access==='Raha');
+  const target=access==='Kendari'?'Kendari':'Raha';
+  await h.c.dispatch({action:'getBuktiKlaimSales',idTiket:'TKR-1',cabang:target},u);
+  for(const statusBanding of ['Diterima','Ditolak'])await h.c.dispatch({action:'responBanding',idTiket:'TKR-1',cabang:target,statusBanding,alasanAdmin:'Alasan contoh',p_actor:'forged'},u);
+  assert.equal(h.calls.filter(x=>x.url.includes('sla_respon_klaim_sales')).length,2);
+  assert.ok(h.calls.filter(x=>x.url.includes('sla_respon_klaim_sales')).every(x=>x.data.p_actor==='admin'));
+  if(access!=='Semua'){
+   const before=h.calls.length;
+   for(const action of ['getBuktiKlaimSales','responBanding'])await assert.rejects(h.c.dispatch({action,idTiket:'TKR-1',cabang:target==='Raha'?'Kendari':'Raha',statusBanding:'Diterima'},u),/hak akses/);
+   assert.equal(h.calls.length,before+2); // Only the runtime migration check precedes the branch denial.
+  }
+  await assert.rejects(h.c.dispatch({action:'ajukanBanding',idTiket:'TKR-1',cabang:target,buktiBanding:photo},u),/khusus Sales/);
+ }
+});
+
+test('Current JWT determines management claim role and forged branch access cannot elevate the profile',async()=>{
+ for(const role of ['manager','direktur']){
+  const h=harness({role,access:'Semua'});
+  const response=await h.handler(new Request('https://edge.test',{method:'POST',headers:{'Content-Type':'application/json',authorization:'Bearer one.two.three'},body:JSON.stringify({action:'responBanding',idTiket:'TKR-1',cabang:'Raha',statusBanding:'Diterima',user:{Username:'forged',Role:'sales'}})}));
+  assert.equal(response.status,200);assert.equal(h.calls.find(x=>x.url.includes('sla_respon_klaim_sales')).data.p_actor,'admin');
+ }
+ const h=harness({role:'manager',access:'Kendari'});
+ const response=await h.handler(new Request('https://edge.test',{method:'POST',headers:{'Content-Type':'application/json',authorization:'Bearer one.two.three'},body:JSON.stringify({action:'responBanding',idTiket:'TKR-1',cabang:'Raha',statusBanding:'Diterima',Hak_Akses_Cabang:'Semua'} )}));
+ assert.equal((await response.json()).status,'gagal');assert.ok(!h.calls.some(x=>x.url.includes('sla_respon_klaim_sales')));
 });
 
 test('Invalid evidence, roles, branch and rejection reasons never mutate claims',async()=>{

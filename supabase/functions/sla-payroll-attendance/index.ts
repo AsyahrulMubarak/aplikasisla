@@ -970,18 +970,26 @@ Deno.serve(async request => {
 function salesClaimAdmin(u) {
   return norm(u.role)==='admin' && ['', 'kendari', 'semua'].includes(norm(u.access));
 }
+function salesClaimBranches(u) {
+  if(salesClaimAdmin(u))return ['Kendari','Raha'];
+  if(!['manager','direktur'].includes(norm(u.role)))return [];
+  const access=norm(u.access||u.branch||'Kendari');
+  return access==='semua'?['Kendari','Raha']:access==='kendari'?['Kendari']:access==='raha'?['Raha']:[];
+}
 async function salesClaims(body,u) {
-  const action=body.action,admin=salesClaimAdmin(u);
-  if(action==='ajukanBanding' ? u.role!=='sales' : !admin)
-    throw new Error(action==='ajukanBanding'?'Pengajuan klaim khusus Sales.':'Menu dan keputusan klaim hanya untuk Admin Kendari.');
+  const action=body.action,branches=salesClaimBranches(u);
+  if(action==='ajukanBanding' ? u.role!=='sales' : !branches.length)
+    throw new Error(action==='ajukanBanding'?'Pengajuan klaim khusus Sales.':'Menu dan keputusan klaim hanya untuk Admin Kendari, Manager, dan Direktur.');
   if(await rest('rpc/sla_claims_edge_active','','POST',{})!==true)
     throw new Error('Migrasi Klaim Sales Supabase belum aktif.');
   if(action==='getKlaimSales') {
     const fields='id_tiket,cabang,klien_lokasi,pekerjaan:jenis_pekerjaan,sales,status_banding,sales_pengaju,keterangan_sales,alasan_admin,klaim_sales_id,klaim_sales_username,klaim_sales_diajukan_pada,klaim_sales_diputuskan_pada,klaim_sales_admin';
-    return {status:'sukses',data:await allRows('tiket','select='+fields+'&status_banding=in.(Diajukan,Diterima,Ditolak)&or=(cabang.eq.Kendari,cabang.eq.Raha,cabang.is.null)&order=klaim_sales_diajukan_pada.desc.nullslast,id_tiket.asc')};
+    const scope=branches.length===2?'or=(cabang.eq.Kendari,cabang.eq.Raha,cabang.is.null)':branches[0]==='Kendari'?'or=(cabang.eq.Kendari,cabang.is.null)':'cabang=eq.Raha';
+    return {status:'sukses',data:await allRows('tiket','select='+fields+'&status_banding=in.(Diajukan,Diterima,Ditolak)&'+scope+'&order=klaim_sales_diajukan_pada.desc.nullslast,id_tiket.asc')};
   }
   const id=String(body.idTiket||'').trim(),target=branch(body.cabang);
   if(!/^[A-Za-z0-9._-]{1,120}$/.test(id)||!target)throw new Error('ID tiket atau cabang tidak valid.');
+  if(action!=='ajukanBanding'&&!branches.includes(target))throw new Error('Cabang klaim tidak sesuai hak akses.');
   if(action==='getBuktiKlaimSales') {
     const rows=await rest('tiket','select=bukti_banding&id_tiket=eq.'+encode(id)+absenceBranchScope(target)+'&status_banding=in.(Diajukan,Diterima,Ditolak)&limit=2');
     if(rows.length!==1)throw new Error('Pengajuan klaim tidak ditemukan atau ambigu.');
@@ -1012,7 +1020,7 @@ async function salesClaims(body,u) {
 function salesClaimMessage(event) {
   const t=event.snapshot||{},submitted=event.jenis==='Diajukan';
   let message='ALFACOM — '+(submitted?'PENGAJUAN KLAIM SALES':'HASIL KLAIM SALES')+'\n'+
-    (submitted?'Admin Kendari, ada pengajuan klaim baru.':'Klaim Anda telah '+event.jenis.toUpperCase()+' oleh Admin Kendari.')+
+    (submitted?'Admin Kendari, ada pengajuan klaim baru.':'Klaim Anda telah '+event.jenis.toUpperCase()+'.')+
     '\nCabang: '+(t.cabang||'Kendari')+'\nTiket: '+t.id_tiket+'\nSales pengaju: '+(t.sales||'-')+'\nKlien: '+(t.klien||'-')+'\nPekerjaan: '+(t.pekerjaan||'-');
   if(submitted&&t.keterangan)message+='\nKeterangan: '+t.keterangan;
   if(event.jenis==='Ditolak')message+='\nAlasan penolakan: '+(t.alasan||'-');

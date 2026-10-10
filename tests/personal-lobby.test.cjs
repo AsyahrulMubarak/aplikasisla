@@ -19,7 +19,7 @@ const functions = [
   'normalisasiCabang', 'rolePengguna', 'hakAksesCabangPengguna', 'roleAdalahAdminOperasional_',
   'roleAdalahManajemen_', 'penggunaSalesLintasCabang_', 'penggunaBolehMengaksesCabang',
   'penggunaBergajiDiizinkanModul_', 'penggunaBolehMengaksesAbsensi_', 'penggunaBolehMengaksesSlipGaji_',
-  'penggunaBolehMengaksesKpi_', 'penggunaAdminKendariKlaim_', 'penggunaBolehTabSLA_',
+  'penggunaBolehMengaksesKpi_', 'penggunaAdminKendariKlaim_', 'cabangKlaimSalesDiizinkan_', 'penggunaBolehKelolaKlaimSales_', 'penggunaBolehTabSLA_',
   'penggunaBolehMenuLobby_', 'dataSesuaiCabangAktif_', 'parseSafeDate', 'daftarTeknisiUnikTiket_',
   'poinHangusKarenaSLA_', 'statusPoinSudahCair_', 'normalisasiNoTransaksiNota_',
   'tanggalNotaDariNomorTransaksi_', 'rekapStatusNotaIpos_', 'renderDashboard',
@@ -72,7 +72,8 @@ test('Visible menu permissions enforce salary, branch and each role without wide
   assert.equal(c.penggunaBolehMenuLobby_('unknown', user()), false);
   assert.equal(c.penggunaBolehMenuLobby_('klaim-sales', user('admin', 0, 'Kendari')), true);
   assert.equal(c.penggunaBolehMenuLobby_('klaim-sales', user('admin', 0, 'Semua')), true);
-  for (const role of ['admin_raha', 'teknisi', 'sales', 'manager', 'direktur']) {
+  for (const role of ['manager', 'direktur']) assert.equal(c.penggunaBolehMenuLobby_('klaim-sales', user(role, 2000000, 'Semua')), true, role);
+  for (const role of ['admin_raha', 'teknisi', 'sales']) {
     assert.equal(c.penggunaBolehMenuLobby_('klaim-sales', user(role, 2000000, 'Semua')), false, role);
   }
 });
