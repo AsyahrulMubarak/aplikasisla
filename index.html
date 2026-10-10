@@ -3575,7 +3575,7 @@
                     row.total++;
                 });
             });
-            const teknisi = [...rows.values()].sort((a, b) => a.total - b.total || a.nama.localeCompare(b.nama, 'id-ID'));
+            const teknisi = [...rows.values()].sort((a, b) => b.total - a.total || a.nama.localeCompare(b.nama, 'id-ID'));
             return { totalSelesai, teknisi, labelPeriode, totalKeterlibatan: teknisi.reduce((total, row) => total + row.total, 0) };
         }
 
@@ -3600,7 +3600,7 @@
 
         function buatHtmlDiagramPerbandinganTeknisi_(rekap) {
             const summary = rekap || { totalSelesai: 0, teknisi: [], labelPeriode: 'Periode terpilih', totalKeterlibatan: 0 };
-            const rows = [...summary.teknisi].sort((a, b) => a.total - b.total || a.nama.localeCompare(b.nama, 'id-ID'));
+            const rows = [...summary.teknisi].sort((a, b) => b.total - a.total || a.nama.localeCompare(b.nama, 'id-ID'));
             const palette = ['#2563eb', '#059669', '#7c3aed', '#d97706', '#e11d48', '#0891b2', '#4f46e5', '#0d9488'];
             const names = rows.map(row => row.nama).sort((a, b) => a.localeCompare(b, 'id-ID'));
             const color = row => row.total === 0 ? '#cbd5e1' : palette[names.indexOf(row.nama) % palette.length];
@@ -3619,7 +3619,7 @@
                     <ol class="team-work-legend">${rows.map(row => `<li><div class="team-work-name"><span class="legend-dot" style="background:${color(row)};"></span><div><strong>${amanTeks_(row.nama)}</strong><small>Solo ${row.solo} · Tim ${row.tim}</small></div></div><b>${row.total} tiket</b></li>`).join('')}</ol>
                 </div>
                 ${summary.totalSelesai === 0 ? '<p class="work-chart-empty">Belum ada tiket selesai pada periode ini.</p>' : ''}
-                <p class="work-chart-caption">Urutan dari jumlah paling sedikit ke paling banyak. Satu tiket tim dihitung sekali untuk setiap teknisi anggotanya.</p>
+                <p class="work-chart-caption">Urutan dari jumlah paling banyak ke paling sedikit. Satu tiket tim dihitung sekali untuk setiap teknisi anggotanya.</p>
             </div>`;
         }
 

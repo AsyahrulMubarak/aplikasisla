@@ -30,7 +30,7 @@ test('completed work counts use WITA completion month and branch, ignore payment
     assert.equal(result.totalSelesai, 7); assert.equal(result.totalKeterlibatan, 9);
     assert.equal(result.labelPeriode, 'Oktober 2026');
     assert.deepEqual(JSON.parse(JSON.stringify(result.teknisi)), [
-        { nama: 'Zero', solo: 0, tim: 0, total: 0 }, { nama: 'Muhammad Syawal', solo: 1, tim: 0, total: 1 }, { nama: 'Rendi', solo: 0, tim: 1, total: 1 }, { nama: 'Wawan', solo: 1, tim: 2, total: 3 }, { nama: 'Muaz', solo: 2, tim: 2, total: 4 }
+        { nama: 'Muaz', solo: 2, tim: 2, total: 4 }, { nama: 'Wawan', solo: 1, tim: 2, total: 3 }, { nama: 'Muhammad Syawal', solo: 1, tim: 0, total: 1 }, { nama: 'Rendi', solo: 0, tim: 1, total: 1 }, { nama: 'Zero', solo: 0, tim: 0, total: 0 }
     ]);
 });
 test('both personal charts use all completed branch tickets as their denominator and cannot expose another technician card', () => {
@@ -52,7 +52,7 @@ test('Raha and empty periods show independent totals and retain zero-completion 
     const content = c.buatHtmlDiagramPekerjaanTeknisi_('Muaz', empty) + c.buatHtmlDiagramPerbandinganTeknisi_(empty);
     assert.match(content, /Belum ada tiket selesai/); assert.ok(!/NaN|Infinity|undefined/.test(content));
 });
-test('team dashboard and management lobbies rank ascending, retain zero values, and show each solo/team breakdown', () => {
+test('team dashboard and management lobbies rank descending, retain zero values, and show each solo/team breakdown', () => {
     for (const role of ['manager', 'direktur']) {
         const { c, node } = harness(user('Leader', role)); fixture(c);
         c.renderDashboard(); const dashboard = node('dash-tek-content').innerHTML;
@@ -60,7 +60,7 @@ test('team dashboard and management lobbies rank ascending, retain zero values, 
         const rekap = c.renderDashboard({ hitungSaja: true, bulan: '10', tahun: '2026' });
         c.tampilkanRingkasanLobby_(rekap, c.penggunaAktif, c.globalTickets.filter(Boolean), 'Kendari');
         const content = node('lobby-dashboard-content').innerHTML;
-        assert.ok(content.indexOf('Zero') < content.indexOf('Wawan') && content.indexOf('Wawan') < content.indexOf('Muaz'));
+        assert.ok(content.indexOf('Muaz') < content.indexOf('Wawan') && content.indexOf('Wawan') < content.indexOf('Zero'));
         assert.match(content, /Solo 2 · Tim 2/); assert.match(content, /4 tiket/); assert.match(content, /7 tiket selesai pada cabang ini/);
     }
 });

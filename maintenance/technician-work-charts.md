@@ -4,7 +4,7 @@ Dashboard dan lobby teknisi memakai dua diagram tambahan: pekerjaan solo dan pek
 
 Satu nama teknisi unik pada tiket berarti solo. Dua atau lebih nama unik berarti tim; tiket tim dihitung sekali untuk setiap anggotanya. Perbedaan huruf besar/kecil, nama berulang, serta alias Syawal/Muhammad Syawal digabung sebelum menentukan solo atau tim. ID tiket yang sama dalam cabang yang sama dihitung sekali. Tiket Cancel, Pending, penjualan SLS, tanggal selesai kosong/tidak valid, dan cabang lain tidak termasuk. Tiket selesai tanpa teknisi tetap masuk total pembanding, tetapi tidak diberikan kepada teknisi tertentu.
 
-Performa tim dan lobby Manager/Direktur menampilkan diagram gabungan solo + tim dengan legenda diurutkan dari jumlah paling sedikit ke paling banyak, termasuk teknisi dengan nol pekerjaan. Tengah lingkaran menunjukkan jumlah keterlibatan seluruh teknisi. Nilai itu dapat melebihi jumlah tiket karena satu tiket tim melibatkan beberapa orang; keterangan pada diagram menjelaskan hal ini.
+Performa tim dan lobby Manager/Direktur menampilkan diagram gabungan solo + tim dengan legenda diurutkan dari jumlah paling banyak ke paling sedikit, termasuk teknisi dengan nol pekerjaan. Jika jumlahnya sama, nama diurutkan secara alfabetis. Tengah lingkaran menunjukkan jumlah keterlibatan seluruh teknisi. Nilai itu dapat melebihi jumlah tiket karena satu tiket tim melibatkan beberapa orang; keterangan pada diagram menjelaskan hal ini.
 
 Lobby manajemen mengambil daftar nama teknisi pada cabang terpilih agar teknisi dengan nol pekerjaan tetap muncul. Query hanya mengambil identitas nama, username, role dan cabang, tanpa data gaji, kontak atau Auth. Pergantian cabang/periode dan pembatalan pemuatan tetap menggunakan alur lobby yang sama.
 
