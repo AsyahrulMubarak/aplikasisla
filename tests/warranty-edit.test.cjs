@@ -48,7 +48,7 @@ function createHarness(role = 'admin') {
     Number,
     String,
     Math,
-    globalGaransi: [warranty],
+    globalGaransi: [warranty], globalTickets: [],
     document: { getElementById(id) { return elements[id] || null; } },
     parseSafeDate(value) { return value instanceof Date ? value : new Date(value); },
     roleAdalahAdminOperasional_() { return role === 'admin' || role === 'admin_raha'; },
@@ -70,7 +70,7 @@ function createHarness(role = 'admin') {
   });
 
   for (const name of [
-    'formatTanggalInputGaransi_', 'tanggalDariInputGaransi_',
+    'penitipanGaransi_', 'formatTanggalInputGaransi_', 'tanggalDariInputGaransi_',
     'sinkronkanFormEditGaransi_', 'bukaEditGaransi', 'simpanEditGaransi'
   ]) {
     vm.runInContext(extract(html, name), context);

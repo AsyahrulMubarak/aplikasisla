@@ -12,25 +12,25 @@ function extract(name) {
   assert.ok(match, name);
   return match[0];
 }
-const originalTechnician = 'Original Technician';
-const technician = (name = originalTechnician, branch = 'Kendari') => ({
+const bintang = 'Muhammad Bintang Restu Prabowo';
+const technician = (name = bintang, branch = 'Kendari') => ({
   Username: 'test-technician', 'Nama Asli': name, Role: 'teknisi',
   Hak_Akses_Cabang: branch, Cabang: branch, SessionToken: 'test-only'
 });
 const original = {
-  'ID Tiket': 'TKT-ORIGINAL-TEST', Teknisi: originalTechnician, Status: 'Selesai', Cabang: 'Kendari',
+  'ID Tiket': 'TKT-167', Teknisi: bintang, Status: 'Selesai', Cabang: 'Kendari',
   'Waktu Lapor': '2026-09-23T15:25:02+08:00', 'Waktu Selesai': '2026-09-24T10:26:37+08:00',
   'Tanggal Lunas': '2026-09-25T13:18:53+08:00', 'Status Pembayaran': 'Lunas',
   'Status SLA': 'TERPENUHI', 'Status SLA Respon': 'TERPENUHI', 'Bobot Poin': 4
 };
 const claim = {
-  'ID Tiket': 'TKT-KG-GRS-TEST', Teknisi: 'Replacement Technician', Status: 'Selesai',
+  'ID Tiket': 'TKT-KG-GRS-139', Teknisi: 'Muhammad Saharullah Raiya', Status: 'Selesai',
   Cabang: 'Kendari', 'Waktu Lapor': '2026-10-01T10:10:20+08:00',
   'Waktu Selesai': '2026-10-03T15:17:02+08:00', 'Status SLA': 'TERPENUHI',
   'Status SLA Respon': 'TERPENUHI', 'Bobot Poin': 0
 };
 const warranty = {
-  'ID Garansi': 'GRS-TEST', 'Referensi (Tiket/Nota)': 'TKT-ORIGINAL-TEST', Status: 'Diklaim (Hangus)',
+  'ID Garansi': 'GRS-139', 'Referensi (Tiket/Nota)': 'TKT-167', Status: 'Diklaim (Hangus)',
   'Tanggal Habis': '2026-10-01T10:10:20+08:00', 'Tiket Klaim Garansi': claim['ID Tiket'], Cabang: 'Kendari'
 };
 function harness(activeUser = technician()) {
@@ -56,7 +56,7 @@ function harness(activeUser = technician()) {
     'penggunaSalesLintasCabang_', 'penggunaBolehMengaksesCabang', 'dataSesuaiCabangAktif_',
     'parseSafeDate', 'daftarTeknisiUnikTiket_', 'poinHangusKarenaSLA_', 'statusPoinSudahCair_',
     'normalisasiNoTransaksiNota_', 'tanggalNotaDariNomorTransaksi_', 'rekapStatusNotaIpos_',
-    'renderDashboard', 'statusGaransiEfektif_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
+    'kunciNamaPekerjaanTeknisi_', 'rekapPekerjaanTeknisi_', 'renderDashboard', 'statusGaransiEfektif_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
     'hentikanRingkasanLobby_', 'aturTataLetakLobby_', 'muatRingkasanLobby_'];
   vm.runInContext('let permintaanRingkasanLobby_ = null, urutanRingkasanLobby_ = 0, waktuRingkasanLobby_ = 0;\n' + names.map(extract).join('\n'), c);
   if (html.includes('function kolomGaransiPengguna_')) vm.runInContext(extract('kolomGaransiPengguna_'), c);
@@ -68,55 +68,55 @@ function harness(activeUser = technician()) {
 test('a September job claimed in October counts against its original technician in October', () => {
   const { stats } = harness();
   const october = stats();
-  assert.equal(october[originalTechnician].garansi_bocor, 1);
-  assert.equal(october[originalTechnician].tiket_selesai, 0);
-  assert.equal(october[originalTechnician].poin_terkumpul, 0);
-  assert.equal(october['Replacement Technician'].garansi_bocor, 0);
+  assert.equal(october[bintang].garansi_bocor, 1);
+  assert.equal(october[bintang].tiket_selesai, 0);
+  assert.equal(october[bintang].poin_terkumpul, 0);
+  assert.equal(october['Muhammad Saharullah Raiya'].garansi_bocor, 0);
   const september = stats('09');
-  assert.equal(september[originalTechnician].garansi_bocor, 0);
-  assert.equal(september[originalTechnician].tiket_selesai, 1);
-  assert.equal(september[originalTechnician].poin_terkumpul, 4);
+  assert.equal(september[bintang].garansi_bocor, 0);
+  assert.equal(september[bintang].tiket_selesai, 1);
+  assert.equal(september[bintang].poin_terkumpul, 4);
 });
 
 test('every original technician gets one claimed ticket despite multiple cards and repeated names', () => {
   const { c, stats } = harness();
-  c.globalTickets[0].Teknisi = `${originalTechnician}, CoTechnician, ${originalTechnician}`;
+  c.globalTickets[0].Teknisi = `${bintang}, Alif, ${bintang}`;
   c.globalGaransi = [
     { ...warranty, 'ID Garansi': 'ACTIVE', Status: 'Aktif' },
     { ...warranty }, { ...warranty, 'ID Garansi': 'SECOND-CLAIM' }
   ];
-  assert.equal(stats()[originalTechnician].garansi_bocor, 1);
-  assert.equal(stats().CoTechnician.garansi_bocor, 1);
-  assert.equal(stats('all')[originalTechnician].garansi_bocor, 1);
+  assert.equal(stats()[bintang].garansi_bocor, 1);
+  assert.equal(stats().Alif.garansi_bocor, 1);
+  assert.equal(stats('all')[bintang].garansi_bocor, 1);
 });
 
 test('legacy claims use their recorded claim date when no new claim ticket exists', () => {
   const { c, stats } = harness();
   c.globalTickets = [{ ...original }];
   delete c.globalGaransi[0]['Tiket Klaim Garansi'];
-  assert.equal(stats()[originalTechnician].garansi_bocor, 1);
-  assert.equal(stats('09')[originalTechnician].garansi_bocor, 0);
+  assert.equal(stats()[bintang].garansi_bocor, 1);
+  assert.equal(stats('09')[bintang].garansi_bocor, 0);
 });
 
 test('the claim creation date determines its month even if completion or card expiry is later', () => {
   const { c, stats } = harness();
   c.globalTickets[1]['Waktu Lapor'] = '2026-09-30T15:59:59Z'; // 23:59:59 WITA
   c.globalGaransi[0]['Tanggal Habis'] = '2026-10-02T10:00:00+08:00';
-  assert.equal(stats()[originalTechnician].garansi_bocor, 0);
-  assert.equal(stats('09')[originalTechnician].garansi_bocor, 1);
+  assert.equal(stats()[bintang].garansi_bocor, 0);
+  assert.equal(stats('09')[bintang].garansi_bocor, 1);
   c.globalTickets[1]['Waktu Lapor'] = '2026-09-30T16:00:00Z'; // midnight WITA
-  assert.equal(stats()[originalTechnician].garansi_bocor, 1);
+  assert.equal(stats()[bintang].garansi_bocor, 1);
 });
 
 test('unclaimed, expired, cancelled claims and other branch warranties do not count', () => {
   for (const status of ['Aktif', 'Masa Tunggu', 'Habis (Expired)', 'Habis (Tanpa Garansi)']) {
     const { c, stats } = harness();
     c.globalGaransi[0].Status = status;
-    assert.equal(stats('all')[originalTechnician].garansi_bocor, 0, status);
+    assert.equal(stats('all')[bintang].garansi_bocor, 0, status);
   }
   const { c, stats } = harness();
   c.globalGaransi[0].Cabang = 'Raha';
-  assert.equal(stats('all')[originalTechnician].garansi_bocor, 0);
+  assert.equal(stats('all')[bintang].garansi_bocor, 0);
 });
 
 test('technician lobby loads claim metadata and calculates the real claim without replacing its workspace', async () => {
@@ -126,7 +126,7 @@ test('technician lobby loads claim metadata and calculates the real claim withou
   c.ambilTabelRingkasanLobby_ = async table => {
     requests.push(table);
     return table === 'garansi' ? [{
-      id_garansi: 'GRS-TEST', referensi_tiket_nota: 'TKT-ORIGINAL-TEST', status: 'Diklaim (Hangus)',
+      id_garansi: 'GRS-139', referensi_tiket_nota: 'TKT-167', status: 'Diklaim (Hangus)',
       tanggal_habis: warranty['Tanggal Habis'], tiket_klaim_garansi: claim['ID Tiket'], cabang: 'Kendari'
     }] : [{ ...original }, { ...claim }];
   };
@@ -135,7 +135,7 @@ test('technician lobby loads claim metadata and calculates the real claim withou
   c.tampilkanRingkasanLobby_ = rekap => { calculated = rekap; };
   assert.equal(await c.muatRingkasanLobby_(), true);
   assert.deepEqual(requests, ['tiket', 'garansi']);
-  assert.equal(calculated.statsTeknisi[originalTechnician].garansi_bocor, 1);
+  assert.equal(calculated.statsTeknisi[bintang].garansi_bocor, 1);
   assert.equal(c.globalTickets, existing);
   assert.match(node('lobby-dashboard-status').textContent, /Diperbarui/);
 });
@@ -176,7 +176,7 @@ test('claim ticket events request a warranty reload while normal tickets keep th
   c.renderTickets = () => {};
   const row = { id_tiket: claim['ID Tiket'], teknisi: claim.Teknisi, cabang: 'Kendari',
     status: 'Claim Garansi', tenggat_waktu: '2026-10-05T12:00:00+08:00',
-    tenggat_respon: '2026-10-01T11:00:00+08:00', garansi_asal: 'GRS-TEST' };
+    tenggat_respon: '2026-10-01T11:00:00+08:00', garansi_asal: 'GRS-139' };
   assert.equal(c.terapkanPerubahanRealtimeLokal_({ table: 'tiket', eventType: 'INSERT', new: row }), false);
   assert.equal(c.terapkanPerubahanRealtimeLokal_({ table: 'tiket', eventType: 'UPDATE', new: { ...row, garansi_asal: null } }), true);
 });
@@ -189,7 +189,7 @@ test('management warranty events update both the warranty list and dashboard imm
   c.renderDashboard = () => { dashboards++; };
   c.renderGaransi = () => { warranties++; };
   assert.equal(c.terapkanPerubahanRealtimeLokal_({ table: 'garansi', eventType: 'UPDATE',
-    new: { id_garansi: 'GRS-TEST', status: 'Diklaim (Hangus)', referensi_tiket_nota: 'TKT-ORIGINAL-TEST', cabang: 'Kendari' }
+    new: { id_garansi: 'GRS-139', status: 'Diklaim (Hangus)', referensi_tiket_nota: 'TKT-167', cabang: 'Kendari' }
   }), true);
   assert.equal(dashboards, 1);
   assert.equal(warranties, 1);

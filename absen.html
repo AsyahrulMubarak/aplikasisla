@@ -375,7 +375,6 @@
             apiUrl = API_URL_KENDARI;
         }
         // ---------------------------------------------
-        const API_KEY = "ALFACOM_SECURE_KEY_2026";
         const RADIUS_MAKSIMAL = 100; // Nilai final tetap diverifikasi oleh backend.
         let kebijakanAbsensiAktif = null;
 
@@ -757,13 +756,17 @@
                         let lon = position.coords.longitude;
                         userLat = lat;
                         userLon = lon;
-                        jarakSekarang = hitungJarak(kebijakanAbsensiAktif.kantor.lat, kebijakanAbsensiAktif.kantor.lon, lat, lon);
+                        const kantorDiizinkan = Array.isArray(kebijakanAbsensiAktif.kantorDiizinkan) && kebijakanAbsensiAktif.kantorDiizinkan.length
+                            ? kebijakanAbsensiAktif.kantorDiizinkan : [kebijakanAbsensiAktif.kantor];
+                        const kantorTerdekat = kantorDiizinkan.map(kantor => ({...kantor, jarak: hitungJarak(kantor.lat, kantor.lon, lat, lon)}))
+                            .sort((a,b) => a.jarak - b.jarak)[0];
+                        jarakSekarang = kantorTerdekat.jarak;
                         lokasiDitemukan = true;
                         
                         const radiusAktif = Number(kebijakanAbsensiAktif.radiusMeter) || RADIUS_MAKSIMAL;
                         if (jarakSekarang <= radiusAktif) {
                             gpsBox.className = "gps-box";
-                            gpsBox.innerHTML = `<span>🏢 Jarak Kantor: <b>${jarakSekarang}m</b></span> <span style="color:var(--success); font-weight:bold;">Aman</span>`;
+                            gpsBox.innerHTML = `<span>🏢 Jarak Kantor ${kantorTerdekat.cabang === 'Raha' ? 'Raha' : kantorTerdekat.cabang === 'Kendari' ? 'Kendari' : ''}: <b>${jarakSekarang}m</b></span> <span style="color:var(--success); font-weight:bold;">Aman</span>`;
                         } else {
                             gpsBox.className = "gps-box warning";
                             gpsBox.innerHTML = `<span>🌍 Luar Kantor: <b>${jarakSekarang}m</b></span> <span>Wajib keterangan & foto</span>`;
@@ -884,7 +887,6 @@
 
         function payloadDenganSesi(action, tambahan = {}) {
             return Object.assign({
-                apiKey: API_KEY,
                 action: action,
                 cabang: cabangAktif,
                 username: penggunaAktif.Username,
@@ -1282,7 +1284,6 @@
                 const statusDisiplin = tentukanStatusDisiplin(tipeAbsen);
 
                 const payload = {
-                    apiKey: API_KEY,
                     cabang: cabangAktif,
                     username: penggunaAktif.Username,
                     user: {
@@ -1414,3 +1415,4 @@
     </script>
 </body>
 </html>
+

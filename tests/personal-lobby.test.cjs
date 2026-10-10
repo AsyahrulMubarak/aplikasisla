@@ -25,6 +25,7 @@ const functions = [
   'tanggalNotaDariNomorTransaksi_', 'rekapStatusNotaIpos_', 'renderDashboard',
   'petakanTiketSupabase_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
   'kolomGaransiPengguna_', 'hentikanRingkasanLobby_', 'aturTataLetakLobby_', 'muatRingkasanLobby_', 'amanTeks_', 'buatHtmlPerformaAdmin_',
+  'ambilProfilTeknisiRingkasanLobby_', 'kunciNamaPekerjaanTeknisi_', 'rekapPekerjaanTeknisi_', 'buatHtmlDiagramPekerjaanTeknisi_', 'buatHtmlDiagramPerbandinganTeknisi_',
   'buatHtmlKartuTeknisi_', 'buatHtmlKartuSales_'
 ];
 function harness(activeUser = user()) {
@@ -210,4 +211,22 @@ test('Failed or unauthorized summary loading never renders a false zero result',
   c.ambilTabelRingkasanLobby_ = async () => { throw new Error('Should not fetch unauthorized branch'); };
   assert.equal(await c.muatRingkasanLobby_(), false);
   assert.match(node('lobby-dashboard-status').textContent, /Cabang atau periode.*tidak valid/);
+});
+
+test('Manager lobby loads zero-completion technicians and restores the previous workspace', async () => {
+  const manager = user('manager', 2000000, 'Semua');
+  const { c } = harness(manager);
+  const previousUsers = c.globalUsers;
+  c.ambilTabelRingkasanLobby_ = async () => [];
+  c.callSupabase = async endpoint => {
+    assert.match(endpoint, /users\?select=username,nama_asli,role,cabang,hak_akses_cabang/);
+    assert.match(endpoint, /role=eq.teknisi&cabang=eq.Raha/);
+    return [{ username: 'zero', nama_asli: 'Zero Work', role: 'teknisi', cabang: 'Raha' }];
+  };
+  let shown;
+  c.tampilkanRingkasanLobby_ = rekap => { shown = rekap; };
+  assert.equal(await c.muatRingkasanLobby_(), true);
+  assert.equal(shown.rekapPekerjaanTeknisi.teknisi[0].nama, 'Zero Work');
+  assert.equal(shown.rekapPekerjaanTeknisi.teknisi[0].total, 0);
+  assert.equal(c.globalUsers, previousUsers);
 });

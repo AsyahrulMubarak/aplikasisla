@@ -1,0 +1,13 @@
+# Diagram pekerjaan teknisi
+
+Dashboard dan lobby teknisi memakai dua diagram tambahan: pekerjaan solo dan pekerjaan tim. Persentase masing-masing memakai total seluruh tiket Selesai pada cabang dan periode yang ditampilkan, dengan bulan berjalan sebagai periode awal. Acuan bulan adalah Waktu Selesai dalam WITA, bukan Waktu Lapor atau Tanggal Lunas. Tiket tetap dihitung meskipun belum lunas atau SLA gagal; perhitungan poin yang sudah ada tetap terpisah.
+
+Satu nama teknisi unik pada tiket berarti solo. Dua atau lebih nama unik berarti tim; tiket tim dihitung sekali untuk setiap anggotanya. Perbedaan huruf besar/kecil, nama berulang, serta alias Syawal/Muhammad Syawal digabung sebelum menentukan solo atau tim. ID tiket yang sama dalam cabang yang sama dihitung sekali. Tiket Cancel, Pending, penjualan SLS, tanggal selesai kosong/tidak valid, dan cabang lain tidak termasuk. Tiket selesai tanpa teknisi tetap masuk total pembanding, tetapi tidak diberikan kepada teknisi tertentu.
+
+Performa tim dan lobby Manager/Direktur menampilkan diagram gabungan solo + tim dengan legenda diurutkan dari jumlah paling sedikit ke paling banyak, termasuk teknisi dengan nol pekerjaan. Tengah lingkaran menunjukkan jumlah keterlibatan seluruh teknisi. Nilai itu dapat melebihi jumlah tiket karena satu tiket tim melibatkan beberapa orang; keterangan pada diagram menjelaskan hal ini.
+
+Lobby manajemen mengambil daftar nama teknisi pada cabang terpilih agar teknisi dengan nol pekerjaan tetap muncul. Query hanya mengambil identitas nama, username, role dan cabang, tanpa data gaji, kontak atau Auth. Pergantian cabang/periode dan pembatalan pemuatan tetap menggunakan alur lobby yang sama.
+
+Implementasi mandiri ada pada `maintenance/technician-work-charts.js` dan disematkan dalam `index.html`. Pratinjau dengan data contoh tersedia pada `maintenance/technician-work-charts-preview.html`; tidak memuat kredensial aplikasi. Pengujian perhitungan, lobby, dan regresi garansi lulus 26 kasus. Pemeriksaan browser dashboard/lobby, kedua role manajemen, dan layar 390 piksel lulus enam pemeriksaan. Tes pencocokan sumber bridge KPI telah gagal pada salinan sebelum perubahan ini dan tidak diubah oleh fitur diagram.
+
+Kunci API integrasi lama telah dihapus dari kedua halaman dan disimpan privat di Supabase Vault dengan persetujuan khusus pengguna. Empat operasi integrasi lama kini memakai gateway yang memverifikasi login, role dan cabang; rincian ada pada `maintenance/legacy-gateway.md`. Rilis juga memuat pembaruan tampilan garansi dan GPS Manager Raha yang sebelumnya tertunda. Profil, poin dan tiket Alif tidak diubah.

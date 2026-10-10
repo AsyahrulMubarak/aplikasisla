@@ -167,6 +167,24 @@
         .chart-legend { width: 100%; margin-top: 15px; font-size: 11px; display: flex; flex-direction: column; gap: 6px; }
         .legend-item { display: flex; justify-content: space-between; align-items: center; color: #4a5568; font-weight: 500;}
         .legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; }
+        .work-chart-caption { margin:10px 0 0; color:var(--text-muted); font-size:11px; line-height:1.6; }
+        .work-chart-empty { margin:8px 0 0; color:var(--text-muted); font-size:11px; }
+        .technician-work-chart .work-chart-caption { text-align:center; }
+        .team-work-card { border-left-color:var(--primary); }
+        .team-work-title { margin:0; color:var(--primary); font-size:16px; }
+        .team-work-chart { display:grid; grid-template-columns:180px minmax(0,1fr); align-items:center; gap:20px; margin-top:15px; }
+        .team-work-chart .donut { width:150px; height:150px; margin:12px auto; }
+        .team-work-chart .donut-inner { width:112px; height:112px; }
+        .team-work-chart .donut-val { font-size:25px; }
+        .team-work-legend { margin:0; padding:0; list-style:none; display:grid; gap:9px; }
+        .team-work-legend li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-size:12px; }
+        .team-work-name { display:flex; align-items:center; min-width:0; overflow-wrap:anywhere; }
+        .team-work-name .legend-dot { flex-shrink:0; }
+        .team-work-name small { display:block; margin-top:3px; color:var(--text-muted); font-size:10px; }
+        .team-work-legend li > b { white-space:nowrap; }
+        .lobby-work-ranking { grid-column:1 / -1; min-width:0; }
+        .lobby-work-ranking .card { margin-bottom:0; }
+        @media (max-width:560px) { .team-work-chart { grid-template-columns:minmax(0,1fr); gap:8px; } }
         .code-badge { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--primary); border: 1px solid #e2e8f0; }
         .crm-hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #0f766e 0%, #0d9488 52%, #2563eb 100%); color: #fff; padding: 22px; border-radius: 16px; margin-bottom: 18px; box-shadow: 0 12px 24px rgba(15, 118, 110, 0.18); }
         .crm-hero::after { content: ''; position: absolute; width: 150px; height: 150px; right: -45px; top: -70px; border-radius: 50%; background: rgba(255,255,255,0.12); }
@@ -979,6 +997,7 @@
                                 <option value="Masa Tunggu">⏳ Masa Tunggu</option>
                                 <option value="Aktif">🟢 Aktif</option>
                                 <option value="Diklaim (Hangus)">🔴 Diklaim (Hangus)</option>
+                                <option value="Hangus (Lewat 7 Hari)">🔴 Hangus (Lewat 7 Hari)</option>
                                 <option value="Habis (Tanpa Garansi)">⚪ Habis (Tanpa Garansi)</option>
                             </select>
                         </div>
@@ -1594,7 +1613,6 @@
 
     <script>
         // Endpoint Apps Script untuk integrasi operasional yang masih digunakan.
-        const API_KEY = 'ALFACOM_SECURE_KEY_2026';
         const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
         const API_URL_RAHA = 'https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec';
         const API_AUTH_URL = API_URL_KENDARI;
@@ -1724,7 +1742,7 @@
         }
 
         // =========================================================================
-        // 🚀 GATEWAY GOOGLE APPS SCRIPT TERBATAS
+        // Gateway integrasi operasional terautentikasi
         // =========================================================================
         async function kirimKeBackend_(url, action, payload = {}, perluSesi = true, opsiFetch = {}) {
             if (['validateSession', 'reconcileSupabaseAuthProfiles', 'lupaSandi'].includes(action)) {
@@ -1733,23 +1751,25 @@
             if (['getKlaimSales', 'getBuktiKlaimSales', 'ajukanBanding', 'responBanding'].includes(action)) {
                 return kirimKlaimSalesSupabase_(action, payload);
             }
-            const request = Object.assign({ apiKey: API_KEY, action: action }, payload || {});
+            const cabangTujuan = Object.keys(API_URL_CABANG).find(cabang => API_URL_CABANG[cabang] === url) || cabangAktif;
+            const request = Object.assign({}, payload || {}, { action: action, cabang: cabangTujuan });
+            let token = '';
             if (perluSesi) {
                 if (!penggunaAktif || !penggunaAktif.Username || !penggunaAktif.SessionToken) {
                     throw new Error('Sesi tidak tersedia atau telah kedaluwarsa.');
                 }
-                await pastikanTokenSupabaseAktif_();
-                request.user = { Username: penggunaAktif.Username, SessionToken: penggunaAktif.SessionToken };
+                token = await pastikanTokenSupabaseAktif_();
             }
+            if (!token) throw new Error('Sesi login diperlukan untuk integrasi operasional.');
 
             // Use POST with credentials
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), ['ajukanBanding', 'responBanding'].includes(action) ? 60000 : 25000);
 
             try {
-                const response = await fetch(url, Object.assign({
+                const response = await fetch(SUPABASE_URL + '/functions/v1/sla-legacy-gateway', Object.assign({
                     method: 'POST',
-                    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+                    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token },
                     body: JSON.stringify(request),
                     redirect: 'follow',
                     signal: controller.signal,
@@ -2352,6 +2372,37 @@
             var sekarang = waktuSekarang == null ? new Date() : new Date(waktuSekarang);
             return !isNaN(akhir.getTime()) && sekarang.getTime() > akhir.getTime()
                 ? 'Habis (Expired)' : statusTersimpan;
+        }
+
+        function penitipanGaransi_(g, sekarang = new Date()) {
+            const ref = String(g['Referensi (Tiket/Nota)'] || '');
+            const tiket = (globalTickets || []).find(t => t['ID Tiket'] === ref && (!g.Cabang || !t.Cabang || g.Cabang === t.Cabang));
+            const penjualan = (typeof globalPenjualan === 'undefined' ? [] : globalPenjualan || []).find(p => p['ID Penjualan'] === ref && (!g.Cabang || !p.Cabang || g.Cabang === p.Cabang));
+            const awal = g['Waktu Siap Diambil'] || (tiket && tiket['Waktu Selesai']) || (penjualan && penjualan['Waktu Lapor']);
+            const siap = awal ? new Date(awal) : null;
+            const diambil = g['Waktu Diambil'] ? new Date(g['Waktu Diambil']) : null;
+            const valid = siap && !Number.isNaN(siap.getTime());
+            const elapsed = valid ? Math.max(0, (diambil || new Date(sekarang)).getTime() - siap.getTime()) : 0;
+            const hari = valid ? Math.max(0, hariMengendapWita_(siap, diambil || sekarang)) : 0;
+            const menunggu = !diambil && ['Masa Tunggu','Belum Diambil'].includes(g.Status);
+            const hangus = !!g['Garansi Hangus Pada'] || (menunggu && valid && hari > 7);
+            const telat = valid ? Math.max(0, Math.min(30, hari) - 7) : 0;
+            return { siap: valid ? siap : null, diambil, menunggu, hangus, hari, telat,
+                denda: diambil ? Number(g['Biaya Penitipan'] || telat * 1000) : telat * 1000 };
+        }
+
+        function peringatanPenitipanGaransi_(g) {
+            const inap = penitipanGaransi_(g);
+            if (!inap.siap && !inap.hangus) return '';
+            if (!inap.menunggu && !inap.hangus && !inap.denda) return '';
+            const aturan = 'Setelah melewati 7 hari sejak servis selesai, garansi hangus dan biaya penitipan Rp 1.000/hari mulai hari ke-8.';
+            let pesan = inap.hangus
+                ? 'Garansi hangus karena barang mengendap lebih dari 7 hari. Aktivasi tidak memulai ulang garansi. Kerusakan yang sama saat pengambilan tidak tercover garansi.'
+                : aturan;
+            if (inap.menunggu) pesan += ` Mengendap: ${inap.hari} hari. Biaya penitipan berjalan: Rp ${inap.denda.toLocaleString('id-ID')}.`;
+            else if (inap.denda) pesan += ` Biaya penitipan saat pengambilan: Rp ${inap.denda.toLocaleString('id-ID')}.`;
+            if (inap.menunggu && inap.hari >= 31) pesan += ' Biaya penitipan berhenti pada hari ke-30. Sesuai SOP Alfacom, barang yang tidak diambil lebih dari 30 hari berada di luar tanggung jawab kami.';
+            return `<div style="background:${inap.hangus ? '#fee2e2' : '#fef9c3'}; color:${inap.hangus ? '#b91c1c' : '#a16207'}; padding:10px; border-radius:6px; font-size:12px; margin:10px 0; line-height:1.5;">${pesan}</div>`;
         }
 
         function adminSlaSupabase_(cabang) {
@@ -3265,7 +3316,9 @@
                 "Barang / Jasa": g.barang_jasa, "Durasi (Hari)": g.durasi_hari, "Tiket Klaim Garansi": g.tiket_klaim_garansi, "Status": g.status, "Tanggal Mulai": g.tanggal_mulai,
                 "Tanggal Habis": g.tanggal_habis, "No Transaksi": g.no_transaksi, "Sales": g.sales, "Omzet": g.omzet,
                 "Keterangan": g.keterangan, "Follow Up After-Sales Terkirim": g.follow_up_after_sales_terkirim,
-                "Riwayat Pengingat Penitipan": g.riwayat_follow_up, "Cabang": g.cabang, "Admin SLA": g.admin_sla
+                "Riwayat Pengingat Penitipan": g.riwayat_follow_up, "Cabang": g.cabang, "Admin SLA": g.admin_sla,
+                "Waktu Siap Diambil": g.waktu_siap_diambil, "Waktu Diambil": g.waktu_diambil,
+                "Garansi Hangus Pada": g.garansi_hangus_pada, "Biaya Penitipan": g.biaya_penitipan
             };
             rec.Status = statusGaransiEfektif_(rec.Status, rec["Tanggal Habis"]);
             return rec;
@@ -3363,6 +3416,18 @@
             }
         }
 
+        async function ambilProfilTeknisiRingkasanLobby_(cabang, signal) {
+            const scope = cabang === 'Kendari' ? 'or=(cabang.eq.Kendari,cabang.is.null)' : 'cabang=eq.Raha';
+            const rows = [];
+            for (;;) {
+                const page = await callSupabase(`users?select=username,nama_asli,role,cabang,hak_akses_cabang&role=eq.teknisi&${scope}&order=username.asc&limit=500&offset=${rows.length}`, 'GET', null, { signal, dariLobby: true });
+                if (!Array.isArray(page)) throw new Error('Daftar teknisi belum dapat dibaca.');
+                rows.push(...page);
+                if (page.length < 500) return rows.map(user => ({ Username: user.username, 'Nama Asli': user.nama_asli, Role: user.role, Cabang: user.cabang || 'Kendari', Hak_Akses_Cabang: user.hak_akses_cabang || user.cabang }));
+                if (rows.length > 50000) throw new Error('Daftar teknisi terlalu besar.');
+            }
+        }
+
         function aturTataLetakLobby_(user, cabang) {
             const role = rolePengguna(user);
             const terperinci = role === 'sales' || role === 'teknisi' || (role === 'admin' && cabang === 'Kendari');
@@ -3391,12 +3456,13 @@
                 if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periode) || !penggunaBolehMengaksesCabang(cabang, user)) throw new Error('Cabang atau periode ringkasan tidak valid.');
                 const manajemen = roleAdalahManajemen_(rolePengguna(user));
                 const sales = rolePengguna(user) === 'sales';
-                const [tiket, garansi, penjualan, prospek, profilTarget] = await Promise.all([
+                const [tiket, garansi, penjualan, prospek, profilTarget, profilTeknisi] = await Promise.all([
                     ambilTabelRingkasanLobby_('tiket', cabang, controller.signal),
                     manajemen || rolePengguna(user) === 'teknisi' ? ambilTabelRingkasanLobby_('garansi', cabang, controller.signal) : Promise.resolve([]),
                     manajemen || sales ? ambilTabelRingkasanLobby_('penjualan', cabang, controller.signal) : Promise.resolve([]),
                     manajemen || sales ? ambilTabelRingkasanLobby_('prospek', cabang, controller.signal) : Promise.resolve([]),
-                    sales ? callSupabase('users?select=target_sales_rp&username=eq.' + encodeURIComponent(user.Username), 'GET', null, { signal: controller.signal, dariLobby: true }) : Promise.resolve([])
+                    sales ? callSupabase('users?select=target_sales_rp&username=eq.' + encodeURIComponent(user.Username), 'GET', null, { signal: controller.signal, dariLobby: true }) : Promise.resolve([]),
+                    ['manager', 'direktur'].includes(rolePengguna(user)) ? ambilProfilTeknisiRingkasanLobby_(cabang, controller.signal) : Promise.resolve([])
                 ]);
                 if (controller.signal.aborted || urutan !== urutanRingkasanLobby_ || penggunaAktif !== user || lobby.style.display === 'none') return false;
                 // Kalkulasi sinkron memakai mesin dashboard yang sama. Data lobby
@@ -3404,7 +3470,7 @@
                 const lama = { cabangAktif, globalTickets, globalUsers, globalGaransi, globalPenjualan, globalProspek };
                 try {
                     cabangAktif = cabang;
-                    globalUsers = [{ ...user, Cabang: cabang, 'Target Sales (Rp)': profilTarget[0]?.target_sales_rp ?? user['Target Sales (Rp)'] }];
+                    globalUsers = [...profilTeknisi, { ...user, Cabang: cabang, 'Target Sales (Rp)': profilTarget[0]?.target_sales_rp ?? user['Target Sales (Rp)'] }];
                     globalTickets = tiket.map(petakanTiketSupabase_);
                     globalGaransi = garansi.map(petakanGaransiSupabase_);
                     globalPenjualan = penjualan.map(petakanPenjualanSupabase_);
@@ -3469,7 +3535,95 @@
             return htmlAdmin;
         }
 
-        function buatHtmlKartuTeknisi_(data) {
+        function kunciNamaPekerjaanTeknisi_(nama) {
+            const key = String(nama || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
+            return key === 'syawal' ? 'muhammad syawal' : key;
+        }
+
+        function rekapPekerjaanTeknisi_(tickets, users, bulan, tahun) {
+            const periodFormat = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar', year: 'numeric', month: '2-digit' });
+            const current = periodFormat.format(new Date()).split('-');
+            const month = bulan === 'all' ? 'all' : String(Number(bulan) >= 1 && Number(bulan) <= 12 ? Number(bulan) : Number(current[1])).padStart(2, '0');
+            const year = Number(tahun) > 0 && Number(tahun) <= 9999 ? Number(tahun) : Number(current[0]);
+            const labelPeriode = month === 'all' ? 'Semua periode' : new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Makassar', month: 'long', year: 'numeric' }).format(new Date(`${year}-${month}-01T00:00:00+08:00`));
+            const rows = new Map(), seen = new Set();
+            const ensure = name => {
+                const key = kunciNamaPekerjaanTeknisi_(name);
+                if (!rows.has(key)) rows.set(key, { nama: key === 'muhammad syawal' ? 'Muhammad Syawal' : String(name).trim().replace(/\s+/g, ' '), solo: 0, tim: 0, total: 0 });
+                return rows.get(key);
+            };
+            (users || []).filter(user => user && dataSesuaiCabangAktif_(user)).forEach(user => {
+                if (rolePengguna(user) === 'teknisi' && user['Nama Asli']) ensure(user['Nama Asli']);
+            });
+            let totalSelesai = 0;
+            (tickets || []).filter(ticket => ticket && dataSesuaiCabangAktif_(ticket)).forEach(ticket => {
+                const id = String(ticket['ID Tiket'] || '').trim();
+                if (!id || id.startsWith('SLS-') || String(ticket.Status || '').trim().toLowerCase() !== 'selesai' || !ticket['Waktu Selesai']) return;
+                const date = parseSafeDate(ticket['Waktu Selesai']);
+                if (Number.isNaN(date.getTime())) return;
+                const period = periodFormat.format(date);
+                if (month !== 'all' && period !== `${year}-${month}`) return;
+                const uniqueId = (normalisasiCabang(ticket.Cabang) || 'Kendari') + '|' + id;
+                if (seen.has(uniqueId)) return;
+                seen.add(uniqueId);
+                totalSelesai++;
+                const displayNames = new Map(daftarTeknisiUnikTiket_(ticket.Teknisi).map(name => [kunciNamaPekerjaanTeknisi_(name), name]));
+                const members = [...displayNames.keys()].filter(key => key && !['-', 'belum ditugaskan'].includes(key));
+                members.forEach(key => {
+                    const row = ensure(displayNames.get(key));
+                    if (members.length === 1) row.solo++; else row.tim++;
+                    row.total++;
+                });
+            });
+            const teknisi = [...rows.values()].sort((a, b) => a.total - b.total || a.nama.localeCompare(b.nama, 'id-ID'));
+            return { totalSelesai, teknisi, labelPeriode, totalKeterlibatan: teknisi.reduce((total, row) => total + row.total, 0) };
+        }
+
+        function buatHtmlDiagramPekerjaanTeknisi_(nama, rekap) {
+            const summary = rekap || { totalSelesai: 0, teknisi: [], labelPeriode: 'Periode terpilih' };
+            const own = summary.teknisi.find(row => kunciNamaPekerjaanTeknisi_(row.nama) === kunciNamaPekerjaanTeknisi_(nama)) || { solo: 0, tim: 0 };
+            const total = summary.totalSelesai;
+            const chart = (title, count, color, kind) => {
+                const percent = total > 0 ? Math.round(count / total * 1000) / 10 : 0;
+                const background = total > 0 ? `conic-gradient(${color} 0% ${percent}%, #e2e8f0 ${percent}% 100%)` : '#cbd5e1';
+                const description = `${title}: ${count} dari ${total} tiket selesai, ${percent}%`;
+                return `<div class="chart-box technician-work-chart" data-work-kind="${kind}">
+                    <div class="chart-title">${title}</div>
+                    <div class="donut" role="img" aria-label="${amanTeks_(description)}" style="background:${background};"><div class="donut-inner"><span class="donut-val" style="color:${color};">${total > 0 ? percent.toLocaleString('id-ID') + '%' : '—'}</span><span class="donut-label">Dari total selesai</span></div></div>
+                    <div class="chart-legend"><div class="legend-item"><span><span class="legend-dot" style="background:${color};"></span>${kind === 'solo' ? 'Selesai sendiri' : 'Selesai bersama tim'}</span><b>${count}</b></div><div class="legend-item"><span><span class="legend-dot" style="background:#e2e8f0;"></span>Tiket selesai lainnya</span><b>${Math.max(0, total - count)}</b></div></div>
+                    <p class="work-chart-caption">${count} dari ${total} tiket selesai · ${amanTeks_(summary.labelPeriode)}</p>
+                    ${total === 0 ? '<p class="work-chart-empty">Belum ada tiket selesai pada periode ini.</p>' : ''}
+                </div>`;
+            };
+            return '<div class="charts-container technician-work-charts">' + chart('PEKERJAAN SOLO', own.solo, 'var(--primary)', 'solo') + chart('PEKERJAAN TIM', own.tim, 'var(--purple)', 'tim') + '</div>';
+        }
+
+        function buatHtmlDiagramPerbandinganTeknisi_(rekap) {
+            const summary = rekap || { totalSelesai: 0, teknisi: [], labelPeriode: 'Periode terpilih', totalKeterlibatan: 0 };
+            const rows = [...summary.teknisi].sort((a, b) => a.total - b.total || a.nama.localeCompare(b.nama, 'id-ID'));
+            const palette = ['#2563eb', '#059669', '#7c3aed', '#d97706', '#e11d48', '#0891b2', '#4f46e5', '#0d9488'];
+            const names = rows.map(row => row.nama).sort((a, b) => a.localeCompare(b, 'id-ID'));
+            const color = row => row.total === 0 ? '#cbd5e1' : palette[names.indexOf(row.nama) % palette.length];
+            let offset = 0;
+            const segments = rows.filter(row => row.total > 0).map(row => {
+                const start = offset;
+                offset += row.total / summary.totalKeterlibatan * 100;
+                return `${color(row)} ${start}% ${offset}%`;
+            });
+            const background = segments.length ? `conic-gradient(${segments.join(', ')})` : '#cbd5e1';
+            return `<div class="card team-work-card">
+                <h3 class="team-work-title">Jumlah Tiket Selesai per Teknisi</h3>
+                <p class="work-chart-caption">${amanTeks_(summary.labelPeriode)} · ${summary.totalSelesai} tiket selesai pada cabang ini</p>
+                <div class="team-work-chart">
+                    <div class="donut" role="img" aria-label="${amanTeks_('Jumlah pekerjaan solo dan tim: ' + rows.map(row => row.nama + ' ' + row.total + ' tiket').join(', '))}" style="background:${background};"><div class="donut-inner"><span class="donut-val">${summary.totalKeterlibatan}</span><span class="donut-label">Keterlibatan</span></div></div>
+                    <ol class="team-work-legend">${rows.map(row => `<li><div class="team-work-name"><span class="legend-dot" style="background:${color(row)};"></span><div><strong>${amanTeks_(row.nama)}</strong><small>Solo ${row.solo} · Tim ${row.tim}</small></div></div><b>${row.total} tiket</b></li>`).join('')}</ol>
+                </div>
+                ${summary.totalSelesai === 0 ? '<p class="work-chart-empty">Belum ada tiket selesai pada periode ini.</p>' : ''}
+                <p class="work-chart-caption">Urutan dari jumlah paling sedikit ke paling banyak. Satu tiket tim dihitung sekali untuk setiap teknisi anggotanya.</p>
+            </div>`;
+        }
+
+        function buatHtmlKartuTeknisi_(data, pekerjaan = null) {
             const s = { ...{ nama: "", resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0, tiket_selesai: 0, pending_count: 0, garansi_bocor: 0, poin_terkumpul: 0 }, ...data };
             s.nama = amanTeks_(s.nama);
             let htmlTeknisi = '';
@@ -3484,6 +3638,7 @@
                     <div style="font-size:26px; font-weight:900; color:#92400e; line-height:1.2;">${s.poin_terkumpul % 1 !== 0 ? s.poin_terkumpul.toFixed(1) : s.poin_terkumpul}</div>
                 </div>
                 <div class="charts-container"><div class="chart-box"><div class="chart-title">SLA RESPON</div><div class="donut" style="background: ${rBg};"><div class="donut-inner"><span class="donut-val" style="color:${rRate>=80?'var(--success)':(rRate>=50?'var(--warning)':'var(--danger)')}">${sumR>0?rRate+'%':'-'}</span><span class="donut-label">Akurasi</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Tepat</span> <b>${s.resp_tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat</span> <b>${s.resp_telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.resp_aman}</b></div></div></div><div class="chart-box"><div class="chart-title">SLA PENGERJAAN</div><div class="donut" style="background: ${pBg};"><div class="donut-inner"><span class="donut-val" style="color:${pRate>=80?'var(--success)':(pRate>=50?'var(--warning)':'var(--danger)')}">${sumP>0?pRate+'%':'-'}</span><span class="donut-label">Akurasi</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Tepat</span> <b>${s.peng_tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat</span> <b>${s.peng_telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.peng_aman}</b></div></div></div></div>
+                ${buatHtmlDiagramPekerjaanTeknisi_(data.nama, pekerjaan)}
                 <div style="margin-top:15px; border-top:1px dashed var(--border); padding-top:15px; display:flex; gap:10px;">
                     <div style="flex:1; background:#ecfdf5; padding:10px; border-radius:6px; border:1px solid #a7f3d0;">
                         <div style="font-size:10px; color:var(--text-muted);">Tuntas Tanpa Pending</div>
@@ -3555,7 +3710,7 @@
                     preview = 'Omzet pribadi · ' + formatRp(s.revenue || 0);
                 } else {
                     const s = pribadi(rekap.statsTeknisi) || { nama: user['Nama Asli'] || user.Username };
-                    kartu = buatHtmlKartuTeknisi_(s);
+                    kartu = buatHtmlKartuTeknisi_(s, rekap.rekapPekerjaanTeknisi);
                     preview = 'Poin pribadi · ' + n(s.poin_terkumpul);
                 }
                 document.getElementById('lobby-point-preview').textContent = preview;
@@ -3567,6 +3722,7 @@
                 const e = rekap.ringkasanEksekutif;
                 label = 'Omzet cabang'; nilai = formatRp(e.omzet); keterangan = 'Ringkasan operasional Cabang ' + cabang;
                 tiles = [['Tiket aktif', n(aktif(tickets))], ['Win rate tim', n(e.winrate) + '%'], ['Pipeline', formatRp(e.pipeline)], ['Nota belum lunas', n(rekap.rekapNotaIpos?.belumLunasSeluruhRiwayat)]];
+                detail = '<div class="lobby-work-ranking">' + buatHtmlDiagramPerbandinganTeknisi_(rekap.rekapPekerjaanTeknisi) + '</div>';
             } else if (['admin', 'admin_raha'].includes(role)) {
                 label = cabang === 'Kendari' ? 'Poin Admin Kendari' : 'Nota dilunasi';
                 nilai = n(rekap.rekapNotaIpos?.lunasPeriode); keterangan = cabang === 'Kendari' ? '1 poin per nota yang dilunasi pada periode ini' : 'Performa administrasi Cabang Raha';
@@ -3997,7 +4153,11 @@
                 "Status": statusGaransiEfektif_(g.Status || g.status, g["Tanggal Habis"] || g.tanggal_habis),
                 "Tanggal Mulai": g["Tanggal Mulai"] || g.tanggal_mulai,
                 "Tanggal Habis": g["Tanggal Habis"] || g.tanggal_habis,
-                "Keterangan": g.Keterangan || g.keterangan
+                "Keterangan": g.Keterangan || g.keterangan,
+                "Waktu Siap Diambil": g['Waktu Siap Diambil'] || g.waktu_siap_diambil,
+                "Waktu Diambil": g['Waktu Diambil'] || g.waktu_diambil,
+                "Garansi Hangus Pada": g['Garansi Hangus Pada'] || g.garansi_hangus_pada,
+                "Biaya Penitipan": g['Biaya Penitipan'] ?? g.biaya_penitipan ?? 0
             }));
             const idTarget = String(currentTrackTicket || '').trim().toLowerCase();
             return globalTickets.find(t => String(t && t['ID Tiket'] || '').trim().toLowerCase() === idTarget) || null;
@@ -4107,7 +4267,8 @@
             if (refsDiGaransi.length > 0) {
                 htmlGaransi = `<h4 style="margin:25px 0 10px 0; color:#3b82f6; border-bottom:1px solid var(--border); padding-bottom:5px;">🛡️ Status Garansi & Barang</h4>`;
                 refsDiGaransi.forEach(g => {
-                    let statGrs = statusGaransiEfektif_(g['Status'], g['Tanggal Habis']) || 'Masa Tunggu';
+                    const inap = penitipanGaransi_(g);
+                    let statGrs = inap.hangus && !inap.menunggu ? 'Hangus (Lewat 7 Hari)' : statusGaransiEfektif_(g['Status'], g['Tanggal Habis']) || 'Masa Tunggu';
                     let scG = 'status-aman'; let bcG = 'badge-tunggu';
                     if (statGrs === 'Aktif') { scG = 'status-terpenuhi'; bcG = 'badge-aktif'; }
                     else if (statGrs.includes('Habis') || statGrs.includes('Hangus') || statGrs.includes('Diklaim')) { scG = 'status-terlambat'; bcG = 'badge-habis'; }
@@ -4117,24 +4278,10 @@
                     let ketKlienHtml = ketKlien ? `<p style="margin:0 0 5px 0; font-size:12px; color:var(--text-muted);"><i>Catatan: ${ketKlien}</i></p>` : '';
 
                     // -- LOGIKA PENGHITUNG WAKTU INAP & DENDA --
-                    let htmlPeringatanInap = '';
-                    if (statGrs.includes('Masa Tunggu') || statGrs.includes('Belum Diambil')) {
-                        const hari = hariMengendapWita_(t['Waktu Selesai']);
-                        if (hari >= 0 && hari < 8) {
-                            htmlPeringatanInap = `<div style="background:#fef9c3; color:#a16207; padding:10px; border-radius:6px; font-size:12px; border:1px solid #fde047; margin-bottom:10px; line-height:1.4;">⚠️ <b>Barang siap diambil.</b> Biaya penitipan Rp1.000 per hari mulai pada hari ke-8. Tersisa <b>${8 - hari} hari</b>.</div>`;
-                        } else if (hari >= 8 && hari <= 30) {
-                            htmlPeringatanInap = `<div style="background:#fee2e2; color:#b91c1c; padding:10px; border-radius:6px; font-size:12px; border:1px solid #fca5a5; margin-bottom:10px; line-height:1.4;">🚨 <b>Biaya penitipan berjalan:</b> Rp ${biayaPenitipan_(hari).toLocaleString('id-ID')} untuk hari ke-${hari}. Biaya hanya dihitung sampai hari ke-30. Mohon segera diambil.</div>`;
-                        } else if (hari >= 31) {
-                            htmlPeringatanInap = `<div style="background:#1f2937; color:#f9fafb; padding:10px; border-radius:6px; font-size:12px; border:1px solid #374151; margin-bottom:10px; line-height:1.4;">⚫ <b>Lewat hari ke-30:</b> Biaya penitipan berhenti pada Rp ${biayaPenitipan_(hari).toLocaleString('id-ID')}. Barang tidak lagi dalam tanggung jawab penyimpanan Alfacom dan garansi tidak berlaku.</div>`;
-                            statGrs = 'Habis (Expired)';
-                            scG = 'status-terlambat';
-                            bcG = 'badge-habis';
-                        }
-                    }
-
+                    let htmlPeringatanInap = peringatanPenitipanGaransi_(g);
                     let waAdmin = "6285134817914";
                     let pesanWa = encodeURIComponent(`Assalamu'alaikum Admin Alfacom,\nSaya klien atas nama *${t['Klien & Lokasi']}*.\n\nSaya ingin bertanya/mengklaim garansi terkait pekerjaan dengan ID: *${currentTrackTicket}*.`);
-                    let btnKlaim = statGrs === 'Aktif' ? `<a href="https://wa.me/${waAdmin}?text=${pesanWa}" target="_blank" class="btn-solid-primary" style="background:#10b981; display:block; text-align:center; text-decoration:none; padding:10px; margin-top:10px;">💬 Klaim via WhatsApp</a>` : '';
+                    let btnKlaim = statGrs === 'Aktif' && !inap.hangus ? `<a href="https://wa.me/${waAdmin}?text=${pesanWa}" target="_blank" class="btn-solid-primary" style="background:#10b981; display:block; text-align:center; text-decoration:none; padding:10px; margin-top:10px;">💬 Klaim via WhatsApp</a>` : '';
 
                     htmlGaransi += `<div class="card ${scG}" style="padding:15px; margin-bottom:10px; background:#f8fafc; border-radius:8px;">
                         ${htmlPeringatanInap}
@@ -5917,6 +6064,7 @@
             });
 
             const tiketCabang = (globalTickets || []).filter(dataSesuaiCabangAktif_);
+            const rekapPekerjaanTeknisi = rekapPekerjaanTeknisi_(tiketCabang, globalUsers, selBulan, selTahun);
             const tiketPerId = new Map(tiketCabang.filter(Boolean).map(t => [String(t['ID Tiket'] || '').trim(), t]));
             const garansiCabang = (globalGaransi || []).filter(dataSesuaiCabangAktif_);
             tiketCabang.forEach(t => {
@@ -6154,15 +6302,16 @@
                 });
             });
 
-            if (opsi.hitungSaja) return { statsTeknisi, statsSales, statsAdmin, statsAdminNota, statsAdminFollowUp, rekapNotaIpos, ringkasanEksekutif };
+            if (opsi.hitungSaja) return { statsTeknisi, statsSales, statsAdmin, statsAdminNota, statsAdminFollowUp, rekapNotaIpos, ringkasanEksekutif, rekapPekerjaanTeknisi };
 
             const htmlAdmin = buatHtmlPerformaAdmin_({ statsAdmin, statsAdminNota, statsAdminFollowUp, rekapNotaIpos }, cabangAktif, labelPeriodeRekapNota, roleBolehMelihatRekapNotaIpos);
 
             let htmlTeknisi = '<h3 class="section-title" style="margin-top:30px;">Papan Performa Teknisi</h3>';
+            htmlTeknisi += buatHtmlDiagramPerbandinganTeknisi_(rekapPekerjaanTeknisi);
             let arrTeknisi = Object.values(statsTeknisi).sort((a, b) => { return b.poin_terkumpul - a.poin_terkumpul; }); // Sort by Poin
             if (arrTeknisi.length === 0) htmlTeknisi += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data di periode ini.</p>';
 
-            arrTeknisi.forEach(s => { htmlTeknisi += buatHtmlKartuTeknisi_(s); });
+            arrTeknisi.forEach(s => { htmlTeknisi += buatHtmlKartuTeknisi_(s, rekapPekerjaanTeknisi); });
             tetapkanHtmlAman_(dashTekContainer, htmlAdmin + htmlTeknisi);
 
             let htmlSales = '<h3 class="section-title">Papan Pencapaian Omzet</h3>';
@@ -6710,7 +6859,8 @@
                 }
                 htmlAda = true;
 
-                let textStatus = String(g['Status'] || 'Masa Tunggu');
+                const inap = penitipanGaransi_(g);
+                let textStatus = inap.hangus && !inap.menunggu ? 'Hangus (Lewat 7 Hari)' : statusGaransiEfektif_(g.Status, g['Tanggal Habis']) || 'Masa Tunggu';
                 let sc = 'status-aman'; let bc = 'badge-tunggu';
                 let isExpired = false;
 
@@ -6740,7 +6890,7 @@
                     btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;" onclick="bukaEditGaransi('${idGrs}')">✏️ Edit Kartu Garansi</button>`;
                     if (textStatus === 'Masa Tunggu') {
                         btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#2563eb; border-color:#bfdbfe;" onclick="aktifkanGaransi('${idGrs}')">🚀 Aktifkan Garansi (Barang Diambil)</button>`;
-                    } else if (textStatus === 'Aktif') {
+                    } else if (textStatus === 'Aktif' && !inap.hangus) {
                         btnHtml += `<button class="btn-action-primary" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;" onclick="prosesKlaimGaransi('${idGrs}')">⚠️ Klaim Garansi & Buat Tiket</button>`;
                     }
                     if (g['Tiket Klaim Garansi']) btnHtml += `<button class="btn-action-primary" onclick="prosesKlaimGaransi('${idGrs}')">Tiket ${amanTeks_(g['Tiket Klaim Garansi'])} · Kirim ulang notifikasi tertunda</button>`;
@@ -6761,6 +6911,7 @@
                         <p style="margin:0 0 5px 0; color:var(--text-muted);">Habis: ${tglHabis}</p>
                     </div>
                     ${ketGrsHtml}
+                    ${peringatanPenitipanGaransi_(g)}
                     ${btnHtml}
                 </div>`);
             });
@@ -6811,6 +6962,8 @@
                 if (bantuan) bantuan.textContent = 'Masa Tunggu akan mengosongkan waktu mulai dan waktu habis ketika disimpan.';
             } else if (status === 'Diklaim (Hangus)') {
                 if (bantuan) bantuan.textContent = 'Waktu klaim yang sudah tercatat tetap dipertahankan.';
+            } else if (status === 'Hangus (Lewat 7 Hari)') {
+                if (bantuan) bantuan.textContent = 'Garansi yang hangus karena mengendap lebih dari 7 hari tidak dapat diaktifkan ulang. Kerusakan yang sama tidak tercover.';
             } else if (bantuan) {
                 bantuan.textContent = 'Tanpa garansi akan menyimpan durasi 0 hari dan mengosongkan kedua tanggal.';
             }
@@ -6831,7 +6984,7 @@
             const statusSaatIni = String(garansi['Status'] || 'Masa Tunggu').trim();
             const statusEdit = statusSaatIni === 'Habis (Expired)'
                 ? 'Aktif'
-                : (['Masa Tunggu', 'Aktif', 'Diklaim (Hangus)', 'Habis (Tanpa Garansi)'].includes(statusSaatIni) ? statusSaatIni : 'Masa Tunggu');
+                : (['Masa Tunggu', 'Aktif', 'Diklaim (Hangus)', 'Habis (Tanpa Garansi)', 'Hangus (Lewat 7 Hari)'].includes(statusSaatIni) ? statusSaatIni : 'Masa Tunggu');
             document.getElementById('edit-garansi-id').value = idAman;
             document.getElementById('edit-garansi-status').value = statusEdit;
             document.getElementById('edit-garansi-durasi').value = Math.max(0, Number.parseInt(garansi['Durasi (Hari)'], 10) || 0);
@@ -6861,8 +7014,11 @@
                 const garansi = (globalGaransi || []).find(item => item && String(item['ID Garansi']).trim() === id && dataSesuaiCabangAktif_(item));
                 if (!id || !garansi) throw new Error('Data garansi tidak ditemukan pada cabang aktif.');
 
-                const status = String(document.getElementById('edit-garansi-status').value || '').trim();
-                const statusDiizinkan = ['Masa Tunggu', 'Aktif', 'Diklaim (Hangus)', 'Habis (Tanpa Garansi)'];
+                let status = String(document.getElementById('edit-garansi-status').value || '').trim();
+                const inap = penitipanGaransi_(garansi);
+                if (inap.hangus && status === 'Aktif') throw new Error('Garansi hangus karena barang mengendap lebih dari 7 hari dan tidak dapat diaktifkan ulang. Gunakan tombol pengambilan untuk mencatat barang diambil.');
+                if (inap.hangus && inap.diambil) status = 'Hangus (Lewat 7 Hari)';
+                const statusDiizinkan = ['Masa Tunggu', 'Aktif', 'Diklaim (Hangus)', 'Habis (Tanpa Garansi)', 'Hangus (Lewat 7 Hari)'];
                 if (!statusDiizinkan.includes(status)) throw new Error('Status garansi tidak valid.');
 
                 let durasiHari = Number.parseInt(document.getElementById('edit-garansi-durasi').value, 10);
@@ -6880,6 +7036,9 @@
                     if (!mulai) throw new Error('Waktu aktivasi sebenarnya wajib diisi.');
                     payload.tanggal_mulai = tanggalIsoSupabase_(mulai);
                     payload.tanggal_habis = tanggalIsoSupabase_(new Date(mulai.getTime() + durasiHari * 24 * 60 * 60 * 1000));
+                } else if (status === 'Hangus (Lewat 7 Hari)') {
+                    payload.tanggal_mulai = garansi['Tanggal Mulai'] || null;
+                    payload.tanggal_habis = garansi['Tanggal Habis'] || null;
                 } else if (status === 'Diklaim (Hangus)') {
                     payload.tanggal_mulai = garansi['Tanggal Mulai'] || null;
                     payload.tanggal_habis = String(garansi['Status'] || '').includes('Diklaim') && garansi['Tanggal Habis']
@@ -7030,7 +7189,14 @@
         }
 
         async function aktifkanGaransi(id) {
-            let acc = await showConfirm(`Bismillah, barang sudah diambil Klien? Waktu garansi akan dihitung mulai detik ini.`);
+            if (!(roleAdalahAdminOperasional_() || rolePengguna() === 'manager')) return;
+            const kartu = (globalGaransi || []).find(g => String(g['ID Garansi']) === String(id) && dataSesuaiCabangAktif_(g));
+            if (!kartu) return showToast('Garansi tidak ditemukan pada cabang aktif.', 'error');
+            const inap = penitipanGaransi_(kartu);
+            if (!inap.menunggu) return showToast('Pengambilan barang sudah tercatat.', 'error');
+            let acc = await showConfirm(inap.hangus
+                ? `Barang sudah diambil Klien? Garansi sudah hangus karena mengendap lebih dari 7 hari dan tidak akan dihitung ulang. Kerusakan yang sama tidak tercover garansi. Biaya penitipan saat ini Rp ${inap.denda.toLocaleString('id-ID')}.`
+                : 'Bismillah, barang sudah diambil Klien? Waktu garansi akan dihitung mulai detik ini.');
             if(!acc) return;
             document.getElementById('loading').style.display = 'block';
             try {
@@ -7042,13 +7208,13 @@
                 const mulai = new Date();
                 const habis = new Date(mulai.getTime() + (durasiHari * 24 * 60 * 60 * 1000));
                 const payload = {
-                    status: 'Aktif',
+                    status: inap.hangus ? 'Hangus (Lewat 7 Hari)' : 'Aktif',
                     tanggal_mulai: tanggalIsoSupabase_(mulai),
                     tanggal_habis: tanggalIsoSupabase_(habis)
                 };
                 const hasil = await callSupabase(endpointFilterSupabase_('garansi', 'id_garansi', id), 'PATCH', payload);
                 pastikanHasilMutasiSupabase_(hasil, `Garansi ${id}`);
-                showToast('Alhamdulillah! Garansi Aktif.', 'success');
+                showToast(inap.hangus || hasil[0]?.garansi_hangus_pada ? 'Pengambilan tercatat. Garansi tetap hangus karena melewati 7 hari.' : 'Alhamdulillah! Garansi Aktif.', 'success');
                 await ambilSemuaData(true);
             } catch(err) {
                 showToast('Afwan, Gagal mengaktifkan garansi: ' + err.message, 'error');
@@ -7062,6 +7228,7 @@
             if (!['admin','admin_raha','manager','direktur'].includes(rolePengguna()) || klaimGaransiSedangDiproses_.has(id)) return;
             const garansi = (globalGaransi || []).find(g => String(g['ID Garansi']) === String(id));
             if (!garansi) return showToast('Garansi tidak ditemukan. Muat ulang data.', 'error');
+            if (!garansi['Tiket Klaim Garansi'] && penitipanGaransi_(garansi).hangus) return showToast('Garansi hangus karena barang mengendap lebih dari 7 hari. Kerusakan yang sama tidak tercover garansi.', 'error');
             klaimGaransiSedangDiproses_.add(id);
             try {
                 const sudahAda = !!garansi['Tiket Klaim Garansi'];
@@ -9176,7 +9343,6 @@
         async function mulaiAplikasi_() {
             console.log('[INIT] Aplikasi dimulai...');
             console.log('[INIT] trackParam:', trackParam);
-            console.log('[INIT] API_KEY:', API_KEY ? 'ada' : 'kosong');
             console.log('[INIT] API_URL_KENDARI:', API_URL_KENDARI);
 
             await siapkanServiceWorkerPWA_();
@@ -9277,7 +9443,7 @@
             let now = new Date();
             let totalDenda = 0; let countKlien = 0;
 
-            (globalGaransi || []).forEach(g => {
+            (globalGaransi || []).filter(dataSesuaiCabangAktif_).forEach(g => {
                 let statGrs = String(g['Status'] || '').trim().toLowerCase();
                 if (statGrs.includes('masa tunggu') || statGrs.includes('belum diambil')) {
                     let ref = String(g['Referensi (Tiket/Nota)'] || '');
@@ -9289,7 +9455,7 @@
                         if (tk && String(tk['Status'] || '').trim().toLowerCase() === 'selesai') tglBuatStr = tk['Waktu Selesai'];
                     }
 
-                    let bedaHari = hariMengendapWita_(tglBuatStr, now);
+                    let bedaHari = hariMengendapWita_(g['Waktu Siap Diambil'] || tglBuatStr, now);
 
                     if (bedaHari >= 0) {
 
@@ -9315,7 +9481,7 @@
 
                             // 2. Peringatan otomatis jatuh pada hari ke-5 dan ke-28.
                             if (bedaHari === 5) {
-                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nBarang servis Anda (${namaBarang}) sudah menunggu pengambilan selama 5 hari. Mohon segera diambil. Jika belum diambil, mulai hari ke-8 dikenakan biaya penitipan Rp1.000 per hari.`;
+                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nBarang servis Anda (${namaBarang}) sudah menunggu pengambilan selama 5 hari. Mohon segera diambil. Setelah melewati 7 hari, garansi otomatis hangus dan mulai hari ke-8 dikenakan biaya penitipan Rp1.000 per hari. Kerusakan yang sama saat diambil tidak tercover garansi setelah batas tersebut.`;
                                 warna = '#fef3c7';
                             } else if (bedaHari === 28) {
                                 pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nBarang servis Anda (${namaBarang}) sudah mengendap 28 hari. Mohon segera diambil. Biaya penitipan hanya dihitung sampai hari ke-30. Mulai hari ke-31, barang tidak lagi menjadi tanggung jawab penyimpanan Alfacom dan garansinya tidak berlaku.`;
@@ -9324,7 +9490,7 @@
                                 pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nBarang servis Anda (${namaBarang}) telah melewati hari ke-30. Biaya penitipan berhenti pada Rp ${denda.toLocaleString('id-ID')}. Barang tidak lagi menjadi tanggung jawab penyimpanan Alfacom dan garansinya tidak berlaku.`;
                                 warna = '#1f2937';
                             } else if (bedaHari >= 8) {
-                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nBarang servis Anda (${namaBarang}) telah mengendap ${bedaHari} hari. Biaya penitipan berjalan Rp ${denda.toLocaleString('id-ID')} dan berhenti dihitung pada hari ke-30. Mohon segera diambil.`;
+                                pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nBarang servis Anda (${namaBarang}) telah mengendap ${bedaHari} hari. Garansi telah hangus; kerusakan yang sama saat diambil tidak tercover garansi. Biaya penitipan berjalan Rp ${denda.toLocaleString('id-ID')} dan berhenti dihitung pada hari ke-30. Mohon segera diambil.`;
                                 warna = '#fff0f5';
                             } else {
                                 pesan = `Assalamu'alaikum Kak ${namaKlien},\n\nBarang servis Anda (${namaBarang}) sudah siap diambil di Alfacom. Mohon segera diambil agar tidak terkena biaya penitipan Rp1.000 per hari mulai hari ke-8.`;
@@ -9742,4 +9908,5 @@
         // Router DOMContentLoaded lama dihapus agar validasi sesi dan pengunduhan
         // database tidak berjalan dua kali atau saling menimpa tampilan.
     </script>
+
 

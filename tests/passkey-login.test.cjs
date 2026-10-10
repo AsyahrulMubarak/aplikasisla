@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { test } = require('node:test');
 
-const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8').replace(/\r\n/g, '\n');
 function section(start, end) {
   const a = html.indexOf(start), b = html.indexOf(end, a);
   assert.ok(a >= 0 && b > a, start);
@@ -13,9 +13,9 @@ function section(start, end) {
 const code = [
   section('        function webAuthnDidukung()', '        async function selesaikanLoginBerhasil('),
   section('        async function selesaikanLoginBerhasil(', '        function bukaModalBug()'),
-  section('        async function muatProfilLoginSupabase_(', '        // ==========================================\r\n        // FITUR LOBBY'),
+  section('        async function muatProfilLoginSupabase_(', '        // ==========================================\n        // FITUR LOBBY'),
   section('        function normalisasiUsernameLogin_(', '        function sertakanHakAksesCabang_('),
-  section('        async function pastikanTokenSupabaseAktif_(', '        // =========================================================================\r\n        // 🚀 GATEWAY')
+  section('        async function pastikanTokenSupabaseAktif_(', '        async function kirimKeBackend_(')
 ].join('\n');
 const jwt = name => 'header.' + Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600, sub: name })).toString('base64url') + '.signature';
 const session = name => ({ access_token: jwt(name), refresh_token: 'refresh-' + name, expires_at: Math.floor(Date.now() / 1000) + 3600,
@@ -140,7 +140,8 @@ test('concurrent password and passkey attempts cannot race or change the chosen 
   const attempt = h.context.prosesLoginBiometrik();
   await h.password(); await h.context.prosesLoginBiometrik();
   assert.equal(h.seen.logins, 1); assert.equal(h.seen.requests.length, 0);
-  finish({ data: { session: session('alice'), user: session('alice').user }, error: null });
+  const resolvedSession = session('alice');
+  finish({ data: { session: resolvedSession, user: resolvedSession.user }, error: null });
   await attempt; assert.equal(h.seen.routes.length, 1);
 });
 
@@ -169,8 +170,9 @@ test('SDK refresh during registration synchronizes the active session, never ano
 
 test('passkey session supports the existing refresh-token mechanism', async () => {
   const h = harness(); await h.context.prosesLoginBiometrik();
+  const expectedToken = h.context.penggunaAktif.SessionToken;
   const token = await h.context.pastikanTokenSupabaseAktif_(true);
-  assert.equal(token, jwt('alice'));
+  assert.equal(token, expectedToken);
   const refresh = h.seen.requests.find(r => r.url.includes('grant_type=refresh_token'));
   assert.equal(JSON.parse(refresh.init.body).refresh_token, 'refresh-alice');
   assert.equal(h.seen.saved.RefreshToken, 'refresh-alice');

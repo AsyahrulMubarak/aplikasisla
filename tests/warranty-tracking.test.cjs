@@ -32,7 +32,7 @@ function harness() {
     formatWaktu: value => value || '-',
     tetapkanHtmlAman_(element, value) { element.innerHTML = value; }
   });
-  for (const name of ['statusGaransiEfektif_', 'terapkanHasilTrackingPublik_', 'tampilkanDataPelacakanKlien']) {
+  for (const name of ['penitipanGaransi_', 'peringatanPenitipanGaransi_', 'statusGaransiEfektif_', 'terapkanHasilTrackingPublik_', 'tampilkanDataPelacakanKlien']) {
     vm.runInContext(extract(html, name), context);
   }
   const ticket = { id_tiket: 'TEST-TICKET', status: 'Selesai', jenis_pekerjaan: 'Contoh pekerjaan', teknisi: 'Contoh teknisi' };
