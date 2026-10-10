@@ -5052,12 +5052,13 @@
             const login = String(user && (user.Username_Login || user.Username || user.username_login || user.username) || '').trim().toLowerCase();
             return ['direktur', 'manager', 'admin_raha'].includes(role) ||
                 (role === 'admin' && ['', 'semua', 'kendari', 'raha'].includes(cabang)) ||
-                (role === 'sales' && login === 'juna' && cabang === 'kendari');
+                (role === 'sales' && login === 'juna' && cabang === 'kendari') ||
+                (role === 'teknisi' && login === 'alif');
         }
 
         async function bukaAplikasiKpi() {
             if (!punyaAksesLobby() || !penggunaBolehMengaksesKpi_()) {
-                showToast('Akses KPI khusus Direktur, Manager, Admin Kendari, Admin Raha, dan Juna Sales Director.', 'warning');
+                showToast('Akun Anda belum memiliki akses Aplikasi KPI.', 'warning');
                 return;
             }
             const tombol = document.getElementById('btn-lobby-kpi');

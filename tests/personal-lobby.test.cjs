@@ -68,6 +68,10 @@ test('Visible menu permissions enforce salary, branch and each role without wide
   assert.equal(c.penggunaBolehMenuLobby_('kpi', user('admin_raha')), true);
   assert.equal(c.penggunaBolehMenuLobby_('kpi', user('sales', 2000000, 'Kendari')), false);
   assert.equal(c.penggunaBolehMenuLobby_('kpi', { ...user('sales', 2000000, 'Kendari'), Username: 'juna' }), true);
+  const alif = { ...user('teknisi', 2000000, 'Kendari'), Username: 'Alif', Username_Login: 'alif' };
+  assert.equal(c.penggunaBolehMenuLobby_('kpi', alif), true);
+  assert.equal(c.penggunaBolehMenuLobby_('sla-raha', alif), false);
+  assert.equal(c.penggunaBolehMenuLobby_('input', alif), false);
   assert.equal(c.penggunaBolehMenuLobby_('tiket', { ...technician, SessionToken: '' }), false);
   assert.equal(c.penggunaBolehMenuLobby_('unknown', user()), false);
   assert.equal(c.penggunaBolehMenuLobby_('klaim-sales', user('admin', 0, 'Kendari')), true);
