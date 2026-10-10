@@ -22,8 +22,8 @@ async function jobAuthorized(request){
   return r.ok;
 }
 function reminder(g,t){
-  const deadline=new Date(new Date(g.waktu_siap_diambil).getTime()+7*DAY).toLocaleDateString('id-ID',{timeZone:'Asia/Makassar'})+' pukul 23.59';
-  return `Assalamu'alaikum Kak ${g.nama_pelanggan||t.klien_lokasi||'Pelanggan'},\n\n*PEMBERITAHUAN ALFACOM — HARI KE-5*\nBarang servis Anda (${g.barang_jasa||t.jenis_pekerjaan||'-'}) sudah siap diambil.\n\nMohon diambil paling lambat ${deadline} WITA. Setelah melewati 7 hari sejak servis selesai, garansi otomatis hangus dan biaya penitipan Rp 1.000/hari mulai berjalan (hari ke-8). Kerusakan yang sama saat pengambilan tidak tercover garansi setelah batas tersebut. Aktivasi oleh admin tidak memperbarui garansi yang sudah hangus.\n\nPantau status: https://aplikasisla.vercel.app/?track=${encodeURIComponent(g.referensi_tiket_nota)}`;
+  const deadline=new Date(new Date(g.waktu_siap_diambil).getTime()+7*DAY).toLocaleDateString('id-ID',{timeZone:'Asia/Makassar'})+' pukul 17.00';
+  return `Assalamu'alaikum Kak ${g.nama_pelanggan||t.klien_lokasi||'Pelanggan'},\n\n*PEMBERITAHUAN ALFACOM — HARI KE-5*\nBarang servis Anda (${g.barang_jasa||t.jenis_pekerjaan||'-'}) sudah siap diambil.\n\nMohon diambil paling lambat ${deadline} WITA. Setelah melewati 7 hari sejak servis selesai, garansi otomatis hangus dan biaya penitipan Rp 1.000/hari mulai berjalan (hari ke-8). Kerusakan yang sama saat pengambilan tidak tercover garansi setelah batas tersebut.\n\nPantau status: https://aplikasisla.vercel.app/?track=${encodeURIComponent(g.referensi_tiket_nota)}`;
 }
 async function processStorage(){
   await rest('rpc/sla_perbarui_penitipan',{});
