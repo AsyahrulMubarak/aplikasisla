@@ -88,7 +88,8 @@ const workDay = r => /Keluar|Pulang/.test(String(r.tipe_absen || '')) && minute(
 function policy(u) {
   const rahaHours = u.branch === 'Raha' && u.role !== 'admin_raha' && u.role !== 'admin';
   return { cabang: u.branch, mulaiMenit: 480, selesaiMenit: rahaHours ? 1200 : 1020,
-    batasTelatMenit: rahaHours ? 585 : 525, radiusMeter: 100, kantor: OFFICE[u.branch] };
+    batasTelatMenit: rahaHours ? 585 : 525, radiusMeter: 100, kantor: OFFICE[u.branch],
+    kantorDiizinkan: (u.role === 'manager' ? ['Kendari','Raha'] : [u.branch]).map(cabang => ({cabang,...OFFICE[cabang]})) };
 }
 function distance(a,lat,lon) {
   const rad = Math.PI / 180, dLat = (lat-a.lat)*rad, dLon=(lon-a.lon)*rad;
@@ -730,7 +731,7 @@ async function recordAttendance(body,u) {
     if(body.latitude===null||body.longitude===null||body.latitude===undefined||body.longitude===undefined||
        !Number.isFinite(lat)||!Number.isFinite(lon)||lat< -90||lat>90||lon< -180||lon>180)
       throw new Error('Lokasi GPS tidak valid.');
-    meters=distance(p.kantor,lat,lon);outside=meters>100;
+    meters=Math.min(...p.kantorDiizinkan.map(kantor=>distance(kantor,lat,lon)));outside=meters>p.radiusMeter;
     const needsProof=outside||(type==='Keluar'&&p.selesaiMenit===1020&&minute(at)>1200);
     if(needsProof&&(!String(body.keterangan||'').trim()||!String(body.fotoBase64||'').startsWith('data:image/')))
       throw new Error('Di luar radius atau pulang setelah 20:00 wajib keterangan dan foto.');

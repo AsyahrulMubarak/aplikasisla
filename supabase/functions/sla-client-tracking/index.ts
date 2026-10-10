@@ -77,11 +77,11 @@ async function publicTracking(body,request){
   if(limits.some(v=>v!==true))throw error('Terlalu banyak percobaan. Tunggu satu menit lalu coba lagi.',429);
   const ticket=await ticketById(ticketId);
   if(!ticket||!identityMatches(ticket,key))throw publicError();
-  const warranties=await rest('garansi','referensi_tiket_nota=eq.'+encode(ticketId)+'&select=id_garansi,referensi_tiket_nota,barang_jasa,durasi_hari,status,tanggal_mulai,tanggal_habis,keterangan');
+  const warranties=await rest('garansi','referensi_tiket_nota=eq.'+encode(ticketId)+'&select=id_garansi,referensi_tiket_nota,barang_jasa,durasi_hari,status,tanggal_mulai,tanggal_habis,keterangan,waktu_siap_diambil,waktu_diambil,garansi_hangus_pada,biaya_penitipan');
   const safeTicket={};
   for(const field of ['id_tiket','waktu_lapor','waktu_selesai','klien_lokasi','jenis_pekerjaan','teknisi','status'])safeTicket[field]=ticket[field];
   safeTicket.link_pdf_ba=await signDocument(ticket);
-  return {status:'sukses',tickets:[safeTicket],garansi:warranties.map(w=>({...w,status:effectiveWarranty(w.status,w.tanggal_habis)}))};
+  return {status:'sukses',tickets:[safeTicket],garansi:warranties.map(w=>({...w,status:w.garansi_hangus_pada && w.waktu_diambil ? 'Hangus (Lewat 7 Hari)' : effectiveWarranty(w.status,w.tanggal_habis)}))};
 }
 async function authenticate(request){
   const token=(request.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();
