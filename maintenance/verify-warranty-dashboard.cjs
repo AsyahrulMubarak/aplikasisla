@@ -27,7 +27,7 @@ const c = vm.createContext({ console, penggunaAktif: profile, cabangAktif: 'Kend
 const names = ['normalisasiCabang', 'rolePengguna', 'hakAksesCabangPengguna', 'roleAdalahAdminOperasional_',
   'roleAdalahManajemen_', 'penggunaSalesLintasCabang_', 'penggunaBolehMengaksesCabang', 'dataSesuaiCabangAktif_',
   'parseSafeDate', 'daftarTeknisiUnikTiket_', 'poinHangusKarenaSLA_', 'statusPoinSudahCair_',
-  'statusGaransiEfektif_', 'petakanGaransiSupabase_', 'kunciNamaPekerjaanTeknisi_', 'rekapPekerjaanTeknisi_', 'renderDashboard'];
+  'statusGaransiEfektif_', 'petakanGaransiSupabase_', 'kunciNamaPekerjaanTeknisi_', 'rekapPekerjaanTeknisi_', 'namaTeknisiPenggantian_', 'tanggalCatatanPenggantian_', 'riwayatPenggantianTeknisi_', 'rekapPenggantianTeknisi_', 'renderDashboard'];
 vm.runInContext(names.map(extract).join('\n'), c);
 c.globalGaransi = snapshot.garansi.map(c.petakanGaransiSupabase_);
 for (const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) if (match[1].trim()) new vm.Script(match[1]);

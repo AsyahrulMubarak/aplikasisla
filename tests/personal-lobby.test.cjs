@@ -25,7 +25,7 @@ const functions = [
   'tanggalNotaDariNomorTransaksi_', 'rekapStatusNotaIpos_', 'renderDashboard',
   'petakanTiketSupabase_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
   'kolomGaransiPengguna_', 'hentikanRingkasanLobby_', 'aturTataLetakLobby_', 'muatRingkasanLobby_', 'amanTeks_', 'buatHtmlPerformaAdmin_',
-  'ambilProfilTeknisiRingkasanLobby_', 'kunciNamaPekerjaanTeknisi_', 'rekapPekerjaanTeknisi_', 'buatHtmlDiagramPekerjaanTeknisi_', 'buatHtmlDiagramPerbandinganTeknisi_',
+  'ambilProfilTeknisiRingkasanLobby_', 'kunciNamaPekerjaanTeknisi_', 'rekapPekerjaanTeknisi_', 'namaTeknisiPenggantian_', 'tanggalCatatanPenggantian_', 'riwayatPenggantianTeknisi_', 'rekapPenggantianTeknisi_', 'buatHtmlDiagramPekerjaanTeknisi_', 'buatHtmlDiagramPerbandinganTeknisi_',
   'buatHtmlKartuTeknisi_', 'buatHtmlKartuSales_'
 ];
 function harness(activeUser = user()) {

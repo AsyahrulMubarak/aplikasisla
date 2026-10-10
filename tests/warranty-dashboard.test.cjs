@@ -56,7 +56,7 @@ function harness(activeUser = technician()) {
     'penggunaSalesLintasCabang_', 'penggunaBolehMengaksesCabang', 'dataSesuaiCabangAktif_',
     'parseSafeDate', 'daftarTeknisiUnikTiket_', 'poinHangusKarenaSLA_', 'statusPoinSudahCair_',
     'normalisasiNoTransaksiNota_', 'tanggalNotaDariNomorTransaksi_', 'rekapStatusNotaIpos_',
-    'kunciNamaPekerjaanTeknisi_', 'rekapPekerjaanTeknisi_', 'renderDashboard', 'statusGaransiEfektif_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
+    'kunciNamaPekerjaanTeknisi_', 'rekapPekerjaanTeknisi_', 'namaTeknisiPenggantian_', 'tanggalCatatanPenggantian_', 'riwayatPenggantianTeknisi_', 'rekapPenggantianTeknisi_', 'renderDashboard', 'statusGaransiEfektif_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
     'hentikanRingkasanLobby_', 'aturTataLetakLobby_', 'muatRingkasanLobby_'];
   vm.runInContext('let permintaanRingkasanLobby_ = null, urutanRingkasanLobby_ = 0, waktuRingkasanLobby_ = 0;\n' + names.map(extract).join('\n'), c);
   if (html.includes('function kolomGaransiPengguna_')) vm.runInContext(extract('kolomGaransiPengguna_'), c);

@@ -1944,7 +1944,7 @@
                     "Alasan Admin": row.alasan_admin, "Nilai Penjualan": row.nilai_penjualan, "Link PDF BA": row.link_pdf_ba,
                     "No WA Klien": row.no_wa_klien, "Bobot Poin": row.bobot_poin, "Veto Admin": row.veto_admin,
                     "Status Pembayaran": row.status_pembayaran, "Tanggal Lunas": row.tanggal_lunas,
-                    "Teknisi Sebelumnya": row.teknisi_sebelumnya, "Penalti Teknisi Lama": row.penalti_teknisi_lama,
+                    "Teknisi Sebelumnya": row.teknisi_sebelumnya, "Riwayat Penggantian Teknisi": row.riwayat_penggantian_teknisi, "Penalti Teknisi Lama": row.penalti_teknisi_lama,
                     "Tenggat Pengganti": row.tenggat_pengganti, "Cabang": row.cabang || cabangAktif, "Admin SLA": row.admin_sla
                 };
                 globalTickets = upsertRecordRealtime_(globalTickets, 'ID Tiket', row.id_tiket, perbaruiStatusSLAAktualTiket_(record));
@@ -3302,7 +3302,7 @@
                 "Status Banding": r.status_banding, "Sales Pengaju": r.sales_pengaju, "Klaim Sales Username": r.klaim_sales_username, "Bukti Banding": r.bukti_banding,
                 "Keterangan Sales": r.keterangan_sales, "Alasan Admin": r.alasan_admin, "Nilai Penjualan": r.nilai_penjualan,
                 "Link PDF BA": r.link_pdf_ba, "No WA Klien": r.no_wa_klien, "Bobot Poin": r.bobot_poin, "Veto Admin": r.veto_admin,
-                "Status Pembayaran": r.status_pembayaran, "Tanggal Lunas": r.tanggal_lunas, "Teknisi Sebelumnya": r.teknisi_sebelumnya,
+                "Status Pembayaran": r.status_pembayaran, "Tanggal Lunas": r.tanggal_lunas, "Teknisi Sebelumnya": r.teknisi_sebelumnya, "Riwayat Penggantian Teknisi": r.riwayat_penggantian_teknisi,
                 "Penalti Teknisi Lama": r.penalti_teknisi_lama, "Tenggat Pengganti": r.tenggat_pengganti, "Cabang": r.cabang || cabangAktif,
                 "Admin SLA": r.admin_sla
             };
@@ -3535,6 +3535,72 @@
             return htmlAdmin;
         }
 
+        function namaTeknisiPenggantian_(value) {
+            const names = new Map();
+            daftarTeknisiUnikTiket_(value).forEach(name => {
+                const key = kunciNamaPekerjaanTeknisi_(name);
+                if (key && !['-', 'belum ditugaskan'].includes(key)) names.set(key, key === 'muhammad syawal' ? 'Muhammad Syawal' : name.trim().replace(/\s+/g, ' '));
+            });
+            return names;
+        }
+
+        function tanggalCatatanPenggantian_(value) {
+            const text = String(value || '').trim();
+            let parts = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2})[.:](\d{2})[.:](\d{2})$/);
+            if (parts) parts = [parts[3], parts[2], parts[1], parts[4], parts[5], parts[6]];
+            else {
+                const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+                if (!iso) return null;
+                parts = iso.slice(1);
+            }
+            const [year, month, day, hour, minute, second] = parts.map(Number);
+            if (year < 1 || year > 9999 || month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) return null;
+            const dateText = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const date = new Date(`${dateText}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}+08:00`);
+            if (Number.isNaN(date.getTime()) || new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date) !== dateText) return null;
+            return date.toISOString();
+        }
+
+        function riwayatPenggantianTeknisi_(ticket) {
+            // An array is the server's authoritative journal, including an empty one.
+            if (Array.isArray(ticket['Riwayat Penggantian Teknisi'])) return ticket['Riwayat Penggantian Teknisi'];
+            const events = [], text = String(ticket.Keterangan || '');
+            const pattern = /\[([^\]\r\n]+)\][^\r\n]*PERGANTIAN TEKNISI[\r\n]+Dari: ([^\r\n]*)[\r\n]+Ke: ([^\r\n]*)/g;
+            for (const match of text.matchAll(pattern)) events.push({ waktu: tanggalCatatanPenggantian_(match[1]), dari: match[2].trim(), ke: match[3].trim(), sumber: 'catatan_lama' });
+            if (!events.length && namaTeknisiPenggantian_(ticket['Teknisi Sebelumnya']).size) events.push({ waktu: null, dari: ticket['Teknisi Sebelumnya'], ke: ticket.Teknisi, sumber: 'metadata_lama' });
+            return events;
+        }
+
+        function rekapPenggantianTeknisi_(tickets, bulan, tahun) {
+            const periodFormat = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar', year: 'numeric', month: '2-digit' });
+            const current = periodFormat.format(new Date()).split('-');
+            const month = bulan === 'all' ? 'all' : String(Number(bulan) >= 1 && Number(bulan) <= 12 ? Number(bulan) : Number(current[1])).padStart(2, '0');
+            const year = Number(tahun) > 0 ? Number(tahun) : Number(current[0]);
+            const rows = new Map(), seen = new Set();
+            (tickets || []).filter(ticket => ticket && dataSesuaiCabangAktif_(ticket)).forEach(ticket => {
+                const id = String(ticket['ID Tiket'] || '').trim();
+                if (!id || id.startsWith('SLS-')) return;
+                const uniqueId = (normalisasiCabang(ticket.Cabang) || 'Kendari') + '|' + id;
+                if (seen.has(uniqueId)) return;
+                seen.add(uniqueId);
+                riwayatPenggantianTeknisi_(ticket).forEach(event => {
+                    if (!event || typeof event !== 'object') return;
+                    const before = namaTeknisiPenggantian_(event.dari), after = namaTeknisiPenggantian_(event.ke);
+                    const date = event.waktu ? parseSafeDate(event.waktu) : new Date(NaN);
+                    const dated = !Number.isNaN(date.getTime());
+                    before.forEach((name, key) => {
+                        if (after.has(key)) return;
+                        if (dated && month !== 'all' && periodFormat.format(date) !== `${year}-${month}`) return;
+                        if (!rows.has(key)) rows.set(key, { nama: name, jumlah: 0, tiket: new Set(), tanpaTanggal: 0 });
+                        const row = rows.get(key);
+                        if (!dated) row.tanpaTanggal++;
+                        if (dated || month === 'all') { row.jumlah++; row.tiket.add(uniqueId); }
+                    });
+                });
+            });
+            return [...rows.values()].map(row => ({ ...row, tiket: row.tiket.size }));
+        }
+
         function kunciNamaPekerjaanTeknisi_(nama) {
             const key = String(nama || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
             return key === 'syawal' ? 'muhammad syawal' : key;
@@ -3624,7 +3690,7 @@
         }
 
         function buatHtmlKartuTeknisi_(data, pekerjaan = null) {
-            const s = { ...{ nama: "", resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0, tiket_selesai: 0, pending_count: 0, garansi_bocor: 0, poin_terkumpul: 0 }, ...data };
+            const s = { ...{ nama: "", resp_tepat: 0, resp_telat: 0, resp_aman: 0, resp_total: 0, peng_tepat: 0, peng_telat: 0, peng_aman: 0, peng_total: 0, tiket_selesai: 0, pending_count: 0, garansi_bocor: 0, poin_terkumpul: 0, penggantian_count: 0, penggantian_tiket: 0, penggantian_tanpa_tanggal: 0 }, ...data };
             s.nama = amanTeks_(s.nama);
             let htmlTeknisi = '';
             let sumR = s.resp_tepat + s.resp_telat + s.resp_aman; let pr1 = sumR === 0 ? 0 : (s.resp_tepat / sumR) * 100; let pr2 = sumR === 0 ? 0 : pr1 + (s.resp_telat / sumR) * 100; let rBg = sumR === 0 ? '#cbd5e1' : `conic-gradient(var(--success) 0% ${pr1}%, var(--danger) ${pr1}% ${pr2}%, var(--warning) ${pr2}% 100%)`; let rRate = s.resp_total > 0 ? Math.round((s.resp_tepat / s.resp_total) * 100) : 0;
@@ -3639,7 +3705,7 @@
                 </div>
                 <div class="charts-container"><div class="chart-box"><div class="chart-title">SLA RESPON</div><div class="donut" style="background: ${rBg};"><div class="donut-inner"><span class="donut-val" style="color:${rRate>=80?'var(--success)':(rRate>=50?'var(--warning)':'var(--danger)')}">${sumR>0?rRate+'%':'-'}</span><span class="donut-label">Akurasi</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Tepat</span> <b>${s.resp_tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat</span> <b>${s.resp_telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.resp_aman}</b></div></div></div><div class="chart-box"><div class="chart-title">SLA PENGERJAAN</div><div class="donut" style="background: ${pBg};"><div class="donut-inner"><span class="donut-val" style="color:${pRate>=80?'var(--success)':(pRate>=50?'var(--warning)':'var(--danger)')}">${sumP>0?pRate+'%':'-'}</span><span class="donut-label">Akurasi</span></div></div><div class="chart-legend"><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--success);"></span> Tepat</span> <b>${s.peng_tepat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--danger);"></span> Telat</span> <b>${s.peng_telat}</b></div><div class="legend-item"><span style="display:flex;align-items:center;"><span class="legend-dot" style="background:var(--warning);"></span> Proses</span> <b>${s.peng_aman}</b></div></div></div></div>
                 ${buatHtmlDiagramPekerjaanTeknisi_(data.nama, pekerjaan)}
-                <div style="margin-top:15px; border-top:1px dashed var(--border); padding-top:15px; display:flex; gap:10px;">
+                <div style="margin-top:15px; border-top:1px dashed var(--border); padding-top:15px; display:flex; flex-wrap:wrap; gap:10px;">
                     <div style="flex:1; background:#ecfdf5; padding:10px; border-radius:6px; border:1px solid #a7f3d0;">
                         <div style="font-size:10px; color:var(--text-muted);">Tuntas Tanpa Pending</div>
                         <div style="font-size:16px; font-weight:bold; color:var(--success);">${s.tiket_selesai > 0 ? fixRate + '%' : '-'}</div>
@@ -3649,6 +3715,13 @@
                         <div style="font-size:10px; color:var(--text-muted);">Kebocoran Garansi</div>
                         <div style="font-size:16px; font-weight:bold; color:var(--danger);">${s.garansi_bocor} Tiket</div>
                         <div style="font-size:9px; color:var(--text-muted);">Diklaim pada periode terpilih</div>
+                    </div>
+                    <div class="technician-replacement-rating" style="flex:1; min-width:180px; background:${s.penggantian_count > 0 ? '#fffbeb' : '#ecfdf5'}; padding:10px; border-radius:6px; border:1px solid ${s.penggantian_count > 0 ? '#fde68a' : '#a7f3d0'};">
+                        <div style="font-size:10px; color:var(--text-muted);">Penggantian Teknisi</div>
+                        <div style="font-size:16px; font-weight:bold; color:${s.penggantian_count > 0 ? '#b45309' : 'var(--success)'};">${s.penggantian_count} kali</div>
+                        <div style="font-size:9px; color:var(--text-muted);">Diganti pada ${s.penggantian_tiket} tiket di periode terpilih</div>
+                        <div style="font-size:9px; color:var(--text-muted); margin-top:3px;">Semakin sedikit, semakin baik</div>
+                        ${s.penggantian_tanpa_tanggal > 0 ? '<div style="font-size:9px; color:#b45309; margin-top:3px;">' + s.penggantian_tanpa_tanggal + ' catatan lama tanpa tanggal; hanya dihitung pada Semua Periode</div>' : ''}
                     </div>
                 </div></div>`;
             return htmlTeknisi;
@@ -6302,13 +6375,19 @@
                 });
             });
 
+            rekapPenggantianTeknisi_(tiketCabang, selBulan, selTahun).forEach(row => {
+                const key = Object.keys(statsTeknisi).find(name => kunciNamaPekerjaanTeknisi_(name) === kunciNamaPekerjaanTeknisi_(row.nama)) || row.nama;
+                if (!statsTeknisi[key]) statsTeknisi[key] = { nama: row.nama };
+                Object.assign(statsTeknisi[key], { penggantian_count: row.jumlah, penggantian_tiket: row.tiket, penggantian_tanpa_tanggal: row.tanpaTanggal });
+            });
+
             if (opsi.hitungSaja) return { statsTeknisi, statsSales, statsAdmin, statsAdminNota, statsAdminFollowUp, rekapNotaIpos, ringkasanEksekutif, rekapPekerjaanTeknisi };
 
             const htmlAdmin = buatHtmlPerformaAdmin_({ statsAdmin, statsAdminNota, statsAdminFollowUp, rekapNotaIpos }, cabangAktif, labelPeriodeRekapNota, roleBolehMelihatRekapNotaIpos);
 
             let htmlTeknisi = '<h3 class="section-title" style="margin-top:30px;">Papan Performa Teknisi</h3>';
             htmlTeknisi += buatHtmlDiagramPerbandinganTeknisi_(rekapPekerjaanTeknisi);
-            let arrTeknisi = Object.values(statsTeknisi).sort((a, b) => { return b.poin_terkumpul - a.poin_terkumpul; }); // Sort by Poin
+            let arrTeknisi = Object.values(statsTeknisi).sort((a, b) => { return (b.poin_terkumpul || 0) - (a.poin_terkumpul || 0); }); // Sort by Poin
             if (arrTeknisi.length === 0) htmlTeknisi += '<p style="color:var(--text-muted); font-size:12px;">Belum ada data di periode ini.</p>';
 
             arrTeknisi.forEach(s => { htmlTeknisi += buatHtmlKartuTeknisi_(s, rekapPekerjaanTeknisi); });

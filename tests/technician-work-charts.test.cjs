@@ -1,7 +1,7 @@
 'use strict';
 const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict'), { test } = require('node:test');
 const html = fs.readFileSync(__dirname + '/../index.html', 'utf8');
-const moduleSource = fs.readFileSync(__dirname + '/../maintenance/technician-work-charts.js', 'utf8');
+const moduleSource = fs.readFileSync(__dirname + '/../maintenance/technician-work-charts.js', 'utf8') + '\n' + fs.readFileSync(__dirname + '/../maintenance/technician-replacement-rating.js', 'utf8');
 function extract(name) {
     const match = html.match(new RegExp('^([ \\t]*)(?:async )?function ' + name + '\\([^]*?^\\1\\}', 'm'));
     assert.ok(match, name); return match[0];
