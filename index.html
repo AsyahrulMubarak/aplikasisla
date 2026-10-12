@@ -848,6 +848,7 @@
             </form>
         </div>
     </div>
+    <script src="status-pegawai.js?v=20261012"></script>
     <!-- LOBI UTAMA DATAR: PILIH CABANG SLA ATAU MODUL PENDUKUNG -->
     <div id="main-lobby-wrapper" aria-hidden="true">
         <main class="main-lobby-card" aria-labelledby="main-lobby-title">
@@ -865,6 +866,14 @@
                 </div>
                 <div id="lobby-dashboard-content" aria-busy="false"><div class="lobby-skeleton" aria-hidden="true"></div></div>
                 <p id="lobby-dashboard-status" role="status" aria-live="polite"></p>
+            </section>
+            <section class="lobby-panel" aria-labelledby="lobby-kehadiran-title">
+                <div class="lobby-panel-title"><div><h3 id="lobby-kehadiran-title">Pegawai Izin / Sakit</h3><p>Status pegawai di cabang hari ini.</p></div><button type="button" class="lobby-refresh" onclick="muatStatusPegawaiLobby_()" aria-label="Muat ulang status pegawai">↻</button></div>
+                <div id="lobby-kehadiran-content" role="status" aria-live="polite"></div>
+            </section>
+            <section id="lobby-pekerjaan-panel" class="lobby-panel" aria-labelledby="lobby-pekerjaan-title" style="display:none;">
+                <div class="lobby-panel-title"><div><h3 id="lobby-pekerjaan-title">Teknisi Sedang Bekerja</h3><p>Pelaksana tiket yang berstatus On Progress.</p></div></div>
+                <div id="lobby-pekerjaan-content" role="status" aria-live="polite"></div>
             </section>
             <section class="lobby-panel lobby-menu-panel" aria-labelledby="lobby-menu-title">
                 <div class="lobby-panel-title"><div><h3 id="lobby-menu-title">Semua Menu</h3><p>Menu dengan penanda kunci belum tersedia untuk akun Anda.</p></div></div>
@@ -925,10 +934,12 @@
             <form onsubmit="kirimBanding(event)">
                 <input type="hidden" id="banding-id">
                 <label>Bukti Foto (Maks 3 File)</label>
-                <input type="file" id="banding-bukti" accept="image/*" multiple max="3" required style="font-size: 12px;">
+                <input type="file" id="banding-bukti" accept="image/jpeg,image/png,image/webp" multiple max="3" required onchange="tampilkanPratinjauBuktiKlaim_()" style="font-size: 12px;">
+                <p style="font-size:12px;color:var(--text-muted);">File asli disimpan tanpa konversi. Maksimal total 2,5 MB. Periksa foto sebelum mengirim.</p>
+                <div id="banding-preview" class="img-grid" aria-live="polite"></div>
                 <label>Keterangan Tambahan (Opsional)</label>
                 <textarea id="banding-keterangan" placeholder="Ketik keterangan..."></textarea>
-                <p id="banding-status" style="font-size:11px; color:var(--primary); font-weight:600; display:none; margin-top:10px;">Mengompres foto, mohon tunggu...</p>
+                <p id="banding-status" style="font-size:11px; color:var(--primary); font-weight:600; display:none; margin-top:10px;">Membaca dan mengirim file asli, mohon tunggu...</p>
                 <button type="submit" id="btn-submit-banding" class="btn-solid-primary" style="background:var(--purple);">Kirim Pengajuan</button>
                 <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-banding').style.display='none'">Batal</button>
             </form>
@@ -1934,6 +1945,7 @@
                     "ID Tiket": row.id_tiket, "No Transaksi": row.no_transaksi || '', "Waktu Lapor": row.waktu_lapor,
                     "Waktu Penugasan": row.waktu_penugasan, "Sumber Waktu Penugasan": row.sumber_waktu_penugasan,
                     "Target SLA (Jam)": row.target_sla_jam, "Tenggat Waktu": row.tenggat_waktu, "Klien & Lokasi": row.klien_lokasi,
+                    "Mulai Jeda SLA": row.sla_jeda_mulai, "Sisa SLA Saat Jeda": row.sla_jeda_sisa_detik,
                     "Jenis Pekerjaan": row.jenis_pekerjaan, "Teknisi": row.teknisi, "Status": row.status, "Waktu Selesai": row.waktu_selesai,
                     "Status SLA": row.status_sla, "Poin Performa": row.poin_performa, "Sales": row.sales, "Keterangan": row.keterangan,
                     "Target SLA Respon (Jam)": row.target_sla_respon_jam, "Tenggat Respon": row.tenggat_respon, "Waktu Respon": row.waktu_respon,
@@ -2972,6 +2984,7 @@
             const tenggatPengerjaan = parseSafeDate(ticket['Tenggat Waktu']);
             const waktuSelesai = parseSafeDate(ticket['Waktu Selesai']);
             const statusTiket = String(ticket.Status || 'Menunggu').trim().toLowerCase();
+            ticket.Status = ({pending:'Pending',outsource:'Outsource','on progress':'On Progress',selesai:'Selesai',closed:'Selesai',cancel:'Cancel',batal:'Cancel',menunggu:'Menunggu','claim garansi':'Claim Garansi'})[statusTiket] || ticket.Status;
             const teknisi = String(ticket.Teknisi || '').trim();
             const belumDitugaskan = !teknisi || teknisi === '-' || teknisi.toLowerCase() === 'belum ditugaskan';
 
@@ -3294,6 +3307,7 @@
                 "ID Tiket": r.id_tiket, "No Transaksi": r.no_transaksi || "", "Waktu Lapor": r.waktu_lapor,
                 "Waktu Penugasan": r.waktu_penugasan, "Sumber Waktu Penugasan": r.sumber_waktu_penugasan,
                 "Target SLA (Jam)": r.target_sla_jam, "Tenggat Waktu": r.tenggat_waktu, "Klien & Lokasi": r.klien_lokasi,
+                "Mulai Jeda SLA": r.sla_jeda_mulai, "Sisa SLA Saat Jeda": r.sla_jeda_sisa_detik,
                 "Jenis Pekerjaan": r.jenis_pekerjaan, "Teknisi": r.teknisi, "Status": r.status, "Waktu Selesai": r.waktu_selesai,
                 "Status SLA": r.status_sla, "Poin Performa": r.poin_performa, "Sales": r.sales, "Keterangan": r.keterangan,
                 "Target SLA Respon (Jam)": r.target_sla_respon_jam, "Tenggat Respon": r.tenggat_respon, "Waktu Respon": r.waktu_respon,
@@ -3435,6 +3449,31 @@
             return terperinci;
         }
 
+        let urutanStatusPegawaiLobby_ = 0;
+        async function muatStatusPegawaiLobby_(cabang = document.getElementById('lobby-cabang').value) {
+            const order = ++urutanStatusPegawaiLobby_;
+            const user = penggunaAktif;
+            const lobby = document.getElementById('main-lobby-wrapper');
+            if (!user || !lobby || lobby.style.display === 'none') return;
+            const attendance = document.getElementById('lobby-kehadiran-content');
+            const work = document.getElementById('lobby-pekerjaan-content');
+            const management = ['admin','admin_raha','manager','direktur'].includes(rolePengguna(user));
+            document.getElementById('lobby-pekerjaan-panel').style.display = management ? 'block' : 'none';
+            attendance.textContent = 'Memuat status pegawai...';
+            work.textContent = management ? 'Memuat tiket On Progress...' : '';
+            const requests = [['getStatusKehadiranCabang', attendance, false]];
+            if (management) requests.push(['getTeknisiOnProgress', work, true]);
+            await Promise.all(requests.map(async ([action, target, working]) => {
+                try {
+                    const result = await kirimKlaimSalesSupabase_(action, { cabang });
+                    if (order !== urutanStatusPegawaiLobby_ || penggunaAktif !== user || lobby.style.display === 'none') return;
+                    renderStatusPegawai_(target, result, working);
+                } catch (error) {
+                    if (order === urutanStatusPegawaiLobby_ && penggunaAktif === user) target.textContent = 'Status belum dapat dimuat. Gunakan tombol muat ulang.';
+                }
+            }));
+        }
+
         async function muatRingkasanLobby_() {
             const lobby = document.getElementById('main-lobby-wrapper');
             if (!punyaAksesLobby() || !lobby || lobby.style.display === 'none') return false;
@@ -3444,6 +3483,7 @@
             permintaanRingkasanLobby_ = controller;
             const user = penggunaAktif;
             const cabang = document.getElementById('lobby-cabang').value;
+            void muatStatusPegawaiLobby_(cabang);
             aturTataLetakLobby_(user, cabang);
             const periode = document.getElementById('lobby-periode').value;
             const target = document.getElementById('lobby-dashboard-content');
@@ -4516,6 +4556,64 @@
                 reader.onerror = function() { reject(new Error('Gagal membaca file.')); };
                 reader.readAsDataURL(file);
             });
+        }
+
+        function validasiUkuranBuktiKlaim_(files) {
+            if (!files.length || files.length > 3) throw new Error('Pilih 1 sampai 3 foto bukti.');
+            const encodedSize = Array.from(files).reduce((total, file) => total + 4 * Math.ceil(file.size / 3) + 40, 0);
+            if (encodedSize > 3500000) throw new Error('Total foto terlalu besar. Pilih file dengan total maksimal 2,5 MB.');
+        }
+
+        function prosesUploadBuktiKlaim_(file) {
+            return new Promise((resolve, reject) => {
+                if (!file || !file.size) return reject(new Error('Foto bukti kosong atau tidak ditemukan.'));
+                const declared = String(file.type || '').toLowerCase().replace('image/jpg', 'image/jpeg');
+                const extension = String(file.name || '').split('.').pop().toLowerCase();
+                const mime = declared || ({ jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', webp:'image/webp' })[extension];
+                if (!['image/jpeg','image/png','image/webp'].includes(mime)) return reject(new Error('Pilih foto JPG, PNG, atau WebP.'));
+                if (4 * Math.ceil(file.size / 3) + 40 > 3500000) return reject(new Error('Foto terlalu besar. Maksimal total 2,5 MB.'));
+                const reader = new FileReader();
+                reader.onerror = () => reject(new Error('File foto gagal dibaca.'));
+                reader.onabort = () => reject(new Error('Pembacaan foto dibatalkan.'));
+                reader.onload = () => {
+                    const original = String(reader.result || '').replace(/^data:[^;]*;base64,/, `data:${mime};base64,`);
+                    if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(original)) return reject(new Error('Data foto tidak valid.'));
+                    const image = new Image();
+                    const timer = setTimeout(() => reject(new Error('Foto belum dapat dibaca. Coba pilih ulang file.')), 20000);
+                    image.onload = () => {
+                        clearTimeout(timer);
+                        if (!image.naturalWidth || !image.naturalHeight) return reject(new Error('Foto tidak memiliki ukuran yang valid.'));
+                        resolve(original);
+                    };
+                    image.onerror = () => { clearTimeout(timer); reject(new Error('Foto rusak atau formatnya tidak dapat dibaca.')); };
+                    image.src = original;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        let urutanPreviewBuktiKlaim_ = 0;
+        async function tampilkanPratinjauBuktiKlaim_() {
+            const order = ++urutanPreviewBuktiKlaim_;
+            const target = document.getElementById('banding-preview');
+            const files = Array.from(document.getElementById('banding-bukti').files);
+            target.replaceChildren();
+            if (!files.length) return;
+            target.textContent = 'Membaca foto asli...';
+            try {
+                validasiUkuranBuktiKlaim_(files);
+                const photos = await Promise.all(files.map(prosesUploadBuktiKlaim_));
+                if (order !== urutanPreviewBuktiKlaim_) return;
+                target.replaceChildren();
+                photos.forEach((src, i) => {
+                    const photo = document.createElement('img');
+                    photo.src = src; photo.alt = `Pratinjau foto bukti ${i + 1}`;
+                    photo.style.background = '#fff';
+                    target.append(photo);
+                });
+            } catch (error) {
+                if (order === urutanPreviewBuktiKlaim_) target.textContent = error.message;
+            }
         }
 
         function perbaruiLabelBuktiProspek_(file, pesanError) {
@@ -6571,6 +6669,13 @@
                         infoSlaTeks = `<div style="background:#fffbeb; padding:10px; border-radius:8px; border:1px dashed #fde68a;"><p style="margin:0; text-align:center; color:#b45309; font-weight:bold;">🔧 Proses di Bengkel Rekanan</p></div>`;
                     }
                     infoSlaTeks += `<div style="margin-top:10px; border-top:1px dashed var(--border); padding-top:10px;"><p style="margin:0 0 5px 0; color:var(--warning); font-size:11px;">*SLA Pengerjaan di-pause. Update catatan Klien untuk reset alarm.</p></div>`;
+                }
+                else if (textStatus === 'Pending') {
+                    const remaining = Number(ticket['Sisa SLA Saat Jeda']);
+                    const hasRemaining = ticket['Sisa SLA Saat Jeda'] !== null && ticket['Sisa SLA Saat Jeda'] !== undefined && Number.isFinite(remaining);
+                    const minutes = Math.ceil(Math.max(0, remaining) / 60);
+                    const label = hasRemaining ? (remaining < 0 ? 'SLA sudah terlewat sebelum Pending.' : `Sisa waktu: ${Math.floor(minutes / 60)} jam ${minutes % 60} menit kerja.`) : 'Sisa waktu disimpan saat tiket masuk Pending.';
+                    infoSlaTeks = `<div style="background:#fffbeb;padding:12px;border-radius:8px;border:1px dashed #fde68a;"><p style="margin:0;font-weight:700;color:#92400e;">⏸ SLA Pengerjaan Berhenti</p><p style="margin:6px 0;font-size:12px;">${label}</p><p style="margin:0;font-size:11px;color:var(--text-muted);">Melanjutkan sisa waktu saat status kembali On Progress.</p></div>`;
                 }
                 else {
                     infoSlaTeks = `<p style="margin:0 0 5px 0;"><strong>SLA Respon:</strong> <span class="badge ${bRespon}">${ticket['Status SLA Respon']||'-'}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Respon'])}</p><p style="margin:0 0 5px 0;"><strong>SLA Pengerjaan:</strong> <span class="badge ${bSelesai}">${textSlaPengerjaan}</span></p><p style="margin:0 0 5px 0; color:var(--text-muted);">Batas: ${formatWaktu(ticket['Tenggat Waktu'])}</p>`;
@@ -8703,6 +8808,8 @@
             if (rolePengguna() !== 'sales') { showToast('Pengajuan klaim khusus Sales.', 'warning'); return; }
             document.getElementById('banding-id').value = id;
             document.getElementById('banding-bukti').value = '';
+            ++urutanPreviewBuktiKlaim_;
+            document.getElementById('banding-preview').replaceChildren();
             document.getElementById('banding-keterangan').value = '';
             document.getElementById('modal-banding').style.display = 'flex';
         }
@@ -8714,17 +8821,20 @@
             const fileInput = document.getElementById('banding-bukti');
             if(fileInput.files.length === 0) { showToast('Afwan, Harap pilih minimal 1 foto bukti!', 'warning'); return; }
             if(fileInput.files.length > 3) { showToast('Afwan, Maksimal 3 foto yang bisa diunggah sekaligus!', 'warning'); return; }
+            try { validasiUkuranBuktiKlaim_(fileInput.files); }
+            catch (error) { showToast(error.message, 'warning'); return; }
 
             document.getElementById('banding-status').style.display = 'block';
             document.getElementById('btn-submit-banding').disabled = true;
-            document.getElementById('btn-submit-banding').innerText = 'Mengompres & Mengirim...';
+            document.getElementById('btn-submit-banding').innerText = 'Membaca & Mengirim...';
 
             try {
                 let arrayBase64 = [];
                 for(let i=0; i<fileInput.files.length; i++){
-                    arrayBase64.push(await prosesUploadBebas(fileInput.files[i]));
+                    arrayBase64.push(await prosesUploadBuktiKlaim_(fileInput.files[i]));
                 }
                 const gabunganBukti = arrayBase64.join('|#|');
+                if (gabunganBukti.length > 3500000) throw new Error('Total foto terlalu besar. Maksimal total 2,5 MB.');
                 const ketSales = document.getElementById('banding-keterangan').value;
                 const idTiket = document.getElementById('banding-id').value;
 

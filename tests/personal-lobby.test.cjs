@@ -37,7 +37,7 @@ function harness(activeUser = user()) {
   class FixedDate extends Date {
     constructor(...args) { super(...(args.length ? args : ['2026-10-01T12:00:00+08:00'])); }
   }
-  const c = vm.createContext({ Date: FixedDate, AbortController, console,
+  const c = vm.createContext({ Date: FixedDate, AbortController, console, muatStatusPegawaiLobby_: async () => {},
     API_URL_CABANG: { Kendari: 'test', Raha: 'test' }, penggunaAktif: activeUser, cabangAktif: 'Raha',
     globalUsers: [activeUser], globalTickets: [], globalGaransi: [], globalPenjualan: [], globalProspek: [],
     document: { getElementById: node }, hitungDurasiJamKerjaMs: () => 0,
