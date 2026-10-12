@@ -241,6 +241,11 @@
         </form>
     </div>
 
+    <script src="status-pegawai.js?v=20261012"></script>
+    <section style="max-width:500px;margin:20px auto;padding:20px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-sizing:border-box;" aria-labelledby="kehadiran-cabang-title">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><h3 id="kehadiran-cabang-title" style="font-size:16px;margin:0 0 12px;">Pegawai Izin / Sakit</h3><button type="button" onclick="muatKehadiranCabang_()" aria-label="Muat ulang status pegawai" style="border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:8px;cursor:pointer;">↻</button></div>
+        <div id="kehadiran-cabang-content" role="status" aria-live="polite"></div>
+    </section>
     <div id="modal-tinjauan" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
         <div style="background:#fff; padding:20px; border-radius:12px; width:100%; max-width:500px; max-height:85vh; overflow-y:auto; position:relative;">
             <h3 style="margin-top:0; color:#1e3a8a; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">📋 Tinjauan Absensi</h3>
@@ -638,6 +643,23 @@
         }
 
         // 1. CEK SSO (SINGLE SIGN ON) DARI SESSIONSTORAGE
+        let urutanKehadiranCabang_ = 0;
+        async function muatKehadiranCabang_() {
+            const order = ++urutanKehadiranCabang_;
+            const user = penggunaAktif;
+            if (!user) return;
+            const target = document.getElementById('kehadiran-cabang-content');
+            target.textContent = 'Memuat status pegawai...';
+            try {
+                const result = await fetchAntiCORS(API_ABSEN_URL, payloadDenganSesi('getStatusKehadiranCabang'));
+                if (result.status !== 'sukses') throw new Error(result.pesan || 'Status belum tersedia.');
+                if (order === urutanKehadiranCabang_ && penggunaAktif === user) renderStatusPegawai_(target, result);
+            } catch (error) {
+                if (order === urutanKehadiranCabang_) target.textContent = 'Status belum dapat dimuat. Gunakan tombol muat ulang.';
+            }
+        }
+        window.addEventListener('focus', () => { if (penggunaAktif) void muatKehadiranCabang_(); });
+
         window.onload = async function() {
             try {
                 const parsedSession = bacaSesiCabangAktif();
@@ -659,6 +681,7 @@
                     document.getElementById('btn-buka-pengajuan').style.display = 'none';
                 }
                 await muatKebijakanAbsensi();
+                void muatKehadiranCabang_();
                 dapatkanLokasi();
             } catch(e) {
                 showToast(e.message || "Afwan, antum harus login terlebih dahulu.", true);
@@ -1324,6 +1347,7 @@
                     document.getElementById('tipe-absen').value = '';
                     document.getElementById('input-keterangan').value = '';
                     document.getElementById('koreksi-fields').style.display = 'none';
+                    void muatKehadiranCabang_();
                     await bukaTinjauan();
                 } else {
                     showToast("❌ Afwan: " + hasil.pesan, true);

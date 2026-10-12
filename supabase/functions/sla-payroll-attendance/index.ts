@@ -590,6 +590,57 @@ async function listLeave(action,u) {
     'Kembali Bekerja':r.kembali_bekerja_pada||null,'Alasan':r.alasan,'Bukti Foto':r.bukti_foto,
     'Status (Menunggu/Disetujui/Ditolak)':r.status,'Disetujui Oleh':r.disetujui_oleh,'Waktu Disetujui':r.waktu_disetujui}))};
 }
+function employeeStatusBranch(body,u,work=false) {
+  const roles=work?['admin','admin_raha','manager','direktur']:['teknisi','sales','admin','admin_raha','manager','direktur'];
+  if(!roles.includes(u.role)||!branch(u.homeBranch||u.branch))throw new Error('Akses status pegawai tidak tersedia.');
+  const home=branch(u.homeBranch||u.branch);
+  if(!['manager','direktur'].includes(u.role))return home;
+  const requested=branch(body.cabang)||home;
+  if(u.access!=='Semua'&&requested!==home)throw new Error('Cabang status pegawai tidak sesuai hak akses.');
+  return requested;
+}
+async function branchLeaveStatus(body,u) {
+  const cabang=employeeStatusBranch(body,u),today=day();
+  const rows=await allRows('pengajuan_cuti','select=nama_pegawai,jenis,tanggal_mulai,tanggal_selesai,tanggal_selesai_disetujui,kembali_bekerja_pada,status,cabang&status=eq.Disetujui&tanggal_mulai=lte.'+today+absenceBranchScope(cabang));
+  const current=rows.filter(r=>r.status==='Disetujui'&&(branch(r.cabang)||'Kendari')===cabang&&['Sakit','Izin'].includes(r.jenis)&&
+    String(r.tanggal_mulai).slice(0,10)<=today&&(!r.kembali_bekerja_pada||new Date(r.kembali_bekerja_pada)>new Date())&&
+    (r.jenis==='Sakit'||String(r.tanggal_selesai_disetujui||r.tanggal_selesai||'').slice(0,10)>=today));
+  // Older approved requests may not yet have a persisted return timestamp.
+  let attendance=[];
+  if(current.length) {
+    const start=current.map(r=>String(r.tanggal_mulai).slice(0,10)).sort()[0];
+    const names=[...new Set(current.map(r=>String(r.nama_pegawai)))];
+    const nameFilter='&nama_pegawai=in.'+encode('('+names.map(n=>'"'+n.replace(/\\/g,'\\\\').replace(/"/g,'\\"')+'"').join(',')+')');
+    attendance=await allRows('absensi','select=nama_pegawai,waktu_absen,tipe_absen,status_disiplin&tipe_absen=in.(Masuk,Masuk Setelah Istirahat)&waktu_absen=gte.'+encode(start+'T00:00:00+08:00')+'&waktu_absen=lte.'+encode(new Date().toISOString())+absenceBranchScope(cabang)+nameFilter);
+  }
+  const data=current.filter(r=>!attendance.some(a=>norm(a.nama_pegawai)===norm(r.nama_pegawai)&&
+    ['Masuk','Masuk Setelah Istirahat'].includes(a.tipe_absen)&&!/Lupa Absen Masuk|Koreksi|Auto/i.test(String(a.status_disiplin||''))&&
+    day(a.waktu_absen)>=String(r.tanggal_mulai).slice(0,10)))
+    .map(r=>({nama:r.nama_pegawai,status:r.jenis,mulai:String(r.tanggal_mulai).slice(0,10),
+      selesai:r.jenis==='Izin'?String(r.tanggal_selesai_disetujui||r.tanggal_selesai).slice(0,10):null}));
+  const unique=new Map();for(const r of data)unique.set(norm(r.nama),r);
+  return {status:'sukses',cabang,tanggal:today,data:[...unique.values()].sort((a,b)=>a.nama.localeCompare(b.nama,'id'))};
+}
+async function workingTechnicians(body,u) {
+  const cabang=employeeStatusBranch(body,u,true);
+  const [tickets,profiles]=await Promise.all([
+    allRows('tiket','select=id_tiket,teknisi,status,cabang&status=ilike.on%20progress'+absenceBranchScope(cabang)+'&order=id_tiket.asc'),
+    allRows('users','select=username,nama_asli,role,hak_akses_cabang,cabang&role=eq.teknisi')
+  ]);
+  const data=new Map();
+  for(const t of tickets) {
+    if(norm(t.status)!=='on progress'||(branch(t.cabang)||'Kendari')!==cabang)continue;
+    for(const name of String(t.teknisi||'').split(/[,;\n]+/).map(norm).filter(Boolean)) {
+      const profile=profiles.find(p=>norm(p.role)==='teknisi'&&(branch(p.hak_akses_cabang)||branch(p.cabang)||'Kendari')===cabang&&
+        (norm(p.nama_asli)===name||norm(p.username)===name||(name==='syawal'&&norm(p.nama_asli)==='muhammad syawal')));
+      if(!profile)continue;
+      const key=norm(profile.nama_asli);
+      if(!data.has(key))data.set(key,{nama:profile.nama_asli,tiket:[]});
+      const entry=data.get(key);if(!entry.tiket.includes(t.id_tiket))entry.tiket.push(t.id_tiket);
+    }
+  }
+  return {status:'sukses',cabang,data:[...data.values()].sort((a,b)=>a.nama.localeCompare(b.nama,'id'))};
+}
 function normalizePhone(value) {
   let number=String(value||'').replace(/\D/g,'');
   if(number.startsWith('0062'))number=number.slice(2);
@@ -882,6 +933,8 @@ async function changeSalary(body,u) {
 
 async function dispatch(body,u) {
   const action=String(body.action||'');
+  if(action==='getStatusKehadiranCabang')return branchLeaveStatus(body,u);
+  if(action==='getTeknisiOnProgress')return workingTechnicians(body,u);
   if(['getKlaimSales','getBuktiKlaimSales','ajukanBanding','responBanding'].includes(action))return salesClaims(body,u);
   if(action==='klaimGaransi')return claimWarranty(body,u);
   if(action==='getDaftarGaji')return salaryManagement(u);
