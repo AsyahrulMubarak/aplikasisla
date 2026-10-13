@@ -27,7 +27,7 @@ function harness(options = {}) {
     callSupabase: async endpoint => { calls.push({ endpoint }); return options.read ? options.read(endpoint) : [row]; },
     kirimKeBackend_: async (url, action, payload) => { calls.push({ url, action, payload }); return options.send ? options.send(payload) : { status: 'sukses', terkirim: true }; }
   });
-  for (const name of ['rolePengguna', 'normalisasiCabang', 'dataSesuaiCabangAktif_', 'idAman_', 'eventHandlerAman_', 'endpointFilterSupabase_', 'normalisasiWASementara_', 'daftarTeknisiUnikTiket_', 'kunciNamaPekerjaanTeknisi_', 'namaTeknisiPenggantian_', 'petakanTiketSupabase_', 'statusFollowUpTiket_', 'bolehFollowUpTiket_', 'tombolFollowUpTiket_', 'pesanFollowUpTiket_', 'penerimaFollowUpTiket_', 'kirimFollowUpTiket']) {
+  for (const name of ['rolePengguna', 'normalisasiCabang', 'dataSesuaiCabangAktif_', 'idAman_', 'eventHandlerAman_', 'endpointFilterSupabase_', 'normalisasiWASementara_', 'daftarTeknisiUnikTiket_', 'kunciNamaPekerjaanTeknisi_', 'namaTeknisiPenggantian_', 'tanggalCatatanPenggantian_', 'riwayatPenggantianTeknisi_', 'petakanTiketSupabase_', 'statusFollowUpTiket_', 'bolehFollowUpTiket_', 'namaTeknisiFollowUpTiket_', 'tombolFollowUpTiket_', 'pesanFollowUpTiket_', 'penerimaFollowUpTiket_', 'kirimFollowUpTiket']) {
     vm.runInContext(extract(name), context);
   }
   return { context, calls, toasts, row };
@@ -165,4 +165,60 @@ test('Raha tickets use the Raha relay and assigned Raha technician', async () =>
   assert.match(calls[0].endpoint, /cabang=eq.Raha/);
   assert.equal(calls[1].url, 'gateway-raha');
   assert.match(calls[1].payload.pesan, /Cabang: Raha/);
+});
+
+const replacementUsers = ['Teknisi Lama', 'Anggota Lama', 'Pengganti', 'Pengganti Baru'].map((name, i) => ({ Role: 'teknisi', Username: 'teknisi-' + i, 'Nama Asli': name, 'No WA': '08123456789' + i, Cabang: 'Kendari' }));
+
+test('a replacement receives follow-up without notifying retained members of the old team', async () => {
+  for (const status of ['Pending', 'On Progress', 'Menunggu']) {
+    const { context, calls } = harness({ row: {
+      status, teknisi: 'Pengganti, Anggota Lama', teknisi_sebelumnya: 'Teknisi Lama, Anggota Lama',
+      riwayat_penggantian_teknisi: [{ dari: 'Teknisi Lama, Anggota Lama', ke: 'Pengganti, Anggota Lama', sumber: 'server' }]
+    }, users: replacementUsers });
+    await context.kirimFollowUpTiket('TKT-UJI');
+    assert.deepEqual(calls.filter(c => c.action).map(c => c.payload.nomorTujuan), ['6281234567892']);
+    assert.match(calls[1].payload.pesan, /Teknisi: Pengganti\n/);
+    assert.doesNotMatch(calls[1].payload.pesan, /Teknisi Lama|Anggota Lama/);
+  }
+});
+
+test('legacy notes and previous-assignment metadata also exclude the old team', async () => {
+  for (const metadata of [
+    { teknisi_sebelumnya: 'Teknisi Lama, Anggota Lama' },
+    { teknisi_sebelumnya: 'Teknisi Lama, Anggota Lama', riwayat_penggantian_teknisi: [] },
+    { keterangan: '[13/10/2026, 08.00.00] 🔄 PERGANTIAN TEKNISI\nDari: Teknisi Lama, Anggota Lama\nKe: Pengganti, Anggota Lama' }
+  ]) {
+    const { context, calls } = harness({ row: { teknisi: 'Teknisi Lama, Anggota Lama, Pengganti', ...metadata }, users: replacementUsers });
+    await context.kirimFollowUpTiket('TKT-UJI');
+    assert.deepEqual(calls.filter(c => c.action).map(c => c.payload.nomorTujuan), ['6281234567892']);
+  }
+});
+
+test('only the latest replacement determines exclusions, allowing a technician to be reassigned', async () => {
+  const { context, calls } = harness({ row: {
+    teknisi: 'Teknisi Lama', teknisi_sebelumnya: 'Pengganti',
+    riwayat_penggantian_teknisi: [null, { dari: 'Teknisi Lama', ke: 'Pengganti' }, { dari: 'Pengganti', ke: 'Teknisi Lama' }, 'invalid']
+  }, users: replacementUsers });
+  await context.kirimFollowUpTiket('TKT-UJI');
+  assert.deepEqual(calls.filter(c => c.action).map(c => c.payload.nomorTujuan), ['6281234567890']);
+});
+
+test('replacement metadata cannot resurrect a technician who is no longer assigned', async () => {
+  const { context, calls } = harness({ row: {
+    teknisi: 'Pengganti Baru', teknisi_sebelumnya: 'Teknisi Lama',
+    riwayat_penggantian_teknisi: [{ dari: 'Teknisi Lama', ke: 'Pengganti' }]
+  }, users: replacementUsers });
+  await context.kirimFollowUpTiket('TKT-UJI');
+  assert.deepEqual(calls.filter(c => c.action).map(c => c.payload.nomorTujuan), ['6281234567893']);
+});
+
+test('old names are excluded after alias normalization and missing replacement blocks delivery', async () => {
+  const alias = harness({ row: { teknisi: 'Muhammad Syawal, Pengganti', teknisi_sebelumnya: 'Syawal' }, users: replacementUsers });
+  await alias.context.kirimFollowUpTiket('TKT-UJI');
+  assert.deepEqual(alias.calls.filter(c => c.action).map(c => c.payload.nomorTujuan), ['6281234567892']);
+  const missing = harness({ row: { teknisi: 'Teknisi Lama', teknisi_sebelumnya: 'Teknisi Lama' }, users: replacementUsers });
+  await missing.context.kirimFollowUpTiket('TKT-UJI');
+  assert.equal(missing.calls.filter(c => c.action).length, 0);
+  assert.match(missing.toasts.at(-1).message, /Teknisi pengganti aktif belum ditetapkan/);
+  assert.match(missing.context.tombolFollowUpTiket_(missing.context.globalTickets[0]), /disabled[\s\S]*Periksa teknisi pengganti/);
 });

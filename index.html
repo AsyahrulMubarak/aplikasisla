@@ -6543,13 +6543,25 @@
             return ['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna());
         }
 
+        function namaTeknisiFollowUpTiket_(ticket) {
+            const aktif = namaTeknisiPenggantian_(ticket.Teknisi);
+            const riwayat = riwayatPenggantianTeknisi_(ticket).filter(event => event && typeof event.dari === 'string' && typeof event.ke === 'string');
+            const terakhir = riwayat[riwayat.length - 1];
+            const sebelumnya = namaTeknisiPenggantian_(terakhir ? terakhir.dari : ticket['Teknisi Sebelumnya']);
+            // Nama yang masih tercantum dari tim sebelum pergantian bukan penerima Follow Up pengganti.
+            sebelumnya.forEach((nama, kunci) => aktif.delete(kunci));
+            return aktif;
+        }
+
         function tombolFollowUpTiket_(ticket) {
             const id = idAman_(ticket['ID Tiket']);
             if (!id || !bolehFollowUpTiket_() || !statusFollowUpTiket_(ticket.Status)) return '';
-            const tanpaTeknisi = namaTeknisiPenggantian_(ticket.Teknisi).size === 0;
+            const tanpaTeknisi = namaTeknisiFollowUpTiket_(ticket).size === 0;
+            const tanpaPenugasan = namaTeknisiPenggantian_(ticket.Teknisi).size === 0;
             const mengirim = followUpTiketSedangDikirim_.has(id);
-            const label = mengirim ? 'Mengirim WA…' : tanpaTeknisi ? 'Follow Up · Tugaskan teknisi dahulu' : '💬 Follow Up via WA';
-            return `<button type="button" class="btn-action-primary btn-follow-up-ticket" data-follow-up-ticket="${id}" ${mengirim || tanpaTeknisi ? 'disabled' : ''} title="${tanpaTeknisi ? 'Tugaskan teknisi sebelum mengirim Follow Up.' : 'Minta kejelasan jadwal pekerjaan kepada teknisi melalui WhatsApp.'}" onclick="kirimFollowUpTiket('${id}')">${label}</button>`;
+            const bantuan = tanpaPenugasan ? 'Tugaskan teknisi sebelum mengirim Follow Up.' : tanpaTeknisi ? 'Teknisi pengganti aktif belum ditetapkan. Periksa penugasan tiket.' : 'Minta kejelasan jadwal pekerjaan kepada teknisi aktif/pengganti melalui WhatsApp.';
+            const label = mengirim ? 'Mengirim WA…' : tanpaPenugasan ? 'Follow Up · Tugaskan teknisi dahulu' : tanpaTeknisi ? 'Follow Up · Periksa teknisi pengganti' : '💬 Follow Up via WA';
+            return `<button type="button" class="btn-action-primary btn-follow-up-ticket" data-follow-up-ticket="${id}" ${mengirim || tanpaTeknisi ? 'disabled' : ''} title="${bantuan}" onclick="kirimFollowUpTiket('${id}')">${label}</button>`;
         }
 
         function pesanFollowUpTiket_(ticket, pengirim) {
@@ -6560,12 +6572,12 @@
                 'Pending': 'Apa kendala yang membuat pekerjaan ini pending? Kapan kendala tersebut diperkirakan selesai dan pekerjaan dapat dilanjutkan? Mohon informasikan rencana tanggal dan jamnya.'
             };
             if (!status) throw new Error('Follow Up hanya tersedia untuk tiket Menunggu, On Progress, atau Pending.');
-            return `💬 *FOLLOW UP TIKET*\n\nTiket: *${ticket['ID Tiket']}*\nCabang: ${ticket.Cabang}\nKlien / Lokasi: ${ticket['Klien & Lokasi'] || '-'}\nPekerjaan: ${ticket['Jenis Pekerjaan'] || '-'}\nStatus: *${status}*\nTeknisi: ${ticket.Teknisi}\nDiminta oleh: ${pengirim || '-'}\n\n${pertanyaan[status]}\n\nMohon balas pesan ini dan perbarui keterangan/status tiket melalui aplikasi SLA. Terima kasih.`;
+            return `💬 *FOLLOW UP TIKET*\n\nTiket: *${ticket['ID Tiket']}*\nCabang: ${ticket.Cabang}\nKlien / Lokasi: ${ticket['Klien & Lokasi'] || '-'}\nPekerjaan: ${ticket['Jenis Pekerjaan'] || '-'}\nStatus: *${status}*\nTeknisi: ${[...namaTeknisiFollowUpTiket_(ticket).values()].join(', ')}\nDiminta oleh: ${pengirim || '-'}\n\n${pertanyaan[status]}\n\nMohon balas pesan ini dan perbarui keterangan/status tiket melalui aplikasi SLA. Terima kasih.`;
         }
 
         function penerimaFollowUpTiket_(ticket) {
-            const namaTeknisi = namaTeknisiPenggantian_(ticket.Teknisi);
-            if (!namaTeknisi.size) throw new Error('Tugaskan teknisi pada tiket ini sebelum mengirim Follow Up.');
+            const namaTeknisi = namaTeknisiFollowUpTiket_(ticket);
+            if (!namaTeknisi.size) throw new Error(namaTeknisiPenggantian_(ticket.Teknisi).size ? 'Teknisi pengganti aktif belum ditetapkan. Periksa penugasan tiket sebelum mengirim Follow Up.' : 'Tugaskan teknisi pada tiket ini sebelum mengirim Follow Up.');
             const penerima = new Map();
             namaTeknisi.forEach((nama, kunci) => {
                 const cocok = (globalUsers || []).filter(user => rolePengguna(user) === 'teknisi' && dataSesuaiCabangAktif_(user) && (
