@@ -1,5 +1,5 @@
 // Shared, read-only status panels. User-provided values are always text nodes.
-function renderStatusPegawai_(target, result, working = false) {
+function renderStatusPegawai_(target, result, working = false, onOpenTicket = null) {
     target.replaceChildren();
     const rows = Array.isArray(result.data) ? result.data : [];
     const summary = document.createElement('p');
@@ -24,7 +24,25 @@ function renderStatusPegawai_(target, result, working = false) {
         const detail = document.createElement('span');
         detail.style.cssText = 'display:block;font-size:12px;color:#475569;margin-top:5px;overflow-wrap:anywhere;';
         const date = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value)) ? new Date(value + 'T12:00:00+08:00').toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric',timeZone:'Asia/Makassar'}) : '-';
-        detail.textContent = working ? `${row.tiket.length} tiket: ${row.tiket.join(', ')}` : `${row.status} · ${date(row.mulai)}${row.selesai ? ' – ' + date(row.selesai) : ' · sampai kembali bekerja'}`;
+        if (working && typeof onOpenTicket === 'function') {
+            detail.append(`${row.tiket.length} tiket: `);
+            row.tiket.forEach((id, index) => {
+                if (index) detail.append(', ');
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.style.cssText = 'background:none;border:0;padding:2px 0;margin:0;font:inherit;color:#2563a9;text-decoration:underline;cursor:pointer;';
+                button.textContent = id;
+                button.setAttribute('aria-label', `Buka tiket ${id}`);
+                button.addEventListener('click', async () => {
+                    button.disabled = true;
+                    try { await onOpenTicket(id, result.cabang); }
+                    finally { button.disabled = false; }
+                });
+                detail.append(button);
+            });
+        } else {
+            detail.textContent = working ? `${row.tiket.length} tiket: ${row.tiket.join(', ')}` : `${row.status} · ${date(row.mulai)}${row.selesai ? ' – ' + date(row.selesai) : ' · sampai kembali bekerja'}`;
+        }
         item.append(name, detail);
         list.append(item);
     }

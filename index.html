@@ -851,7 +851,7 @@
             </form>
         </div>
     </div>
-    <script src="status-pegawai.js?v=20261012"></script>
+    <script src="status-pegawai.js?v=20261013"></script>
     <!-- LOBI UTAMA DATAR: PILIH CABANG SLA ATAU MODUL PENDUKUNG -->
     <div id="main-lobby-wrapper" aria-hidden="true">
         <main class="main-lobby-card" aria-labelledby="main-lobby-title">
@@ -3418,6 +3418,46 @@
                 : '*';
         }
 
+        let tiketLobbySedangDibuka_ = false;
+        async function bukaTiketDariLobby_(idTiket, cabangTiket) {
+            if (tiketLobbySedangDibuka_) return;
+            const id = idAman_(idTiket);
+            const cabang = normalisasiCabang(cabangTiket);
+            if (!id || !punyaAksesLobby() || !penggunaBolehMenuLobby_('tiket') || !penggunaBolehMengaksesCabang(cabang)) {
+                showToast('Tiket ini tidak dapat diakses oleh akun Anda.', 'warning');
+                return;
+            }
+            tiketLobbySedangDibuka_ = true;
+            const status = document.getElementById('main-lobby-status');
+            status.textContent = `Membuka tiket ${id}...`;
+            try {
+                await aktifkanCabangDanMuat(cabang, waktuLoginAktif, 'sla');
+                const ticket = (globalTickets || []).find(t => dataSesuaiCabangAktif_(t) && String(t['ID Tiket']) === id);
+                if (!ticket) throw new Error(`Tiket ${id} tidak ditemukan di Cabang ${cabang}. Muat ulang daftar tiket.`);
+                for (const filterId of ['filter-bulan-tiket', 'filter-tahun-tiket', 'filter-status-tiket', 'filter-pembayaran-tiket']) {
+                    document.getElementById(filterId).value = 'all';
+                }
+                const search = document.getElementById('search-tiket');
+                search.value = id;
+                toggleClearBtn(search);
+                const teknisi = String(ticket.Teknisi || '').trim();
+                const riwayat = ['Selesai', 'Cancel'].includes(ticket.Status) && !['Belum Ditugaskan', '-', ''].includes(teknisi);
+                setTicketFilter(riwayat ? 'riwayat' : 'aktif');
+                switchTab('tiket');
+                const card = Array.from(document.querySelectorAll('#ticket-container [data-ticket-id]')).find(el => el.dataset.ticketId === id);
+                if (card) {
+                    card.focus({ preventScroll: true });
+                    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            } catch (error) {
+                if (document.getElementById('main-lobby-wrapper').style.display === 'none') tampilkanLobbyUtama();
+                status.textContent = error.message || 'Tiket belum berhasil dibuka. Silakan coba kembali.';
+                showToast(status.textContent, 'error');
+            } finally {
+                tiketLobbySedangDibuka_ = false;
+            }
+        }
+
         async function ambilTabelRingkasanLobby_(table, cabang, signal) {
             const scope = cabang === 'Kendari' ? 'or=(cabang.eq.Kendari,cabang.is.null)' : 'cabang=eq.Raha';
             const rows = [];
@@ -3470,7 +3510,7 @@
                 try {
                     const result = await kirimKlaimSalesSupabase_(action, { cabang });
                     if (order !== urutanStatusPegawaiLobby_ || penggunaAktif !== user || lobby.style.display === 'none') return;
-                    renderStatusPegawai_(target, result, working);
+                    renderStatusPegawai_(target, result, working, working ? bukaTiketDariLobby_ : null);
                 } catch (error) {
                     if (order === urutanStatusPegawaiLobby_ && penggunaAktif === user) target.textContent = 'Status belum dapat dimuat. Gunakan tombol muat ulang.';
                 }
@@ -6661,6 +6701,8 @@
                 tiketDitampilkan = (globalTickets || []).filter(dataSesuaiCabangAktif_).filter(t => t && String(t['Teknisi'] || '').toLowerCase().split(',').map(n=>n.trim()).includes(penggunaAktif['Nama Asli'].toLowerCase()));
             }
 
+            const idTiketDicari = tiketDitampilkan.some(t => t && String(t['ID Tiket'] || '').toLowerCase() === searchVal.trim()) ? searchVal.trim() : '';
+
             let refsDiGaransi = (globalGaransi || []).filter(dataSesuaiCabangAktif_).map(g => String((g && g['Referensi (Tiket/Nota)']) || '').trim());
 
             tiketDitampilkan.sort((a, b) => {
@@ -6711,12 +6753,13 @@
                 }
 
                 if (searchVal !== '') {
+                    if (idTiketDicari && idTkt.toLowerCase() !== idTiketDicari) return;
                     let keys = Object.keys(ticket);
                     let waKey = keys.find(k => k && k.toLowerCase().includes('wa klien'));
                     let noWA = waKey ? String(ticket[waKey]) : '';
                     let noTransData = ticket['No Transaksi'] || ticket[keys[1]] || '';
                     let strCari = `${ticket['ID Tiket']} ${ticket['Klien & Lokasi']} ${ticket['Jenis Pekerjaan']} ${ticket['Sales']} ${ticket['Teknisi']} ${noTransData} ${noWA}`.toLowerCase();
-                    if (!strCari.includes(searchVal)) return;
+                    if (!idTiketDicari && !strCari.includes(searchVal)) return;
                 }
 
                 htmlAda = true;
@@ -6901,7 +6944,7 @@
                     }
                 }
 
-               tambahkanHtmlAman_(container, `<div class="card ${sc}">
+               tambahkanHtmlAman_(container, `<div class="card ${sc}" data-ticket-id="${idAman_(idTkt)}" tabindex="-1">
                     <h3><span>${ticket['ID Tiket']}</span><span class="badge ${bc}">${textStatus}</span></h3>
                     ${noTrans}
                     ${tiketAktifLintasBulanHtml}
