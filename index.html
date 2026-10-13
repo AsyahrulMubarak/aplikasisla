@@ -137,6 +137,9 @@
         .ba-box { border: 1px solid var(--border); background: var(--surface); padding: 15px; border-radius: 8px; margin-top: 15px; }
         .btn-action-primary { background: #eff6ff; color: var(--primary); border: 1px solid #bfdbfe; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; width: 100%; cursor: pointer; transition: 0.2s; margin-top: 10px; }
         .btn-action-primary:hover { background: var(--primary); color: white; }
+        .btn-follow-up-ticket { background: #ecfdf5; color: #166534; border-color: #a7f3d0; min-height: 44px; }
+        .btn-follow-up-ticket:hover { background: #166534; }
+        .btn-follow-up-ticket:disabled { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; cursor: not-allowed; }
         .btn-grid { display: flex; gap: 10px; margin-top: 10px; }
         .btn-grid button { flex: 1; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .btn-edit { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; } .btn-edit:hover { background: #f59e0b; color: white; }
@@ -2299,7 +2302,7 @@
             ]);
             if (handlerStatis.has(handler)) return true;
 
-            const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|bukaDokumenBATiket_|lihatBuktiChatProspek|unduhBuktiChatProspek)';
+            const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|kirimFollowUpTiket|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|bukaDokumenBATiket_|lihatBuktiChatProspek|unduhBuktiChatProspek)';
             if (new RegExp('^' + fungsiSatuId + "\\('[A-Za-z0-9._-]{1,120}'\\)$").test(handler)) return true;
             if (/^responBanding\('[A-Za-z0-9._-]{1,120}',\s*'(?:Diterima|Ditolak)'(?:,\s*'(?:Kendari|Raha)')?\)$/.test(handler)) return true;
             if (/^bukaFotoKlaimSales\('[A-Za-z0-9._-]{1,120}',\s*'(?:Kendari|Raha)',\s*[0-2]\)$/.test(handler)) return true;
@@ -6529,6 +6532,93 @@
             return true;
         }
 
+        const followUpTiketSedangDikirim_ = new Set();
+
+        function statusFollowUpTiket_(status) {
+            const kunci = String(status || '').trim().replace(/\s+/g, ' ').toLowerCase();
+            return ['Menunggu', 'On Progress', 'Pending'].find(item => item.toLowerCase() === kunci) || '';
+        }
+
+        function bolehFollowUpTiket_() {
+            return ['admin', 'admin_raha', 'manager', 'direktur', 'sales'].includes(rolePengguna());
+        }
+
+        function tombolFollowUpTiket_(ticket) {
+            const id = idAman_(ticket['ID Tiket']);
+            if (!id || !bolehFollowUpTiket_() || !statusFollowUpTiket_(ticket.Status)) return '';
+            const tanpaTeknisi = namaTeknisiPenggantian_(ticket.Teknisi).size === 0;
+            const mengirim = followUpTiketSedangDikirim_.has(id);
+            const label = mengirim ? 'Mengirim WA…' : tanpaTeknisi ? 'Follow Up · Tugaskan teknisi dahulu' : '💬 Follow Up via WA';
+            return `<button type="button" class="btn-action-primary btn-follow-up-ticket" data-follow-up-ticket="${id}" ${mengirim || tanpaTeknisi ? 'disabled' : ''} title="${tanpaTeknisi ? 'Tugaskan teknisi sebelum mengirim Follow Up.' : 'Minta kejelasan jadwal pekerjaan kepada teknisi melalui WhatsApp.'}" onclick="kirimFollowUpTiket('${id}')">${label}</button>`;
+        }
+
+        function pesanFollowUpTiket_(ticket, pengirim) {
+            const status = statusFollowUpTiket_(ticket.Status);
+            const pertanyaan = {
+                'Menunggu': 'Kapan tiket ini akan mulai dikerjakan? Mohon informasikan rencana tanggal dan jam pengerjaan agar jadwal dapat dipastikan.',
+                'On Progress': 'Mohon jelaskan progres terbaru pekerjaan ini. Kapan pekerjaan berikutnya dapat dilanjutkan dan kapan perkiraan selesai? Mohon informasikan tanggal dan jam rencananya.',
+                'Pending': 'Apa kendala yang membuat pekerjaan ini pending? Kapan kendala tersebut diperkirakan selesai dan pekerjaan dapat dilanjutkan? Mohon informasikan rencana tanggal dan jamnya.'
+            };
+            if (!status) throw new Error('Follow Up hanya tersedia untuk tiket Menunggu, On Progress, atau Pending.');
+            return `💬 *FOLLOW UP TIKET*\n\nTiket: *${ticket['ID Tiket']}*\nCabang: ${ticket.Cabang}\nKlien / Lokasi: ${ticket['Klien & Lokasi'] || '-'}\nPekerjaan: ${ticket['Jenis Pekerjaan'] || '-'}\nStatus: *${status}*\nTeknisi: ${ticket.Teknisi}\nDiminta oleh: ${pengirim || '-'}\n\n${pertanyaan[status]}\n\nMohon balas pesan ini dan perbarui keterangan/status tiket melalui aplikasi SLA. Terima kasih.`;
+        }
+
+        function penerimaFollowUpTiket_(ticket) {
+            const namaTeknisi = namaTeknisiPenggantian_(ticket.Teknisi);
+            if (!namaTeknisi.size) throw new Error('Tugaskan teknisi pada tiket ini sebelum mengirim Follow Up.');
+            const penerima = new Map();
+            namaTeknisi.forEach((nama, kunci) => {
+                const cocok = (globalUsers || []).filter(user => rolePengguna(user) === 'teknisi' && dataSesuaiCabangAktif_(user) && (
+                    kunciNamaPekerjaanTeknisi_(user['Nama Asli']) === kunci || kunciNamaPekerjaanTeknisi_(user.Username) === kunci
+                ));
+                if (cocok.length !== 1) throw new Error(`Data teknisi ${nama} ${cocok.length ? 'ambigu' : 'tidak ditemukan'}. Periksa profil teknisi terlebih dahulu.`);
+                const nomor = normalisasiWASementara_(cocok[0]['No WA']);
+                if (!/^628\d{7,12}$/.test(nomor)) throw new Error(`Nomor WA ${nama} belum tersedia atau tidak valid. Perbaiki profil teknisi terlebih dahulu.`);
+                if (!penerima.has(nomor)) penerima.set(nomor, []);
+                penerima.get(nomor).push(nama);
+            });
+            return [...penerima].map(([nomor, nama]) => ({ nomor, nama: nama.join(', ') }));
+        }
+
+        async function kirimFollowUpTiket(idTiket) {
+            const id = idAman_(idTiket);
+            if (!id || followUpTiketSedangDikirim_.has(id)) return;
+            const cabang = normalisasiCabang(cabangAktif);
+            const pengirim = penggunaAktif && (penggunaAktif['Nama Asli'] || penggunaAktif.Username);
+            followUpTiketSedangDikirim_.add(id);
+            try {
+                if (!bolehFollowUpTiket_() || !['Kendari', 'Raha'].includes(cabang)) throw new Error('Anda tidak memiliki akses Follow Up pada cabang ini.');
+                renderTickets();
+                // Status dan penugasan terbaru mencegah WA memakai kartu tiket yang sudah kedaluwarsa.
+                const rows = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', id) + '&cabang=eq.' + encodeURIComponent(cabang) + '&limit=1');
+                if (cabangAktif !== cabang || !bolehFollowUpTiket_()) throw new Error('Cabang atau akses berubah. Silakan buka kembali tiket yang akan di-follow up.');
+                if (!Array.isArray(rows) || rows.length !== 1 || String(rows[0].id_tiket) !== id || normalisasiCabang(rows[0].cabang) !== cabang) throw new Error('Tiket tidak ditemukan atau tidak dapat diakses pada cabang ini.');
+                const ticket = petakanTiketSupabase_(rows[0]);
+                const lokal = globalTickets.find(item => item['ID Tiket'] === id);
+                if (lokal) Object.assign(lokal, ticket);
+                const pesan = pesanFollowUpTiket_(ticket, pengirim);
+                const penerima = penerimaFollowUpTiket_(ticket);
+                const hasil = [];
+                for (const tujuan of penerima) {
+                    try {
+                        const respons = await kirimKeBackend_(API_URL_CABANG[cabang], 'relayWA', { nomorTujuan: tujuan.nomor, pesan });
+                        hasil.push({ nama: tujuan.nama, terkirim: !!(respons && respons.status === 'sukses' && respons.terkirim === true) });
+                    } catch (error) {
+                        hasil.push({ nama: tujuan.nama, terkirim: false });
+                    }
+                }
+                const terkirim = hasil.filter(item => item.terkirim).map(item => item.nama);
+                const gagal = hasil.filter(item => !item.terkirim).map(item => item.nama);
+                showToast(`${terkirim.length ? 'Follow Up dikirim ke ' + terkirim.join(', ') + '.' : 'Follow Up belum terkirim.'}${gagal.length ? ' Gagal dikirim ke ' + gagal.join(', ') + '. Periksa layanan WA sebelum mengirim ulang.' : ''}`, gagal.length ? 'error' : 'success');
+                return { terkirim, gagal };
+            } catch (error) {
+                showToast(error.message || 'Follow Up gagal dikirim.', 'error');
+            } finally {
+                followUpTiketSedangDikirim_.delete(id);
+                renderTickets();
+            }
+        }
+
         function renderTickets() {
             const container = document.getElementById('ticket-container'); container.innerHTML = '';
             let searchInput = document.getElementById('search-tiket'); let searchVal = searchInput ? searchInput.value.toLowerCase() : '';
@@ -6815,7 +6905,7 @@
                     <div class="waktu-box">
                         ${infoSlaTeks}
                     </div>
-                    ${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}${linkTrackBtn}
+                    ${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}${tombolFollowUpTiket_(ticket)}${linkTrackBtn}
                 </div>`);
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket yang cocok dengan status, nota, periode, atau pencarian terpilih.</p>';
