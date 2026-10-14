@@ -2806,11 +2806,13 @@
                 normalisasiCabangPayroll(profil.Hak_Akses_Cabang) === 'Raha';
             const teknisiTanpaBonusBulananRaha = profilRaha && roleProfilPoin === 'teknisi' &&
                 ['rendi', 'wawan'].includes(namaProfilPoin);
+            const adminAlifTanpaBonusRaha = profilRaha && namaProfilPoin === 'alif' &&
+                ['admin', 'admin_raha'].includes(roleProfilPoin);
             if (profilRaha) {
                 // Tiga bonus Raha dihitung dari aturan bulanan, bukan nominal profil.
                 // Item lama dengan nama setara dikeluarkan agar tidak terbayar ganda.
                 arrayTunjangan = arrayTunjangan.filter(t => !jenisBonusRahaPayroll_(t.nama));
-                if (!teknisiTanpaBonusBulananRaha) {
+                if (!teknisiTanpaBonusBulananRaha && !adminAlifTanpaBonusRaha) {
                     const disiplinTercapai = totalTelatIzin <= 3 && countAlpa <= 2;
                     arrayTunjangan.push({
                         nama: disiplinTercapai

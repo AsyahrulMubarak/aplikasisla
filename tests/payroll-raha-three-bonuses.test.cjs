@@ -102,3 +102,37 @@ test('aturan Raha berlaku pada admin Raha, sedangkan bonus Kendari tidak berubah
   assert.equal(kendari.totalTunjanganTetap, 25000);
   assert.equal(kendari.dendaDisiplin, 300000);
 });
+
+test('Alif Admin Raha tidak menerima ketiga bonus bulanan, termasuk jika disiplin terpenuhi', () => {
+  for (const role of ['admin_raha', 'admin']) {
+    for (const counts of [{}, { izin: 2, telat: 2 }, { alpa: 3 }]) {
+      const result = payroll({ name: 'Alif', role, counts });
+      assert.equal(result.totalTunjanganTetap, 0);
+      assert.equal(result.arrayTunjangan.length, 0);
+      assert.equal(result.dendaDisiplin, 0, 'Pengecualian bonus tidak menambah penalti');
+    }
+  }
+});
+
+test('Alif Admin Raha membuang bonus lama yang setara tanpa menghapus honor lain', () => {
+  const result = payroll({ name: 'Alif', role: 'admin_raha', bonus: oldBonuses });
+  assert.equal(result.totalTunjanganTetap, 25000);
+  assert.equal(result.arrayTunjangan.length, 1);
+  assert.equal(result.arrayTunjangan[0].nama, 'Honor Lain');
+});
+
+test('Pengecualian Alif Admin Raha tidak mengubah bonus teknisi Alif atau admin Raha lainnya', () => {
+  for (const options of [{ name: 'Alif', role: 'teknisi' }, { name: 'Admin Raha', role: 'admin_raha' }]) {
+    const result = payroll(options);
+    assert.equal(result.totalTunjanganTetap, 300000);
+    assert.equal(result.arrayTunjangan.length, 3);
+  }
+  const kendari = payroll({ name: 'Alif', role: 'admin', branch: 'Kendari', bonus: 'Bonus Disiplin=100000|Honor Lain=25000' });
+  assert.equal(kendari.totalTunjanganTetap, 125000);
+});
+
+test('Nama Alif dan role admin dikenali tanpa membedakan huruf besar/kecil', () => {
+  const result = payroll({ name: '  aLiF  ', role: 'ADMIN_RAHA', bonus: oldBonuses });
+  assert.equal(result.totalTunjanganTetap, 25000);
+  assert.equal(result.arrayTunjangan.length, 1);
+});
