@@ -318,8 +318,8 @@
             background-color: var(--surface);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
         }
-        #salary-reason { display: block; min-height: 100px; line-height: 1.6; }
-        #salary-reason-help { margin: 8px 0 0; color: #64748b; font-size: 12px; line-height: 1.6; }
+        #salary-reason, #new-gapok-reason { display: block; min-height: 100px; line-height: 1.6; }
+        #salary-reason-help, #new-gapok-help { margin: 8px 0 0; color: #64748b; font-size: 12px; line-height: 1.6; }
 
         /* 4. PERTEGAS TOMBOL (Modern & Clickable) */
         .btn-solid-primary, .btn-absen, .btn-login {
@@ -1595,8 +1595,13 @@
                             <option value="Semua">Semua Cabang (Pusat)</option>
                         </select>
                         <div id="div-keuangan-user" style="display:none; background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-top:15px;">
-                        <label style="color:#166534; margin-top:0;">Gaji Pokok (Rp)</label>
-                        <input type="number" id="new-gapok" placeholder="Contoh: 1500000" style="margin-bottom:10px;">
+                        <label for="new-gapok" style="color:#166534; margin-top:0;">Gaji Pokok (Rp)</label>
+                        <input type="number" id="new-gapok" min="0" step="1" placeholder="Contoh: 1500000" aria-describedby="new-gapok-help" oninput="perbaruiAlasanGajiUser_()" style="margin-bottom:10px;">
+                        <div id="new-gapok-change" hidden>
+                            <label for="new-gapok-reason" style="color:#166534;">Alasan perubahan gaji</label>
+                            <textarea id="new-gapok-reason" rows="3" maxlength="1000" placeholder="Contoh: penyesuaian gaji berdasarkan evaluasi kinerja."></textarea>
+                            <p id="new-gapok-help">Alasan wajib diisi. Kenaikan gaji mengirim pemberitahuan WhatsApp kepada pegawai.</p>
+                        </div>
                     </div>
                         <div id="div-target-sales" style="display:none; background:#faf5ff; padding:15px; border-radius:8px; border:1px solid #e9d5ff; margin-top:15px;">
                             <label style="color:#6b21a8; margin-top:0;">Target Penjualan Bulanan (Rp)</label>
@@ -9513,7 +9518,18 @@
             finally{button.disabled=false;}
         }
 
+        let gajiEditUser_ = null;
+        function perbaruiAlasanGajiUser_() {
+            const input = document.getElementById('new-gapok');
+            const berubah = Boolean(gajiEditUser_ && !input.readOnly && Number(input.value) !== gajiEditUser_.gajiPokok);
+            document.getElementById('new-gapok-change').hidden = !berubah;
+            document.getElementById('new-gapok-reason').required = berubah;
+        }
+
         function siapkanProfilPribadi() {
+            gajiEditUser_ = null;
+            document.getElementById('new-gapok-reason').value = '';
+            perbaruiAlasanGajiUser_();
             modeEditUser = true;
             document.getElementById('form-user-title').innerText = '👤 Profil Saya';
             document.getElementById('new-nama').value = penggunaAktif['Nama Asli'];
@@ -9537,6 +9553,8 @@
             document.getElementById('new-target-sales').value = penggunaAktif['Target Sales'] || '';
             document.getElementById('new-gapok').value = penggunaAktif['Gaji Pokok'] || '';
             document.getElementById('new-gapok').readOnly = true;
+            document.getElementById('new-gapok').required = false;
+            document.getElementById('new-gapok').title = '';
 
             document.getElementById('btn-tambah-user').innerText = 'Update Profil Saya';
             document.getElementById('btn-tambah-user').style.background = 'var(--primary)';
@@ -9544,6 +9562,7 @@
         }
 
         function aktifkanEditUser(kunciUser) {
+            if (document.getElementById('btn-tambah-user').disabled) return;
             const u = cariUserDariKunciProfil_(kunciUser); if(!u) return;
             modeEditUser = true;
             document.getElementById('form-user-title').innerText = 'Edit User: ' + u.Username;
@@ -9568,13 +9587,22 @@
             document.getElementById('btn-tambah-user').style.background = 'var(--warning)';
             document.getElementById('btn-batal-edit-user').style.display = 'block';
             window.scrollTo(0,0);
-            document.getElementById('new-gapok').value = u['Gaji Pokok'] || u['Gaji Pokok (Rp)'] || '';
-            document.getElementById('new-gapok').readOnly = true;
-            document.getElementById('new-gapok').title = 'Ubah gaji melalui bagian Gaji Pokok — Manajemen.';
+            gajiEditUser_ = { username: u.Username, gajiPokok: Number(u['Gaji Pokok'] ?? u['Gaji Pokok (Rp)'] ?? 0) };
+            document.getElementById('new-gapok').value = gajiEditUser_.gajiPokok;
+            document.getElementById('new-gapok').readOnly = !bolehKelolaGaji_();
+            document.getElementById('new-gapok').required = bolehKelolaGaji_();
+            document.getElementById('new-gapok').title = bolehKelolaGaji_() ? '' : 'Perubahan gaji hanya tersedia bagi Admin Kendari, Manager, dan Direktur.';
+            document.getElementById('new-gapok-reason').value = '';
+            perbaruiAlasanGajiUser_();
         }
 
         function batalEditUser() {
             modeEditUser = false;
+            gajiEditUser_ = null;
+            document.getElementById('new-gapok').value = '';
+            document.getElementById('new-gapok').required = false;
+            document.getElementById('new-gapok-reason').value = '';
+            perbaruiAlasanGajiUser_();
             document.getElementById('form-user-title').innerText = 'Tambah User Baru';
             document.getElementById('new-gapok').readOnly = false;
             document.getElementById('new-gapok').title = '';
@@ -9621,7 +9649,9 @@
 
         async function simpanUserBaru(e) {
             e.preventDefault();
-            const btn = document.getElementById('btn-tambah-user'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
+            const btn = document.getElementById('btn-tambah-user');
+            if (btn.disabled) return;
+            btn.innerText = 'Menyimpan...'; btn.disabled = true;
 
             const inputPw = document.getElementById('new-password').value;
 
@@ -9632,28 +9662,44 @@
                 role: document.getElementById('new-role').value,
                 no_wa: document.getElementById('new-wa').value,
                 target_sales_rp: angkaRupiahSupabase_(document.getElementById('new-target-sales').value),
-                gaji_pokok: angkaRupiahSupabase_(document.getElementById('new-gapok').value),
+                gaji_pokok: Number(document.getElementById('new-gapok').value),
                 hak_akses_cabang: document.getElementById('new-cabang').value
             };
+            const editGaji = modeEditUser ? gajiEditUser_ : null;
+            const gajiBaru = payload.gaji_pokok;
+            const perubahanGaji = Boolean(editGaji && gajiBaru !== editGaji.gajiPokok);
+            const alasanGaji = document.getElementById('new-gapok-reason').value.trim();
+            let profilTersimpan = false, perubahanTersimpan = false;
 
             if (!modeEditUser && (globalUsers || []).find(u => u && String(u.Username||'').toLowerCase() === payload.username.toLowerCase())) {
                 showToast("Afwan, Username tersebut sudah digunakan.", "error");
                 btn.innerText='Simpan Profil'; btn.disabled=false; return;
             }
 
+            document.getElementById('btn-batal-edit-user').disabled = true;
             try {
+                if (!Number.isSafeInteger(gajiBaru) || gajiBaru < 0 || (editGaji && document.getElementById('new-gapok').value.trim() === '')) {
+                    throw new Error('Gaji pokok harus berupa nominal rupiah bulat, minimal Rp0.');
+                }
+                if (editGaji) {
+                    if (payload.username !== editGaji.username) throw new Error('Akun yang diedit berubah. Buka kembali profil pegawai.');
+                    if (perubahanGaji && !bolehKelolaGaji_()) throw new Error('Anda tidak berhak mengubah gaji pokok.');
+                    if (perubahanGaji && (!alasanGaji || alasanGaji.length > 1000)) throw new Error('Isi alasan perubahan gaji, maksimal 1000 karakter.');
+                    // Profil mempertahankan gaji lama; API gaji mencatat perubahan dan memeriksa konflik nominal.
+                    payload.gaji_pokok = editGaji.gajiPokok;
+                }
                 if (inputPw) validasiPasswordBaru_(inputPw);
                 const hasilProfil = await kirimProfilSupabase_(modeEditUser ? 'ubahProfil' : 'buatProfil', {
                     profil: payload, passwordBaru: inputPw
                 });
                 pastikanHasilMutasiSupabase_(hasilProfil.data, `User ${payload.username}`);
+                profilTersimpan = true;
                 const passwordDiubah = Boolean(hasilProfil.passwordDiubah);
                 const permintaanResetDiselesaikan = Boolean(hasilProfil.resetSandiTerselesaikan);
                 const pesanSimpan = permintaanResetDiselesaikan
                     ? 'Alhamdulillah! Password diperbarui dan permintaan reset ditandai selesai.'
                     : (passwordDiubah ? 'Alhamdulillah! Profil dan password Auth tersimpan.' : 'Alhamdulillah! Profil tersimpan.');
                 const passwordBelumBerubah = Boolean(inputPw) && !passwordDiubah;
-                showToast(passwordBelumBerubah ? hasilProfil.pesan : pesanSimpan, passwordBelumBerubah ? 'warning' : 'success');
                 document.getElementById('new-password').value = '';
 
                 if (penggunaAktif && penggunaAktif.Username === payload.username) {
@@ -9662,6 +9708,26 @@
                     penggunaAktif['Nama Asli'] = tersimpan.nama_asli;
                     simpanSesiAktif(waktuLoginAktif);
                 }
+
+                let pesanGaji = '';
+                if (perubahanGaji) {
+                    const hasilGaji = await apiGajiManajemen_({ action: 'ubahGajiPokok', usernameTarget: editGaji.username,
+                        gajiLama: editGaji.gajiPokok, gajiBaru, alasan: alasanGaji });
+                    const gajiLama = editGaji.gajiPokok;
+                    editGaji.gajiPokok = gajiBaru;
+                    const target = (globalUsers || []).find(u => u && u.Username === editGaji.username);
+                    if (target) target['Gaji Pokok'] = gajiBaru;
+                    if (penggunaAktif && penggunaAktif.Username === editGaji.username) {
+                        penggunaAktif['Gaji Pokok'] = gajiBaru; simpanSesiAktif(waktuLoginAktif);
+                    }
+                    document.getElementById('new-gapok-reason').value = '';
+                    perbaruiAlasanGajiUser_();
+                    pesanGaji = ' Gaji pokok berhasil disimpan.';
+                    if (gajiBaru > gajiLama) pesanGaji += hasilGaji.notifikasiTertunda === 0
+                        ? ' WhatsApp pegawai telah dikirim.' : ' WhatsApp tersimpan dalam antrean pengiriman ulang.';
+                }
+                perubahanTersimpan = true;
+                showToast((passwordBelumBerubah ? hasilProfil.pesan : pesanSimpan) + pesanGaji, passwordBelumBerubah ? 'warning' : 'success');
 
                 if (penggunaAktif && penggunaAktif.Role === 'admin') {
                     batalEditUser();
@@ -9684,9 +9750,14 @@
                 document.getElementById('loading').style.display='none';
             } catch(err) {
                 console.error('Gagal menyimpan profil pengguna:', err);
-                showToast("Afwan, Gagal menyimpan profil: " + (err.message || err), "error");
+                const pesan = perubahanTersimpan ? 'Perubahan tersimpan, tetapi data belum berhasil dimuat ulang: '
+                    : profilTersimpan ? 'Profil tersimpan, tetapi perubahan gaji belum terkonfirmasi: '
+                    : 'Afwan, Gagal menyimpan profil: ';
+                showToast(pesan + (err.message || err), "error");
             }
 
+            document.getElementById('loading').style.display='none';
+            document.getElementById('btn-batal-edit-user').disabled = false;
             let teksTombol = 'Simpan Profil';
             if (modeEditUser && penggunaAktif) {
                 teksTombol = (penggunaAktif.Role === 'admin') ? 'Update Profil' : 'Update Profil Saya';
