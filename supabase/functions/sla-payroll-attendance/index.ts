@@ -85,6 +85,13 @@ function payrollPeriodLocked(period, now = new Date()) {
 const localTime = (d, h, m = 0) => new Date(d + 'T' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':00+08:00');
 const addDay = (d, n = 1) => day(new Date(localTime(d, 12).getTime() + n * 86400000));
 const workDay = r => /Keluar|Pulang/.test(String(r.tipe_absen || '')) && minute(r.waktu_absen) < 360 ? addDay(day(r.waktu_absen), -1) : day(r.waktu_absen);
+function attendanceStateType(row) {
+  const type=String(row.tipe_absen||'');
+  if(type==='Koreksi - Absen Masuk')return 'Masuk';
+  if(type==='Koreksi - Masuk (Setelah Istirahat)')return 'Masuk Setelah Istirahat';
+  if(type==='Koreksi - Absen Keluar')return 'Keluar';
+  return ['Masuk','Masuk Setelah Istirahat','Keluar'].includes(type)?type:'';
+}
 function policy(u) {
   const rahaHours = u.branch === 'Raha' && u.role !== 'admin_raha' && u.role !== 'admin';
   return { cabang: u.branch, mulaiMenit: 480, selesaiMenit: rahaHours ? 1200 : 1020,
@@ -311,6 +318,8 @@ function ticketTechnicians(value) { return [...new Set(String(value||'').replace
 function rahaTeamPoints(rows,profiles,period) { const team=new Set(profiles.filter(r=>norm(r.role)==='teknisi'&&branch(r.hak_akses_cabang)==='Raha').map(r=>norm(r.nama_asli)).filter(Boolean)); const perTechnician=Object.create(null); let total=0; for(const r of rows) { if(branch(r.cabang)!=='Raha'||r.status!=='Selesai'||r.status_pembayaran!=='Lunas')continue; const paid=new Date(r.tanggal_lunas||r.waktu_selesai||''); if(Number.isNaN(paid.getTime())||day(paid).slice(0,7)!==period)continue; const points=Number(r.bobot_poin)||0, veto=norm(r.veto_admin)==='ya'; if(points<=0||(r.status_sla!=='TERPENUHI'&&!veto))continue; const technicians=ticketTechnicians(r.teknisi); if(!technicians.length)continue; const share=points/technicians.length; for(const name of technicians)if(team.has(name)){ perTechnician[name]=(perTechnician[name]||0)+share; total+=share; } } return {perTechnician,total:Math.round((total+Number.EPSILON)*10)/10}; } async function getPayroll(body,u) {
   const period=safePeriod(body.periode); if (!period) throw new Error('Format periode payroll tidak valid.');
   const own=!canPayrollManage(u); if (own&&!canOwnSlip(u)) throw new Error('Akses Slip Gaji belum diizinkan untuk akun ini.');
+  if (own && ['abu naura','abu naurah'].includes(norm(u.name)) && period >= '2026-10' && u.role !== 'teknisi')
+    throw new Error('Mulai Oktober 2026, gaji Abu Naura tersedia melalui akun teknisi Raha.');
   const target=branch(body.cabang||u.branch); if (!target) throw new Error('Cabang payroll tidak valid.');
   if (own&&target!==u.branch) throw new Error('Slip pribadi hanya tersedia pada cabang kerja pegawai.');
   if (!own&&!canManagePayrollBranch(u,target))
@@ -331,7 +340,7 @@ function rahaTeamPoints(rows,profiles,period) { const team=new Set(profiles.filt
       'Status Pembayaran':r.status_pembayaran,'Tanggal Lunas':r.tanggal_lunas,'Waktu Selesai':r.waktu_selesai,
       'Teknisi':r.teknisi,'Bobot Poin':r.bobot_poin,'Veto Admin':r.veto_admin,'Status SLA':r.status_sla,'Cabang':r.cabang||target});
   }
-  let poinRahaPribadi=null; const naura=own&&target==='Raha'&&norm(u.name)==='abu naura'&&(u.role==='admin_raha'||u.role==='admin'); const ardan=own&&target==='Raha'&&norm(u.name)==='ardan'&&u.role==='sales'; if(naura||ardan) { const team=await allRows('users','select=nama_asli,role,hak_akses_cabang&role=eq.teknisi&hak_akses_cabang=eq.Raha'); const points=rahaTeamPoints([...paid,...fallback],team,period); const source=naura?'abu naura':'abu adibah'; poinRahaPribadi={periode:period,cabang:'Raha',pemilik:u.name,poinTeknisi:Math.round(((points.perTechnician[source]||0)+Number.EPSILON)*10)/10,poinTim:ardan?points.total:0}; } const names=new Set(users.map(r=>norm(r.nama_asli)));
+  let poinRahaPribadi=null; const naura=own&&target==='Raha'&&norm(u.name)==='abu naura'&&(period>='2026-10'?u.role==='teknisi':u.role==='admin_raha'||u.role==='admin'); const ardan=own&&target==='Raha'&&norm(u.name)==='ardan'&&u.role==='sales'; if(naura||ardan) { const team=await allRows('users','select=nama_asli,role,hak_akses_cabang&role=eq.teknisi&hak_akses_cabang=eq.Raha'); const points=rahaTeamPoints([...paid,...fallback],team,period); const source=naura?'abu naura':'abu adibah'; poinRahaPribadi={periode:period,cabang:'Raha',pemilik:u.name,poinTeknisi:Math.round(((points.perTechnician[source]||0)+Number.EPSILON)*10)/10,poinTim:ardan?points.total:0}; } const names=new Set(users.map(r=>norm(r.nama_asli)));
   const salaryByUser=new Map((await salarySummary(users,period)).map(r=>[r.username,r]));
   return {status:'sukses',periode:period,cabang:target,users:users.map(r=>({'Username':r.username,'Role':r.role,'Nama Asli':r.nama_asli,
     'Email':r.email,'Target Sales (Rp)':r.target_sales_rp,'No WA':r.no_wa,'Gaji Pokok':salaryByUser.get(r.username)?.gajiPeriode ?? r.gaji_pokok,
@@ -345,15 +354,16 @@ function dates(value,period) {
 }
 // Match pilihProfilPayroll_ in the slip: one payroll profile per normalized name.
 // Secondary Sales/technician accounts must not decide the payroll branch.
-function selectPayrollProfile(profiles, name) {
+function selectPayrollProfile(profiles, name, period = monthNow()) {
   const normalized = norm(name);
   if (!normalized) return null;
   let candidates = profiles.filter(r => norm(r.nama_asli) === normalized);
   if (normalized === 'abu abdillah') {
     candidates = candidates.filter(r => norm(r.role) === 'manager');
   } else if (normalized === 'abu naura' || normalized === 'abu naurah') {
-    candidates = candidates.filter(r => norm(r.role) === 'admin_raha' ||
-      (norm(r.role) === 'admin' && norm(r.hak_akses_cabang) === 'raha'));
+    candidates = candidates.filter(r => period >= '2026-10'
+      ? norm(r.role) === 'teknisi' && norm(r.hak_akses_cabang || r.cabang) === 'raha'
+      : norm(r.role) === 'admin_raha' || (norm(r.role) === 'admin' && norm(r.hak_akses_cabang) === 'raha'));
   } else if (normalized === 'ardan') {
     candidates = candidates.filter(r => norm(r.role) === 'sales');
   }
@@ -370,7 +380,7 @@ async function payrollEvidenceContext(body, u, write = false) {
   if (!canPayrollManage(u) && norm(name) !== norm(u.name)) throw new Error('Bukti payroll hanya untuk slip pribadi.');
   if (write && payrollPeriodLocked(period)) throw new Error('Periode payroll telah dikunci setelah masa tenggang 7 hari.');
   const profiles = await allRows('users', 'select=username,nama_asli,role,gaji_pokok,hak_akses_cabang,cabang&order=username.asc');
-  const target = selectPayrollProfile(profiles, name);
+  const target = selectPayrollProfile(profiles, name, period);
   if (!target || target.username !== body.usernameTarget) throw new Error('Profil bukti payroll tidak cocok. Muat ulang slip.');
   const targetBranch = payrollProfileBranch(target.hak_akses_cabang) || payrollProfileBranch(target.cabang);
   if (!targetBranch || (canPayrollManage(u) ? !canManagePayrollBranch(u, targetBranch) : targetBranch !== u.branch))
@@ -465,7 +475,7 @@ async function savePayroll(body,u) {
   if (!period||!requestedName) throw new Error('Periode atau pegawai tidak valid.');
   if (payrollPeriodLocked(period)) throw new Error('Periode payroll telah dikunci setelah masa tenggang 7 hari.');
   const profiles=await allRows('users','select=username,nama_asli,role,gaji_pokok,hak_akses_cabang,cabang&order=username.asc');
-  const target=selectPayrollProfile(profiles,requestedName);
+  const target=selectPayrollProfile(profiles,requestedName,period);
   if (!target) throw new Error('Profil payroll tidak ditemukan atau ambigu. Muat ulang data pegawai.');
   const name=String(target.nama_asli).trim();
   const targetBranch=payrollProfileBranch(String(target.hak_akses_cabang||'').trim()) ||
@@ -813,9 +823,9 @@ async function recordAttendance(body,u) {
       daily.push(extra[extra.length-1]);
     }
   }
-  const last=daily.filter(r=>!String(r.tipe_absen||'').includes('Koreksi')).at(-1);
+  const last=daily.filter(r=>attendanceStateType(r)).at(-1);
   if(!correction&&last) {
-    const previous=String(last.tipe_absen||'');
+    const previous=attendanceStateType(last);
     if(recordType==='Masuk'&&['Masuk','Masuk Setelah Istirahat'].includes(previous))throw new Error('Status terakhir sudah di dalam kantor.');
     if(recordType==='Masuk Setelah Istirahat'&&previous==='Masuk Setelah Istirahat')throw new Error('Sudah absen setelah istirahat hari ini.');
     if(recordType==='Masuk Setelah Istirahat'&&previous==='Masuk'&&minute(last.waktu_absen)>=720)throw new Error('Sudah absen masuk kembali hari ini.');

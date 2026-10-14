@@ -10,7 +10,7 @@ function simpanTunjanganProfilPayroll_(sheetUsers, data) {
     headers.forEach(function(header, col) { profil[header] = row[col]; });
     return profil;
   });
-  var profil = pilihProfilPayroll_(profiles, data.namaAsli);
+  var profil = pilihProfilPayroll_(profiles, data.namaAsli, data.periode);
   if (!profil) throw new Error('Profil payroll tidak ditemukan atau ambigu. Muat ulang data pegawai.');
   var usernameTarget = normalisasiNamaProfilPayroll_(data.usernameTarget);
   if (usernameTarget && normalisasiNamaProfilPayroll_(profil.Username) !== usernameTarget) {

@@ -30,16 +30,16 @@ const tickets = [
   ticket('2026-09-16T10:00:00+08:00','Abu Adibah',3,{'Status SLA':'TERLAMBAT','Veto Admin':'Ya'}),
   ticket('2026-09-17T10:00:00+08:00','Outside, Abu Adibah',4)
 ];
-function makeContext() {
-  class FixedDate extends Date { constructor(...args) { super(...(args.length ? args : ['2026-09-28T12:00:00+08:00'])); } }
+function makeContext(now = '2026-09-28T12:00:00+08:00') {
+  class FixedDate extends Date { constructor(...args) { super(...(args.length ? args : [now])); } }
   const context = vm.createContext({ Date:FixedDate, Set, globalUsers:structuredClone(profiles),
-    globalAbsen:[],globalTickets:structuredClone(tickets),formatRp:value=>'Rp '+Math.round(value),
+    globalAbsen:[],globalTickets:structuredClone(tickets),poinRahaPribadi_:null,formatRp:value=>'Rp '+Math.round(value),
     ambilVariabelPayroll:()=>({luarKota:'',liburTambahan:'',fee:0,kasbon:0}) });
   vm.runInContext(html.slice(html.indexOf('        function normalisasiCabangPayroll'),
     html.indexOf('        function generateSlipIndividu')),context);
   return context;
 }
-test('Poin teknisi Abu Naura dibayar hanya pada profil admin Raha',()=>{
+test('Poin September Abu Naura tetap dibayar pada profil admin Raha',()=>{
   const context=makeContext();
   const result=context.kalkulasiGajiPegawai('Abu Naura','2026-09',26);
   assert.equal(result.profil.Role,'admin_raha');
@@ -47,6 +47,30 @@ test('Poin teknisi Abu Naura dibayar hanya pada profil admin Raha',()=>{
   assert.equal(result.totalBonusPoin,100000);
   assert.equal(result.totalBonusPoinTeknisiRaha,0);
   assert.match(result.labelBonusPoin,/Abu Naura \(Teknisi\)/);
+});
+
+test('Mulai Oktober dan bulan berikutnya gaji, tiga bonus dan poin Abu Naura memakai profil teknisi Raha',()=>{
+  for (const period of ['2026-10', '2026-11', '2027-01']) {
+    const context = makeContext(period + '-28T22:00:00+08:00');
+    context.globalUsers.find(p => p['Nama Asli'] === 'Abu Naura' && p.Role === 'teknisi')['Gaji Pokok'] = 2000000;
+    context.globalTickets = [ticket(period + '-10T10:00:00+08:00', 'Abu Naura', 1)];
+    const [year, month] = period.split('-').map(Number), days = new Date(year, month, 0).getDate();
+    for (let day = 1; day <= days; day++) {
+      if (new Date(year, month - 1, day).getDay() === 0) continue;
+      const date = period + '-' + String(day).padStart(2, '0');
+      for (const [time, type] of [['08:00','Masuk'], ['13:30','Masuk Setelah Istirahat'], ['20:00','Keluar']])
+        context.globalAbsen.push({ 'Nama Pegawai':'Abu Naura', 'Waktu Absen':date+'T'+time+':00+08:00', 'Tipe Absen':type, 'Status Disiplin':'', Role:'teknisi' });
+    }
+    const result = context.kalkulasiGajiPegawai('Abu Naura', period, 27);
+    assert.equal(result.profil.Role, 'teknisi');
+    assert.equal(result.gajiPokok, 2000000);
+    assert.equal(context.kebijakanJamKerjaPayroll(result.profil).selesaiMenit, 20 * 60);
+    assert.equal(result.totalPoinSla, 1);
+    assert.equal(result.totalBonusPoin, 10000);
+    assert.equal(result.totalBonusPoinTeknisiRaha, 0);
+    assert.equal(result.arrayTunjangan.filter(t => context.jenisBonusRahaPayroll_(t.nama)).reduce((sum,t) => sum + t.nominal, 0), 300000);
+    assert.equal(context.daftarProfilPayroll(period).filter(p => p['Nama Asli'] === 'Abu Naura').length, 1);
+  }
 });
 test('Ardan sales mendapat poin Abu Adibah serta seluruh bagian poin teknisi Raha',()=>{
   const context=makeContext();
@@ -168,8 +192,9 @@ test('Respons GAS cabang yang keliru tidak pernah dipakai sebagai nol poin Raha'
   assert.equal(context.tiketPayrollPerCabang_.Raha,undefined);
 });
 
-test('Akun satu cabang tidak mengambil tiket cabang lain',async()=>{
+test('Akun pegawai tidak mengambil tiket payroll cabang lain',async()=>{
   const {context,requests}=makeTicketLoaderContext('Kendari');
+  context.penggunaBolehKelolaPayroll_=()=>false;
   await assert.rejects(context.pastikanTiketPayrollCabang_('Raha','2026-09'),/tidak memiliki akses/);
   assert.equal(requests.length,0);
 });

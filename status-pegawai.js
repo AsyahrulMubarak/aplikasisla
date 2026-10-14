@@ -32,7 +32,7 @@ function renderStatusPegawai_(target, result, working = false, onOpenTicket = nu
                 button.type = 'button';
                 button.style.cssText = 'background:none;border:0;padding:2px 0;margin:0;font:inherit;color:#2563a9;text-decoration:underline;cursor:pointer;';
                 button.textContent = id;
-                button.setAttribute('aria-label', `Buka tiket ${id}`);
+                button.setAttribute('aria-label', `Lihat deskripsi pekerjaan tiket ${id}`);
                 button.addEventListener('click', async () => {
                     button.disabled = true;
                     try { await onOpenTicket(id, result.cabang); }

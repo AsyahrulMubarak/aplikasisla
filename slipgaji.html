@@ -1900,7 +1900,7 @@
           return String(nilai || '').trim().toLowerCase().replace(/\s+/g, ' ');
         }
 
-        function pilihProfilPayroll_(profiles, nama) {
+        function pilihProfilPayroll_(profiles, nama, periode) {
           var namaNormal = normalisasiNamaProfilPayroll_(nama);
           if (!namaNormal) return null;
           var kandidat = (profiles || []).filter(function(profil) {
@@ -1909,9 +1909,14 @@
           if (namaNormal === 'abu abdillah') {
             kandidat = kandidat.filter(function(profil) { return normalisasiNamaProfilPayroll_(profil.Role) === 'manager'; });
           } else if (namaNormal === 'abu naura' || namaNormal === 'abu naurah') {
+            var periodePilihan = String(periode || (typeof periodePayrollSaatIni_ === 'function' ? periodePayrollSaatIni_() : ''));
+            if (!/^\d{4}-\d{2}$/.test(periodePilihan)) periodePilihan = new Date(new Date().getTime() + 8 * 3600000).toISOString().slice(0, 7);
+            var memakaiProfilTeknisi = periodePilihan >= '2026-10';
             kandidat = kandidat.filter(function(profil) {
               var role = normalisasiNamaProfilPayroll_(profil.Role);
-              return role === 'admin_raha' || (role === 'admin' && normalisasiNamaProfilPayroll_(profil.Hak_Akses_Cabang) === 'raha');
+              var cabang = normalisasiNamaProfilPayroll_(profil.Hak_Akses_Cabang || profil.Cabang);
+              return memakaiProfilTeknisi ? role === 'teknisi' && cabang === 'raha'
+                : role === 'admin_raha' || (role === 'admin' && cabang === 'raha');
             });
           } else if (namaNormal === 'ardan') {
             kandidat = kandidat.filter(function(profil) { return normalisasiNamaProfilPayroll_(profil.Role) === 'sales'; });
@@ -1924,13 +1929,13 @@
           return kandidat.length === 1 ? kandidat[0] : null;
         }
 
-        function cariProfilPayroll(nama) {
-            return pilihProfilPayroll_(globalUsers, nama);
+        function cariProfilPayroll(nama, periode) {
+            return pilihProfilPayroll_(globalUsers, nama, periode);
         }
 
-        function daftarProfilPayroll() {
+        function daftarProfilPayroll(periode) {
             const namaUnik = [...new Set(globalUsers.map(u => normalisasiNamaProfilPayroll_(u['Nama Asli'])).filter(Boolean))];
-            return namaUnik.map(cariProfilPayroll).filter(Boolean);
+            return namaUnik.map(nama => cariProfilPayroll(nama, periode)).filter(Boolean);
         }
 
         function profilPayrollAkunPercobaan_(profil) {
@@ -2078,7 +2083,7 @@
         }
 
         function kalkulasiGajiPegawai(namaTarget, bulanTahun, hariKerjaEfektif, gunakanInputAktif = false) {
-            let profil = cariProfilPayroll(namaTarget);
+            let profil = cariProfilPayroll(namaTarget, bulanTahun);
             if (!profil) throw new Error('Profil payroll tidak ditemukan atau ambigu. Muat ulang data pegawai.');
             let gapokRaw = profil['Gaji Pokok'] ?? profil['Gaji Pokok (Rp)'];
             // Nilai 0 yang tersimpan adalah profil belum diberi nominal, bukan
@@ -2742,8 +2747,9 @@
             const namaProfilPoin = normalisasiNamaProfilPayroll_(profil['Nama Asli']);
             const roleProfilPoin = normalisasiNamaProfilPayroll_(profil.Role);
             const cabangProfilPoin = normalisasiCabangPayroll(profil.Hak_Akses_Cabang);
-            const adminNauraRaha = namaProfilPoin === 'abu naura' &&
-                (roleProfilPoin === 'admin_raha' || (roleProfilPoin === 'admin' && cabangProfilPoin === 'Raha'));
+            const poinNauraRaha = namaProfilPoin === 'abu naura' && cabangProfilPoin === 'Raha' &&
+                (bulanTahun >= '2026-10' ? roleProfilPoin === 'teknisi'
+                    : roleProfilPoin === 'admin_raha' || roleProfilPoin === 'admin');
             const salesArdanRaha = namaProfilPoin === 'ardan' && roleProfilPoin === 'sales' && cabangProfilPoin === 'Raha';
             let totalPoinSla = 0;
             let nilaiPerPoin = 10000;
@@ -2754,11 +2760,11 @@
                 totalPoinSla = hitungPoinNotaAdminKendari_(tiketSumberPoin, bulanTahun);
                 nilaiPerPoin = 2500;
                 labelBonusPoin = 'Bonus Poin Nota iPOS';
-            } else if (adminNauraRaha || salesArdanRaha) {
+            } else if (poinNauraRaha || salesArdanRaha) {
                 const poinRaha = hitungPoinTeknisiRaha_(tiketSumberPoin, globalUsers, bulanTahun);
-                const sumberPoin = adminNauraRaha ? 'abu naura' : 'abu adibah'; const poinPribadi = poinRahaPribadi_ && poinRahaPribadi_.periode === bulanTahun && normalisasiNamaProfilPayroll_(poinRahaPribadi_.pemilik) === namaProfilPoin && normalisasiCabangPayroll(poinRahaPribadi_.cabang) === 'Raha'; const poinTeknisi = poinPribadi ? Number(poinRahaPribadi_.poinTeknisi) || 0 : (poinRaha.perTeknisi[sumberPoin] || 0);
+                const sumberPoin = poinNauraRaha ? 'abu naura' : 'abu adibah'; const poinPribadi = poinRahaPribadi_ && poinRahaPribadi_.periode === bulanTahun && normalisasiNamaProfilPayroll_(poinRahaPribadi_.pemilik) === namaProfilPoin && normalisasiCabangPayroll(poinRahaPribadi_.cabang) === 'Raha'; const poinTeknisi = poinPribadi ? Number(poinRahaPribadi_.poinTeknisi) || 0 : (poinRaha.perTeknisi[sumberPoin] || 0);
                 totalPoinSla = Math.round((poinTeknisi + Number.EPSILON) * 10) / 10;
-                labelBonusPoin = adminNauraRaha ? 'Bonus Poin SLA Abu Naura (Teknisi)' : 'Bonus Poin SLA Abu Adibah';
+                labelBonusPoin = poinNauraRaha ? 'Bonus Poin SLA Abu Naura (Teknisi)' : 'Bonus Poin SLA Abu Adibah';
                 if (salesArdanRaha) {
                     totalPoinTeknisiRaha = poinPribadi ? Number(poinRahaPribadi_.poinTim) || 0 : poinRaha.total;
                     totalBonusPoinTeknisiRaha = totalPoinTeknisiRaha * 2500;

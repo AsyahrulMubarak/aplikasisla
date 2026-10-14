@@ -149,6 +149,22 @@
         .modal-content { background-color: var(--surface); padding: 25px; border-radius: 16px; width: 100%; max-width: 450px; margin: auto; position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); border: 1px solid var(--border); animation: modalIn 0.3s ease-out; }
         @keyframes modalIn { from { opacity: 0; transform: translateY(-20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .modal-title { margin-top: 0; font-size: 18px; color: var(--text-main); font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 15px; }
+        .work-detail-dialog { width: calc(100% - 32px); max-width: 560px; max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 18px; box-sizing: border-box; color: var(--text-main); background: var(--surface); box-shadow: 0 24px 60px rgba(15,23,42,.2); }
+        .work-detail-dialog::backdrop { background: rgba(15,23,42,.55); backdrop-filter: blur(4px); }
+        .work-detail-content { padding: 24px; }
+        .work-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+        .work-detail-header h3 { margin: 0; color: var(--primary); font-size: 19px; }
+        #work-detail-reference { margin: 5px 0 0; color: #64748b; font-size: 12px; overflow-wrap: anywhere; }
+        .work-detail-close { flex: 0 0 auto; width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); border-radius: 10px; color: #475569; background: #f8fafc; font-size: 22px; cursor: pointer; }
+        .work-detail-close:focus-visible { outline: 2px solid #3b82f6; outline-offset: 3px; }
+        .work-detail-info { display: grid; gap: 14px; margin: 22px 0; }
+        .work-detail-info dt { color: #64748b; font-size: 12px; }
+        .work-detail-info dd { margin: 4px 0 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+        .work-detail-description { padding: 16px; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; }
+        .work-detail-description h4 { margin: 0 0 8px; color: var(--primary); font-size: 13px; }
+        #work-detail-description { margin: 0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+        #work-detail-status { color: #64748b; font-size: 13px; line-height: 1.6; }
+        #work-detail-status:empty { display: none; }
         #berita-acara-section { display: none; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-top: 15px; margin-bottom: 15px; }
         .signature-wrapper { border: 2px dashed #cbd5e1; background: #fff; border-radius: 8px; margin-bottom: 10px; }
         #signature-pad, #signature-pad-input { width: 100%; height: 160px; cursor: crosshair; touch-action: none; border-radius: 8px; }
@@ -302,6 +318,8 @@
             background-color: var(--surface);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
         }
+        #salary-reason { display: block; min-height: 100px; line-height: 1.6; }
+        #salary-reason-help { margin: 8px 0 0; color: #64748b; font-size: 12px; line-height: 1.6; }
 
         /* 4. PERTEGAS TOMBOL (Modern & Clickable) */
         .btn-solid-primary, .btn-absen, .btn-login {
@@ -673,6 +691,25 @@
 
     <div id="toast-container"></div>
 
+    <dialog id="modal-detail-pekerjaan-lobby" class="work-detail-dialog" aria-labelledby="work-detail-title" onclick="if (event.target === this) this.close()" onclose="batalkanDetailPekerjaanLobby_()">
+        <div class="work-detail-content">
+            <div class="work-detail-header">
+                <div><h3 id="work-detail-title">Detail pekerjaan</h3><p id="work-detail-reference"></p></div>
+                <button type="button" class="work-detail-close" aria-label="Tutup detail pekerjaan" autofocus onclick="document.getElementById('modal-detail-pekerjaan-lobby').close()">×</button>
+            </div>
+            <p id="work-detail-status" role="status" aria-live="polite"></p>
+            <div id="work-detail-body" hidden>
+                <dl class="work-detail-info">
+                    <div><dt>Klien / lokasi</dt><dd id="work-detail-client"></dd></div>
+                    <div><dt>Teknisi pelaksana</dt><dd id="work-detail-technicians"></dd></div>
+                    <div><dt>Status tiket</dt><dd id="work-detail-ticket-status"></dd></div>
+                </dl>
+                <div class="work-detail-description"><h4>Deskripsi pekerjaan</h4><p id="work-detail-description"></p></div>
+            </div>
+            <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-detail-pekerjaan-lobby').close()">Tutup</button>
+        </div>
+    </dialog>
+
     <!-- UI TRACKING KLIEN -->
     <div id="client-tracking-wrapper" style="display:none; justify-content:center; align-items:center; min-height:80vh; padding:20px;">
         <div class="login-card" style="max-width:450px; border-top-color:#10b981;">
@@ -851,7 +888,7 @@
             </form>
         </div>
     </div>
-    <script src="status-pegawai.js?v=20261013"></script>
+    <script src="status-pegawai.js?v=20261014"></script>
     <!-- LOBI UTAMA DATAR: PILIH CABANG SLA ATAU MODUL PENDUKUNG -->
     <div id="main-lobby-wrapper" aria-hidden="true">
         <main class="main-lobby-card" aria-labelledby="main-lobby-title">
@@ -1587,7 +1624,9 @@
                         <label for="salary-employee">Pegawai</label><select id="salary-employee" onchange="pilihGajiManajemen_()"></select>
                         <p id="salary-current" style="font-weight:600;color:#334155;"></p>
                         <label for="salary-new">Gaji pokok baru (Rp)</label><input id="salary-new" type="number" min="0" max="999999999999" step="1" required>
-                        <label for="salary-reason">Alasan perubahan</label><input id="salary-reason" maxlength="1000" required placeholder="Contoh: penyesuaian oleh Manajemen">
+                        <label for="salary-reason">Alasan perubahan</label>
+                        <textarea id="salary-reason" rows="3" maxlength="1000" required aria-describedby="salary-reason-help" placeholder="Contoh: penyesuaian gaji berdasarkan evaluasi kinerja."></textarea>
+                        <p id="salary-reason-help">Tuliskan dasar penyesuaian gaji secara singkat dan jelas.</p>
                         <button id="salary-save" type="submit" class="btn-solid-primary">Simpan Gaji Pokok</button>
                         <p id="salary-status" style="font-size:12px;color:#64748b;line-height:1.6;" aria-live="polite"></p>
                     </form>
@@ -3418,43 +3457,53 @@
                 : '*';
         }
 
-        let tiketLobbySedangDibuka_ = false;
-        async function bukaTiketDariLobby_(idTiket, cabangTiket) {
-            if (tiketLobbySedangDibuka_) return;
+        let permintaanDetailPekerjaanLobby_ = null;
+        function batalkanDetailPekerjaanLobby_() {
+            if (permintaanDetailPekerjaanLobby_) permintaanDetailPekerjaanLobby_.abort();
+            permintaanDetailPekerjaanLobby_ = null;
+        }
+
+        async function bukaDetailPekerjaanLobby_(idTiket, cabangTiket) {
             const id = idAman_(idTiket);
             const cabang = normalisasiCabang(cabangTiket);
-            if (!id || !punyaAksesLobby() || !penggunaBolehMenuLobby_('tiket') || !penggunaBolehMengaksesCabang(cabang)) {
+            const user = penggunaAktif;
+            const branchSelect = document.getElementById('lobby-cabang');
+            if (!id || !punyaAksesLobby() || !['admin', 'admin_raha', 'manager', 'direktur'].includes(rolePengguna(user)) || !penggunaBolehMengaksesCabang(cabang, user) || branchSelect.value !== cabang) {
                 showToast('Tiket ini tidak dapat diakses oleh akun Anda.', 'warning');
                 return;
             }
-            tiketLobbySedangDibuka_ = true;
-            const status = document.getElementById('main-lobby-status');
-            status.textContent = `Membuka tiket ${id}...`;
+            batalkanDetailPekerjaanLobby_();
+            const controller = new AbortController();
+            permintaanDetailPekerjaanLobby_ = controller;
+            const modal = document.getElementById('modal-detail-pekerjaan-lobby');
+            const status = document.getElementById('work-detail-status');
+            const body = document.getElementById('work-detail-body');
+            modal.dataset.cabang = cabang;
+            document.getElementById('work-detail-reference').textContent = `${id} · ${cabang}`;
+            body.hidden = true;
+            body.setAttribute('aria-busy', 'true');
+            status.textContent = 'Memuat detail pekerjaan...';
+            if (!modal.open) modal.showModal();
             try {
-                await aktifkanCabangDanMuat(cabang, waktuLoginAktif, 'sla');
-                const ticket = (globalTickets || []).find(t => dataSesuaiCabangAktif_(t) && String(t['ID Tiket']) === id);
-                if (!ticket) throw new Error(`Tiket ${id} tidak ditemukan di Cabang ${cabang}. Muat ulang daftar tiket.`);
-                for (const filterId of ['filter-bulan-tiket', 'filter-tahun-tiket', 'filter-status-tiket', 'filter-pembayaran-tiket']) {
-                    document.getElementById(filterId).value = 'all';
-                }
-                const search = document.getElementById('search-tiket');
-                search.value = id;
-                toggleClearBtn(search);
-                const teknisi = String(ticket.Teknisi || '').trim();
-                const riwayat = ['Selesai', 'Cancel'].includes(ticket.Status) && !['Belum Ditugaskan', '-', ''].includes(teknisi);
-                setTicketFilter(riwayat ? 'riwayat' : 'aktif');
-                switchTab('tiket');
-                const card = Array.from(document.querySelectorAll('#ticket-container [data-ticket-id]')).find(el => el.dataset.ticketId === id);
-                if (card) {
-                    card.focus({ preventScroll: true });
-                    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
+                const scope = cabang === 'Kendari' ? 'or=(cabang.eq.Kendari,cabang.is.null)' : 'cabang=eq.Raha';
+                const rows = await callSupabase(`tiket?select=id_tiket,klien_lokasi,jenis_pekerjaan,teknisi,status,cabang&id_tiket=eq.${encodeURIComponent(id)}&${scope}&limit=2`, 'GET', null, { signal: controller.signal, dariLobby: true });
+                if (controller.signal.aborted || permintaanDetailPekerjaanLobby_ !== controller || penggunaAktif !== user || !modal.open) return;
+                if (branchSelect.value !== cabang) { modal.close(); return; }
+                const ticket = Array.isArray(rows) && rows.length === 1 ? rows[0] : null;
+                if (!ticket || String(ticket.id_tiket) !== id || (normalisasiCabang(ticket.cabang) || 'Kendari') !== cabang) throw new Error('Detail tiket belum tersedia. Tutup popup dan muat ulang daftar teknisi.');
+                document.getElementById('work-detail-client').textContent = ticket.klien_lokasi || '-';
+                document.getElementById('work-detail-technicians').textContent = ticket.teknisi || 'Belum ditugaskan';
+                document.getElementById('work-detail-ticket-status').textContent = ticket.status || '-';
+                document.getElementById('work-detail-description').textContent = String(ticket.jenis_pekerjaan || '').trim() || 'Deskripsi pekerjaan belum diisi.';
+                body.hidden = false;
+                status.textContent = '';
             } catch (error) {
-                if (document.getElementById('main-lobby-wrapper').style.display === 'none') tampilkanLobbyUtama();
-                status.textContent = error.message || 'Tiket belum berhasil dibuka. Silakan coba kembali.';
-                showToast(status.textContent, 'error');
+                if (!controller.signal.aborted && permintaanDetailPekerjaanLobby_ === controller && penggunaAktif === user && modal.open) status.textContent = error.message || 'Detail pekerjaan belum dapat dimuat. Silakan coba kembali.';
             } finally {
-                tiketLobbySedangDibuka_ = false;
+                if (permintaanDetailPekerjaanLobby_ === controller) {
+                    permintaanDetailPekerjaanLobby_ = null;
+                    body.setAttribute('aria-busy', 'false');
+                }
             }
         }
 
@@ -3498,6 +3547,8 @@
             const user = penggunaAktif;
             const lobby = document.getElementById('main-lobby-wrapper');
             if (!user || !lobby || lobby.style.display === 'none') return;
+            const detailModal = document.getElementById('modal-detail-pekerjaan-lobby');
+            if (detailModal.open && detailModal.dataset.cabang !== cabang) detailModal.close();
             const attendance = document.getElementById('lobby-kehadiran-content');
             const work = document.getElementById('lobby-pekerjaan-content');
             const management = ['admin','admin_raha','manager','direktur'].includes(rolePengguna(user));
@@ -3510,7 +3561,7 @@
                 try {
                     const result = await kirimKlaimSalesSupabase_(action, { cabang });
                     if (order !== urutanStatusPegawaiLobby_ || penggunaAktif !== user || lobby.style.display === 'none') return;
-                    renderStatusPegawai_(target, result, working, working ? bukaTiketDariLobby_ : null);
+                    renderStatusPegawai_(target, result, working, working ? bukaDetailPekerjaanLobby_ : null);
                 } catch (error) {
                     if (order === urutanStatusPegawaiLobby_ && penggunaAktif === user) target.textContent = 'Status belum dapat dimuat. Gunakan tombol muat ulang.';
                 }
