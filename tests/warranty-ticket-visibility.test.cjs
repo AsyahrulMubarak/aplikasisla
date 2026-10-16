@@ -38,10 +38,11 @@ function harness(role, branch) {
     dataSesuaiCabangAktif_: row => row.Cabang === branch,
     perbaruiStatusSLAAktualTiket_: () => {},
     formatWaktu: value => String(value || '-'),
+    tombolFollowUpTiket_: () => '',
     tambahkanHtmlAman_: (element, text) => { element.innerHTML += text; },
   });
-  for (const name of ['parseSafeDate', 'statusPoinSudahCair_', 'normalisasiNoTransaksiNota_',
-    'nomorTransaksiNotaGratis_', 'notaTiketSudahLunas_', 'statusTiketUntukFilter_',
+  for (const name of ['parseSafeDate', 'idAman_', 'amanTeks_', 'statusPoinSudahCair_', 'normalisasiNoTransaksiNota_',
+    'nomorTransaksiNotaGratis_', 'notaTiketSudahLunas_', 'statusNotaTiket_', 'statusTiketUntukFilter_',
     'tiketCocokFilterTambahan_', 'renderTickets']) vm.runInContext(extract(name), context);
   return { context, elements, container };
 }

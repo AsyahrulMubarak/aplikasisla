@@ -34,6 +34,16 @@ test('incorrect identity and missing ticket share a response and never sign docu
   found=false;const second=await c.handle(request({action:'trackTicketPublic',trackId:'TKT-186',trackKey:'Wrong Name'}));
   assert.equal(first.status,400);assert.deepEqual(await first.json(),await second.json());assert.equal(signs,0);
 });
+
+test('verified public tracking includes item expiry and partial claim history without adding internal card fields',async()=>{
+  const c=harness();let selected='';
+  const warranty={id_garansi:'G-ITEM',status:'Aktif',item_garansi:[{id:'os',nama:'Instal ulang',status:'Diklaim (Hangus)',tanggal_habis:'2026-10-20T00:00:00Z'},{id:'ssd',nama:'SSD',status:'Aktif',tanggal_habis:'2027-01-01T00:00:00Z'}],riwayat_klaim_item:[{id_tiket:'TKT-KG-1',item_ids:['os'],waktu_klaim:'2026-10-15T00:00:00Z'}]};
+  c.rest=async(table,query)=>{if(table.startsWith('rpc/'))return true;if(table==='tiket')return [ticket];selected=query;return [warranty];};
+  c.signDocument=async()=>null;
+  const result=await c.publicTracking({trackId:'TKT-186',trackKey:'Nama Pelanggan'},request({}));
+  assert.equal(result.garansi[0].item_garansi[1].tanggal_habis,'2027-01-01T00:00:00Z');assert.equal(result.garansi[0].riwayat_klaim_item.length,1);
+  assert.match(selected,/referensi_tiket_nota=eq.TKT-186&select=/);assert.match(selected,/item_garansi,riwayat_klaim_item/);assert.doesNotMatch(selected,/omzet|sales|admin_sla/);
+});
 test('rate limiting applies before a public ticket is read',async()=>{
   const c=harness();let reads=0;
   c.rest=async table=>{if(!table.startsWith('rpc/'))reads++;return false;};

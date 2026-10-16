@@ -50,7 +50,7 @@ function harness(activeUser = technician()) {
     API_URL_CABANG: { Kendari: 'test', Raha: 'test' }, globalUsers: [activeUser],
     globalTickets: [{ ...original }, { ...claim }], globalGaransi: [{ ...warranty }],
     globalPenjualan: [], globalProspek: [], document: { getElementById: node },
-    hitungDurasiJamKerjaMs: () => 0, punyaAksesLobby: () => true, tampilkanRingkasanLobby_: () => {}
+    hitungDurasiJamKerjaMs: () => 0, punyaAksesLobby: () => true, tampilkanRingkasanLobby_: () => {}, muatStatusPegawaiLobby_: () => {}
   });
   const names = ['normalisasiCabang', 'rolePengguna', 'hakAksesCabangPengguna', 'roleAdalahAdminOperasional_', 'roleAdalahManajemen_',
     'penggunaSalesLintasCabang_', 'penggunaBolehMengaksesCabang', 'dataSesuaiCabangAktif_',
@@ -96,6 +96,21 @@ test('legacy claims use their recorded claim date when no new claim ticket exist
   delete c.globalGaransi[0]['Tiket Klaim Garansi'];
   assert.equal(stats()[bintang].garansi_bocor, 1);
   assert.equal(stats('09')[bintang].garansi_bocor, 0);
+});
+
+test('partial claims count by claim history while other items stay active, without counting again at original expiry', () => {
+  const { c, stats } = harness();
+  c.globalGaransi[0].Status = 'Aktif';
+  c.globalGaransi[0]['Tanggal Habis'] = '2026-11-15T10:00:00+08:00';
+  c.globalGaransi[0]['Riwayat Klaim Item'] = [
+    { id_tiket:'CLAIM-1', waktu_klaim:'2026-10-01T10:00:00+08:00' },
+    { id_tiket:'CLAIM-2', waktu_klaim:'2026-10-02T10:00:00+08:00' }
+  ];
+  assert.equal(stats()[bintang].garansi_bocor, 1);
+  assert.equal(stats('09')[bintang].garansi_bocor, 0);
+  c.globalGaransi[0].Status = 'Diklaim (Hangus)';
+  c.globalTickets = [{ ...original }];
+  assert.equal(stats('11')[bintang].garansi_bocor, 0);
 });
 
 test('the claim creation date determines its month even if completion or card expiry is later', () => {
@@ -160,7 +175,7 @@ test('technician warranty queries request only claim metadata and retain branch 
   const requests = [];
   c.callSupabase = async (url, method) => { requests.push(url); assert.equal(method, 'GET'); return []; };
   await c.ambilTabelRingkasanLobby_('garansi', 'Kendari', undefined);
-  assert.match(requests[0], /select=id_garansi,referensi_tiket_nota,status,tanggal_habis,tiket_klaim_garansi,cabang&/);
+  assert.match(requests[0], /select=id_garansi,referensi_tiket_nota,status,tanggal_habis,tiket_klaim_garansi,cabang,riwayat_klaim_item&/);
   assert.match(requests[0], /or=\(cabang.eq.Kendari,cabang.is.null\)/);
   assert.doesNotMatch(requests[0], /nama_pelanggan|omzet|sales|select=\*/);
   c.penggunaAktif = { ...technician(), Role: 'manager' };
