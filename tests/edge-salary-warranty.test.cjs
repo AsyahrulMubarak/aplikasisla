@@ -6,7 +6,8 @@ function harness(mode='ok'){
   Deno:{env:{get:name=>({SUPABASE_URL:'https://db.test',SUPABASE_SERVICE_ROLE_KEY:'test-only',SUPABASE_ANON_KEY:'public-test',FONNTE_TOKEN:mode==='token'?'':'wa-test'})[name]},serve:fn=>{}},
   fetch:async(url,options)=>{
    calls.push({url,...options});const body=options.body&&String(options.body).startsWith('{')?JSON.parse(options.body):null;
-   if(url.includes('rpc/sla_klaim_garansi'))return Response.json({status:'sukses',idTiket:'TKT-KG-GRS-1',notifikasiTertunda:2});
+   if(url.includes('rpc/sla_klaim_garansi')||url.includes('rpc/sla_klaim_item_garansi'))return Response.json({status:'sukses',idTiket:'TKT-KG-GRS-1',notifikasiTertunda:2});
+   if(url.includes('rpc/sla_simpan_item_garansi'))return Response.json({status:'sukses'});
    if(url.includes('rpc/sla_ambil_notif_garansi')){if(mode==='lease')return Response.json({}, {status:503});return Response.json(events);}
    if(url.includes('api.fonnte.com'))return Response.json({status:mode!=='provider'});
    if(url.includes('rpc/sla_selesai_notif_garansi')){done.push(body);return Response.json(true);}
@@ -39,4 +40,26 @@ test('Warranty claims bind verified Auth and branch, send only the stored custom
 for(const mode of ['provider','token','lease'])test('Created warranty ticket survives notification failure: '+mode,async()=>{
  const {c,done}=harness(mode);const r=await c.dispatch({action:'klaimGaransi',idGaransi:'GRS-1'},{role:'manager',authId:'verified',access:'Semua',branch:'Raha'});
  assert.equal(r.status,'sukses');assert.equal(r.notifikasiTertunda,2);assert.ok(done.every(x=>!x.p_sukses));
+});
+
+test('item claims pass only selected IDs, complaint and retry key using the verified actor',async()=>{
+ const {c,calls}=harness();const user={role:'admin',authId:'verified-id',access:'Kendari',branch:'Kendari',salary:0};
+ const requestId='11111111-1111-4111-8111-111111111111';
+ await c.dispatch({action:'klaimGaransi',idGaransi:'GRS-1',itemIds:['ssd'],requestId,keluhan:'SSD gagal boot',authId:'forged'},user);
+ const body=JSON.parse(calls.find(x=>x.url.includes('rpc/sla_klaim_item_garansi')).body);
+ assert.deepEqual(body.p_item_ids,['ssd']);assert.equal(body.p_request_id,requestId);assert.equal(body.p_keluhan,'SSD gagal boot');assert.equal(body.p_auth_id,'verified-id');
+ for(const value of [{itemIds:[]},{itemIds:['ssd','ssd']},{itemIds:['bad id']},{itemIds:['ssd'],requestId:'bad'},{itemIds:['ssd'],keluhan:'x'.repeat(2001)}]){
+  await assert.rejects(c.dispatch({action:'klaimGaransi',idGaransi:'GRS-1',itemIds:['ssd'],requestId,...value},user));
+ }
+});
+
+test('item management sends a minimal payload and rejects unauthorized roles and malformed rows',async()=>{
+ const {c,calls}=harness();const user={role:'admin',authId:'verified-id',access:'Kendari',branch:'Kendari',salary:0};
+ const body={action:'simpanItemGaransi',idGaransi:'GRS-1',items:[{id:'ssd',nama:' SSD ',durasi_hari:90,status:'Aktif',tanggal_habis:'2099-01-01'}]};
+ await c.dispatch(body,user);
+ const sent=JSON.parse(calls.find(x=>x.url.includes('rpc/sla_simpan_item_garansi')).body);
+ assert.deepEqual(sent.p_items,[{id:'ssd',nama:'SSD',durasi_hari:90}]);assert.equal(sent.p_auth_id,'verified-id');
+ await assert.rejects(c.dispatch(body,{...user,role:'sales'}),/manajemen/);
+ await assert.rejects(c.dispatch({...body,cabang:'Raha'},user),/cabang/);
+ await assert.rejects(c.dispatch({...body,items:[{id:'ssd',nama:' ',durasi_hari:-1}]},user),/tidak valid/);
 });

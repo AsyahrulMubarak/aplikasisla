@@ -77,7 +77,7 @@ async function publicTracking(body,request){
   if(limits.some(v=>v!==true))throw error('Terlalu banyak percobaan. Tunggu satu menit lalu coba lagi.',429);
   const ticket=await ticketById(ticketId);
   if(!ticket||!identityMatches(ticket,key))throw publicError();
-  const warranties=await rest('garansi','referensi_tiket_nota=eq.'+encode(ticketId)+'&select=id_garansi,referensi_tiket_nota,barang_jasa,durasi_hari,status,tanggal_mulai,tanggal_habis,keterangan,waktu_siap_diambil,waktu_diambil,garansi_hangus_pada,biaya_penitipan');
+  const warranties=await rest('garansi','referensi_tiket_nota=eq.'+encode(ticketId)+'&select=id_garansi,referensi_tiket_nota,barang_jasa,durasi_hari,status,tanggal_mulai,tanggal_habis,keterangan,waktu_siap_diambil,waktu_diambil,garansi_hangus_pada,biaya_penitipan,item_garansi,riwayat_klaim_item');
   const safeTicket={};
   for(const field of ['id_tiket','waktu_lapor','waktu_selesai','klien_lokasi','jenis_pekerjaan','teknisi','status'])safeTicket[field]=ticket[field];
   safeTicket.link_pdf_ba=await signDocument(ticket);

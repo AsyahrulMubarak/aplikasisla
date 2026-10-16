@@ -685,6 +685,22 @@
             #main-lobby-wrapper.lobby-compact .lobby-lock-indicator { top:47px; }
         }
 
+        .warranty-item-editor { display:grid; gap:12px; }
+        .warranty-item-input { display:grid; grid-template-columns:minmax(0,1fr) 110px 65px; gap:10px; align-items:end; padding:12px; border:1px solid var(--border); border-radius:10px; }
+        .warranty-item-input label { margin:0; font-size:12px; min-width:0; }
+        .warranty-item-input input { margin:6px 0 0; box-sizing:border-box; width:100%; }
+        .warranty-item-input button { margin:0 0 2px; min-height:40px; }
+        .warranty-item-summary { margin:14px 0 8px; font-weight:600; color:var(--primary); font-size:13px; }
+        .warranty-coverage-list { list-style:none; padding:0; margin:0; }
+        .warranty-coverage-row { display:flex; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); overflow-wrap:anywhere; }
+        .warranty-coverage-row > div { min-width:0; }
+        .warranty-coverage-row small, .warranty-claim-option small { display:block; margin-top:5px; font-size:12px; color:var(--text-muted); line-height:1.6; }
+        .warranty-claim-option { display:flex; align-items:flex-start; gap:12px; padding:12px; border:1px solid var(--border); border-radius:10px; margin:10px 0; }
+        .warranty-claim-option input { width:20px; height:20px; flex:0 0 20px; margin:2px 0 0; }
+        .warranty-claim-option span { min-width:0; overflow-wrap:anywhere; }
+        .warranty-claim-history { margin:14px 0; font-size:12px; overflow-wrap:anywhere; }
+        .warranty-claim-history li { margin:10px 0; line-height:1.6; }
+        @media (max-width:600px) { .warranty-item-input { grid-template-columns:minmax(0,1fr) 90px; } .warranty-item-input > button { grid-column:1 / -1; } .warranty-coverage-row { flex-direction:column; gap:6px; } }
     </style>
 </head>
 <body>
@@ -1022,6 +1038,32 @@
         </div>
     </div>
 
+    <div id="modal-item-garansi" class="modal" role="dialog" aria-modal="true" aria-labelledby="item-garansi-title">
+        <div class="modal-content" style="max-width:760px;width:calc(100% - 32px);box-sizing:border-box;">
+            <h3 id="item-garansi-title">Rincian Item Garansi</h3>
+            <p id="item-garansi-help" style="font-size:13px;line-height:1.6;"></p>
+            <form onsubmit="simpanRincianItemGaransi(event)">
+                <input id="item-garansi-id" type="hidden">
+                <div id="edit-item-garansi-rows" class="warranty-item-editor"></div>
+                <button type="button" class="btn-outline-cancel" onclick="tambahBarisItemGaransi_('edit-item-garansi-rows')">+ Tambah Item</button>
+                <button type="submit" id="btn-simpan-item-garansi" class="btn-solid-primary">Simpan Rincian Item</button>
+                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-item-garansi').style.display='none'">Batal</button>
+            </form>
+        </div>
+    </div>
+    <div id="modal-klaim-item-garansi" class="modal" role="dialog" aria-modal="true" aria-labelledby="klaim-item-title">
+        <div class="modal-content" style="max-width:760px;width:calc(100% - 32px);box-sizing:border-box;">
+            <h3 id="klaim-item-title">Pilih Item yang Diklaim</h3>
+            <p style="font-size:13px;line-height:1.6;">Hanya item terpilih yang menjadi <strong>Diklaim (Hangus)</strong>. Item lain tetap mengikuti tanggal habis semula.</p>
+            <form onsubmit="kirimKlaimItemGaransi(event)">
+                <div id="klaim-item-options"></div>
+                <label for="klaim-item-keluhan">Keluhan / Kerusakan</label>
+                <textarea id="klaim-item-keluhan" rows="3" maxlength="2000" placeholder="Jelaskan masalah pada item terpilih"></textarea>
+                <button type="submit" id="btn-klaim-item-garansi" class="btn-solid-primary">Klaim Item Terpilih & Buat Tiket</button>
+                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-klaim-item-garansi').style.display='none'">Batal</button>
+            </form>
+        </div>
+    </div>
     <div id="modal-edit-garansi" class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-garansi-title">
         <div class="modal-content">
             <div class="warranty-edit-header">
@@ -1431,11 +1473,14 @@
                         </label>
                         <p style="margin:10px 0 0; font-size:11px; color:var(--text-muted); line-height:1.5;">Poin dari Garansi akan disalin ke tiket sebagai <strong>Poin Beku</strong>. Poin hanya masuk Dasbor Teknisi setelah pembayaran diverifikasi dan dicairkan.</p>
                     </div>
-                    <label>Durasi Garansi</label>
+                    <label>Item / Cakupan Garansi</label>
+                    <p style="font-size:12px;color:var(--text-muted);">Pisahkan setiap barang, komponen, atau jasa yang dapat diklaim sendiri. Cantumkan nomor seri/unit bila ada.</p>
+                    <div id="garansi-item-rows" class="warranty-item-editor"></div>
+                    <button type="button" class="btn-outline-cancel" onclick="tambahBarisItemGaransi_('garansi-item-rows')">+ Tambah Item</button>
+                    <label>Durasi Bawaan Item Baru</label>
                     <select id="garansi-durasi" required>
-                        <option value="" disabled selected>-- Pilih Durasi --</option>
                         <option value="0">Tidak Ada Garansi</option>
-                        <option value="7">7 Hari</option>
+                        <option value="7" selected>7 Hari</option>
                         <option value="30">30 Hari</option>
                         <option value="90">90 Hari</option>
                         <option value="365">365 Hari (1 Tahun)</option>
@@ -2088,6 +2133,9 @@
                     "Durasi (Hari)": row.durasi_hari, "Tiket Klaim Garansi": row.tiket_klaim_garansi, "Status": row.status, "Tanggal Mulai": row.tanggal_mulai,
                     "Tanggal Habis": row.tanggal_habis, "No Transaksi": row.no_transaksi, "Sales": row.sales,
                     "Omzet": row.omzet, "Keterangan": row.keterangan,
+                    "Item Garansi": row.item_garansi || [], "Riwayat Klaim Item": row.riwayat_klaim_item || [],
+                    "Waktu Siap Diambil": row.waktu_siap_diambil, "Waktu Diambil": row.waktu_diambil,
+                    "Garansi Hangus Pada": row.garansi_hangus_pada, "Biaya Penitipan": row.biaya_penitipan,
                     "Follow Up After-Sales Terkirim": row.follow_up_after_sales_terkirim,
                     "Riwayat Pengingat Penitipan": row.riwayat_follow_up,
                     "Cabang": row.cabang, "Admin SLA": row.admin_sla
@@ -2346,7 +2394,7 @@
             ]);
             if (handlerStatis.has(handler)) return true;
 
-            const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|kirimFollowUpTiket|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|bukaDokumenBATiket_|lihatBuktiChatProspek|unduhBuktiChatProspek)';
+            const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|bukaKlaimItemGaransi|bukaRincianItemGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|kirimFollowUpTiket|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|bukaDokumenBATiket_|lihatBuktiChatProspek|unduhBuktiChatProspek)';
             if (new RegExp('^' + fungsiSatuId + "\\('[A-Za-z0-9._-]{1,120}'\\)$").test(handler)) return true;
             if (/^responBanding\('[A-Za-z0-9._-]{1,120}',\s*'(?:Diterima|Ditolak)'(?:,\s*'(?:Kendari|Raha)')?\)$/.test(handler)) return true;
             if (/^bukaFotoKlaimSales\('[A-Za-z0-9._-]{1,120}',\s*'(?:Kendari|Raha)',\s*[0-2]\)$/.test(handler)) return true;
@@ -3379,7 +3427,8 @@
                 "Keterangan": g.keterangan, "Follow Up After-Sales Terkirim": g.follow_up_after_sales_terkirim,
                 "Riwayat Pengingat Penitipan": g.riwayat_follow_up, "Cabang": g.cabang, "Admin SLA": g.admin_sla,
                 "Waktu Siap Diambil": g.waktu_siap_diambil, "Waktu Diambil": g.waktu_diambil,
-                "Garansi Hangus Pada": g.garansi_hangus_pada, "Biaya Penitipan": g.biaya_penitipan
+                "Garansi Hangus Pada": g.garansi_hangus_pada, "Biaya Penitipan": g.biaya_penitipan,
+                "Item Garansi": g.item_garansi || [], "Riwayat Klaim Item": g.riwayat_klaim_item || []
             };
             rec.Status = statusGaransiEfektif_(rec.Status, rec["Tanggal Habis"]);
             return rec;
@@ -3458,7 +3507,7 @@
 
         function kolomGaransiPengguna_(user = penggunaAktif) {
             return rolePengguna(user) === 'teknisi'
-                ? 'id_garansi,referensi_tiket_nota,status,tanggal_habis,tiket_klaim_garansi,cabang'
+                ? 'id_garansi,referensi_tiket_nota,status,tanggal_habis,tiket_klaim_garansi,cabang,riwayat_klaim_item'
                 : '*';
         }
 
@@ -4369,7 +4418,8 @@
                 "Waktu Siap Diambil": g['Waktu Siap Diambil'] || g.waktu_siap_diambil,
                 "Waktu Diambil": g['Waktu Diambil'] || g.waktu_diambil,
                 "Garansi Hangus Pada": g['Garansi Hangus Pada'] || g.garansi_hangus_pada,
-                "Biaya Penitipan": g['Biaya Penitipan'] ?? g.biaya_penitipan ?? 0
+                "Biaya Penitipan": g['Biaya Penitipan'] ?? g.biaya_penitipan ?? 0,
+                "Item Garansi": g['Item Garansi'] || g.item_garansi || [], "Riwayat Klaim Item": g['Riwayat Klaim Item'] || g.riwayat_klaim_item || []
             }));
             const idTarget = String(currentTrackTicket || '').trim().toLowerCase();
             return globalTickets.find(t => String(t && t['ID Tiket'] || '').trim().toLowerCase() === idTarget) || null;
@@ -4480,7 +4530,7 @@
                 htmlGaransi = `<h4 style="margin:25px 0 10px 0; color:#3b82f6; border-bottom:1px solid var(--border); padding-bottom:5px;">🛡️ Status Garansi & Barang</h4>`;
                 refsDiGaransi.forEach(g => {
                     const inap = penitipanGaransi_(g);
-                    let statGrs = inap.hangus && !inap.menunggu ? 'Hangus (Lewat 7 Hari)' : statusGaransiEfektif_(g['Status'], g['Tanggal Habis']) || 'Masa Tunggu';
+                    let statGrs = (g['Item Garansi'] || []).length ? ringkasanItemGaransi_(g).status : inap.hangus && !inap.menunggu ? 'Hangus (Lewat 7 Hari)' : statusGaransiEfektif_(g['Status'], g['Tanggal Habis']) || 'Masa Tunggu';
                     let scG = 'status-aman'; let bcG = 'badge-tunggu';
                     if (statGrs === 'Aktif') { scG = 'status-terpenuhi'; bcG = 'badge-aktif'; }
                     else if (statGrs.includes('Habis') || statGrs.includes('Hangus') || statGrs.includes('Diklaim')) { scG = 'status-terlambat'; bcG = 'badge-habis'; }
@@ -4504,6 +4554,7 @@
                         <p style="margin:0 0 5px 0; font-size:12px;"><strong>Durasi Garansi:</strong> ${Number(g['Durasi (Hari)']) > 0 ? g['Durasi (Hari)'] + ' Hari' : 'Tanpa Garansi'}</p>
                         <p style="margin:0 0 5px 0; font-size:12px;"><strong>Habis Pada:</strong> ${tglHabis}</p>
                         ${ketKlienHtml}
+                        ${(g['Item Garansi'] || []).length ? htmlItemGaransi_(g) : ''}
                         ${btnKlaim}
                     </div>`;
                 });
@@ -6361,6 +6412,7 @@
                 // Klaim mengikuti bulan klaim terjadi, sekalipun pekerjaan asal selesai bulan sebelumnya.
                 const refsDiGaransi = garansiCabang.filter(g => g && String(g['Referensi (Tiket/Nota)'] || '').trim() === idTkt);
                 const isKlaimDalamPeriode = refsDiGaransi.some(g => {
+                    if ((g['Riwayat Klaim Item'] || []).length) return g['Riwayat Klaim Item'].some(k => inPeriode(k.waktu_klaim));
                     const statusGaransi = String(g.Status || '').trim().toLowerCase();
                     if (!statusGaransi.includes('klaim')) return false;
                     const tiketKlaim = tiketPerId.get(String(g['Tiket Klaim Garansi'] || '').trim());
@@ -7070,6 +7122,8 @@
             try {
                 document.getElementById('form-garansi-container').style.display = 'block';
                 document.getElementById('form-garansi').reset();
+                const wadahItem = document.getElementById('garansi-item-rows');
+                if (wadahItem) { wadahItem.innerHTML = ''; tambahBarisItemGaransi_('garansi-item-rows'); }
                 // Bersihkan centang sales jika form dibuka ulang
                 if (document.getElementById('garansi-sales-group')) {
                     document.querySelectorAll('#garansi-sales-group input[type="checkbox"]').forEach(cb => cb.checked = false);
@@ -7194,7 +7248,162 @@
                         }
                     }
                 }
+                const rowsItem = document.querySelectorAll('#garansi-item-rows .warranty-item-name');
+                if (rowsItem.length === 1) rowsItem[0].value = document.getElementById('garansi-barang').value;
             } catch(e) { console.error("Error autofill"); }
+        }
+
+        function itemGaransi_(g) {
+            if (Array.isArray(g['Item Garansi']) && g['Item Garansi'].length) return g['Item Garansi'];
+            return [{ id:'legacy', nama:g['Barang / Jasa'] || 'Cakupan kartu lama', durasi_hari:Number(g['Durasi (Hari)'] || 0),
+                status:g.Status, tanggal_mulai:g['Tanggal Mulai'], tanggal_habis:g['Tanggal Habis'], tiket_klaim_garansi:g['Tiket Klaim Garansi'], legacy:true }];
+        }
+
+        function statusItemGaransi_(item, g, sekarang = new Date()) {
+            if (item.status === 'Diklaim (Hangus)') return item.status;
+            if (Number(item.durasi_hari) > 0 && penitipanGaransi_(g, sekarang).hangus) return 'Hangus (Lewat 7 Hari)';
+            if (item.status === 'Aktif' && item.tanggal_habis && new Date(item.tanggal_habis) <= new Date(sekarang)) return 'Habis (Expired)';
+            return statusGaransiEfektif_(item.status, item.tanggal_habis, sekarang) || 'Masa Tunggu';
+        }
+
+        function ringkasanItemGaransi_(g) {
+            const status = itemGaransi_(g).map(item => statusItemGaransi_(item, g));
+            const aktif = status.filter(s => s === 'Aktif').length;
+            const diklaim = status.filter(s => s === 'Diklaim (Hangus)').length;
+            const menunggu = status.filter(s => ['Masa Tunggu','Belum Diambil'].includes(s)).length;
+            const hangus = status.filter(s => s === 'Hangus (Lewat 7 Hari)').length;
+            const selesai = status.length - aktif - diklaim - menunggu - hangus;
+            return { aktif, diklaim, menunggu, hangus, selesai, total:status.length,
+                status:aktif ? 'Aktif' : menunggu ? 'Masa Tunggu' : hangus ? 'Hangus (Lewat 7 Hari)' : diklaim === status.length ? 'Diklaim (Hangus)' : 'Habis (Expired)' };
+        }
+
+        function riwayatKlaimItemGaransi_(g) {
+            const riwayat = Array.isArray(g['Riwayat Klaim Item']) ? [...g['Riwayat Klaim Item']] : [];
+            const lama = g['Tiket Klaim Garansi'];
+            if (lama && !riwayat.some(k => k.id_tiket === lama)) {
+                const tiket = (globalTickets || []).find(t => t['ID Tiket'] === lama);
+                riwayat.unshift({ id_tiket:lama, nama_item:[g['Barang / Jasa'] || 'Cakupan kartu lama'], waktu_klaim:tiket && tiket['Waktu Lapor'], legacy:true });
+            }
+            return riwayat;
+        }
+
+        function htmlItemGaransi_(g) {
+            const ringkasan = ringkasanItemGaransi_(g);
+            const bagian = [[ringkasan.aktif,'aktif'],[ringkasan.diklaim,'diklaim'],[ringkasan.menunggu,'menunggu pengambilan'],[ringkasan.hangus,'hangus penitipan'],[ringkasan.selesai,'habis / tanpa garansi']]
+                .filter(([jumlah]) => jumlah).map(([jumlah,label]) => jumlah+' item '+label).join(' · ');
+            const baris = itemGaransi_(g).map(item => {
+                const status = statusItemGaransi_(item,g);
+                const warna = status === 'Aktif' ? '#166534' : status.includes('Tunggu') ? '#92400e' : '#991b1b';
+                return `<li class="warranty-coverage-row"><div><strong>${amanTeks_(item.nama)}</strong>${item.legacy ? '<small>Cakupan kartu lama</small>' : ''}
+                    <small>${Number(item.durasi_hari)} hari · Mulai: ${item.tanggal_mulai ? amanTeks_(formatWaktu(item.tanggal_mulai)) : 'Belum mulai'}<br>Habis: ${item.tanggal_habis ? amanTeks_(formatWaktu(item.tanggal_habis)) : '-'}</small>
+                    ${item.tiket_klaim_garansi ? `<small>Tiket klaim: ${amanTeks_(item.tiket_klaim_garansi)}</small>` : ''}</div><span style="color:${warna};font-size:12px;font-weight:600;">${amanTeks_(status)}</span></li>`;
+            }).join('');
+            const riwayat = riwayatKlaimItemGaransi_(g).map(k => `<li><strong>${amanTeks_(k.id_tiket)}</strong> · ${amanTeks_((k.nama_item || []).join('; '))}${k.waktu_klaim ? '<br>'+amanTeks_(formatWaktu(k.waktu_klaim)) : ''}${k.keluhan ? '<br>Keluhan: '+amanTeks_(k.keluhan) : ''}</li>`).join('');
+            return `<div class="warranty-item-summary">${amanTeks_(bagian)}</div><ul class="warranty-coverage-list">${baris}</ul>${riwayat ? '<details class="warranty-claim-history"><summary>Riwayat klaim ('+riwayatKlaimItemGaransi_(g).length+')</summary><ul>'+riwayat+'</ul></details>' : ''}`;
+        }
+
+        function tambahBarisItemGaransi_(wadahId, item = {}) {
+            const wadah = document.getElementById(wadahId);
+            if (!wadah || wadah.children.length >= 100) return;
+            const baris = document.createElement('div');
+            baris.className = 'warranty-item-input';
+            baris.dataset.itemId = item.id || crypto.randomUUID();
+            const bawaan = document.getElementById('garansi-durasi');
+            const hari = Number(item.durasi_hari ?? (wadah.dataset.datesLocked === 'true' ? wadah.dataset.originalDays : (bawaan && bawaan.value)) ?? 7);
+            const terkunci = wadah.dataset.datesLocked === 'true';
+            const nomor = wadah.children.length + 1;
+            baris.innerHTML = `<label>Item ${nomor}<input class="warranty-item-name" type="text" maxlength="500" required placeholder="Nama barang / jasa dan nomor seri/unit" value="${amanTeks_(item.nama || '')}"></label>
+                <label>Durasi (hari)<input class="warranty-item-days" type="number" min="0" max="36500" step="1" required value="${hari}" ${terkunci ? 'readonly' : ''}></label>
+                <button type="button" class="btn-del" aria-label="Hapus item ${nomor}" onclick="hapusBarisItemGaransi_(this)">Hapus</button>`;
+            wadah.appendChild(baris);
+        }
+
+        function hapusBarisItemGaransi_(tombol) {
+            const baris = tombol.closest('.warranty-item-input');
+            if (baris.parentElement.children.length <= 1) return showToast('Kartu harus memiliki setidaknya satu item.', 'warning');
+            baris.remove();
+        }
+
+        function bacaFormItemGaransi_(wadahId) {
+            const rows = Array.from(document.getElementById(wadahId).querySelectorAll('.warranty-item-input'));
+            if (!rows.length || rows.length > 100) throw new Error('Masukkan 1 sampai 100 item garansi.');
+            return rows.map(row => {
+                const nama = row.querySelector('.warranty-item-name').value.trim();
+                const nilaiHari = row.querySelector('.warranty-item-days').value;
+                const durasi = Number(nilaiHari);
+                if (!nama || nama.length > 500 || nilaiHari === '' || !Number.isInteger(durasi) || durasi < 0 || durasi > 36500) throw new Error('Isi nama dan durasi setiap item dengan benar.');
+                return { id:row.dataset.itemId, nama, durasi_hari:durasi };
+            });
+        }
+
+        function bolehRinciItemGaransi_(g) {
+            if (g['Tiket Klaim Garansi'] || (g['Riwayat Klaim Item'] || []).length || String(g.Status).includes('Diklaim')) return false;
+            return !(g['Item Garansi'] || []).length || (!g['Waktu Diambil'] && ['Masa Tunggu','Belum Diambil'].includes(g.Status));
+        }
+
+        function bukaRincianItemGaransi(id) {
+            if (!(roleAdalahAdminOperasional_() || rolePengguna() === 'manager')) return;
+            const g = (globalGaransi || []).find(g => g['ID Garansi'] === id && dataSesuaiCabangAktif_(g));
+            if (!g || !bolehRinciItemGaransi_(g)) return showToast('Rincian item yang sudah berjalan atau pernah diklaim tidak dapat diganti.', 'warning');
+            const menunggu = !g['Waktu Diambil'] && ['Masa Tunggu','Belum Diambil'].includes(g.Status);
+            const wadah = document.getElementById('edit-item-garansi-rows');
+            wadah.innerHTML = ''; wadah.dataset.datesLocked = menunggu ? 'false' : 'true';
+            wadah.dataset.originalDays = String(g['Durasi (Hari)'] || 0);
+            document.getElementById('item-garansi-id').value = id;
+            document.getElementById('item-garansi-help').textContent = menunggu
+                ? 'Rinci setiap cakupan sebelum barang diambil. Aturan penitipan 7 hari tetap berlaku untuk kartu ini.'
+                : 'Kartu lama dapat dirinci berdasarkan nota. Setiap item mewarisi durasi, tanggal mulai, tanggal habis, dan status semula. Riwayat kartu tetap disimpan.';
+            itemGaransi_(g).forEach(item => tambahBarisItemGaransi_('edit-item-garansi-rows', item));
+            document.getElementById('modal-item-garansi').style.display = 'flex';
+        }
+
+        async function simpanRincianItemGaransi(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-simpan-item-garansi');
+            if (btn.disabled) return;
+            btn.disabled = true;
+            try {
+                const id = document.getElementById('item-garansi-id').value;
+                const g = (globalGaransi || []).find(g => g['ID Garansi'] === id && dataSesuaiCabangAktif_(g));
+                if (!g || !bolehRinciItemGaransi_(g)) throw new Error('Kartu tidak dapat dirinci. Muat ulang data.');
+                const items = bacaFormItemGaransi_('edit-item-garansi-rows');
+                const token = await pastikanTokenSupabaseAktif_();
+                const response = await fetch(SUPABASE_URL+'/functions/v1/sla-payroll-attendance', { method:'POST',
+                    headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'},
+                    body:JSON.stringify({action:'simpanItemGaransi',idGaransi:id,cabang:g.Cabang || cabangAktif,items}),signal:AbortSignal.timeout(90000) });
+                const hasil = await response.json();
+                if (!response.ok || hasil.status !== 'sukses') throw new Error(hasil.pesan || 'Rincian belum tersimpan.');
+                document.getElementById('modal-item-garansi').style.display = 'none';
+                await ambilSemuaData(true);
+                showToast('Rincian item tersimpan. Riwayat dan tanggal garansi lama dipertahankan.', 'success');
+            } catch (err) { showToast('Gagal menyimpan rincian item: '+err.message, 'error'); }
+            finally { btn.disabled = false; }
+        }
+
+        let draftKlaimItemGaransi_ = null;
+        function bukaKlaimItemGaransi(id) {
+            if (!(roleAdalahAdminOperasional_() || rolePengguna() === 'manager')) return;
+            const g = (globalGaransi || []).find(g => g['ID Garansi'] === id && dataSesuaiCabangAktif_(g));
+            if (!g) return;
+            draftKlaimItemGaransi_ = { id, requestId:crypto.randomUUID() };
+            tetapkanHtmlAman_(document.getElementById('klaim-item-options'), itemGaransi_(g).map(item => {
+                const status = statusItemGaransi_(item,g), boleh = status === 'Aktif' && new Date(item.tanggal_mulai) <= new Date();
+                return `<label class="warranty-claim-option"><input type="checkbox" name="klaim-item" value="${amanTeks_(item.id)}" ${boleh ? '' : 'disabled'}><span><strong>${amanTeks_(item.nama)}</strong><small>${amanTeks_(status)} · Habis: ${item.tanggal_habis ? amanTeks_(formatWaktu(item.tanggal_habis)) : '-'}</small></span></label>`;
+            }).join(''));
+            document.getElementById('klaim-item-keluhan').value = '';
+            document.getElementById('modal-klaim-item-garansi').style.display = 'flex';
+        }
+
+        async function kirimKlaimItemGaransi(e) {
+            e.preventDefault();
+            if (!draftKlaimItemGaransi_) return;
+            const itemIds = Array.from(document.querySelectorAll('#klaim-item-options input[name="klaim-item"]:checked')).map(el => el.value);
+            if (!itemIds.length) return showToast('Pilih setidaknya satu item yang masih aktif.', 'warning');
+            const btn = document.getElementById('btn-klaim-item-garansi');
+            if (btn.disabled) return;
+            btn.disabled = true;
+            try { await prosesKlaimGaransi(draftKlaimItemGaransi_.id, { itemIds, requestId:draftKlaimItemGaransi_.requestId, keluhan:document.getElementById('klaim-item-keluhan').value.trim() }); }
+            finally { btn.disabled = false; }
         }
 
         function renderGaransi() {
@@ -7239,6 +7448,7 @@
                         g['Referensi (Tiket/Nota)'],
                         g['Nama Pelanggan'],
                         g['Barang / Jasa'],
+                        ...itemGaransi_(g).map(item => item.nama),
                         noTransGrs
                     ].map(nilai => String(nilai || '').toLowerCase()).join(' ');
                     if (!strCari.includes(keywordPencarian)) return;
@@ -7246,7 +7456,7 @@
                 htmlAda = true;
 
                 const inap = penitipanGaransi_(g);
-                let textStatus = inap.hangus && !inap.menunggu ? 'Hangus (Lewat 7 Hari)' : statusGaransiEfektif_(g.Status, g['Tanggal Habis']) || 'Masa Tunggu';
+                let textStatus = (g['Item Garansi'] || []).length ? (inap.menunggu ? 'Masa Tunggu' : ringkasanItemGaransi_(g).status) : inap.hangus && !inap.menunggu ? 'Hangus (Lewat 7 Hari)' : statusGaransiEfektif_(g.Status, g['Tanggal Habis']) || 'Masa Tunggu';
                 let sc = 'status-aman'; let bc = 'badge-tunggu';
                 let isExpired = false;
 
@@ -7274,10 +7484,11 @@
                 let btnHtml = '';
                 if (roleAdalahAdminOperasional_() || rolePengguna() === 'manager') {
                     btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;" onclick="bukaEditGaransi('${idGrs}')">✏️ Edit Kartu Garansi</button>`;
+                    if (bolehRinciItemGaransi_(g)) btnHtml += `<button class="btn-action-primary" onclick="bukaRincianItemGaransi('${idGrs}')">Rinci Item Garansi</button>`;
                     if (textStatus === 'Masa Tunggu') {
-                        btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#2563eb; border-color:#bfdbfe;" onclick="aktifkanGaransi('${idGrs}')">🚀 Aktifkan Garansi (Barang Diambil)</button>`;
+                        btnHtml += `<button class="btn-action-primary" style="background:#eff6ff; color:#2563eb; border-color:#bfdbfe;" onclick="aktifkanGaransi('${idGrs}')">Catat Pengambilan Barang</button>`;
                     } else if (textStatus === 'Aktif' && !inap.hangus) {
-                        btnHtml += `<button class="btn-action-primary" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;" onclick="prosesKlaimGaransi('${idGrs}')">⚠️ Klaim Garansi & Buat Tiket</button>`;
+                        btnHtml += `<button class="btn-action-primary" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca;" onclick="bukaKlaimItemGaransi('${idGrs}')">Klaim Item Garansi & Buat Tiket</button>`;
                     }
                     if (g['Tiket Klaim Garansi']) btnHtml += `<button class="btn-action-primary" onclick="prosesKlaimGaransi('${idGrs}')">Tiket ${amanTeks_(g['Tiket Klaim Garansi'])} · Kirim ulang notifikasi tertunda</button>`;
                     if (roleAdalahAdminOperasional_()) {
@@ -7291,12 +7502,13 @@
                     ${noTransGrsHtml}
                     <p><strong>Klien:</strong> ${g['Nama Pelanggan']}</p>
                     <p><strong>Barang:</strong> ${g['Barang / Jasa']}</p>
-                    <div class="waktu-box" style="margin-top:10px;">
+                    ${(g['Item Garansi'] || []).length ? '' : `<div class="waktu-box" style="margin-top:10px;">
                         <p style="margin:0 0 5px 0;"><strong>Durasi Asli:</strong> ${durasiTeks}</p>
                         <p style="margin:0 0 5px 0; color:var(--text-muted);">Mulai: ${tglMulai}</p>
                         <p style="margin:0 0 5px 0; color:var(--text-muted);">Habis: ${tglHabis}</p>
-                    </div>
+                    </div>`}
                     ${ketGrsHtml}
+                    ${htmlItemGaransi_(g)}
                     ${peringatanPenitipanGaransi_(g)}
                     ${btnHtml}
                 </div>`);
@@ -7380,7 +7592,11 @@
             document.getElementById('edit-garansi-ringkasan-id').textContent = idAman;
             document.getElementById('edit-garansi-ringkasan-pelanggan').textContent = String(garansi['Nama Pelanggan'] || '-');
             document.getElementById('edit-garansi-ringkasan-barang').textContent = String(garansi['Barang / Jasa'] || '-');
+            document.getElementById('edit-garansi-status').disabled = false;
             sinkronkanFormEditGaransi_();
+            const perItem = (garansi['Item Garansi'] || []).length > 0;
+            if (perItem) ['edit-garansi-status','edit-garansi-durasi','edit-garansi-mulai'].forEach(field => document.getElementById(field).disabled = true);
+            if (perItem) document.getElementById('edit-garansi-bantuan').textContent = 'Status, durasi, dan tanggal dikelola pada tiap item. Form ini hanya mengubah catatan kartu agar hak item lain tetap terlindungi.';
             document.getElementById('modal-edit-garansi').style.display = 'flex';
         }
 
@@ -7399,6 +7615,14 @@
                 const id = idAman_(document.getElementById('edit-garansi-id').value);
                 const garansi = (globalGaransi || []).find(item => item && String(item['ID Garansi']).trim() === id && dataSesuaiCabangAktif_(item));
                 if (!id || !garansi) throw new Error('Data garansi tidak ditemukan pada cabang aktif.');
+                if ((garansi['Item Garansi'] || []).length) {
+                    const hasil = await callSupabase(endpointFilterSupabase_('garansi', 'id_garansi', id), 'PATCH', { keterangan:String(document.getElementById('edit-garansi-keterangan').value || '').trim() });
+                    pastikanHasilMutasiSupabase_(hasil, `Garansi ${id}`);
+                    document.getElementById('modal-edit-garansi').style.display = 'none';
+                    showToast('Catatan kartu diperbarui. Status dan tanggal tiap item tetap.', 'success');
+                    await ambilSemuaData(true);
+                    return;
+                }
 
                 let status = String(document.getElementById('edit-garansi-status').value || '').trim();
                 const inap = penitipanGaransi_(garansi);
@@ -7464,7 +7688,8 @@
                 const referensi = document.getElementById('garansi-referensi').value.trim();
                 const noTransaksiGaransi = document.getElementById('garansi-notrans').value.trim();
                 if (!noTransaksiGaransi) throw new Error('No Transaksi / SO wajib diisi pada Garansi.');
-                const durasiHari = Math.max(0, Number.parseInt(document.getElementById('garansi-durasi').value, 10) || 0);
+                const rincianItem = document.getElementById('garansi-item-rows') ? bacaFormItemGaransi_('garansi-item-rows') : [];
+                const durasiHari = rincianItem.length ? Math.max(...rincianItem.map(item => item.durasi_hari)) : Math.max(0, Number.parseInt(document.getElementById('garansi-durasi').value, 10) || 0);
                 const omzetRaw = document.getElementById('garansi-omzet').value;
                 const poinNilaiStr = String(document.getElementById('garansi-poin-nilai').value || '').trim();
                 const poinVeto = document.getElementById('garansi-poin-veto').checked ? 'Ya' : 'Tidak';
@@ -7506,6 +7731,7 @@
                     cabang: cabangGaransi,
                     admin_sla: adminSlaSupabase_(cabangGaransi)
                 };
+                if (rincianItem.length) payload.item_garansi = rincianItem;
 
                 const garansiSudahAda = (globalGaransi || []).some(item => item && String(item['ID Garansi']).trim() === String(idGrs).trim());
                 let hasil;
@@ -7610,27 +7836,31 @@
         }
 
         const klaimGaransiSedangDiproses_ = new Set();
-        async function prosesKlaimGaransi(id) {
+        async function prosesKlaimGaransi(id, pilihan = null) {
             if (!['admin','admin_raha','manager','direktur'].includes(rolePengguna()) || klaimGaransiSedangDiproses_.has(id)) return;
             const garansi = (globalGaransi || []).find(g => String(g['ID Garansi']) === String(id));
             if (!garansi) return showToast('Garansi tidak ditemukan. Muat ulang data.', 'error');
+            if (!pilihan && !garansi['Tiket Klaim Garansi']) return bukaKlaimItemGaransi(id);
             if (!garansi['Tiket Klaim Garansi'] && penitipanGaransi_(garansi).hangus) return showToast('Garansi hangus karena barang mengendap lebih dari 7 hari. Kerusakan yang sama tidak tercover garansi.', 'error');
             klaimGaransiSedangDiproses_.add(id);
             try {
-                const sudahAda = !!garansi['Tiket Klaim Garansi'];
+                const sudahAda = !pilihan && !!garansi['Tiket Klaim Garansi'];
+                const itemTerpilih = pilihan ? itemGaransi_(garansi).filter(item => pilihan.itemIds.includes(item.id)) : [];
+                if (pilihan && (itemTerpilih.length !== pilihan.itemIds.length || itemTerpilih.some(item => statusItemGaransi_(item,garansi) !== 'Aktif'))) throw new Error('Pilihan item sudah tidak memenuhi syarat. Muat ulang kartu.');
                 const acc = await showConfirm(sudahAda
                     ? 'Periksa tiket '+garansi['Tiket Klaim Garansi']+' dan coba kirim kembali notifikasi yang tertunda?'
-                    : 'Klaim garansi '+id+' akan membuat tiket baru berstatus Claim Garansi, ditugaskan kepada teknisi pada tiket asal, dan mengirim notifikasi kepada pelanggan serta teknisi. Garansi akan menjadi hangus. Lanjutkan?');
+                    : 'Klaim item: '+itemTerpilih.map(item => item.nama).join('; ')+'. Hanya item terpilih yang hangus. Item lain tetap berlaku sampai tanggal habis semula. Tiket baru akan ditugaskan kepada teknisi asal dan notifikasi dikirim kepada pelanggan serta teknisi. Lanjutkan?');
                 if (!acc) return;
                 document.getElementById('loading').style.display = 'block';
                 const token = await pastikanTokenSupabaseAktif_();
                 const response = await fetch(SUPABASE_URL+'/functions/v1/sla-payroll-attendance', {
                     method:'POST', headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'},
-                    body:JSON.stringify({action:'klaimGaransi',idGaransi:id,cabang:garansi.Cabang || cabangAktif}),
+                    body:JSON.stringify({action:'klaimGaransi',idGaransi:id,cabang:garansi.Cabang || cabangAktif,...(pilihan || {})}),
                     signal:AbortSignal.timeout(90000)
                 });
                 const hasil = await response.json();
                 if (!response.ok || hasil.status !== 'sukses' || !hasil.idTiket) throw new Error(hasil.pesan || 'Klaim belum berhasil. Muat ulang dan coba kembali.');
+                if (pilihan) { document.getElementById('modal-klaim-item-garansi').style.display = 'none'; draftKlaimItemGaransi_ = null; }
                 showToast('Tiket '+hasil.idTiket+' '+(hasil.sudahAda ? 'sudah tersedia.' : 'berhasil dibuat.')+(hasil.notifikasiTertunda
                     ? ' Notifikasi WhatsApp masih tertunda; gunakan tombol kirim ulang pada kartu garansi setelah 5 menit.'
                     : ' Notifikasi pelanggan dan teknisi berhasil dikirim.'), hasil.notifikasiTertunda ? 'warning' : 'success');

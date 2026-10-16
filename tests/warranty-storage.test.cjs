@@ -9,7 +9,7 @@ function harness(){
  formatWaktu:x=>x,amanTeks_:x=>x,parseSafeDate:x=>new Date(x),tambahkanHtmlAman_:(el,x)=>el.innerHTML+=x,tetapkanHtmlAman_:(el,x)=>el.innerHTML=x,
  tampilkanModalInap:x=>calls.push(x),showToast:(...x)=>calls.push(x),showConfirm:async x=>{calls.push(x);return true;},tanggalIsoSupabase_:x=>new Date(x).toISOString(),
  endpointFilterSupabase_:()=> 'garansi',callSupabase:async(endpoint,method,body)=>{calls.push(body);return [body];},pastikanHasilMutasiSupabase_:()=>{},ambilSemuaData:async()=>{}});
- for(const f of ['hariMengendapWita_','biayaPenitipan_','penitipanGaransi_','peringatanPenitipanGaransi_','statusGaransiEfektif_','scanDendaInap','renderGaransi','aktifkanGaransi'])vm.runInContext(extract(f),c);
+ for(const f of ['hariMengendapWita_','biayaPenitipan_','penitipanGaransi_','peringatanPenitipanGaransi_','statusGaransiEfektif_','scanDendaInap','itemGaransi_','statusItemGaransi_','ringkasanItemGaransi_','riwayatKlaimItemGaransi_','htmlItemGaransi_','bolehRinciItemGaransi_','renderGaransi','aktifkanGaransi'])vm.runInContext(extract(f),c);
  return {c,calls,elements};
 }
 const card={'ID Garansi':'GRS-1','Referensi (Tiket/Nota)':'TKT-1',Status:'Masa Tunggu','Durasi (Hari)':30,'Barang / Jasa':'Laptop',Cabang:'Raha'};

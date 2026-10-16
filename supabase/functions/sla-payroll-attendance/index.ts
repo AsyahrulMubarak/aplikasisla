@@ -858,7 +858,16 @@ async function claimWarranty(body,u) {
   if(!/^[A-Za-z0-9_-]{1,100}$/.test(id))throw new Error('ID garansi tidak valid.');
   const target=branch(body.cabang)||u.branch;
   if(!canManageBranch(u,target))throw new Error('Cabang di luar hak akses.');
-  const result=await rest('rpc/sla_klaim_garansi','','POST',{p_auth_id:u.authId,p_id_garansi:id,p_cabang:target});
+  let result;
+  if(body.itemIds!==undefined){
+    if(!Array.isArray(body.itemIds)||body.itemIds.length<1||body.itemIds.length>100||body.itemIds.some(x=>typeof x!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(x))||new Set(body.itemIds).size!==body.itemIds.length)
+      throw new Error('Pilih item garansi yang valid.');
+    if(typeof body.requestId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.requestId))throw new Error('Identitas pengajuan klaim tidak valid.');
+    if(typeof (body.keluhan??'')!=='string'||(body.keluhan||'').length>2000)throw new Error('Keluhan maksimal 2000 karakter.');
+    result=await rest('rpc/sla_klaim_item_garansi','','POST',{p_auth_id:u.authId,p_id_garansi:id,p_cabang:target,p_item_ids:body.itemIds,p_request_id:body.requestId,p_keluhan:body.keluhan||''});
+  }else{
+    result=await rest('rpc/sla_klaim_garansi','','POST',{p_auth_id:u.authId,p_id_garansi:id,p_cabang:target});
+  }
   let events=[];
   try { events=await rest('rpc/sla_ambil_notif_garansi','','POST',{p_id_garansi:id}); }
   catch { return {...result,notifikasiTertunda:Math.max(1,result.notifikasiTertunda||0)}; }
@@ -884,6 +893,19 @@ async function claimWarranty(body,u) {
     const pending=await rest('sla_notif_klaim_garansi','select=id&id_garansi=eq.'+encode(id)+'&terkirim_pada=is.null');
     return {...result,notifikasiTertunda:pending.length};
   } catch { return {...result,notifikasiTertunda:Math.max(1,result.notifikasiTertunda||0)}; }
+}
+
+async function saveWarrantyItems(body,u){
+  if(!['admin','admin_raha','manager','direktur'].includes(u.role))throw new Error('Hanya manajemen yang dapat mengelola item garansi.');
+  const id=String(body.idGaransi||''),target=branch(body.cabang)||u.branch;
+  if(!/^[A-Za-z0-9_-]{1,100}$/.test(id)||!canManageBranch(u,target))throw new Error('Kartu atau cabang tidak dapat diakses.');
+  if(!Array.isArray(body.items)||body.items.length<1||body.items.length>100)throw new Error('Masukkan 1 sampai 100 item garansi.');
+  const items=body.items.map(x=>{
+    if(!x||typeof x.id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(x.id)||typeof x.nama!=='string'||!x.nama.trim()||x.nama.length>500||!Number.isInteger(x.durasi_hari)||x.durasi_hari<0||x.durasi_hari>36500)throw new Error('Nama atau durasi item tidak valid.');
+    return {id:x.id,nama:x.nama.trim(),durasi_hari:x.durasi_hari};
+  });
+  if(new Set(items.map(x=>x.id)).size!==items.length)throw new Error('Identitas item tidak boleh berulang.');
+  return rest('rpc/sla_simpan_item_garansi','','POST',{p_auth_id:u.authId,p_id_garansi:id,p_cabang:target,p_items:items});
 }
 
 // Salary updates are recorded transactionally in PostgreSQL; WhatsApp is a durable outbox.
@@ -947,6 +969,7 @@ async function dispatch(body,u) {
   if(action==='getTeknisiOnProgress')return workingTechnicians(body,u);
   if(['getKlaimSales','getBuktiKlaimSales','ajukanBanding','responBanding'].includes(action))return salesClaims(body,u);
   if(action==='klaimGaransi')return claimWarranty(body,u);
+  if(action==='simpanItemGaransi')return saveWarrantyItems(body,u);
   if(action==='getDaftarGaji')return salaryManagement(u);
   if(action==='ubahGajiPokok')return changeSalary(body,u);
   if(action==='getRekeningPegawai')return getBankAccounts(u);
