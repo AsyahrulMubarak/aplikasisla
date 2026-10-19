@@ -1609,7 +1609,8 @@
                     <label>Nama Lengkap</label><input type="text" id="new-nama" required>
                     <label>Email (Notifikasi)</label><input type="email" id="new-email" required>
                     <label>No WhatsApp (Aktif)</label>
-                    <input type="tel" id="new-wa" required oninput="formatWA(this)">
+                    <input type="tel" id="new-wa" required oninput="formatWA(this)" aria-describedby="new-wa-help">
+                    <p id="new-wa-help" style="font-size:12px;color:var(--text-muted);margin-top:-8px;">Profil baru: ucapan selamat datang dan akses akun dikirim otomatis ke nomor WhatsApp ini setelah profil tersimpan.</p>
                     <div style="display: flex; gap:15px;">
                         <div style="flex: 1;"><label>Username</label><input type="text" id="new-username" required></div>
                         <div style="flex: 1;">
@@ -9932,6 +9933,9 @@
                     ? 'Alhamdulillah! Password diperbarui dan permintaan reset ditandai selesai.'
                     : (passwordDiubah ? 'Alhamdulillah! Profil dan password Auth tersimpan.' : 'Alhamdulillah! Profil tersimpan.');
                 const passwordBelumBerubah = Boolean(inputPw) && !passwordDiubah;
+                const notifikasiSelamatDatang = !modeEditUser && hasilProfil.notifikasiSelamatDatang;
+                const pesanSelamatDatang = notifikasiSelamatDatang ? ' ' + notifikasiSelamatDatang.pesan : '';
+                const waBelumTerkirim = notifikasiSelamatDatang && notifikasiSelamatDatang.terkirim !== true;
                 document.getElementById('new-password').value = '';
 
                 if (penggunaAktif && penggunaAktif.Username === payload.username) {
@@ -9959,7 +9963,7 @@
                         ? ' WhatsApp pegawai telah dikirim.' : ' WhatsApp tersimpan dalam antrean pengiriman ulang.';
                 }
                 perubahanTersimpan = true;
-                showToast((passwordBelumBerubah ? hasilProfil.pesan : pesanSimpan) + pesanGaji, passwordBelumBerubah ? 'warning' : 'success');
+                showToast((passwordBelumBerubah ? hasilProfil.pesan : pesanSimpan) + pesanGaji + pesanSelamatDatang, passwordBelumBerubah || waBelumTerkirim ? 'warning' : 'success');
 
                 if (penggunaAktif && penggunaAktif.Role === 'admin') {
                     batalEditUser();

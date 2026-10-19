@@ -6,7 +6,7 @@ function extract(name) {
     assert.ok(match, name); return match[0];
 }
 function harness({ role = 'admin', branch = 'Semua', salary = 2000000, profileFailure = false,
-    salaryFailure = false, committedTimeout = false, refreshFailure = false, profileWait = null, own = false } = {}) {
+    salaryFailure = false, committedTimeout = false, refreshFailure = false, profileWait = null, own = false, welcome = null } = {}) {
     const fields = new Map(), calls = [], notices = [], sessions = [];
     function field(id) {
         if (!fields.has(id)) {
@@ -35,7 +35,8 @@ function harness({ role = 'admin', branch = 'Semua', salary = 2000000, profileFa
             if (profileFailure) throw Error('Profil ditolak');
             if (action === 'ubahProfil' && body.profil.gaji_pokok !== database.salary) throw Error('Gaji pokok sudah berbeda. Muat ulang profil.');
             if (action === 'buatProfil') database.salary = body.profil.gaji_pokok;
-            return { data: [{ ...body.profil, gaji_pokok: database.salary }], passwordDiubah: Boolean(body.passwordBaru) };
+            return { data: [{ ...body.profil, gaji_pokok: database.salary }], passwordDiubah: Boolean(body.passwordBaru),
+                ...(action === 'buatProfil' && welcome ? { notifikasiSelamatDatang: welcome } : {}) };
         },
         apiGajiManajemen_: async body => {
             calls.push({ kind: 'salary', body: JSON.parse(JSON.stringify(body)) });
@@ -152,6 +153,22 @@ test('Zero salaries, new user creation and cancellation keep their intended sema
     create.field('new-password').value = 'ExampleOnly123!'; await create.submit();
     assert.equal(create.calls[0].action, 'buatProfil'); assert.equal(create.calls[0].body.profil.gaji_pokok, 1750000);
     assert.equal(create.calls.length, 1);
+});
+
+test('New profile saves show WhatsApp success or a warning while clearing the saved password', async () => {
+    for (const terkirim of [true, false]) {
+        const pesan = terkirim ? 'WhatsApp selamat datang dan akses akun sudah dikirim ke nomor pegawai.'
+            : 'Profil tersimpan, tetapi pengiriman WhatsApp selamat datang belum terkonfirmasi.';
+        const h = harness({ welcome: { terkirim, pesan } });
+        h.c.batalEditUser(); h.field('new-username').value = 'new employee';
+        h.field('new-gapok').value = 1750000; h.field('new-password').value = 'WelcomeOnly123!';
+        await h.submit();
+        assert.equal(h.calls.length, 1); assert.equal(h.calls[0].action, 'buatProfil');
+        assert.ok(h.notices.at(-1).message.includes(pesan));
+        assert.equal(h.notices.at(-1).kind, terkirim ? 'success' : 'warning');
+        assert.equal(h.field('new-password').value, '');
+        assert.ok(!h.notices.at(-1).message.includes('WelcomeOnly123!'));
+    }
 });
 
 test('Repeated submits and switching targets while saving cannot produce a second write', async () => {

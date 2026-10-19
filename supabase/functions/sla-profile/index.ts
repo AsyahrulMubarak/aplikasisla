@@ -19,7 +19,7 @@ function headers() {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'profile-supabase-20261009' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'profile-welcome-20261019' };
 }
 const reply = (data, origin, status = 200) => Response.json(data, { status, headers: cors(origin) });
 async function requestJson(resource, method = 'GET', body) {
@@ -86,6 +86,44 @@ async function authUserForProfile(p) {
   if (auth.id !== p.auth_id || String(auth.email || '').toLowerCase() !== normalize(p.username) + '@alfacom.local') throw new Error('Identitas Auth target tidak cocok.');
   return auth;
 }
+function welcomePhone(value) {
+  const phone = String(value || '').trim().replace(/[\s().-]/g, '').replace(/^\+/, '').replace(/^0/, '62').replace(/^8/, '628');
+  return /^62\d{8,13}$/.test(phone) ? phone : '';
+}
+function profileWelcomeMessage(profile, password) {
+  return [
+    'السلام عليكم ورحمة الله وبركاته',
+    '',
+    'أهلًا وسهلًا بكم في أسرة ألفاكوم.',
+    'نسأل الله أن يبارك لكم في عملكم، وأن يوفقكم ويسدد خطاكم، ويرزقكم رزقًا حلالًا طيبًا. آمين.',
+    '',
+    `Selamat datang, ${profile.nama_asli}, di Alfacom Multi Solution.`,
+    'Semoga Allah memberkahi pekerjaan Anda, memudahkan urusan, dan memberikan rezeki yang halal serta baik.',
+    '',
+    'Akun SLA Anda sudah aktif:',
+    `Cabang: ${profile.hak_akses_cabang === 'Semua' ? 'Semua Cabang (Pusat)' : profile.hak_akses_cabang}`,
+    `Username: ${normalize(profile.username)}`,
+    `Password: ${password}`,
+    'Login: https://aplikasisla.vercel.app/',
+    '',
+    'Silakan login dan ganti password melalui menu Profil. Jaga kerahasiaan akun Anda.'
+  ].join('\n');
+}
+async function sendProfileWelcome(profile, password) {
+  const pending = { terkirim: false, pesan: 'Profil tersimpan, tetapi pengiriman WhatsApp selamat datang belum terkonfirmasi. Hubungi pegawai untuk memberikan akses akun.' };
+  const phone = welcomePhone(profile.no_wa);
+  const token = Deno.env.get('FONNTE_TOKEN') || Deno.env.get('FONNTE_TOKEN_CADANGAN') || '';
+  if (!phone || !token) return pending;
+  try {
+    // Credentials stay in memory and go only to the new employee; never persist or log the message.
+    const response = await fetch('https://api.fonnte.com/send', { method: 'POST', headers: { Authorization: token },
+      body: new URLSearchParams({ target: phone, message: profileWelcomeMessage(profile, password), countryCode: '0' }),
+      signal: AbortSignal.timeout(15000) });
+    const result = await response.json();
+    if (response.ok && result.status === true) return { terkirim: true, pesan: 'WhatsApp selamat datang dan akses akun sudah dikirim ke nomor pegawai.' };
+  } catch { /* An uncertain delivery must not roll back the saved account or resend its password. */ }
+  return pending;
+}
 async function manageProfile(body, actor) {
   const data = body.profil || {}, login = normalize(data.username || body.usernameTarget);
   const old = await getProfile(login);
@@ -94,6 +132,8 @@ async function manageProfile(body, actor) {
     if (old) throw new Error('Username sudah digunakan.');
     const record = validateProfile(data);
     requireProfileScope(actor, record);
+    record.no_wa = welcomePhone(record.no_wa);
+    if (!record.no_wa) throw new Error('Isi satu nomor WhatsApp pegawai yang valid, diawali 08 atau 62.');
     const password = safePassword(body.passwordBaru);
     const created = await requestJson('/auth/v1/admin/users', 'POST', { email: login + '@alfacom.local', password, email_confirm: true });
     if (!uuid(created.id) || String(created.email || '').toLowerCase() !== login + '@alfacom.local') throw new Error('Akun Auth baru tidak valid.');
@@ -113,7 +153,8 @@ async function manageProfile(body, actor) {
       } else throw error;
     }
     await audit(actor, rows[0].username, 'buatProfil');
-    return { status: 'sukses', data: rows, userId: created.id, passwordDiubah: true };
+    const notifikasiSelamatDatang = await sendProfileWelcome(rows[0], password);
+    return { status: 'sukses', data: rows, userId: created.id, passwordDiubah: true, notifikasiSelamatDatang };
   }
   if (!old) throw new Error('Profil tidak ditemukan.');
   const own = old.auth_id === actor.auth_id;

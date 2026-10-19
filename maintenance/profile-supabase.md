@@ -12,6 +12,16 @@ Halaman Profil menggunakan Edge Function `sla-profile` untuk pembuatan akun Auth
 - Penghapusan profil mempertahankan identitas Auth dan riwayat lama. API menolak akses setelah profil tidak lagi ada. Akun yang dihapus tidak dapat masuk aplikasi karena profil login tidak ditemukan.
 - Izin tulis langsung `users` dari browser tetap tertutup.
 
+## Sambutan pegawai baru
+
+Setelah `buatProfil` mengonfirmasi akun Auth dan profil tersimpan, `sla-profile` mengirim satu WhatsApp ke nomor pegawai baru melalui Fonnte. Pesan memuat salam, ucapan selamat datang dan doa dalam bahasa Arab, penjelasan Indonesia, nama pegawai, cabang, username login, password yang baru dibuat, serta tautan aplikasi. Pegawai diarahkan mengganti password melalui Profil setelah login.
+
+Nomor WA untuk profil baru wajib berisi satu nomor Indonesia yang valid. Format `08`, `8`, `62`, dan `+62` dinormalisasi menjadi `62`. Tujuan grup dan beberapa penerima ditolak sebelum membuat akun. Credential Fonnte berasal dari `FONNTE_TOKEN` atau cadangan `FONNTE_TOKEN_CADANGAN` di server.
+
+Pesan dan password hanya dipakai dalam memori permintaan, tidak disimpan dalam tabel, audit, log, atau antrean pengiriman ulang aplikasi. Penyedia yang menolak pengiriman, timeout, maupun konfigurasi WA yang belum tersedia tidak membatalkan profil yang sudah tersimpan. Respons `notifikasiSelamatDatang` menampilkan sukses atau peringatan di form. Respons sukses penyedia mengonfirmasi permintaan pengiriman diterima, bukan laporan pesan sudah dibaca.
+
+Pembaruan profil dan reset password tidak mengirim pesan sambutan. Percobaan membuat ulang username yang sudah ada ditolak sebelum pengiriman. Pengujian menguji alur handler terautentikasi, kedua cabang, nomor tujuan, isi kredensial, kegagalan simpan/pengiriman, timeout setelah insert berhasil, serta kerahasiaan password. Fonnte disimulasikan saat pengujian agar tidak menghubungi nomor pegawai.
+
 ## Reset password
 
 `lupaSandi` tersedia tanpa login dan selalu memberikan jawaban netral. Database membatasi lima permintaan per sumber setiap sepuluh menit dan satu permintaan per username setiap sepuluh menit. Username lama yang mengandung spasi menggunakan `username_login`.
