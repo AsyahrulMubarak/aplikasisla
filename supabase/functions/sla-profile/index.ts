@@ -19,7 +19,7 @@ function headers() {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'profile-welcome-20261019' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'profile-welcome-bidi-20261019' };
 }
 const reply = (data, origin, status = 200) => Response.json(data, { status, headers: cors(origin) });
 async function requestJson(resource, method = 'GET', body) {
@@ -91,22 +91,30 @@ function welcomePhone(value) {
   return /^62\d{8,13}$/.test(phone) ? phone : '';
 }
 function profileWelcomeMessage(profile, password) {
+  // A Latin heading fixes the message's base direction. Isolate each paragraph
+  // so Arabic cannot reverse Indonesian punctuation, credentials, or the link.
+  const ltr = text => '\u200e\u2066' + text + '\u2069\u200e';
+  const rtl = text => '\u200f\u2067' + text + '\u2069\u200f';
   return [
-    'السلام عليكم ورحمة الله وبركاته',
+    ltr('ALFACOM MULTI SOLUTION'),
     '',
-    'أهلًا وسهلًا بكم في أسرة ألفاكوم.',
-    'نسأل الله أن يبارك لكم في عملكم، وأن يوفقكم ويسدد خطاكم، ويرزقكم رزقًا حلالًا طيبًا. آمين.',
+    rtl('السلام عليكم ورحمة الله وبركاته'),
     '',
-    `Selamat datang, ${profile.nama_asli}, di Alfacom Multi Solution.`,
-    'Semoga Allah memberkahi pekerjaan Anda, memudahkan urusan, dan memberikan rezeki yang halal serta baik.',
+    rtl('أهلًا وسهلًا بكم في أسرة ألفاكوم.'),
+    rtl('نسأل الله أن يبارك لكم في عملكم، وأن يوفقكم ويسدد خطاكم، ويرزقكم رزقًا حلالًا طيبًا. آمين.'),
     '',
-    'Akun SLA Anda sudah aktif:',
-    `Cabang: ${profile.hak_akses_cabang === 'Semua' ? 'Semua Cabang (Pusat)' : profile.hak_akses_cabang}`,
-    `Username: ${normalize(profile.username)}`,
-    `Password: ${password}`,
-    'Login: https://aplikasisla.vercel.app/',
+    ltr(`Selamat datang, ${profile.nama_asli}, di Alfacom Multi Solution.`),
+    ltr('Semoga Allah memberkahi pekerjaan Anda, memudahkan urusan, dan memberikan rezeki yang halal serta baik.'),
     '',
-    'Silakan login dan ganti password melalui menu Profil. Jaga kerahasiaan akun Anda.'
+    ltr('Akun SLA Anda sudah aktif:'),
+    ltr(`Cabang: ${profile.hak_akses_cabang === 'Semua' ? 'Semua Cabang (Pusat)' : profile.hak_akses_cabang}`),
+    ltr(`Username: ${normalize(profile.username)}`),
+    ltr(`Password: ${password}`),
+    '',
+    ltr('Tautan login:'),
+    ltr('https://aplikasisla.vercel.app/'),
+    '',
+    ltr('Silakan login dan ganti password melalui menu Profil. Jaga kerahasiaan akun Anda.')
   ].join('\n');
 }
 async function sendProfileWelcome(profile, password) {
@@ -283,6 +291,16 @@ async function jobAuthorized(request) {
   });
   return r.ok;
 }
+async function resendProfileWelcome(body) {
+  const profile = await getProfile(body.usernameTarget);
+  if (!profile) throw new Error('Profil pegawai tidak ditemukan.');
+  await authUserForProfile(profile);
+  if (!welcomePhone(profile.no_wa)) throw new Error('Nomor WhatsApp pegawai tidak valid.');
+  // Explicit server-only resend uses a supplied existing password; it never resets
+  // Auth or accepts a caller-provided recipient. Nothing is queued for retry.
+  const password = safePassword(body.passwordPegawai);
+  return { status: 'sukses', notifikasiSelamatDatang: await sendProfileWelcome(profile, password) };
+}
 async function dispatch(body, actor) {
   if (['buatProfil','ubahProfil','hapusProfil'].includes(body.action)) return manageProfile(body, actor);
   if (body.action === 'resetPassword') return changePassword(body, actor);
@@ -304,6 +322,10 @@ Deno.serve(async request => {
     if (raw.length > 65536) throw new Error('Permintaan terlalu besar.');
     const body = JSON.parse(raw);
     if (body.action === 'lupaSandi') return reply(await requestReset(body, request), origin);
+    if (body.action === 'kirimUlangSambutan') {
+      if (!await jobAuthorized(request)) return reply({ status: 'gagal', pesan: 'Akses server diperlukan.' }, origin, 403);
+      return reply(await resendProfileWelcome(body), origin);
+    }
     if (body.action === 'prosesNotifResetSandi') {
       if (!await jobAuthorized(request)) return reply({ status: 'gagal', pesan: 'Akses server diperlukan.' }, origin, 403);
       await resetNotifications(); return reply({ status: 'sukses' }, origin);

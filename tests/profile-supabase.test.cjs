@@ -155,7 +155,7 @@ test('Authenticated create request reaches saved Auth/profile and the employee w
   assert.equal(result.status,'sukses');assert.equal(result.notifikasiSelamatDatang.terkirim,true);
   assert.equal(h.sends.length,1);assert.equal(h.sends[0].profileStored,true);assert.equal(h.sends[0].auditRecorded,true);
   assert.equal(result.data[0].auth_id,targetId);assert.equal(h.users.length,2);
-  assert.equal(response.headers.get('X-SLA-Revision'),'profile-welcome-20261019');
+  assert.equal(response.headers.get('X-SLA-Revision'),'profile-welcome-bidi-20261019');
   assert.ok(!JSON.stringify(result).includes('HandlerWelcome123!'));
 });
 
@@ -207,4 +207,38 @@ test('Welcome uses the configured backup provider and never runs for edits, pass
   const denied=harness({users:[],provider:'ok'});
   await assert.rejects(denied.c.manageProfile({action:'buatProfil',profil:profile,passwordBaru:'TestOnly123!'},target));
   assert.equal(denied.sends.length,0);assert.equal(denied.auth.length,0);
+});
+
+test('Welcome isolates Arabic and Latin paragraphs so credentials and punctuation keep their direction',()=>{
+  const h=harness(),password='ExampleOnly2026!';
+  const message=h.c.profileWelcomeMessage(profile,password),lines=message.split('\n').filter(Boolean);
+  assert.equal(lines[0],'\u200e\u2066ALFACOM MULTI SOLUTION\u2069\u200e');
+  for(const line of lines){
+    if(/[\u0600-\u06ff]/.test(line))assert.match(line,/^\u200f\u2067.*\u2069\u200f$/u);
+    else assert.match(line,/^\u200e\u2066.*\u2069\u200e$/u);
+  }
+  assert.ok(lines.includes('\u200e\u2066Password: '+password+'\u2069\u200e'));
+  assert.ok(lines.includes('\u200e\u2066https://aplikasisla.vercel.app/\u2069\u200e'));
+});
+
+test('Explicit welcome resend is server-only and uses the stored employee number without changing Auth',async()=>{
+  const h=harness({users:[{...profile}],provider:'ok'});
+  const body={action:'kirimUlangSambutan',usernameTarget:'worker',passwordPegawai:'ExistingOnly123!',no_wa:'6289999999999'};
+  for(const headers of [{},{Authorization:'Bearer a.b.c'},{'x-sla-job-key':'forged'}]){
+    const response=await h.handler(new Request('https://edge.test',{method:'POST',headers,body:JSON.stringify(body)}));
+    assert.equal(response.status,403);assert.equal(h.sends.length,0);
+  }
+  const response=await h.handler(new Request('https://edge.test',{method:'POST',headers:{'x-sla-job-key':'server-only'},body:JSON.stringify(body)}));
+  const result=await response.json();assert.equal(result.notifikasiSelamatDatang.terkirim,true);
+  assert.equal(h.sends.length,1);assert.equal(h.sends[0].body.target,'6281234567890');
+  assert.ok(!h.calls.some(call=>['PUT','POST','PATCH','DELETE'].includes(call.method)));
+  assert.ok(!JSON.stringify(result).includes('ExistingOnly123!'));
+});
+
+test('Resend rejects a missing or mismatched Auth profile before contacting WhatsApp',async()=>{
+  for(const options of [{users:[]},{users:[{...profile}],authMismatch:true}]){
+    const h=harness({...options,provider:'ok'});
+    await assert.rejects(h.c.resendProfileWelcome({usernameTarget:'worker',passwordPegawai:'ExistingOnly123!'}));
+    assert.equal(h.sends.length,0);
+  }
 });

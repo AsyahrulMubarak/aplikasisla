@@ -22,6 +22,10 @@ Pesan dan password hanya dipakai dalam memori permintaan, tidak disimpan dalam t
 
 Pembaruan profil dan reset password tidak mengirim pesan sambutan. Percobaan membuat ulang username yang sudah ada ditolak sebelum pengiriman. Pengujian menguji alur handler terautentikasi, kedua cabang, nomor tujuan, isi kredensial, kegagalan simpan/pengiriman, timeout setelah insert berhasil, serta kerahasiaan password. Fonnte disimulasikan saat pengujian agar tidak menghubungi nomor pegawai.
 
+Pesan dimulai dengan judul Latin dan setiap paragraf menggunakan mark/isolate arah Unicode. Teks Arab tetap RTL; teks Indonesia, username, password, dan URL tetap LTR. URL berada pada baris tersendiri agar label dan tanda baca tidak berbalik di WhatsApp.
+
+Pengiriman ulang eksplisit menggunakan operasi server `kirimUlangSambutan` yang dilindungi credential scheduler SLA. Server memeriksa identitas Auth profil, mengambil nomor WA dari profil tersimpan, dan menerima password yang sudah diketahui operator melalui permintaan sementara. Operasi ini tidak mereset password, tidak menerima pengganti nomor penerima, dan tidak menyimpan atau mengantrekan isi pesan. JWT browser saja tidak dapat menjalankan operasi server ini.
+
 ## Reset password
 
 `lupaSandi` tersedia tanpa login dan selalu memberikan jawaban netral. Database membatasi lima permintaan per sumber setiap sepuluh menit dan satu permintaan per username setiap sepuluh menit. Username lama yang mengandung spasi menggunakan `username_login`.
