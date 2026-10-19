@@ -5549,11 +5549,10 @@
                 const salesUsers = (globalUsers || []).filter(u => u && rolePengguna(u) === 'sales' && u['Nama Asli']).sort((a,b) => a['Nama Asli'].localeCompare(b['Nama Asli']));
                 salesUsers.forEach(user => {
                     const s = user['Nama Asli'];
-                    // Input Pekerjaan, Penjualan, dan Prospek memakai semua sales kedua cabang.
+                    // Semua form input dapat memilih sales dari Kendari maupun Raha.
                     if(salesGroup) tambahkanHtmlAman_(salesGroup, `<label><input type="checkbox" value="${amanTeks_(s)}" onchange="togglePenjualanInput()"> ${amanTeks_(s)}</label>`);
                     if(prospekSalesGroup) tambahkanHtmlAman_(prospekSalesGroup, `<label><input type="checkbox" value="${amanTeks_(s)}"> ${amanTeks_(s)}</label>`);
                     if(salesGroupSls) tambahkanHtmlAman_(salesGroupSls, `<label><input type="checkbox" value="${amanTeks_(s)}"> ${amanTeks_(s)}</label>`);
-                    if (!userSesuaiCabangForm(user)) return;
                     if(garansiSalesGroup) tambahkanHtmlAman_(garansiSalesGroup, `<label><input type="checkbox" value="${amanTeks_(s)}" onchange="toggleGaransiOmzet()"> ${amanTeks_(s)}</label>`);
                 });
             } catch(e) { console.error("Error render inputs:", e); }
