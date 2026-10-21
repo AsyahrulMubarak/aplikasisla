@@ -539,6 +539,7 @@
                 <!-- KOTAK RINCIAN TUNJANGAN -->
                 <div id="rincian-bonus-manual" class="slip-bonus-details" style="margin-top:20px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border); display:none;">
                     <h4 style="margin:0 0 10px 0; color:#065f46; font-size:13px; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">Rincian Tunjangan & Bonus</h4>
+                    <p style="margin:0 0 12px; color:#475569; font-size:12px; line-height:1.5;">Mulai November 2026, pegawai bergaji pokok di cabang Kendari mendapat bonus kehadiran tambahan Rp200.000 jika selama satu bulan tidak ada izin sehari penuh dan tidak ada alpa. Satu hari izin penuh atau satu hari alpa menghanguskan bonus ini. Izin setengah hari dan sakit tidak menghanguskan bonus. Terpisah dari bonus disiplin lama.</p>
                     <div id="isi-rincian-bonus"></div>
                 </div>
 
@@ -1956,6 +1957,30 @@
             return /^bonus disiplin(?:$|\s+bila\b)/.test(normalisasiNamaProfilPayroll_(nama));
         }
 
+        function izinSehariPenuhPayroll_(events, kebijakanKerja, waktuKembali) {
+            const mulai = kebijakanKerja.mulaiMenit * 60;
+            const selesai = kebijakanKerja.selesaiMenit * 60;
+            const detik = waktu => waktu.getHours() * 3600 + waktu.getMinutes() * 60 + waktu.getSeconds();
+            // Kolom kembali bekerja berasal dari kepulangan izin yang sudah
+            // dikonfirmasi oleh absen masuk nyata, termasuk pengajuan lama.
+            if (waktuKembali && detik(waktuKembali) < selesai) return false;
+            let masukNyata = null;
+            for (const event of [...events].sort((a, b) => new Date(a['Waktu Absen']) - new Date(b['Waktu Absen']))) {
+                const tipe = String(event['Tipe Absen'] || '');
+                const status = String(event['Status Disiplin'] || '');
+                const waktu = new Date(event['Waktu Absen']);
+                const saat = detik(waktu) + (event.isOvernight ? 86400 : 0);
+                if (['Masuk', 'Masuk Setelah Istirahat'].includes(tipe) && !/Lupa Absen Masuk|Koreksi|Auto/i.test(status)) {
+                    if (masukNyata === null) masukNyata = saat;
+                } else if (/Keluar|Pulang|Izin|Sakit/.test(tipe) && masukNyata !== null) {
+                    if (Math.min(saat, selesai) > Math.max(masukNyata, mulai)) return false;
+                    masukNyata = null;
+                }
+            }
+            // Masuk nyata yang belum ditutup juga membuktikan izin sebagian hari.
+            return masukNyata === null || Math.max(masukNyata, mulai) >= selesai;
+        }
+
         function jenisBonusRahaPayroll_(nama) {
             const label = normalisasiNamaProfilPayroll_(nama);
             if (/\b(?:sholat|shalat|salat)\s*5\s*waktu\b/.test(label)) return 'sholat';
@@ -2155,7 +2180,7 @@
             let strLuarKota = variabelPayroll.luarKota;
             let arrLuarKota = strLuarKota.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
             let arrLiburTambahan = String(variabelPayroll.liburTambahan || '').split(',').map(x => parseInt(x.trim(), 10)).filter(x => !isNaN(x));
-            let countTelatPagi = 0; let countIzin = 0; let countAlpa = 0;
+            let countTelatPagi = 0; let countIzin = 0; let countAlpa = 0; let countIzinFull = 0;
 
             for (let i = 1; i <= totalHariBulanIni; i++) {
                 let currDate = new Date(thnPilih, blnPilih - 1, i);
@@ -2235,6 +2260,10 @@
 
                 // Izin dihitung satu kali per hari kerja untuk evaluasi kedisiplinan.
                 if (isIzinExplicit && !isHariLibur && !isFutureDate) countIzin++;
+                // Bonus kehadiran baru hanya gugur untuk izin sehari penuh.
+                // Koreksi/autofill masuk tidak menjadikan izin penuh sebagai izin setengah hari.
+                if (isIzinExplicit && !isHariLibur && !isFutureDate &&
+                    izinSehariPenuhPayroll_(events, kebijakanKerja, waktuKembaliPengajuan)) countIzinFull++;
 
                 let applySakitFull = false; let applySakitKosong = false;
                 let applySakitSebelumMasuk = false;
@@ -2839,7 +2868,25 @@
                 }
             }
 
-            // Hitung ulang sesudah kemungkinan bonus disiplin dinolkan.
+            let bonusKehadiranPenuh = 0;
+            const cabangBonusKehadiran = normalisasiCabangPayroll(profil.Hak_Akses_Cabang) || normalisasiCabangPayroll(profil.Cabang);
+            if (cabangBonusKehadiran === 'Kendari' && bulanTahun >= '2026-11' && (parseFloat(gapokRaw) || 0) > 0) {
+                // Bonus ini terpisah dari bonus/denda disiplin lama dan berlaku
+                // hanya untuk profil bergaji cabang Kendari.
+                const periodeWita = new Date(now.getTime() + 8 * 3600000).toISOString().slice(0, 7);
+                const menungguPeriode = bulanTahun > periodeWita;
+                const memenuhiSyarat = countIzinFull === 0 && countAlpa === 0;
+                bonusKehadiranPenuh = !menungguPeriode && memenuhiSyarat ? 200000 : 0;
+                arrayTunjangan.push({
+                    kode: 'bonus_kehadiran_202611',
+                    nama: menungguPeriode ? 'Bonus Kehadiran Penuh (Menunggu Periode)' : memenuhiSyarat
+                        ? 'Bonus Kehadiran Penuh (Tanpa Izin Sehari Penuh dan Alpa)'
+                        : `Bonus Kehadiran Penuh (Hangus: ${countIzinFull} hari Izin Penuh, ${countAlpa} hari Alpa)`,
+                    nominal: bonusKehadiranPenuh
+                });
+            }
+
+            // Hitung ulang sesudah evaluasi seluruh bonus bulanan.
             totalTunjanganTetap = arrayTunjangan.reduce((total, t) => total + (parseFloat(t.nominal) || 0), 0);
             totalPotongan += dendaDisiplin;
 
@@ -2852,7 +2899,7 @@
                 totalBonusPoin, totalPoinSla, nilaiPerPoin, labelBonusPoin, totalPoinTeknisiRaha,
                 totalBonusPoinTeknisiRaha, tampilkanPoinTeknisiRaha: salesArdanRaha, totalTunjanganTetap,
                 feeMarketing, kasbon, luarKota: variabelPayroll.luarKota, arrayTunjangan, dendaDisiplin,
-                countTelatPagi, countIzin, countAlpa, totalBersih, barisHTML };
+                countTelatPagi, countIzin, countIzinFull, countAlpa, bonusKehadiranPenuh, totalBersih, barisHTML };
         }
 
         function buatKartuAbsensiMobile_() {
