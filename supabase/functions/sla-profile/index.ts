@@ -75,7 +75,7 @@ function validateProfile(data) {
   const role = roleOf(data), access = String(data.hak_akses_cabang || '').trim();
   const salary = Number(data.gaji_pokok), sales = Number(data.target_sales_rp);
   if (!name || name.length > 180 || email.length > 254 || phone.length > 30) throw new Error('Data profil tidak valid.');
-  if (!['admin','admin_raha','manager','direktur','teknisi','sales'].includes(role)) throw new Error('Role profil tidak valid.');
+  if (!['admin','admin_raha','manager','direktur','teknisi','sales','logistik'].includes(role)) throw new Error('Role profil tidak valid.');
   if (!['Kendari','Raha','Semua'].includes(access) || (access === 'Semua' && !['admin','manager','direktur'].includes(role)) || (role === 'admin_raha' && access !== 'Raha')) throw new Error('Cabang profil tidak sesuai role.');
   if (!Number.isSafeInteger(salary) || salary < 0 || !Number.isSafeInteger(sales) || sales < 0) throw new Error('Nominal profil tidak valid.');
   return { nama_asli: name, email, no_wa: phone, role, hak_akses_cabang: access, gaji_pokok: salary, target_sales_rp: sales };
@@ -337,3 +337,4 @@ Deno.serve(async request => {
     return reply({ status: 'gagal', pesan: error?.message || 'Layanan profil belum berhasil.' }, origin, error?.httpStatus === 401 ? 401 : 200);
   }
 });
+

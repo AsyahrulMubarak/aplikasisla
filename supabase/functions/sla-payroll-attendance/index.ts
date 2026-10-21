@@ -560,7 +560,7 @@ async function manageProfile(body,u) {
   if (u.access!=='Semua'&&(targetBranch!==u.branch||old.length&&branch(old[0].hak_akses_cabang)!==u.branch))
     throw new Error('Cabang profil tidak sesuai hak akses.');
   const role=norm(data.role);
-  if (!['teknisi','sales','admin','admin_raha','manager','direktur'].includes(role)) throw new Error('Role profil tidak valid.');
+  if (!['teknisi','sales','logistik','admin','admin_raha','manager','direktur'].includes(role)) throw new Error('Role profil tidak valid.');
   if (data.hak_akses_cabang==='Semua'&&!['admin','manager','direktur'].includes(role))
     throw new Error('Akses semua cabang tidak sesuai role.');
   const salary=Number(data.gaji_pokok),sales=Number(data.target_sales_rp);
@@ -1146,3 +1146,4 @@ async function salesClaimNotifications(claimId=null,max=3) {
     await rest('rpc/sla_akhiri_pengiriman_klaim_sales','','POST',{p_lease_id:lease}).catch(()=>{});
   }
 }
+

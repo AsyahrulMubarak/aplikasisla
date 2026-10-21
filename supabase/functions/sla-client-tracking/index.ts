@@ -97,8 +97,9 @@ async function authenticate(request){
   return {...p,role:norm(p.role),home:norm(['kendari','raha'].includes(norm(p.hak_akses_cabang))?p.hak_akses_cabang:(p.cabang||'Kendari'))};
 }
 function canAccessTicket(actor,ticket,write=false){
-  if(!actor||!ticket||!['admin','admin_raha','manager','direktur','sales','teknisi'].includes(actor.role))return false;
+  if(!actor||!ticket||!['admin','admin_raha','manager','direktur','sales','teknisi','logistik'].includes(actor.role))return false;
   const branch=norm(ticket.cabang||'Kendari');
+  if(actor.role==='logistik')return !write&&['kendari','raha'].includes(actor.home)&&norm(actor.hak_akses_cabang)===actor.home&&actor.home===branch;
   if(actor.role==='admin_raha'&&branch!=='raha')return false;
   if(actor.hak_akses_cabang!=='Semua'&&actor.home!==branch)return false;
   if(actor.role==='sales')return !write;
@@ -221,4 +222,5 @@ async function handle(request){
   }
 }
 Deno.serve(handle);
+
 
