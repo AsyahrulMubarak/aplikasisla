@@ -2022,6 +2022,21 @@
             return nomorNotaLunas.size;
         }
 
+        function pembagianPoinTeknisi_(ticket, legacyNames) {
+            const state = ticket && (ticket.penilaian_teknisi || ticket['Penilaian Teknisi']);
+            if (!state) return legacyNames.map(name => ({ name, ratio: legacyNames.length ? 1 / legacyNames.length : 0 }));
+            const members = state.bonusSnapshot && state.bonusSnapshot.members;
+            if (!Array.isArray(members) || !members.length || members.length > 32) return [];
+            const names = new Set(); let sum = 0;
+            for (const m of members) {
+                const name = String(m.name || '').trim().toLowerCase();
+                if (!name || names.has(name) || typeof m.share !== 'number' || !Number.isFinite(m.share) || m.share < 0 || m.share > 100) return [];
+                names.add(name); sum += m.share;
+            }
+            if (Math.abs(sum - 100) > .000001) return [];
+            return members.map(m => ({ name: m.name, ratio: m.share / 100 }));
+        }
+
         function hitungPoinTeknisiRaha_(daftarTiket, daftarUser, bulanTahun) {
             const teknisiRaha = new Set((daftarUser || []).filter(profil =>
                 normalisasiNamaProfilPayroll_(profil.Role) === 'teknisi' &&
@@ -2039,9 +2054,10 @@
                 const veto = String(tiket['Veto Admin'] || '').trim().toLowerCase() === 'ya';
                 if (poin <= 0 || (tiket['Status SLA'] !== 'TERPENUHI' && !veto)) return;
                 const namaDalamTiket = daftarNamaTeknisiPayroll_(tiket.Teknisi);
-                namaDalamTiket.forEach(nama => {
+                pembagianPoinTeknisi_(tiket, namaDalamTiket).forEach(part => {
+                    const nama = normalisasiNamaProfilPayroll_(part.name);
                     if (!teknisiRaha.has(nama)) return;
-                    const bagian = poin / namaDalamTiket.length;
+                    const bagian = poin * part.ratio;
                     perTeknisi[nama] = (perTeknisi[nama] || 0) + bagian;
                     total += bagian;
                 });
@@ -2804,11 +2820,12 @@
                         let tglTutup = new Date(t['Tanggal Lunas'] || t['Waktu Selesai'] || t[Object.keys(t)[9]]);
                         if (!isNaN(tglTutup.getTime()) && tglTutup.getFullYear() == thnPilih && String(tglTutup.getMonth()+1).padStart(2,'0') == blnPilih) {
                             let tekArr = daftarNamaTeknisiPayroll_(t['Teknisi']);
-                            if (tekArr.includes(normalisasiNamaProfilPayroll_(namaTarget))) {
+                            const bagianPoin = pembagianPoinTeknisi_(t, tekArr).find(part => normalisasiNamaProfilPayroll_(part.name) === normalisasiNamaProfilPayroll_(namaTarget));
+                            if (bagianPoin) {
                                 let poinTiket = parseFloat(t['Bobot Poin']) || 0;
                                 let isVeto = String(t['Veto Admin'] || '').trim().toLowerCase() === 'ya';
                                 if (poinTiket > 0 && (t['Status SLA'] === 'TERPENUHI' || isVeto)) {
-                                    totalPoinSla += poinTiket / tekArr.length;
+                                    totalPoinSla += poinTiket * bagianPoin.ratio;
                                 }
                             }
                         }

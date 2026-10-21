@@ -8,6 +8,8 @@
     <meta http-equiv="Expires" content="0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.vercel.app https://*.supabase.co wss://*.supabase.co https://alfacom-kpi.alfacomapp.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
     <title>Sistem Manajemen SLA</title>
+    <link rel="stylesheet" href="./ticket-assessment.css?v=20261021a">
+    <script src="./ticket-assessment.js?v=20261021a" defer></script>
 
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#1e3a8a">
@@ -2034,7 +2036,7 @@
                     "Target SLA (Jam)": row.target_sla_jam, "Tenggat Waktu": row.tenggat_waktu, "Klien & Lokasi": row.klien_lokasi,
                     "Mulai Jeda SLA": row.sla_jeda_mulai, "Sisa SLA Saat Jeda": row.sla_jeda_sisa_detik,
                     "Jenis Pekerjaan": row.jenis_pekerjaan, "Teknisi": row.teknisi, "Status": row.status, "Waktu Selesai": row.waktu_selesai,
-                    "Status SLA": row.status_sla, "Poin Performa": row.poin_performa, "Sales": row.sales, "Keterangan": row.keterangan,
+                    "Penilaian Teknisi": row.penilaian_teknisi, "Status SLA": row.status_sla, "Poin Performa": row.poin_performa, "Sales": row.sales, "Keterangan": row.keterangan,
                     "Target SLA Respon (Jam)": row.target_sla_respon_jam, "Tenggat Respon": row.tenggat_respon, "Waktu Respon": row.waktu_respon,
                     "Status SLA Respon": row.status_sla_respon, "Status Peringatan": row.status_peringatan,
                     "Deskripsi Pekerjaan (BA)": row.deskripsi_pekerjaan_ba, "Nama Customer": row.nama_customer,
@@ -2388,6 +2390,7 @@
                 'this.parentElement.parentElement.remove(); hitungTotalProspek();'
             ]);
             if (handlerStatis.has(handler)) return true;
+            if (/^bukaPenilaianTiket_\('TKT-[A-Za-z0-9-]{1,100}',\s*'(?:grade|allocation|reviewGrade|reviewAllocation|post)'\)$/.test(handler)) return true;
 
             const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|bukaKlaimItemGaransi|bukaRincianItemGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|kirimFollowUpTiket|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|bukaDokumenBATiket_|lihatBuktiChatProspek|unduhBuktiChatProspek)';
             if (new RegExp('^' + fungsiSatuId + "\\('[A-Za-z0-9._-]{1,120}'\\)$").test(handler)) return true;
@@ -3401,7 +3404,7 @@
                 "Target SLA (Jam)": r.target_sla_jam, "Tenggat Waktu": r.tenggat_waktu, "Klien & Lokasi": r.klien_lokasi,
                 "Mulai Jeda SLA": r.sla_jeda_mulai, "Sisa SLA Saat Jeda": r.sla_jeda_sisa_detik,
                 "Jenis Pekerjaan": r.jenis_pekerjaan, "Teknisi": r.teknisi, "Status": r.status, "Waktu Selesai": r.waktu_selesai,
-                "Status SLA": r.status_sla, "Poin Performa": r.poin_performa, "Sales": r.sales, "Keterangan": r.keterangan,
+                "Penilaian Teknisi": r.penilaian_teknisi, "Status SLA": r.status_sla, "Poin Performa": r.poin_performa, "Sales": r.sales, "Keterangan": r.keterangan,
                 "Target SLA Respon (Jam)": r.target_sla_respon_jam, "Tenggat Respon": r.tenggat_respon, "Waktu Respon": r.waktu_respon,
                 "Status SLA Respon": r.status_sla_respon, "Status Peringatan": r.status_peringatan, "Deskripsi Pekerjaan (BA)": r.deskripsi_pekerjaan_ba,
                 "Nama Customer": r.nama_customer, "Kritik & Saran": r.kritik_saran, "Tanda Tangan": r.tanda_tangan,
@@ -6013,6 +6016,21 @@
             });
         }
 
+        function pembagianPoinTeknisi_(ticket, legacyNames) {
+            const state = ticket && (ticket.penilaian_teknisi || ticket['Penilaian Teknisi']);
+            if (!state) return legacyNames.map(name => ({ name, ratio: legacyNames.length ? 1 / legacyNames.length : 0 }));
+            const members = state.bonusSnapshot && state.bonusSnapshot.members;
+            if (!Array.isArray(members) || !members.length || members.length > 32) return [];
+            const names = new Set(); let sum = 0;
+            for (const m of members) {
+                const name = String(m.name || '').trim().toLowerCase();
+                if (!name || names.has(name) || typeof m.share !== 'number' || !Number.isFinite(m.share) || m.share < 0 || m.share > 100) return [];
+                names.add(name); sum += m.share;
+            }
+            if (Math.abs(sum - 100) > .000001) return [];
+            return members.map(m => ({ name: m.name, ratio: m.share / 100 }));
+        }
+
         function poinHangusKarenaSLA_(statusSLA) {
             const status = String(statusSLA || '').trim().toLowerCase();
             return status.includes('terlambat') || status.includes('gagal') || status.includes('failed');
@@ -6534,14 +6552,11 @@
                     // Poin hanya hangus bila SLA pengerjaan gagal dan Admin belum memberi veto.
                     let poinBerlaku = (poinHangusKarenaSLA_(statusPengerjaan) && !isVeto) ? 0 : bobot;
 
-                    let poinPerOrang = tekArr.length > 0 ? (poinBerlaku / tekArr.length) : 0;
-                    if (poinPerOrang > 0) {
-                        tekArr.forEach(nama => {
-                            let n = nama; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
-                            let key = Object.keys(statsTeknisi).find(k => k.toLowerCase() === n.toLowerCase());
-                            if(key) statsTeknisi[key].poin_terkumpul += poinPerOrang;
-                        });
-                    }
+                    if (poinBerlaku > 0) pembagianPoinTeknisi_(t, tekArr).forEach(part => {
+                        let n = part.name; if (n.toLowerCase() === 'syawal') n = 'Muhammad Syawal';
+                        let key = Object.keys(statsTeknisi).find(k => k.toLowerCase() === n.toLowerCase());
+                        if (key) statsTeknisi[key].poin_terkumpul += poinBerlaku * part.ratio;
+                    });
                 }
             });
             (globalGaransi || []).filter(dataSesuaiCabangAktif_).forEach(g => {
@@ -7084,7 +7099,9 @@
                     <div class="waktu-box">
                         ${infoSlaTeks}
                     </div>
-                    ${htmlTracking}${htmlBA}${pdfHtml}${htmlBanding}${btnHtml}${tombolFollowUpTiket_(ticket)}${linkTrackBtn}
+                    ${typeof htmlPenilaianTiket_ === 'function' ? htmlPenilaianTiket_(ticket) : ''}
+                    ${htmlTracking || htmlBA || pdfHtml ? '<details class="ticket-service-details"><summary>Riwayat &amp; Berita Acara</summary>'+htmlTracking+htmlBA+pdfHtml+'</details>' : ''}
+                    ${htmlBanding}${btnHtml}${tombolFollowUpTiket_(ticket)}${linkTrackBtn}
                 </div>`);
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket yang cocok dengan status, nota, periode, atau pencarian terpilih.</p>';

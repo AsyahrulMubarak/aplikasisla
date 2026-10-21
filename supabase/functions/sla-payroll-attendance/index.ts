@@ -315,7 +315,31 @@ async function payrollRows(period, employee='') {
     diperbaruiPada:r.diperbarui_pada||'',diperbaruiOleh:r.diperbarui_oleh||''}));
 }
 function ticketTechnicians(value) { return [...new Set(String(value||'').replaceAll(String.fromCharCode(13), ',').replaceAll(String.fromCharCode(10), ',').replaceAll(';', ',').split(',').map(norm).filter(Boolean))]; } function ticketNames(value,name) { return String(value||'').split(/[,;\n]/).some(x=>norm(x)===norm(name)); }
-function rahaTeamPoints(rows,profiles,period) { const team=new Set(profiles.filter(r=>norm(r.role)==='teknisi'&&branch(r.hak_akses_cabang)==='Raha').map(r=>norm(r.nama_asli)).filter(Boolean)); const perTechnician=Object.create(null); let total=0; for(const r of rows) { if(branch(r.cabang)!=='Raha'||r.status!=='Selesai'||r.status_pembayaran!=='Lunas')continue; const paid=new Date(r.tanggal_lunas||r.waktu_selesai||''); if(Number.isNaN(paid.getTime())||day(paid).slice(0,7)!==period)continue; const points=Number(r.bobot_poin)||0, veto=norm(r.veto_admin)==='ya'; if(points<=0||(r.status_sla!=='TERPENUHI'&&!veto))continue; const technicians=ticketTechnicians(r.teknisi); if(!technicians.length)continue; const share=points/technicians.length; for(const name of technicians)if(team.has(name)){ perTechnician[name]=(perTechnician[name]||0)+share; total+=share; } } return {perTechnician,total:Math.round((total+Number.EPSILON)*10)/10}; } async function getPayroll(body,u) {
+function pembagianPoinTeknisi_(ticket, legacyNames) {
+            const state = ticket && (ticket.penilaian_teknisi || ticket['Penilaian Teknisi']);
+            if (!state) return legacyNames.map(name => ({ name, ratio: legacyNames.length ? 1 / legacyNames.length : 0 }));
+            const members = state.bonusSnapshot && state.bonusSnapshot.members;
+            if (!Array.isArray(members) || !members.length || members.length > 32) return [];
+            const names = new Set(); let sum = 0;
+            for (const m of members) {
+                const name = String(m.name || '').trim().toLowerCase();
+                if (!name || names.has(name) || typeof m.share !== 'number' || !Number.isFinite(m.share) || m.share < 0 || m.share > 100) return [];
+                names.add(name); sum += m.share;
+            }
+            if (Math.abs(sum - 100) > .000001) return [];
+            return members.map(m => ({ name: m.name, ratio: m.share / 100 }));
+        }
+function rahaTeamPoints(rows,profiles,period) {
+  const team=new Set(profiles.filter(r=>norm(r.role)==='teknisi'&&branch(r.hak_akses_cabang)==='Raha').map(r=>norm(r.nama_asli)).filter(Boolean));
+  const perTechnician=Object.create(null);let total=0;
+  for(const r of rows){
+    if(branch(r.cabang)!=='Raha'||r.status!=='Selesai'||r.status_pembayaran!=='Lunas')continue;
+    const paid=new Date(r.tanggal_lunas||r.waktu_selesai||'');if(Number.isNaN(paid.getTime())||day(paid).slice(0,7)!==period)continue;
+    const points=Number(r.bobot_poin)||0,veto=norm(r.veto_admin)==='ya';if(points<=0||(r.status_sla!=='TERPENUHI'&&!veto))continue;
+    for(const part of pembagianPoinTeknisi_(r,ticketTechnicians(r.teknisi))){const name=norm(part.name);if(team.has(name)){const share=points*part.ratio;perTechnician[name]=(perTechnician[name]||0)+share;total+=share;}}
+  }
+  return {perTechnician,total:Math.round((total+Number.EPSILON)*10)/10};
+} async function getPayroll(body,u) {
   const period=safePeriod(body.periode); if (!period) throw new Error('Format periode payroll tidak valid.');
   const own=!canPayrollManage(u); if (own&&!canOwnSlip(u)) throw new Error('Akses Slip Gaji belum diizinkan untuk akun ini.');
   if (own && ['abu naura','abu naurah'].includes(norm(u.name)) && period >= '2026-10' && u.role !== 'teknisi')
@@ -328,17 +352,17 @@ function rahaTeamPoints(rows,profiles,period) { const team=new Set(profiles.filt
   let users=await allRows('users','select=username,role,nama_asli,email,target_sales_rp,no_wa,gaji_pokok,bonus_tambahan,hak_akses_cabang,cabang'+
     (own?'&auth_id=eq.'+encode(u.authId):'')+'&order=nama_asli.asc');
   if (own&&users.length!==1) throw new Error('Profil payroll pegawai tidak ditemukan.');
-  const base='select=id_tiket,no_transaksi,status,status_pembayaran,tanggal_lunas,waktu_selesai,teknisi,bobot_poin,veto_admin,status_sla,cabang'+
+  const base='select=id_tiket,no_transaksi,status,status_pembayaran,tanggal_lunas,waktu_selesai,teknisi,bobot_poin,veto_admin,status_sla,cabang,penilaian_teknisi'+
     '&status=eq.Selesai&status_pembayaran=eq.Lunas'+(target==='Kendari'?'&or=(cabang.eq.Kendari,cabang.is.null)':'&cabang=eq.Raha');
   const [paid,fallback]=await Promise.all([
     allRows('tiket',base+'&tanggal_lunas=gte.'+encode(period+'-01')+'&tanggal_lunas=lt.'+encode(next+'-01')),
     allRows('tiket',base+'&tanggal_lunas=is.null&waktu_selesai=gte.'+encode(period+'-01')+'&waktu_selesai=lt.'+encode(next+'-01'))]);
   const seen=new Set(),tickets=[];
   for (const r of [...paid,...fallback]) {
-    if (!r.id_tiket||seen.has(r.id_tiket)||(own&&!ticketNames(r.teknisi,u.name))) continue;
+    if (!r.id_tiket||seen.has(r.id_tiket)||(own&&!pembagianPoinTeknisi_(r,ticketTechnicians(r.teknisi)).some(part=>norm(part.name)===norm(u.name)))) continue;
     seen.add(r.id_tiket);tickets.push({'ID Tiket':r.id_tiket,'No Transaksi':r.no_transaksi,'Status':r.status,
       'Status Pembayaran':r.status_pembayaran,'Tanggal Lunas':r.tanggal_lunas,'Waktu Selesai':r.waktu_selesai,
-      'Teknisi':r.teknisi,'Bobot Poin':r.bobot_poin,'Veto Admin':r.veto_admin,'Status SLA':r.status_sla,'Cabang':r.cabang||target});
+      'Penilaian Teknisi':r.penilaian_teknisi,'Teknisi':r.teknisi,'Bobot Poin':r.bobot_poin,'Veto Admin':r.veto_admin,'Status SLA':r.status_sla,'Cabang':r.cabang||target});
   }
   let poinRahaPribadi=null; const naura=own&&target==='Raha'&&norm(u.name)==='abu naura'&&(period>='2026-10'?u.role==='teknisi':u.role==='admin_raha'||u.role==='admin'); const ardan=own&&target==='Raha'&&norm(u.name)==='ardan'&&u.role==='sales'; if(naura||ardan) { const team=await allRows('users','select=nama_asli,role,hak_akses_cabang&role=eq.teknisi&hak_akses_cabang=eq.Raha'); const points=rahaTeamPoints([...paid,...fallback],team,period); const source=naura?'abu naura':'abu adibah'; poinRahaPribadi={periode:period,cabang:'Raha',pemilik:u.name,poinTeknisi:Math.round(((points.perTechnician[source]||0)+Number.EPSILON)*10)/10,poinTim:ardan?points.total:0}; } const names=new Set(users.map(r=>norm(r.nama_asli)));
   const salaryByUser=new Map((await salarySummary(users,period)).map(r=>[r.username,r]));
