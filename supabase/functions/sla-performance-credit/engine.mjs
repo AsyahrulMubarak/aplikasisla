@@ -21,6 +21,10 @@ export function calculate(source,input={}) {
   let workGood=0,workTotal=0,responseGood=0,responseTotal=0;
   const completed=[],assigned=[],workTickets=[],responseTickets=[];
   const addCase=(kind,t,detail)=>cases.push({key:kind+':'+t.id_tiket,kind,ticket:t.id_tiket,detail:String(detail||'').slice(0,4000)});
+  const contextDetails=(t,kind)=>{
+    const events=(t.konteks_pekerjaan?.events||[]).filter(e=>e.kind===kind&&(kind==='pending'?own(e.technicians):own(e.from)&&!own(e.to)));
+    return events.map(e=>JSON.stringify({kategori:e.category,penjelasan:e.reason,bukti:e.evidence,tindakLanjutWita:e.followUpAt,hasilDanSisa:e.handover,dari:e.from,ke:e.to,oleh:e.actorName,waktuServer:e.at,dilanjutkan:e.closedAt})).join('\n');
+  };
   for(const t of tickets){
     if(['cancel','batal'].includes(norm(t.status)))continue;
     const a=t.penilaian_teknisi||{},achievement=a.achievement, current=own(t.teknisi);
@@ -42,10 +46,10 @@ export function calculate(source,input={}) {
     }
     if((current||(achievement?.members||[]).some(belongs))&&norm(t.status)==='selesai'&&inMonth(t.waktu_selesai)){
       completed.push(t.id_tiket);
-      if(/\bpending\b/i.test(t.keterangan||''))addCase('T',t,t.keterangan);
+      const proof=contextDetails(t,'pending');if(proof||/\bpending\b/i.test(t.keterangan||''))addCase('T',t,proof||t.keterangan);
     }
     const removed=(t.riwayat_penggantian_teknisi||[]).filter(h=>own(h.dari)&&!own(h.ke)&&inMonth(h.waktu));
-    if(removed.length)addCase('U',t,removed.map(h=>JSON.stringify(h)).join('\n'));
+    if(removed.length)addCase('U',t,contextDetails(t,'replacement')||removed.map(h=>JSON.stringify(h)).join('\n'));
     // Old replacement records often lack per-episode deadlines. Never attribute the new technician's SLA to the old one.
     if(removed.some(h=>!(source.episodes||[]).some(e=>e.id_tiket===t.id_tiket&&Math.abs(time(e.waktu_pergantian)-time(h.waktu))<120000)))warnings.push(t.id_tiket+': SLA episode teknisi sebelumnya belum memiliki tenggat yang tercatat; perlu verifikasi data.');
     if(removed.length||current&&[t.waktu_penugasan,t.waktu_lapor,t.tenggat_waktu,t.tenggat_respon,t.waktu_selesai].some(inMonth))assigned.push(t.id_tiket);
@@ -65,7 +69,7 @@ export function calculate(source,input={}) {
     }
     if(inMonth(e.waktu_pergantian)){
       assigned.push(e.id_tiket);
-      if(!cases.some(c=>c.key==='U:'+e.id_tiket))addCase('U',{id_tiket:e.id_tiket},'Pergantian '+e.teknisi+' → '+e.pengganti+' pada '+e.waktu_pergantian+'. Tinjau sebab, serah terima, dan buktinya.');
+      if(!cases.some(c=>c.key==='U:'+e.id_tiket))addCase('U',{id_tiket:e.id_tiket},contextDetails(tickets.find(t=>t.id_tiket===e.id_tiket)||{},'replacement')||'Pergantian '+e.teknisi+' → '+e.pengganti+' pada '+e.waktu_pergantian+'. Tinjau sebab, serah terima, dan buktinya.');
     }
   }
   const warranted=new Set(),claims=new Set();

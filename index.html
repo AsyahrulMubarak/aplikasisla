@@ -9,7 +9,9 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.vercel.app https://*.supabase.co wss://*.supabase.co https://alfacom-kpi.alfacomapp.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
     <title>Sistem Manajemen SLA</title>
     <link rel="stylesheet" href="./ticket-assessment.css?v=20261021a">
-    <script src="./ticket-assessment.js?v=20261021a" defer></script>
+    <script src="./ticket-assessment.js?v=20261021b" defer></script>
+    <link rel="stylesheet" href="./ticket-workflow.css?v=20261021a">
+    <script src="./ticket-workflow.js?v=20261021a" defer></script>
 
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#1e3a8a">
@@ -2036,7 +2038,7 @@
                     "Target SLA (Jam)": row.target_sla_jam, "Tenggat Waktu": row.tenggat_waktu, "Klien & Lokasi": row.klien_lokasi,
                     "Mulai Jeda SLA": row.sla_jeda_mulai, "Sisa SLA Saat Jeda": row.sla_jeda_sisa_detik,
                     "Jenis Pekerjaan": row.jenis_pekerjaan, "Teknisi": row.teknisi, "Status": row.status, "Waktu Selesai": row.waktu_selesai,
-                    "Penilaian Teknisi": row.penilaian_teknisi, "Status SLA": row.status_sla, "Poin Performa": row.poin_performa, "Sales": row.sales, "Keterangan": row.keterangan,
+                    "Penilaian Teknisi": row.penilaian_teknisi, "Konteks Pekerjaan": row.konteks_pekerjaan, "Versi Workflow": row.versi_workflow, "Status SLA": row.status_sla, "Poin Performa": row.poin_performa, "Sales": row.sales, "Keterangan": row.keterangan,
                     "Target SLA Respon (Jam)": row.target_sla_respon_jam, "Tenggat Respon": row.tenggat_respon, "Waktu Respon": row.waktu_respon,
                     "Status SLA Respon": row.status_sla_respon, "Status Peringatan": row.status_peringatan,
                     "Deskripsi Pekerjaan (BA)": row.deskripsi_pekerjaan_ba, "Nama Customer": row.nama_customer,
@@ -3404,7 +3406,7 @@
                 "Target SLA (Jam)": r.target_sla_jam, "Tenggat Waktu": r.tenggat_waktu, "Klien & Lokasi": r.klien_lokasi,
                 "Mulai Jeda SLA": r.sla_jeda_mulai, "Sisa SLA Saat Jeda": r.sla_jeda_sisa_detik,
                 "Jenis Pekerjaan": r.jenis_pekerjaan, "Teknisi": r.teknisi, "Status": r.status, "Waktu Selesai": r.waktu_selesai,
-                "Penilaian Teknisi": r.penilaian_teknisi, "Status SLA": r.status_sla, "Poin Performa": r.poin_performa, "Sales": r.sales, "Keterangan": r.keterangan,
+                "Penilaian Teknisi": r.penilaian_teknisi, "Konteks Pekerjaan": r.konteks_pekerjaan, "Versi Workflow": r.versi_workflow, "Status SLA": r.status_sla, "Poin Performa": r.poin_performa, "Sales": r.sales, "Keterangan": r.keterangan,
                 "Target SLA Respon (Jam)": r.target_sla_respon_jam, "Tenggat Respon": r.tenggat_respon, "Waktu Respon": r.waktu_respon,
                 "Status SLA Respon": r.status_sla_respon, "Status Peringatan": r.status_peringatan, "Deskripsi Pekerjaan (BA)": r.deskripsi_pekerjaan_ba,
                 "Nama Customer": r.nama_customer, "Kritik & Saran": r.kritik_saran, "Tanda Tangan": r.tanda_tangan,
@@ -8779,7 +8781,7 @@
                                 tiketPatch.keterangan = tiketLama.Keterangan ? `${tiketLama.Keterangan}\n\n${auditPergantian}` : auditPergantian;
                             }
 
-                            const hasil = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', currentId), 'PATCH', tiketPatch);
+                            const hasil = await simpanEditDenganKonteks_(currentId, tiketPatch, tiketLama, gantiTeknisi);
                             pastikanHasilMutasiSupabase_(hasil, `Tiket ${currentId}`);
                             const teknisiLamaTerdaftar = new Set(
                                 daftarTeknisiUnikTiket_(teknisiLama).map(nama => nama.toLocaleLowerCase('id-ID'))
@@ -9527,7 +9529,7 @@
             let sinkronProspekGagal = false;
             let integrasiEksternalGagal = false;
             try {
-                const result = await callSupabase(endpointFilterSupabase_('tiket', 'id_tiket', idTiket), 'PATCH', payload);
+                const result = await simpanStatusDenganKonteks_(idTiket, payload, t);
                 pastikanHasilMutasiSupabase_(result, `Tiket ${idTiket}`);
 
                 // --- AWAL NOTIFIKASI WA ADMIN (TIKET SELESAI) ---

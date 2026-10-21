@@ -43,6 +43,7 @@ function htmlPenilaianTiket_(ticket){
     <p class="assessment-help">Tanpa pengisian, poin pencapaian dan bonus dibagi rata kepada teknisi pada tiket. Persentase khusus berlaku setelah ditetapkan admin. Bonus tetap mengikuti pelunasan, SLA dan Veto Admin.</p>
     ${a?.achievement?`<p class="assessment-posted">Pencapaian disahkan: ${angkaPenilaian_(a.achievement.points)} poin · ${teksPenilaian_(a.achievement.approvedName)}</p>`:a?`<p class="assessment-help">Pencapaian belum disahkan.${manager&&ticket.Status==='Selesai'&&g?.status==='approved'&&(allocation?.status==='approved'||automatic)&&!recipient?tombolPenilaian_(id,'post','Sahkan hasil pencapaian'):''}</p>`:''}
     ${lockedLegacy?'<p class="assessment-help">Tiket sudah cair: pembagian historis dipertahankan.</p>':''}
+    ${typeof htmlKonteksPekerjaan_==='function'?htmlKonteksPekerjaan_(ticket):''}
     <p class="assessment-help">Kredit performa mulai November 2026, setelah rekap bulanan disahkan. <a href="performa.html">Lihat rekap pencapaian &amp; kredit</a>.</p>
   </div></details>`;
 }
