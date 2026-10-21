@@ -539,7 +539,7 @@
                 <!-- KOTAK RINCIAN TUNJANGAN -->
                 <div id="rincian-bonus-manual" class="slip-bonus-details" style="margin-top:20px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border); display:none;">
                     <h4 style="margin:0 0 10px 0; color:#065f46; font-size:13px; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">Rincian Tunjangan & Bonus</h4>
-                    <p style="margin:0 0 12px; color:#475569; font-size:12px; line-height:1.5;">Mulai Oktober 2026, pegawai bergaji pokok di cabang Kendari mendapat bonus kehadiran tambahan Rp200.000 jika selama satu bulan tidak ada izin sehari penuh dan tidak ada alpa. Satu hari izin penuh atau satu hari alpa menghanguskan bonus ini. Izin setengah hari dan sakit tidak menghanguskan bonus. Terpisah dari bonus disiplin lama.</p>
+                    <p id="bonus-kehadiran-info" hidden style="margin:0 0 12px; color:#475569; font-size:12px; line-height:1.5;"></p>
                     <div id="isi-rincian-bonus"></div>
                 </div>
 
@@ -1990,6 +1990,20 @@
             return '';
         }
 
+        function cabangBonusKehadiranPayroll_(profil) {
+            if (normalisasiNamaProfilPayroll_(profil.Hak_Akses_Cabang || profil.Cabang) === 'semua') return 'Semua';
+            return normalisasiCabangPayroll(profil.Hak_Akses_Cabang) || normalisasiCabangPayroll(profil.Cabang);
+        }
+
+        function renderInfoBonusKehadiranPayroll_(profil) {
+            const info = document.getElementById('bonus-kehadiran-info');
+            if (!info) return;
+            const tampil = ['Kendari', 'Semua'].includes(cabangBonusKehadiranPayroll_(profil)) &&
+                (parseFloat(profil['Gaji Pokok'] ?? profil['Gaji Pokok (Rp)']) || 0) > 0;
+            info.hidden = !tampil;
+            info.textContent = tampil ? 'Mulai Oktober 2026, pegawai bergaji pokok di cabang Kendari dan Semua mendapat bonus kehadiran tambahan Rp200.000 jika selama satu bulan tidak ada izin sehari penuh dan tidak ada alpa. Satu hari izin penuh atau satu hari alpa menghanguskan bonus ini. Izin setengah hari dan sakit tidak menghanguskan bonus. Terpisah dari bonus disiplin lama.' : '';
+        }
+
         function kebijakanJamKerjaPayroll(profil) {
             const role = String(profil.Role || profil.role || '').trim().toLowerCase();
             const cabang = normalisasiCabangPayroll(profil.Hak_Akses_Cabang || profil.hak_akses_cabang);
@@ -2886,10 +2900,10 @@
             }
 
             let bonusKehadiranPenuh = 0;
-            const cabangBonusKehadiran = normalisasiCabangPayroll(profil.Hak_Akses_Cabang) || normalisasiCabangPayroll(profil.Cabang);
-            if (cabangBonusKehadiran === 'Kendari' && bulanTahun >= '2026-10' && (parseFloat(gapokRaw) || 0) > 0) {
+            const cabangBonusKehadiran = cabangBonusKehadiranPayroll_(profil);
+            if (['Kendari', 'Semua'].includes(cabangBonusKehadiran) && bulanTahun >= '2026-10' && (parseFloat(gapokRaw) || 0) > 0) {
                 // Bonus ini terpisah dari bonus/denda disiplin lama dan berlaku
-                // hanya untuk profil bergaji cabang Kendari.
+                // untuk profil bergaji cabang Kendari dan Semua.
                 const periodeWita = new Date(now.getTime() + 8 * 3600000).toISOString().slice(0, 7);
                 const menungguPeriode = bulanTahun > periodeWita;
                 const memenuhiSyarat = countIzinFull === 0 && countAlpa === 0;
@@ -3027,6 +3041,7 @@
             document.getElementById('slip-floating-scroll').classList.remove('is-visible');
 
             let data = kalkulasiGajiPegawai(namaTarget, bulanTahun, hk, true);
+            renderInfoBonusKehadiranPayroll_(data.profil);
 
             document.getElementById('res-nama').innerText = data.profil['Nama Asli'] || namaTarget;
             document.getElementById('res-role').innerText = String(data.profil.Role || 'Staff').toUpperCase();
@@ -3605,5 +3620,3 @@
     </script>
 </body>
 </html>
-
-
