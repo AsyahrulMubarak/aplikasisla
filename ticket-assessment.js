@@ -1,5 +1,12 @@
 /* Ticket assessment v1: service status/BA/WA keep their existing handlers. */
 const penilaianTiketUI_={context:null,busy:false,generation:0};
+const katalogGradePenilaian_=[
+  {grade:'D',points:1,level:'Rutin sederhana',scope:'Satu tindakan rutin pada perangkat.',examples:'Reset printer (TKT-112), refill toner (TKT-180).'},
+  {grade:'C',points:2,level:'Servis standar',scope:'Servis standar pada satu perangkat disertai uji fungsi.',examples:'Ganti keyboard (TKT-181), instal ulang (TKT-184).'},
+  {grade:'B',points:4,level:'Diagnosis lanjutan',scope:'Diagnosis lintas subsistem atau pekerjaan infrastruktur terbatas.',examples:'Kamera IP + PoE (TKT-123), mainboard + sensor (TKT-149).'},
+  {grade:'A',points:8,level:'Integrasi sistem',scope:'Paket integrasi standar beserta pengujian sistem.',examples:'4 kamera IP + perekam (TKT-120), paket 8 kamera (TKT-147).'},
+  {grade:'S',points:16,level:'Proyek kompleks',scope:'Proyek di atas paket standar; perlu bukti titik, jalur, integrasi, atau tahapan.',examples:'25 kamera (TKT-083), 8 kamera + kabel 250 m (TKT-R-012).'}
+];
 function namaPenilaian_(value){return String(value||'').trim().toLowerCase().replace(/\s+/g,' ');}
 function teksPenilaian_(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function angkaPenilaian_(value){return Number(value||0).toLocaleString('id-ID',{maximumFractionDigits:4});}
@@ -64,7 +71,7 @@ function isiModalPenilaian_(){
   const ctx=penilaianTiketUI_.context,{section,assessment:a,candidates}=ctx,content=document.getElementById('assessment-content');
   let html='';
   if(section==='grade'){
-    html=`<label for="assessment-grade">Grade pekerjaan</label><select id="assessment-grade" required><option value="">Pilih setelah diagnosis</option>${[['D',1],['C',2],['B',4],['A',8],['S',16]].map(([g,p])=>`<option value="${g}"${a?.grade?.value===g?' selected':''}>${g} · ${p} poin pencapaian</option>`).join('')}</select><p id="assessment-grade-hint" class="assessment-help"></p><label for="assessment-reason">Diagnosis, lingkup &amp; dasar grade</label><textarea id="assessment-reason" rows="3" minlength="5" maxlength="2000" required>${teksPenilaian_(a?.grade?.reason||'')}</textarea><p class="assessment-help">C/D ditinjau admin cabang; B/A/S oleh Manager atau Direktur. Pengaju/pelaksana memakai peninjau lain.</p>${aksiFormPenilaian_('Ajukan grade','proposeGrade')}`;
+    html=`<label for="assessment-grade">Grade pekerjaan</label><select id="assessment-grade" aria-describedby="assessment-grade-hint" required><option value="">Pilih setelah diagnosis</option>${katalogGradePenilaian_.map(g=>`<option value="${g.grade}"${a?.grade?.value===g.grade?' selected':''}>${g.grade} · ${teksPenilaian_(g.level)} · ${g.points} poin</option>`).join('')}</select><p id="assessment-grade-hint" class="assessment-help" role="status" aria-live="polite"></p><label for="assessment-reason">Diagnosis, lingkup &amp; dasar grade</label><textarea id="assessment-reason" rows="3" minlength="5" maxlength="2000" required>${teksPenilaian_(a?.grade?.reason||'')}</textarea><p class="assessment-help">C/D ditinjau admin cabang; B/A/S oleh Manager atau Direktur. Pengaju/pelaksana memakai peninjau lain.</p>${aksiFormPenilaian_('Ajukan grade','proposeGrade')}`;
   }else if(section==='reviewGrade'){
     html=`<p><strong>Usulan ${teksPenilaian_(a?.grade?.value)} · ${a?.grade?.points} poin</strong></p><p>${teksPenilaian_(a?.grade?.reason)}</p><p class="assessment-help">Pengaju: ${teksPenilaian_(a?.grade?.proposedName)}</p><label for="assessment-reason">Catatan peninjau · wajib bila ditolak</label><textarea id="assessment-reason" rows="2" maxlength="2000"></textarea><div class="assessment-buttons">${aksiFormPenilaian_('Setujui grade','approveGrade')}${aksiFormPenilaian_('Tolak','rejectGrade',true)}</div>`;
   }else if(section==='allocation'||section==='reviewAllocation'){
@@ -81,7 +88,8 @@ function isiModalPenilaian_(){
 }
 function hintGradePenilaian_(){
   const select=document.getElementById('assessment-grade'),hint=document.getElementById('assessment-grade-hint');if(!select||!hint)return;
-  hint.textContent=({D:'Tindakan rutin tunggal: reset printer TKT-112, refill toner TKT-180.',C:'Servis standar dan uji fungsi: ganti keyboard TKT-181, instal ulang TKT-184.',B:'Diagnosis lintas subsistem/infrastruktur terbatas: kamera IP + PoE TKT-123, mainboard + sensor TKT-149.',A:'Paket integrasi standar beserta pengujian sistem: 4 kamera IP + perekam TKT-120, paket 8 kamera TKT-147.',S:'Proyek di atas paket standar; perlu bukti titik/jalur/integrasi/tahapan: 25 kamera TKT-083, 8 kamera + kabel 250 m TKT-R-012.'})[select.value]||'Batas grade mengikuti lingkup dan diagnosis, bukan harga part, lamanya pekerjaan, atau jumlah anggota.';
+  const grade=katalogGradePenilaian_.find(g=>g.grade===select.value);
+  hint.textContent=grade?`${grade.grade} · ${grade.level} · ${grade.points} poin pencapaian. ${grade.scope} Contoh: ${grade.examples}`:'Pilih grade untuk melihat lingkup dan contoh pekerjaan. Batas grade mengikuti lingkup dan diagnosis, bukan harga part, lamanya pekerjaan, atau jumlah anggota.';
 }
 function hitungPembagianPenilaian_(initialize){
   const ctx=penilaianTiketUI_.context,form=document.getElementById('assessment-form');
