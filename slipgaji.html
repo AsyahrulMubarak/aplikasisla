@@ -539,7 +539,7 @@
                 <!-- KOTAK RINCIAN TUNJANGAN -->
                 <div id="rincian-bonus-manual" class="slip-bonus-details" style="margin-top:20px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border); display:none;">
                     <h4 style="margin:0 0 10px 0; color:#065f46; font-size:13px; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">Rincian Tunjangan & Bonus</h4>
-                    <p style="margin:0 0 12px; color:#475569; font-size:12px; line-height:1.5;">Mulai November 2026, pegawai bergaji pokok di cabang Kendari mendapat bonus kehadiran tambahan Rp200.000 jika selama satu bulan tidak ada izin sehari penuh dan tidak ada alpa. Satu hari izin penuh atau satu hari alpa menghanguskan bonus ini. Izin setengah hari dan sakit tidak menghanguskan bonus. Terpisah dari bonus disiplin lama.</p>
+                    <p style="margin:0 0 12px; color:#475569; font-size:12px; line-height:1.5;">Mulai Oktober 2026, pegawai bergaji pokok di cabang Kendari mendapat bonus kehadiran tambahan Rp200.000 jika selama satu bulan tidak ada izin sehari penuh dan tidak ada alpa. Satu hari izin penuh atau satu hari alpa menghanguskan bonus ini. Izin setengah hari dan sakit tidak menghanguskan bonus. Terpisah dari bonus disiplin lama.</p>
                     <div id="isi-rincian-bonus"></div>
                 </div>
 
@@ -2870,7 +2870,7 @@
 
             let bonusKehadiranPenuh = 0;
             const cabangBonusKehadiran = normalisasiCabangPayroll(profil.Hak_Akses_Cabang) || normalisasiCabangPayroll(profil.Cabang);
-            if (cabangBonusKehadiran === 'Kendari' && bulanTahun >= '2026-11' && (parseFloat(gapokRaw) || 0) > 0) {
+            if (cabangBonusKehadiran === 'Kendari' && bulanTahun >= '2026-10' && (parseFloat(gapokRaw) || 0) > 0) {
                 // Bonus ini terpisah dari bonus/denda disiplin lama dan berlaku
                 // hanya untuk profil bergaji cabang Kendari.
                 const periodeWita = new Date(now.getTime() + 8 * 3600000).toISOString().slice(0, 7);
@@ -2878,7 +2878,7 @@
                 const memenuhiSyarat = countIzinFull === 0 && countAlpa === 0;
                 bonusKehadiranPenuh = !menungguPeriode && memenuhiSyarat ? 200000 : 0;
                 arrayTunjangan.push({
-                    kode: 'bonus_kehadiran_202611',
+                    kode: 'bonus_kehadiran_kendari_202610',
                     nama: menungguPeriode ? 'Bonus Kehadiran Penuh (Menunggu Periode)' : memenuhiSyarat
                         ? 'Bonus Kehadiran Penuh (Tanpa Izin Sehari Penuh dan Alpa)'
                         : `Bonus Kehadiran Penuh (Hangus: ${countIzinFull} hari Izin Penuh, ${countAlpa} hari Alpa)`,
