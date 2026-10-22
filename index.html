@@ -3604,9 +3604,23 @@
             const rows = [];
             const order = { tiket: 'id_tiket', garansi: 'id_garansi', penjualan: 'id_penjualan', prospek: 'id_prospek' }[table];
             if (!order) throw new Error('Sumber ringkasan tidak valid.');
-            const kolom = table === 'garansi' ? kolomGaransiPengguna_() : '*';
+            // Ringkasan tidak membutuhkan foto, tanda tangan, PDF atau bukti chat.
+            const kolomRingkasan = {
+                tiket: 'id_tiket,no_transaksi,waktu_lapor,waktu_penugasan,sumber_waktu_penugasan,target_sla_jam,tenggat_waktu,sla_jeda_mulai,sla_jeda_sisa_detik,klien_lokasi,jenis_pekerjaan,teknisi,status,waktu_selesai,status_sla,poin_performa,sales,keterangan,target_sla_respon_jam,tenggat_respon,waktu_respon,status_sla_respon,status_peringatan,status_banding,sales_pengaju,klaim_sales_username,keterangan_sales,alasan_admin,nilai_penjualan,bobot_poin,veto_admin,status_pembayaran,tanggal_lunas,teknisi_sebelumnya,riwayat_penggantian_teknisi,penalti_teknisi_lama,tenggat_pengganti,cabang,admin_sla,penilaian_teknisi,konteks_pekerjaan,versi_workflow',
+                garansi: 'id_garansi,referensi_tiket_nota,status,tanggal_mulai,tanggal_habis,no_transaksi,sales,omzet,cabang,admin_sla,tiket_klaim_garansi,waktu_siap_diambil,waktu_diambil,garansi_hangus_pada,riwayat_klaim_item',
+                penjualan: 'id_penjualan,no_transaksi,waktu_lapor,sales,nominal_rp,cabang',
+                prospek: 'id_prospek,tanggal_input,status_prospek,sales_penanggung_jawab,estimasi_rp,waktu_follow_up_terakhir,waktu_peringatan_crm_terakhir,waktu_minta_penawaran,waktu_selesai_penawaran,target_sla_penawaran_jam,cabang'
+            };
+            const kolom = table === 'garansi' && rolePengguna() === 'teknisi' ? kolomGaransiPengguna_() : kolomRingkasan[table];
             for (;;) {
-                const page = await callSupabase(`${table}?select=${kolom}&${scope}&order=${order}.asc&limit=500&offset=${rows.length}`, 'GET', null, { signal, dariLobby: true });
+                const endpoint = `${table}?select=${kolom}&${scope}&order=${order}.asc&limit=500&offset=${rows.length}`;
+                let page;
+                try { page = await callSupabase(endpoint, 'GET', null, { signal, dariLobby: true }); }
+                catch (error) {
+                    const sementara = error.code === 'SUPABASE_TIMEOUT' || [502, 503, 504].includes(error.status) || error.name === 'TypeError';
+                    if (signal?.aborted || !sementara) throw error;
+                    page = await callSupabase(endpoint, 'GET', null, { signal, dariLobby: true });
+                }
                 if (!Array.isArray(page)) throw new Error('Data ringkasan belum dapat dibaca.');
                 rows.push(...page);
                 if (page.length < 500) return rows;
@@ -3675,19 +3689,23 @@
             const periode = document.getElementById('lobby-periode').value;
             const target = document.getElementById('lobby-dashboard-content');
             const status = document.getElementById('lobby-dashboard-status');
+            const terakhir = muatRingkasanLobby_.terakhir;
+            const adaRingkasan = terakhir && terakhir.user === user && terakhir.cabang === cabang && terakhir.periode === periode && terakhir.role === rolePengguna(user) && terakhir.akses === hakAksesCabangPengguna(user);
+            if (!adaRingkasan) muatRingkasanLobby_.terakhir = null;
             target.setAttribute('aria-busy', 'true');
-            status.textContent = 'Memuat ringkasan terbaru...';
-            target.innerHTML = '<div class="lobby-skeleton" aria-hidden="true"></div>';
+            status.textContent = adaRingkasan ? 'Memperbarui ringkasan; hasil terakhir tetap ditampilkan…' : 'Memuat ringkasan terbaru...';
+            target.innerHTML = adaRingkasan ? terakhir.html : '<div class="lobby-skeleton" aria-hidden="true"></div>';
             document.getElementById('lobby-point-preview').textContent = 'Ringkasan pribadi';
             try {
                 if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periode) || !penggunaBolehMengaksesCabang(cabang, user)) throw new Error('Cabang atau periode ringkasan tidak valid.');
                 const manajemen = roleAdalahManajemen_(rolePengguna(user));
                 const sales = rolePengguna(user) === 'sales';
+                const sumberSales = sales || ['manager', 'direktur'].includes(rolePengguna(user));
                 const [tiket, garansi, penjualan, prospek, profilTarget, profilTeknisi] = await Promise.all([
                     ambilTabelRingkasanLobby_('tiket', cabang, controller.signal),
                     manajemen || rolePengguna(user) === 'teknisi' ? ambilTabelRingkasanLobby_('garansi', cabang, controller.signal) : Promise.resolve([]),
-                    manajemen || sales ? ambilTabelRingkasanLobby_('penjualan', cabang, controller.signal) : Promise.resolve([]),
-                    manajemen || sales ? ambilTabelRingkasanLobby_('prospek', cabang, controller.signal) : Promise.resolve([]),
+                    sumberSales ? ambilTabelRingkasanLobby_('penjualan', cabang, controller.signal) : Promise.resolve([]),
+                    sumberSales ? ambilTabelRingkasanLobby_('prospek', cabang, controller.signal) : Promise.resolve([]),
                     sales ? callSupabase('users?select=target_sales_rp&username=eq.' + encodeURIComponent(user.Username), 'GET', null, { signal: controller.signal, dariLobby: true }) : Promise.resolve([]),
                     ['manager', 'direktur'].includes(rolePengguna(user)) ? ambilProfilTeknisiRingkasanLobby_(cabang, controller.signal) : Promise.resolve([])
                 ]);
@@ -3708,12 +3726,21 @@
                     ({ cabangAktif, globalTickets, globalUsers, globalGaransi, globalPenjualan, globalProspek } = lama);
                 }
                 waktuRingkasanLobby_ = Date.now();
+                muatRingkasanLobby_.terakhir = { user, role: rolePengguna(user), akses: hakAksesCabangPengguna(user), cabang, periode, html: target.innerHTML };
                 status.textContent = 'Diperbarui ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' }) + ' WITA';
                 return true;
             } catch (error) {
-                if (controller.signal.aborted || urutan !== urutanRingkasanLobby_) return false;
-                target.innerHTML = '<p class="lobby-empty">Ringkasan belum dapat dimuat. Menu yang tersedia tetap dapat digunakan.</p>';
-                status.textContent = error.message || 'Silakan coba muat ulang ringkasan.';
+                if (controller.signal.aborted || urutan !== urutanRingkasanLobby_ || penggunaAktif !== user || lobby.style.display === 'none') return false;
+                controller.abort();
+                const aksesDitolak = [401, 403].includes(error.status) || error.code === 'AUTH_EXPIRED';
+                if (adaRingkasan && !aksesDitolak) {
+                    target.innerHTML = terakhir.html;
+                    status.textContent = 'Menampilkan hasil terakhir. Pembaruan belum berhasil; tekan Muat ulang ringkasan untuk mencoba lagi.';
+                } else {
+                    muatRingkasanLobby_.terakhir = null;
+                    target.innerHTML = '<p class="lobby-empty">Ringkasan belum dapat dimuat. Menu yang tersedia tetap dapat digunakan.</p>';
+                    status.textContent = error.message || 'Silakan coba muat ulang ringkasan.';
+                }
                 return false;
             } finally {
                 if (urutan === urutanRingkasanLobby_) { target.setAttribute('aria-busy', 'false'); permintaanRingkasanLobby_ = null; }

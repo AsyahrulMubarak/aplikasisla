@@ -180,7 +180,10 @@ test('technician warranty queries request only claim metadata and retain branch 
   assert.doesNotMatch(requests[0], /nama_pelanggan|omzet|sales|select=\*/);
   c.penggunaAktif = { ...technician(), Role: 'manager' };
   await c.ambilTabelRingkasanLobby_('garansi', 'Raha', undefined);
-  assert.match(requests[1], /select=\*&cabang=eq.Raha/);
+  assert.match(requests[1], /cabang=eq.Raha/);
+  const selected = new URL('https://fixture/' + requests[1]).searchParams.get('select').split(',');
+  for (const field of ['omzet', 'sales', 'waktu_siap_diambil', 'waktu_diambil', 'riwayat_klaim_item']) assert.ok(selected.includes(field));
+  assert.ok(!selected.includes('*'));
 });
 
 test('claim ticket events request a warranty reload while normal tickets keep their local update', () => {

@@ -236,3 +236,77 @@ test('Manager lobby loads zero-completion technicians and restores the previous 
   assert.equal(shown.rekapPekerjaanTeknisi.teknisi[0].total, 0);
   assert.equal(c.globalUsers, previousUsers);
 });
+
+test('summary downloads omit binary evidence, preserve history pagination and retry a transient GET just once', async () => {
+  const { c } = harness(user('admin', 2000000, 'Semua'));
+  vm.runInContext(extract('ambilTabelRingkasanLobby_'), c);
+  const calls = []; let fail = true;
+  c.callSupabase = async endpoint => {
+    const url = new URL('https://fixture/' + endpoint); calls.push(url);
+    if (url.pathname.endsWith('/tiket') && fail) { fail = false; throw Object.assign(Error('timeout'), { code: 'SUPABASE_TIMEOUT' }); }
+    if (url.pathname.endsWith('/tiket')) return url.searchParams.get('offset') === '0' ? Array.from({length:500}, (_, n) => ({id_tiket:n})) : [{id_tiket:500}];
+    return [];
+  };
+  assert.equal((await c.ambilTabelRingkasanLobby_('tiket', 'Kendari')).length, 501);
+  assert.deepEqual(calls.map(u => u.searchParams.get('offset')), ['0','0','500']);
+  for (const source of ['garansi','penjualan','prospek']) await c.ambilTabelRingkasanLobby_(source, 'Raha');
+  for (const url of calls) {
+    const columns = url.searchParams.get('select').split(',');
+    assert.ok(!columns.includes('*'));
+    for (const blob of ['tanda_tangan','bukti_banding','bukti_chat','surat_penawaran']) assert.ok(!columns.includes(blob));
+    assert.ok(!url.searchParams.has('tanggal_lunas'), 'unpaid invoices from older months must remain available');
+  }
+  const ticketColumns = calls[0].searchParams.get('select').split(',');
+  for (const field of ['tanggal_lunas','status_pembayaran','penilaian_teknisi','riwayat_penggantian_teknisi']) assert.ok(ticketColumns.includes(field));
+  let attempts = 0;c.callSupabase = async () => { attempts++; throw Object.assign(Error('denied'), {status:403}); };
+  await assert.rejects(c.ambilTabelRingkasanLobby_('tiket','Raha'), /denied/);assert.equal(attempts,1);
+  attempts=0;const controller=new AbortController();c.callSupabase=async()=>{attempts++;controller.abort();throw Object.assign(Error('timeout'),{code:'SUPABASE_TIMEOUT'});};
+  await assert.rejects(c.ambilTabelRingkasanLobby_('tiket','Raha',controller.signal),/timeout/);assert.equal(attempts,1);
+});
+
+test('admin summary needs only ticket and warranty sources; same-session refresh failure preserves a visibly stale result', async () => {
+  const { c, node } = harness(user('admin',2000000,'Semua'));const calls=[];
+  c.ambilTabelRingkasanLobby_ = async source => {calls.push(source);return [];};
+  c.tampilkanRingkasanLobby_ = () => {node('lobby-dashboard-content').innerHTML='<p>Rekap berhasil</p>';};
+  assert.equal(await c.muatRingkasanLobby_(),true);assert.deepEqual(calls,['tiket','garansi']);
+  c.ambilTabelRingkasanLobby_ = async()=>{throw Object.assign(Error('timeout'),{code:'SUPABASE_TIMEOUT'});};
+  assert.equal(await c.muatRingkasanLobby_(),false);assert.equal(node('lobby-dashboard-content').innerHTML,'<p>Rekap berhasil</p>');
+  assert.match(node('lobby-dashboard-status').textContent,/hasil terakhir/);
+  node('lobby-periode').value='2026-10';assert.equal(await c.muatRingkasanLobby_(),false);
+  assert.doesNotMatch(node('lobby-dashboard-content').innerHTML,/Rekap berhasil/,'another month cannot use the cached report');
+});
+
+test('cached summaries are discarded after denied access or a change of account or role',async()=>{
+  for(const change of ['denied','account','role','late_error']){
+    const {c,node}=harness(user('admin',2000000,'Semua'));c.ambilTabelRingkasanLobby_=async()=>[];
+    c.tampilkanRingkasanLobby_=()=>{node('lobby-dashboard-content').innerHTML='<p>Privat admin</p>';};await c.muatRingkasanLobby_();
+    if(change==='account')c.penggunaAktif={...c.penggunaAktif,Username:'other'};
+    if(change==='role')c.penggunaAktif.Role='teknisi';
+    c.ambilTabelRingkasanLobby_=async()=>{throw Object.assign(Error('denied'),{status:change==='denied'?403:503});};
+    if(change==='late_error'){
+      let reject;c.ambilTabelRingkasanLobby_=source=>source==='tiket'?new Promise((_,no)=>{reject=no;}):Promise.resolve([]);
+      const pending=c.muatRingkasanLobby_();c.penggunaAktif={...c.penggunaAktif,Username:'new'};node('lobby-dashboard-content').innerHTML='<p>Account baru</p>';reject(Error('late timeout'));await pending;
+      assert.equal(node('lobby-dashboard-content').innerHTML,'<p>Account baru</p>');continue;
+    }
+    assert.equal(await c.muatRingkasanLobby_(),false);assert.doesNotMatch(node('lobby-dashboard-content').innerHTML,/Privat admin/);
+  }
+});
+
+test('thin source projections preserve revenue, unpaid history, paid technician points and prospect calculations',async()=>{
+  const {c}=harness(user('manager',2000000,'Semua'));c.cabangAktif='Raha';
+  c.perbaruiStatusSLAAktualTiket_=row=>row;c.statusGaransiEfektif_=s=>s;c.statusProspekKanonis_=s=>s;
+  vm.runInContext(extract('ambilTabelRingkasanLobby_'),c);
+  const raw={
+    tiket:[{id_tiket:'TKT-1',no_transaksi:'001/KSR/UTM/0926',waktu_lapor:'2026-09-02T08:00:00+08:00',waktu_selesai:'2026-09-02T16:00:00+08:00',tanggal_lunas:'2026-09-03T10:00:00+08:00',status:'Selesai',status_sla:'TERPENUHI',status_sla_respon:'TERPENUHI',status_pembayaran:'Lunas',teknisi:'Wawan',sales:'Sales A',bobot_poin:4,nilai_penjualan:100,cabang:'Raha',tanda_tangan:'data:image/png;base64,unused',bukti_banding:'unused',deskripsi_pekerjaan_ba:'unused'},
+      {id_tiket:'TKT-OLD',no_transaksi:'002/KSR/UTM/0826',status:'Selesai',status_pembayaran:'Belum Lunas',teknisi:'Wawan',cabang:'Raha',waktu_lapor:'2026-08-02T08:00:00+08:00',waktu_selesai:'2026-08-02T16:00:00+08:00'}],
+    garansi:[{id_garansi:'G1',referensi_tiket_nota:'TKT-1',status:'Aktif',tanggal_mulai:'2026-09-03T10:00:00+08:00',tanggal_habis:'2026-11-03T10:00:00+08:00',sales:'Sales A',omzet:100,cabang:'Raha',waktu_siap_diambil:'2026-09-02T17:00:00+08:00',waktu_diambil:'2026-09-03T10:00:00+08:00'}],
+    penjualan:[{id_penjualan:'SLS-1',no_transaksi:'SALE-1',waktu_lapor:'2026-09-04T10:00:00+08:00',sales:'Sales A',nominal_rp:250,cabang:'Raha'}],
+    prospek:[{id_prospek:'P1',tanggal_input:'2026-09-01T10:00:00+08:00',status_prospek:'Closing / Deal',sales_penanggung_jawab:'Sales A',estimasi_rp:500,cabang:'Raha',bukti_chat:'data:image/png;base64,unused',surat_penawaran:'unused'}]
+  };
+  const map={tiket:c.petakanTiketSupabase_,garansi:c.petakanGaransiSupabase_,penjualan:c.petakanPenjualanSupabase_,prospek:c.petakanProspekSupabase_};
+  const calculate=rows=>{c.globalTickets=rows.tiket.map(map.tiket);c.globalGaransi=rows.garansi.map(map.garansi);c.globalPenjualan=rows.penjualan.map(map.penjualan);c.globalProspek=rows.prospek.map(map.prospek);return JSON.parse(JSON.stringify(c.renderDashboard({hitungSaja:true,bulan:'09',tahun:'2026'})));};
+  const full=calculate(raw);assert.ok(full.ringkasanEksekutif.omzet>0);assert.equal(full.rekapNotaIpos.belumLunasSeluruhRiwayat,1);assert.ok(full.statsTeknisi.Wawan.poin_terkumpul>0);
+  c.callSupabase=async endpoint=>{const url=new URL('https://fixture/'+endpoint),table=url.pathname.slice(1),fields=url.searchParams.get('select').split(',');return raw[table].map(row=>Object.fromEntries(fields.filter(k=>Object.hasOwn(row,k)).map(k=>[k,row[k]])));};
+  const thin={};for(const table of Object.keys(raw))thin[table]=await c.ambilTabelRingkasanLobby_(table,'Raha');
+  assert.deepEqual(calculate(thin),full);
+});
