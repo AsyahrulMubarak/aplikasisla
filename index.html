@@ -618,6 +618,10 @@
         .lobby-detail-dashboard .charts-container { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
         .lobby-detail-dashboard .chart-box { min-width:0; max-width:none; }
         .lobby-admin-dashboard .charts-container { grid-template-columns:minmax(0,1fr); }
+        .lobby-status-panels { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:20px; grid-column:1 / -1; min-width:0; margin-bottom:22px; }
+        .lobby-status-panels > .lobby-panel { min-width:0; margin:0; }
+        .lobby-logistik .lobby-status-panels { display:none; }
+        @media(max-width:767px) { .lobby-status-panels { grid-template-columns:minmax(0,1fr); } }
         @media(max-width:600px) {
             .lobby-detail-dashboard .charts-container { grid-template-columns:minmax(0,1fr); }
             .lobby-detail-dashboard .card { padding:13px; }
@@ -632,8 +636,9 @@
             #main-lobby-wrapper { padding:24px 28px; }
             #main-lobby-wrapper .main-lobby-card { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:20px; align-items:start; }
             .lobby-brand { grid-column:1 / -1; margin:0; }
-            .lobby-dashboard-panel { min-width:0; margin:0; }
-            .lobby-menu-panel { position:sticky; top:24px; margin:0; padding:22px 18px; }
+            .lobby-dashboard-panel { min-width:0; margin:0; grid-column:1; grid-row:2; }
+            .lobby-menu-panel { position:static; margin:0; padding:22px 18px; grid-column:2; grid-row:2; }
+            .lobby-status-panels { margin:0; }
             #main-lobby-wrapper .lobby-menu-panel .main-lobby-options { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 10px; }
             .lobby-menu-panel .lobby-panel-title h3 { font-size:18px; }
             .lobby-admin-dashboard { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
@@ -643,9 +648,9 @@
             #main-lobby-status:empty { display:none; }
         }
 
-        /* Ringkasan pendek menyatukan statistik dan menu dalam satu panel. */
-        #main-lobby-wrapper.lobby-compact .lobby-dashboard-panel { margin:0; padding:26px; border-radius:24px 24px 0 0; box-shadow:none; }
-        #main-lobby-wrapper.lobby-compact .lobby-menu-panel { position:static; margin:0; padding:22px 26px 26px; border-top:1px solid #e8eef6; border-radius:0 0 24px 24px; box-shadow:0 12px 30px rgba(39,102,172,.08); }
+        /* Ringkasan pendek mempertahankan panel statistik dan menu yang terpisah. */
+        #main-lobby-wrapper.lobby-compact .lobby-dashboard-panel { margin:0 0 22px; padding:26px; border-radius:24px; box-shadow:none; }
+        #main-lobby-wrapper.lobby-compact .lobby-menu-panel { position:static; margin:0 0 22px; padding:22px 26px 26px; border:0; border-radius:24px; box-shadow:0 12px 30px rgba(39,102,172,.08); }
         .lobby-compact .lobby-dashboard-panel > .lobby-panel-title { margin-bottom:22px; }
         .lobby-compact #lobby-dashboard-content { display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.4fr); gap:18px; }
         .lobby-compact .lobby-skeleton, .lobby-compact .lobby-empty, .lobby-compact .lobby-detail-row { grid-column:1 / -1; }
@@ -675,8 +680,14 @@
         .lobby-compact .lobby-footer { margin-top:18px; }
         #main-lobby-wrapper.lobby-compact #main-lobby-status:empty { display:none; }
         @media(min-width:768px) {
-            #main-lobby-wrapper.lobby-compact .main-lobby-card { display:grid; grid-template-columns:minmax(0,1fr); gap:0; max-width:1280px; }
-            .lobby-compact .lobby-brand { margin-bottom:20px; }
+            #main-lobby-wrapper.lobby-compact .main-lobby-card { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; max-width:1680px; }
+            .lobby-compact .lobby-brand { margin:0; }
+            #main-lobby-wrapper.lobby-compact .lobby-dashboard-panel, #main-lobby-wrapper.lobby-compact .lobby-menu-panel, .lobby-compact .lobby-status-panels { margin:0; }
+        }
+        @media(min-width:1100px) {
+            #main-lobby-wrapper.lobby-compact .main-lobby-card { grid-template-columns:minmax(0,1fr) 260px; }
+            #main-lobby-wrapper.lobby-compact .lobby-menu-panel { padding:22px 18px; }
+            #main-lobby-wrapper.lobby-compact .lobby-menu-panel .main-lobby-options { grid-template-columns:repeat(2,minmax(0,1fr)); }
         }
         @media(max-width:767px) {
             .lobby-compact #lobby-dashboard-content { grid-template-columns:minmax(0,1fr); gap:14px; }
@@ -932,18 +943,6 @@
                 <div id="lobby-dashboard-content" aria-busy="false"><div class="lobby-skeleton" aria-hidden="true"></div></div>
                 <p id="lobby-dashboard-status" role="status" aria-live="polite"></p>
             </section>
-            <section id="lobby-credit-panel" class="lobby-panel lobby-credit-panel" aria-labelledby="lobby-credit-title" hidden>
-                <div class="lobby-panel-title"><div><h3 id="lobby-credit-title">Kehadiran & pencapaian</h3><p id="lobby-credit-period">Bulan berjalan</p></div><button id="lobby-credit-refresh" type="button" class="lobby-refresh" aria-label="Muat ulang penilaian">↻</button></div>
-                <div id="lobby-credit-list" class="credit-list"></div><p id="lobby-credit-status" role="status" aria-live="polite"></p>
-            </section>
-            <section id="lobby-kehadiran-panel" class="lobby-panel" aria-labelledby="lobby-kehadiran-title">
-                <div class="lobby-panel-title"><div><h3 id="lobby-kehadiran-title">Pegawai Izin / Sakit</h3><p>Status pegawai di cabang hari ini.</p></div><button type="button" class="lobby-refresh" onclick="muatStatusPegawaiLobby_()" aria-label="Muat ulang status pegawai">↻</button></div>
-                <div id="lobby-kehadiran-content" role="status" aria-live="polite"></div>
-            </section>
-            <section id="lobby-pekerjaan-panel" class="lobby-panel" aria-labelledby="lobby-pekerjaan-title" style="display:none;">
-                <div class="lobby-panel-title"><div><h3 id="lobby-pekerjaan-title">Teknisi Sedang Bekerja</h3><p>Pelaksana tiket yang berstatus On Progress.</p></div></div>
-                <div id="lobby-pekerjaan-content" role="status" aria-live="polite"></div>
-            </section>
             <section class="lobby-panel lobby-menu-panel" aria-labelledby="lobby-menu-title">
                 <div class="lobby-panel-title"><div><h3 id="lobby-menu-title">Semua Menu</h3><p>Menu dengan penanda kunci belum tersedia untuk akun Anda.</p></div></div>
                 <div class="main-lobby-options">
@@ -955,6 +954,21 @@
                 <button type="button" id="btn-lobby-klaim-sales" class="main-lobby-option klaim" data-lobby-menu="klaim-sales" onclick="bukaMenuKlaimSales()"><span class="lobby-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 3 3 5-6"/></svg></span>Klaim Sales<strong class="lobby-lock-indicator" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></strong></button>
                 </div>
             </section>
+            <section id="lobby-credit-panel" class="lobby-panel lobby-credit-panel" aria-labelledby="lobby-credit-title" hidden>
+                <div class="lobby-panel-title"><div><h3 id="lobby-credit-title">Kehadiran & pencapaian</h3><p id="lobby-credit-period">Bulan berjalan</p></div><button id="lobby-credit-refresh" type="button" class="lobby-refresh" aria-label="Muat ulang penilaian">↻</button></div>
+                <div id="lobby-credit-list" class="credit-list"></div><p id="lobby-credit-status" role="status" aria-live="polite"></p>
+            </section>
+            <div class="lobby-status-panels">
+            <section id="lobby-kehadiran-panel" class="lobby-panel" aria-labelledby="lobby-kehadiran-title">
+                <div class="lobby-panel-title"><div><h3 id="lobby-kehadiran-title">Pegawai Izin / Sakit</h3><p>Status pegawai di cabang hari ini.</p></div><button type="button" class="lobby-refresh" onclick="muatStatusPegawaiLobby_()" aria-label="Muat ulang status pegawai">↻</button></div>
+                <div id="lobby-kehadiran-content" role="status" aria-live="polite"></div>
+            </section>
+            <section id="lobby-pekerjaan-panel" class="lobby-panel" aria-labelledby="lobby-pekerjaan-title" style="display:none;">
+                <div class="lobby-panel-title"><div><h3 id="lobby-pekerjaan-title">Teknisi Sedang Bekerja</h3><p>Pelaksana tiket yang berstatus On Progress.</p></div></div>
+                <div id="lobby-pekerjaan-content" role="status" aria-live="polite"></div>
+            </section>
+            </div>
+
             <div id="main-lobby-status" role="status" aria-live="polite"></div>
             <p class="lobby-footer">ALFACOM · Semua pekerjaan dalam satu tempat</p>
         </main>

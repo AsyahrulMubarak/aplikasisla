@@ -82,7 +82,8 @@ test('Visible menu permissions enforce salary, branch and each role without wide
   }
 });
 test('Lobby lists KPI, attendance, payroll, both SLA branches and Sales claims for every account', () => {
-  const menu = html.slice(html.indexOf('id="lobby-menu-title"'), html.indexOf('id="main-lobby-status"', html.indexOf('id="lobby-menu-title"')));
+  const menuStart = html.indexOf('id="lobby-menu-title"');
+  const menu = html.slice(menuStart, html.indexOf('</section>', menuStart));
   assert.deepEqual([...menu.matchAll(/data-lobby-menu="([^"]+)"/g)].map(m => m[1]),
     ['kpi', 'absen', 'gaji', 'sla-kendari', 'sla-raha', 'klaim-sales']);
   assert.ok(!/style="display:none/.test(menu));
