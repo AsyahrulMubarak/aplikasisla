@@ -10,7 +10,7 @@ class ApiError extends Error{constructor(status,message){super(message);this.sta
 function serviceHeaders(){const h={apikey:SECRET};if(!String(SECRET).startsWith('sb_secret_'))h.Authorization='Bearer '+SECRET;return h;}
 async function rest(path,method='GET',body,prefer='return=representation'){
  const r=await fetch(BASE+'/rest/v1/'+path,{method,headers:{...serviceHeaders(),'Content-Type':'application/json',Prefer:prefer},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
- if(!r.ok){const d=await r.json().catch(()=>({}));console.error('operations database',path.split('?')[0],r.status,d.code||'');throw new ApiError(r.status===400?400:503,r.status===400&&d.message?d.message:'Penyimpanan operasional belum berhasil.');}
+ if(!r.ok){const d=await r.json().catch(()=>({}));console.error('operations database',path.split('?')[0],r.status,d.code||'');throw Object.assign(new ApiError(r.status===400?400:503,r.status===400&&d.message?d.message:'Penyimpanan operasional belum berhasil.'),{databaseResource:path.split('?')[0],databaseCode:d.code,upstreamStatus:r.status,databaseMessage:d.message});}
  const raw=await r.text();return raw?JSON.parse(raw):null;
 }
 const rpc=(name,body)=>rest('rpc/'+name,'POST',body);
@@ -161,6 +161,21 @@ async function migrateBugEvidence(){
  }
  return result;
 }
+async function importBugEvidence(p){
+ const file=evidence(p.buktiBug),id=String(p.idLaporan||'');
+ if(!file||!/^[0-9a-f-]{36}$/i.test(id))throw new ApiError(400,'Data pemulihan bukti tidak valid.');
+ const rows=await rest('sla_ops_bug_reports?id=eq.'+encodeURIComponent(id)+'&legacy_evidence_url=not.is.null&select=id,cabang,evidence_path&limit=1');
+ if(rows.length!==1)throw new ApiError(404,'Laporan arsip tidak ditemukan.');
+ if(rows[0].evidence_path)return {status:'sukses',sudahDipindahkan:true};
+ const path=`${rows[0].cabang}/${id}.${file.ext}`;
+ const r=await fetch(BASE+'/storage/v1/object/sla-bug-private/'+path,{method:'POST',headers:{...serviceHeaders(),'Content-Type':file.mime,'x-upsert':'true'},body:file.bytes,signal:AbortSignal.timeout(20000)});
+ if(!r.ok)throw new ApiError(503,'Bukti arsip belum berhasil disimpan.');
+ const verify=await fetch(BASE+'/storage/v1/object/authenticated/sla-bug-private/'+path,{headers:serviceHeaders(),signal:AbortSignal.timeout(20000)});
+ const bytes=new Uint8Array(await verify.arrayBuffer());
+ if(!verify.ok||bytes.length!==file.bytes.length||bytes.some((b,i)=>b!==file.bytes[i]))throw new ApiError(503,'Verifikasi bukti arsip belum cocok.');
+ await rest('sla_ops_bug_reports?id=eq.'+id,'PATCH',{evidence_path:path});
+ return {status:'sukses',dipindahkan:1,bytes:bytes.length,diverifikasi:true};
+}
 Deno.serve(async request=>{
  const origin=request.headers.get('Origin')||'',headers={'Content-Type':'application/json','Cache-Control':'no-store',Vary:'Origin','X-SLA-Revision':'operations-supabase-20261022'};
  const reply=(data,status=200)=>Response.json(data,{status,headers});
@@ -168,11 +183,14 @@ Deno.serve(async request=>{
  if(origin){headers['Access-Control-Allow-Origin']=origin;headers['Access-Control-Allow-Headers']='authorization,apikey,content-type';headers['Access-Control-Allow-Methods']='POST,OPTIONS';}
  if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(request.method!=='POST')return reply({status:'gagal',pesan:'Gunakan POST.'},405);
+ let scheduler=false;
  try{
   const raw=await request.text();if(raw.length>8*1024*1024)throw new ApiError(413,'Permintaan terlalu besar.');
   let p;try{p=JSON.parse(raw);}catch{throw new ApiError(400,'Permintaan tidak valid.');}if(!p||typeof p!=='object'||Array.isArray(p))throw new ApiError(400,'Permintaan tidak valid.');
-  if(['processQueue','scanTickets','scanProspects','scanWarranty','scanStorage','dryRunReminders','health','migrateBugEvidence'].includes(p.action)){
+  if(['processQueue','scanTickets','scanProspects','scanWarranty','scanStorage','dryRunReminders','health','migrateBugEvidence','importBugEvidence'].includes(p.action)){
    if(!await jobAuthorized(request))throw new ApiError(401,'Akses scheduler ditolak.');
+   scheduler=true;
+   if(p.action==='importBugEvidence')return reply(await importBugEvidence(p));
    if(p.action==='migrateBugEvidence')return reply(await migrateBugEvidence());
    if(p.action==='health'){const c=await rest('sla_ops_control?select=enabled,cutover_at&limit=1');return reply({status:'sukses',control:c[0],providerConfigured:!!(Deno.env.get('FONNTE_TOKEN')||Deno.env.get('FONNTE_TOKEN_CADANGAN')),runtime:'supabase'});}
    if(p.action==='dryRunReminders'){const snapshot=await rpc('sla_ops_snapshot',{});return reply({status:'sukses',results:await Promise.all(['ticket','prospect','warranty','storage'].map(k=>scan(k,true,snapshot)))});}
@@ -186,5 +204,5 @@ Deno.serve(async request=>{
   if(p.action==='getBugReports')return reply(await reports(b));
   if(p.action==='getOperationsStatus'){const rows=await rest('sla_ops_outbox?cabang=eq.'+b+'&state=in.(failed,uncertain)&select=id,kind,state,last_error,created_at&order=created_at.desc&limit=50');return reply({status:'sukses',data:rows});}
   throw new ApiError(400,'Tindakan tidak tersedia.');
- }catch(e){console.error('operations request error',e.name,e.message);return reply({status:'gagal',pesan:e instanceof ApiError?e.message:'Layanan operasional belum berhasil. Silakan coba lagi.'},e instanceof ApiError?e.status:503);}
+ }catch(e){console.error('operations request error',e.name,e.message);return reply({status:'gagal',pesan:e instanceof ApiError?e.message:'Layanan operasional belum berhasil. Silakan coba lagi.',...(scheduler?{diagnostic:{resource:e.databaseResource,code:e.databaseCode,httpStatus:e.upstreamStatus,message:e.databaseMessage||e.message}}:{})},e instanceof ApiError?e.status:503);}
 });

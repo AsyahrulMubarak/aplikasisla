@@ -69,3 +69,25 @@ hasil eksekusi cron dan respons HTTP diperiksa setelah aktivasi.
 
 Kode `code.js` dan `coderaha.js.txt` disimpan sebagai arsip sumber GAS, bukan
 backend frontend yang baru. Jangan memasang kembali trigger lama saat deployment.
+
+## Verifikasi pengalihan 22 Oktober 2026
+
+- Keempat timer GAS dihentikan; daftar Pemicu Saya dan proyek Raha menunjukkan
+  nol trigger. Kode, spreadsheet dan dokumen asli tidak dihapus.
+- 65 pengujian lulus, termasuk handler scheduler untuk kedua cabang, pembatasan
+  sesi/cabang, penolakan provider, hasil ambigu, dan perubahan status sumber.
+- Pengujian SQL transaksi membuktikan lease, deduplikasi, CRM idempoten, expiry,
+  pemulihan ID klien lama, dan ACL; seluruh data simulasi dibatalkan kembali.
+- Dry run produksi memindai 244 tiket Kendari, 42 tiket Raha, 77/6 prospek, dan
+  206/38 garansi. Tidak ada kandidat Raha yang jatuh tempo saat pengalihan;
+  cabang Raha tetap dipindai oleh seluruh jadwal.
+- Snapshot scanner dan guard hanya memuat kolom aturan pengingat, sehingga
+  gambar/signature tidak ikut dibaca dan respons tidak melewati statement timeout.
+- Cron tiket, penitipan dan worker WA sudah menghasilkan HTTP 200 setelah
+  optimasi. Pengiriman produksi diterima provider dan tidak ada entri ganda pada
+  kunci kejadian + nomor tujuan.
+- Empat laporan bug beserta empat bukti gambar lama sudah tersimpan di Supabase.
+  Satu gambar dipulihkan melalui unduhan lokal setelah akses dari Edge gagal,
+  lalu bytes hasil baca ulang Storage diverifikasi identik.
+- Frontend produksi cocok dengan sumber rilis; tidak memuat URL GAS. Endpoint
+  baru dan kompatibilitas menolak sesi kosong (401) dan origin asing (403).

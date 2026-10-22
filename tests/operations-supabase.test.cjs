@@ -48,10 +48,14 @@ test('storage reminders cover both branches at days 5 and 28 and expire at 31; p
 });
 function harness(options={}){
  const calls=[];let handler;const state={outcome:options.state||'sent'};
- const context=vm.createContext({Request,Response,AbortSignal,URLSearchParams,TextEncoder,TextDecoder,Uint8Array,atob,crypto,console,
+ const RuntimeDate=options.now?class extends Date{constructor(...args){super(...(args.length?args:[options.now]));}static now(){return new Date(options.now).getTime();}}:Date;
+ const context=vm.createContext({Date:RuntimeDate,Request,Response,AbortSignal,URLSearchParams,TextEncoder,TextDecoder,Uint8Array,atob,crypto,console:{...console,error(){}},
  Deno:{env:{get:key=>({SUPABASE_URL:'https://db.test',SUPABASE_SERVICE_ROLE_KEY:'sb_secret_fixture',SUPABASE_ANON_KEY:'public_fixture',FONNTE_TOKEN:'fixture_provider'})[key]},serve:fn=>handler=fn},
  fetch:async(url,init={})=>{
   calls.push({url,...init});const p=init.body&&typeof init.body==='string'?JSON.parse(init.body):{};
+  if(url.includes('/sla_ops_control?'))return Response.json([{enabled:true}]);
+  if(url.endsWith('/rpc/sla_ops_snapshot'))return Response.json(options.snapshot);
+  if(url.endsWith('/rpc/sla_perbarui_penitipan'))return Response.json(0);
   if(url.endsWith('/auth/v1/user'))return Response.json({id:'auth-fixture'},{status:options.authStatus||200});
   if(url.endsWith('/rpc/sla_assert_account_session'))return Response.json(!options.revoked);
   if(url.includes('/users?'))return Response.json([user(options.role||'teknisi',options.branch||'Kendari')]);
@@ -88,3 +92,13 @@ test('invalid bug image and scheduler request cannot create records or send mess
  const h=harness({role:'admin'});assert.equal((await h.run({action:'laporBug',deskripsi:'Fixture',buktiBug:'data:image/png;base64,YWJj',requestId:'fixture-request-123'})).status,400);assert.equal((await h.run({action:'scanTickets'})).status,401);assert.equal(h.calls.some(c=>c.url.includes('sla_ops_enqueue')),false);
 });
 test('hostile origin and non-object payload are rejected before authentication',async()=>{const h=harness();assert.equal((await h.run(relay,{Origin:'https://evil.test'})).status,403);assert.equal((await h.run([])).status,400);assert.equal(h.calls.length,0);});
+test('all four scheduler actions enqueue eligible Kendari and Raha records through the deployed HTTP handler',async()=>{
+ for(const action of ['scanTickets','scanProspects','scanWarranty','scanStorage']){
+  const tickets=['Kendari','Raha'].map(b=>({...ticket(b),...(action==='scanWarranty'||action==='scanStorage'?{status:'Selesai',waktu_selesai:'2026-10-17T09:00:00+08:00'}:{})}));
+  const snapshot={tickets,users:[user(),{...user('teknisi','Raha'),no_wa:'081234567891'}],warranties:['Kendari','Raha'].map(b=>({id_garansi:'GRS-'+b,referensi_tiket_nota:'TKT-FIXTURE',cabang:b,status:action==='scanStorage'?'Belum Diambil':'Aktif',waktu_siap_diambil:'2026-10-17T09:00:00+08:00',durasi_hari:7})),prospects:['Kendari','Raha'].map(b=>({...prospect,id_prospek:'PRP-'+b,cabang:b})),previous:[]};
+  const h=harness({snapshot,now:'2026-10-22T09:50:00+08:00'}),response=await h.run({action},{'x-sla-job-key':'sb_secret_fixture'});
+  assert.equal(response.status,200,action);assert.equal((await response.json()).status,'sukses');
+  const queued=h.calls.filter(c=>c.url.endsWith('/rpc/sla_ops_enqueue')).map(c=>JSON.parse(c.body));assert.deepEqual([...new Set(queued.map(q=>q.p_branch))].sort(),['Kendari','Raha'],action);
+  assert.equal(h.calls.some(c=>/google|fonnte/.test(c.url)),false);
+ }
+});
