@@ -24,7 +24,7 @@ test('pending, outsourcing, cancellation and completed timing retain their estab
   assert.equal(c.perbaruiStatusSLAAktualTiket_({Status:'Selesai',Teknisi:'Teknisi A','Tenggat Waktu':'2020-01-02','Waktu Selesai':'2020-01-01'},now)['Status SLA'],'TERPENUHI');
 });
 test('ordinary ticket edits no longer submit a deadline anchored to report creation; HTML scripts parse',()=>{
-  const edit=html.slice(html.indexOf('if (modeEditTiket) {',html.indexOf('async function submitData')),html.indexOf('const hasil = await callSupabase(endpointFilterSupabase_',html.indexOf('async function submitData')));
+  const edit=html.slice(html.indexOf('if (modeEditTiket) {',html.indexOf('async function submitData')),html.indexOf('const hasil = await simpanEditDenganKonteks_(',html.indexOf('async function submitData')));
   assert.ok(!edit.includes('tenggat_waktu:'));assert.ok(!edit.includes('waktuDasar'));
   for(const [,script] of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(script);
 });

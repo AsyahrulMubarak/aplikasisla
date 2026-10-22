@@ -21,7 +21,7 @@ const functions = [
   'penggunaBergajiDiizinkanModul_', 'penggunaBolehMengaksesAbsensi_', 'penggunaBolehMengaksesSlipGaji_',
   'penggunaBolehMengaksesKpi_', 'penggunaAdminKendariKlaim_', 'cabangKlaimSalesDiizinkan_', 'penggunaBolehKelolaKlaimSales_', 'penggunaBolehTabSLA_',
   'penggunaBolehMenuLobby_', 'dataSesuaiCabangAktif_', 'parseSafeDate', 'daftarTeknisiUnikTiket_',
-  'poinHangusKarenaSLA_', 'statusPoinSudahCair_', 'normalisasiNoTransaksiNota_',
+  'pembagianPoinTeknisi_', 'poinHangusKarenaSLA_', 'statusPoinSudahCair_', 'normalisasiNoTransaksiNota_',
   'tanggalNotaDariNomorTransaksi_', 'rekapStatusNotaIpos_', 'renderDashboard',
   'petakanTiketSupabase_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
   'kolomGaransiPengguna_', 'hentikanRingkasanLobby_', 'aturTataLetakLobby_', 'muatRingkasanLobby_', 'amanTeks_', 'buatHtmlPerformaAdmin_',

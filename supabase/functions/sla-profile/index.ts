@@ -1,9 +1,3 @@
-
-// Check the live account and original Auth session; never authorize from JWT metadata.
-async function requireActiveAccountSession(token,base,key){
- const r=await fetch(base+'/rest/v1/rpc/sla_assert_account_session',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(15000)});
- if(!r.ok||await r.json()!==true)throw Object.assign(new Error('Akun nonaktif atau sesi sudah dicabut. Silakan hubungi admin atau login kembali.'),{status:401,httpStatus:401});
-}
 // @ts-nocheck
 // Identity and permissions always come from verified Auth and the stored profile.
 const BASE = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
@@ -25,7 +19,7 @@ function headers() {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'profile-account-access-20261022' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'profile-welcome-bidi-20261019' };
 }
 const reply = (data, origin, status = 200) => Response.json(data, { status, headers: cors(origin) });
 async function requestJson(resource, method = 'GET', body) {
@@ -54,8 +48,6 @@ async function authenticate(request) {
   const r = await fetch(BASE + '/auth/v1/user', { headers: { apikey: PUBLIC, Authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(20000) });
   if (!r.ok) throw Object.assign(new Error('Sesi Anda tidak sah atau telah kedaluwarsa.'), { httpStatus: 401 });
   const auth = await r.json();
- await requireActiveAccountSession(token,BASE,PUBLIC);
-
   if (!uuid(auth.id) || !/^[a-z0-9._-]{1,80}@alfacom\.local$/.test(String(auth.email || '').toLowerCase())) throw new Error('Identitas akun tidak valid.');
   const p = await getProfile(auth.email.slice(0, -'@alfacom.local'.length));
   if (!p || p.auth_id !== auth.id || normalize(p.username) + '@alfacom.local' !== auth.email.toLowerCase()) throw new Error('Profil tidak cocok dengan akun yang login.');
@@ -175,8 +167,15 @@ async function manageProfile(body, actor) {
   if (!old) throw new Error('Profil tidak ditemukan.');
   const own = old.auth_id === actor.auth_id;
   if (!own) requireProfileScope(actor, old);
-  if (body.action === 'hapusProfil') throw new Error('Gunakan Nonaktifkan akun agar identitas dan riwayat pegawai tetap tersimpan.');
-
+  if (body.action === 'hapusProfil') {
+    requireProfileScope(actor, old);
+    if (own || normalize(old.username) === 'admin') throw new Error('Penghapusan profil ditolak.');
+    // Keep Auth identity/history; API authorization requires a live linked profile.
+    const rows = await rest('users', 'username=eq.' + encodeURIComponent(old.username), 'DELETE');
+    if (!Array.isArray(rows) || rows.length !== 1) throw new Error('Penghapusan profil belum terkonfirmasi.');
+    await audit(actor, old.username, 'hapusProfil');
+    return { status: 'sukses', data: rows };
+  }
   if (body.action !== 'ubahProfil') throw new Error('Operasi profil tidak dikenal.');
   let record;
   if (masterAdmin(actor)) {
@@ -246,6 +245,19 @@ async function reconcileAuthProfiles(actor) {
   }
   return { status: 'sukses', diperbarui: updated };
 }
+// An ambiguous provider request must be reviewed instead of resent.
+async function durableWhatsApp(queue,event,options) {
+  let response,data;
+  try { response=await fetch('https://api.fonnte.com/send',options); data=await response.json(); }
+  catch { await holdUncertainWhatsApp(queue,event); return false; }
+  if(response.ok&&data?.status===true)return true;
+  if(data?.status===false)throw new Error('Provider WhatsApp menolak notifikasi.');
+  await holdUncertainWhatsApp(queue,event);return false;
+}
+async function holdUncertainWhatsApp(queue,event) {
+ await rpc('sla_mark_notif_uncertain',{p_queue:queue,p_id:event.id,p_lease:event.lease}).catch(()=>{});
+}
+
 async function resetNotifications(requestId = null) {
   const token = Deno.env.get('FONNTE_TOKEN') || '';
   if (!token) return;
@@ -258,12 +270,12 @@ async function resetNotifications(requestId = null) {
       if (targets.length === 1 && requests.length === 1 && canReset(targets[0], { hak_akses_cabang: requests[0].cabang })) {
         const phone = String(targets[0].no_wa || '').replace(/\D/g, '').replace(/^0/, '62');
         if (/^62\d{8,13}$/.test(phone)) {
-          const r = await fetch('https://api.fonnte.com/send', { method: 'POST', headers: { Authorization: token },
-            body: new URLSearchParams({ target: phone, message: row.pesan, countryCode: '62' }), signal: AbortSignal.timeout(15000) });
-          const result = await r.json(); sent = r.ok && result.status === true;
+          if(!await durableWhatsApp('sla_password_reset_notifications',row, { method: 'POST', headers: { Authorization: token },
+            body: new URLSearchParams({ target: phone, message: row.pesan, countryCode: '62' }), signal: AbortSignal.timeout(15000) }))continue;
+          sent=true;
         }
       } else sent = true; // A completed request or removed recipient no longer needs delivery.
-    } catch { /* A leased delivery remains retryable. */ }
+    } catch { /* Only a confirmed rejection releases the lease for retry. */ }
     await rpc('sla_ack_password_reset_notification', { p_id: row.id, p_lease: row.lease, p_success: sent });
   }
 }
@@ -302,34 +314,7 @@ async function resendProfileWelcome(body) {
   const password = safePassword(body.passwordPegawai);
   return { status: 'sukses', notifikasiSelamatDatang: await sendProfileWelcome(profile, password) };
 }
-async function setAccountAccess(body,actor){
- if(!resetAdmin(actor))throw new Error('Hanya admin dapat mengelola akses akun.');
- const target=await getProfile(body.usernameTarget);
- if(!target||!canReset(actor,target))throw new Error('Cabang akun tidak sesuai hak akses admin.');
- if(actor.auth_id===target.auth_id)throw new Error('Anda tidak dapat mengubah status akses akun sendiri.');
- if(typeof body.active!=='boolean'||!Number.isSafeInteger(body.version)||body.version<0||typeof body.reason!=='string'||body.reason.trim().length<3||body.reason.trim().length>1000)throw new Error('Isi status, versi, dan alasan perubahan yang valid.');
- await authUserForProfile(target);
- const pending=await rpc('sla_begin_account_access',{p_actor:actor.auth_id,p_username:target.username,p_active:body.active,p_version:body.version,p_reason:body.reason.trim()});
- if(pending.unchanged)return {status:'sukses',active:pending.active,pesan:'Status akun sudah sesuai.',pending:false};
- try{
-  // Ban/unban the same Auth identity. No password, passkey, profile, or history is deleted.
-  const auth=await requestJson('/auth/v1/admin/users/'+pending.auth_id,'PUT',{ban_duration:body.active?'none':'876000h'});
-  if(auth.id!==pending.auth_id)throw new Error('Identitas Auth tidak cocok.');
-  const verified=await authUserForProfile(target);
-  const banned=verified.banned_until&&new Date(verified.banned_until).getTime()>Date.now();
-  if(Boolean(banned)===body.active)throw new Error('Status Auth belum sesuai.');
-  const saved=await rpc('sla_finish_account_access',{p_actor:actor.auth_id,p_username:pending.username,p_auth_id:pending.auth_id,p_version:pending.version});
-  return {status:'sukses',active:saved.active,pending:false,pesan:saved.active?'Akun aktif kembali. Pegawai harus login ulang.':'Akun dinonaktifkan. Login dan sesi lama diblokir; riwayat tetap tersimpan.'};
- }catch{
-  // Fail closed even if Auth is unavailable or a response is lost after commit.
-  const stored=await getProfile(target.username);
-  if(stored&&stored.account_access_version===pending.version&&!stored.account_sync_pending&&stored.account_active===body.active)return {status:'sukses',active:stored.account_active,pending:false,pesan:body.active?'Akun aktif kembali. Pegawai harus login ulang.':'Akun dinonaktifkan; riwayat tetap tersimpan.'};
-  return {status:'sukses',active:false,pending:true,pesan:'Akses aplikasi diblokir. Sinkronisasi layanan login belum selesai; klik Coba sinkron ulang pada akun ini.'};
- }
-}
-
 async function dispatch(body, actor) {
-  if(body.action==='setAccountAccess')return setAccountAccess(body,actor);
   if (['buatProfil','ubahProfil','hapusProfil'].includes(body.action)) return manageProfile(body, actor);
   if (body.action === 'resetPassword') return changePassword(body, actor);
   if (body.action === 'getPermintaanResetSandi') return listResetRequests(actor);
@@ -365,6 +350,3 @@ Deno.serve(async request => {
     return reply({ status: 'gagal', pesan: error?.message || 'Layanan profil belum berhasil.' }, origin, error?.httpStatus === 401 ? 401 : 200);
   }
 });
-
-
-

@@ -59,6 +59,7 @@ function harness(options = {}) {
       return { ok: true, json: async () => [profile('alice')] };
     },
     showToast: (text, type) => seen.toasts.push({ text, type }),
+    periksaSesiAkunPegawai_: async () => true, // The account-access suite verifies this boundary.
     waktuKedaluwarsaJwt_: () => Date.now() + 3600000,
     buatErrorSesiSupabase_: message => Object.assign(new Error(message), { code: 'AUTH_EXPIRED' }),
     simpanPembaruanTokenSesi_: () => { seen.saved = context.penggunaAktif && { ...context.penggunaAktif }; },

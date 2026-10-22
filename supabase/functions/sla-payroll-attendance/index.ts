@@ -1,9 +1,3 @@
-
-// Check the live account and original Auth session; never authorize from JWT metadata.
-async function requireActiveAccountSession(token,base,key){
- const r=await fetch(base+'/rest/v1/rpc/sla_assert_account_session',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(15000)});
- if(!r.ok||await r.json()!==true)throw Object.assign(new Error('Akun nonaktif atau sesi sudah dicabut. Silakan hubungi admin atau login kembali.'),{status:401,httpStatus:401});
-}
 // @ts-nocheck
 // Payroll and attendance API. No browser-supplied identity or branch is trusted.
 const BASE = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
@@ -131,8 +125,6 @@ async function authenticate(request) {
   const authResponse = await fetch(BASE + '/auth/v1/user', { headers: { apikey: PUBLIC, Authorization: 'Bearer ' + token } });
   if (!authResponse.ok) throw new Error('Sesi Anda tidak sah atau telah kedaluwarsa.');
   const auth = await authResponse.json();
- await requireActiveAccountSession(token,BASE,PUBLIC);
-
   if (!auth.id) throw new Error('Sesi Anda tidak sah atau telah kedaluwarsa.');
   const profiles = await rest('users', 'select=username,nama_asli,role,hak_akses_cabang,cabang,gaji_pokok,no_wa,auth_id&auth_id=eq.' + encode(auth.id) + '&limit=2');
   if (profiles.length !== 1) throw new Error('Profil pengguna tidak ditemukan atau tidak unik.');
@@ -683,6 +675,20 @@ async function workingTechnicians(body,u) {
   }
   return {status:'sukses',cabang,data:[...data.values()].sort((a,b)=>a.nama.localeCompare(b.nama,'id'))};
 }
+// An ambiguous provider request must be reviewed instead of resent.
+async function durableWhatsApp(queue,event,options) {
+  let response,data;
+  try { response=await fetch('https://api.fonnte.com/send',options); data=await response.json(); }
+  catch { await holdUncertainWhatsApp(queue,event); return false; }
+  if(response.ok&&data?.status===true)return true;
+  if(data?.status===false)throw new Error('Provider WhatsApp menolak notifikasi.');
+  await holdUncertainWhatsApp(queue,event);return false;
+}
+async function holdUncertainWhatsApp(queue,event) {
+ await rest('rpc/sla_mark_notif_uncertain','','POST',{p_queue:queue,p_id:event.id,p_lease:event.lease||event.lease_id}).catch(()=>{});
+ // Keep the lease even if recording fails; expired leases cannot be reclaimed.
+}
+
 function normalizePhone(value) {
   let number=String(value||'').replace(/\D/g,'');
   if(number.startsWith('0062'))number=number.slice(2);
@@ -720,11 +726,9 @@ async function leaveNotifications(requestId=null,max=3) {
           (contact?'\nWA Pengaju: +'+contact+'\nHubungi Pengaju: https://wa.me/'+contact:'')+
           '\nAlasan: '+p.alasan+'\nBuka aplikasi: https://aplikasisla.vercel.app/\nSetelah login, pilih Absensi > Approval Pengajuan.';
         await new Promise(resolve=>setTimeout(resolve,2000));
-        const response=await fetch('https://api.fonnte.com/send',{method:'POST',
+        if(!await durableWhatsApp('sla_notif_absensi',event,{method:'POST',
           headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},
-          body:new URLSearchParams({target:phone,message,delay:'2'}),signal:AbortSignal.timeout(15000)});
-        const data=await response.json().catch(()=>({}));
-        if(!response.ok||data.status!==true)throw new Error('Provider WhatsApp menolak notifikasi.');
+          body:new URLSearchParams({target:phone,message,delay:'2'}),signal:AbortSignal.timeout(15000)})){result.gagal++;continue;}
         success=true;
       }
     } catch(e) {error=String(e.message||e);}
@@ -910,11 +914,9 @@ async function claimWarranty(body,u) {
       const phone=normalizePhone(event.no_wa);
       if(!phone)throw new Error('Nomor WhatsApp penerima belum tersedia atau tidak valid.');
       if(!token)throw new Error('Token Fonnte belum dikonfigurasi.');
-      const response=await fetch('https://api.fonnte.com/send',{method:'POST',
+      if(!await durableWhatsApp('sla_notif_klaim_garansi',event,{method:'POST',
         headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},
-        body:new URLSearchParams({target:phone,message:event.pesan,delay:'2'}),signal:AbortSignal.timeout(20000)});
-      const data=await response.json().catch(()=>({}));
-      if(!response.ok||data.status!==true)throw new Error('Provider WhatsApp menolak notifikasi.');
+        body:new URLSearchParams({target:phone,message:event.pesan,delay:'2'}),signal:AbortSignal.timeout(20000)})){continue;}
       success=true;
     } catch(e) {error=String(e.message||e);}
     try {
@@ -950,11 +952,9 @@ async function salaryNotifications(username=null) {
       const phone=normalizePhone(event.no_wa);
       if(!phone)throw new Error('Nomor WhatsApp pegawai belum tersedia atau tidak valid.');
       if(!token)throw new Error('Token Fonnte belum dikonfigurasi.');
-      const response=await fetch('https://api.fonnte.com/send',{method:'POST',
+      if(!await durableWhatsApp('sla_notif_kenaikan_gaji',event,{method:'POST',
         headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},
-        body:new URLSearchParams({target:phone,message:event.pesan,delay:'2'}),signal:AbortSignal.timeout(15000)});
-      const data=await response.json().catch(()=>({}));
-      if(!response.ok||data.status!==true)throw new Error('Provider WhatsApp menolak notifikasi.');
+        body:new URLSearchParams({target:phone,message:event.pesan,delay:'2'}),signal:AbortSignal.timeout(15000)})){return;}
       success=true;
     } catch(e) {error=String(e.message||e);}
     await rest('rpc/sla_selesai_notif_gaji','','POST',{p_id:event.id,p_lease:event.lease,p_sukses:success,p_galat:error}).catch(()=>{});
@@ -1163,10 +1163,8 @@ async function salesClaimNotifications(claimId=null,max=3) {
         if(!phone)throw new Error('Nomor WhatsApp penerima belum valid.');
         if(!token)throw new Error('Token Fonnte belum dikonfigurasi.');
         await new Promise(resolve=>setTimeout(resolve,2000));
-        const response=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},
-          body:new URLSearchParams({target:phone,message:salesClaimMessage(event),delay:'2'}),signal:AbortSignal.timeout(15000)});
-        const data=await response.json().catch(()=>({}));
-        if(!response.ok||data.status!==true)throw new Error('Provider WhatsApp menolak notifikasi.');
+        if(!await durableWhatsApp('sla_notif_klaim_sales',event,{method:'POST',headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},
+          body:new URLSearchParams({target:phone,message:salesClaimMessage(event),delay:'2'}),signal:AbortSignal.timeout(15000)})){result.gagal++;continue;}
         success=true;
       } catch(e) {error=String(e.message||e);}
       await rest('rpc/sla_selesaikan_notif_klaim_sales','','POST',{p_id:event.id,p_lease_id:event.lease_id,p_terkirim:success,p_error:error});
@@ -1178,4 +1176,3 @@ async function salesClaimNotifications(claimId=null,max=3) {
     await rest('rpc/sla_akhiri_pengiriman_klaim_sales','','POST',{p_lease_id:lease}).catch(()=>{});
   }
 }
-

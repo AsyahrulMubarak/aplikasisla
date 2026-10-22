@@ -9,18 +9,18 @@ function waktuKonteksTiket_(value){if(!value)return '—';const d=new Date(value
 function pasangFormPending_(){
  let el=document.getElementById('workflow-pending');if(el)return el;
  el=document.createElement('section');el.id='workflow-pending';el.className='workflow-fields';el.hidden=true;
- el.innerHTML='<h4>Alasan pending</h4><label for="workflow-pending-category">Kategori kendala</label><select id="workflow-pending-category">'+opsiKonteksTiket_('pending')+'</select><label for="workflow-pending-followup">Jadwal tindak lanjut · WITA</label><input id="workflow-pending-followup" type="datetime-local"><label for="workflow-pending-evidence">Rujukan bukti kendala</label><textarea id="workflow-pending-evidence" rows="2" minlength="5" maxlength="2000" placeholder="Catatan komunikasi / nomor permintaan komponen"></textarea><p>SLA tetap memakai mekanisme jeda yang ada. Kategori menjadi bahan tinjauan; tidak langsung memberi pengecualian atau penalti.</p>';
+ el.innerHTML='<h4>Alasan pending</h4><label for="workflow-pending-category">Kategori kendala</label><select id="workflow-pending-category">'+opsiKonteksTiket_('pending')+'</select><label for="workflow-pending-evidence">Rujukan bukti kendala</label><textarea id="workflow-pending-evidence" rows="2" minlength="5" maxlength="2000" placeholder="Catatan komunikasi / nomor permintaan komponen"></textarea><p>SLA tetap memakai mekanisme jeda yang ada. Kategori menjadi bahan tinjauan; tidak langsung memberi pengecualian atau penalti.</p>';
  document.getElementById('update-keterangan')?.insertAdjacentElement('afterend',el);return el;
 }
 function tampilkanFormPending_(){const el=pasangFormPending_(),active=document.getElementById('update-status')?.value==='Pending';el.hidden=!active;el.querySelectorAll('select,input,textarea').forEach(n=>{n.disabled=!active;n.required=active;});}
 function mulaiKonteksPending_(id){
  const el=pasangFormPending_();el.querySelectorAll('input,select,textarea').forEach(n=>n.value='');konteksTiketUI_.pendingRequest=crypto.randomUUID();konteksTiketUI_.pendingTicket=id;
  const t=(globalTickets||[]).find(t=>t['ID Tiket']===id),last=(t?.['Konteks Pekerjaan']?.events||[]).filter(e=>e.kind==='pending'&&!e.closedAt).at(-1);
- if(last){document.getElementById('workflow-pending-category').value=last.category;document.getElementById('workflow-pending-evidence').value=last.evidence||'';if(last.followUpAt)document.getElementById('workflow-pending-followup').value=new Date(Date.parse(last.followUpAt)+8*3600000).toISOString().slice(0,16);}
+ if(last){document.getElementById('workflow-pending-category').value=last.category;document.getElementById('workflow-pending-evidence').value=last.evidence||'';}
  tampilkanFormPending_();
 }
 function pasangFormPergantian_(){let el=document.getElementById('workflow-replacement');if(el)return el;el=document.createElement('section');el.id='workflow-replacement';el.className='workflow-fields';el.hidden=true;
- el.innerHTML='<h4>Alasan pergantian & serah terima</h4><p id="workflow-replacement-from"></p><label for="workflow-replacement-category">Alasan</label><select id="workflow-replacement-category">'+opsiKonteksTiket_('replacement')+'</select><label for="workflow-replacement-reason">Penjelasan pergantian</label><textarea id="workflow-replacement-reason" rows="2" minlength="5" maxlength="2000"></textarea><label for="workflow-replacement-handover">Hasil yang sudah dikerjakan dan sisa pekerjaan</label><textarea id="workflow-replacement-handover" rows="3" minlength="10" maxlength="4000" placeholder="Tindakan yang selesai, hasil pengujian, dan pekerjaan lanjutan"></textarea><label for="workflow-replacement-evidence">Rujukan bukti / serah terima</label><textarea id="workflow-replacement-evidence" rows="2" minlength="5" maxlength="2000" placeholder="Catatan kerja, BA, foto hasil, atau komunikasi tim"></textarea><p>Riwayat teknisi lama tetap disimpan. Pergantian tidak otomatis menjadi kesalahan atau memindahkan poin yang sudah dikunci. Opsi SLA baru tetap mengikuti kotak Ganti Teknisi di atas.</p>';
+ el.innerHTML='<h4>Alasan pergantian & serah terima</h4><p id="workflow-replacement-from"></p><label for="workflow-replacement-category">Alasan</label><select id="workflow-replacement-category">'+opsiKonteksTiket_('replacement')+'</select><label for="workflow-replacement-reason">Penjelasan pergantian</label><textarea id="workflow-replacement-reason" rows="2" minlength="5" maxlength="2000"></textarea><label for="workflow-replacement-handover">Hasil yang sudah dikerjakan dan sisa pekerjaan</label><textarea id="workflow-replacement-handover" rows="3" minlength="10" maxlength="4000" placeholder="Tindakan yang selesai, hasil pengujian, dan pekerjaan lanjutan"></textarea><p>Riwayat teknisi lama tetap disimpan. Pergantian tidak otomatis menjadi kesalahan atau memindahkan poin yang sudah dikunci. Opsi SLA baru tetap mengikuti kotak Ganti Teknisi di atas.</p>';
  document.getElementById('div-ganti-teknisi')?.insertAdjacentElement('afterend',el);return el;
 }
 function mulaiKonteksPergantian_(id){const el=pasangFormPergantian_();el.querySelectorAll('select,textarea').forEach(n=>n.value='');konteksTiketUI_.replacementRequest=crypto.randomUUID();konteksTiketUI_.replacementTicket=id;tampilkanFormPergantian_();}
@@ -33,25 +33,25 @@ async function panggilAlurTiket_(ticket,action,patch,context,requestId){
 }
 async function simpanStatusDenganKonteks_(id,patch,ticket){
  if(patch.status!=='Pending')return callSupabase(endpointFilterSupabase_('tiket','id_tiket',id),'PATCH',patch);
- const category=document.getElementById('workflow-pending-category')?.value,local=document.getElementById('workflow-pending-followup')?.value,evidence=document.getElementById('workflow-pending-evidence')?.value.trim(),reason=document.getElementById('update-keterangan')?.value.trim();
- if(!category||!local||!evidence||evidence.length<5||!reason||reason.length<5)throw Error('Lengkapi kategori, jadwal tindak lanjut, rujukan bukti, dan log pending minimal 5 karakter.');
- const followUpAt=new Date(local+':00+08:00');if(Number.isNaN(followUpAt.getTime())||followUpAt.getTime()<=Date.now())throw Error('Jadwal tindak lanjut WITA harus setelah waktu sekarang.');
- return panggilAlurTiket_(ticket,'pending',patch,{category,followUpAt:followUpAt.toISOString(),evidence,reason},konteksTiketUI_.pendingRequest||crypto.randomUUID());
+ const category=document.getElementById('workflow-pending-category')?.value,evidence=document.getElementById('workflow-pending-evidence')?.value.trim(),reason=document.getElementById('update-keterangan')?.value.trim();
+ if(!category||!evidence||evidence.length<5||!reason||reason.length<5)throw Error('Lengkapi kategori, rujukan bukti, dan log pending minimal 5 karakter.');
+
+ return panggilAlurTiket_(ticket,'pending',patch,{category,evidence,reason},konteksTiketUI_.pendingRequest||crypto.randomUUID());
 }
 async function simpanEditDenganKonteks_(id,patch,ticket,ganti){
  const changed=namaKonteksTiket_(ticket.Teknisi)!==namaKonteksTiket_(patch.teknisi);
  if(!changed||!namaKonteksTiket_(ticket.Teknisi))return callSupabase(endpointFilterSupabase_('tiket','id_tiket',id),'PATCH',patch);
- const category=document.getElementById('workflow-replacement-category')?.value,reason=document.getElementById('workflow-replacement-reason')?.value.trim(),handover=document.getElementById('workflow-replacement-handover')?.value.trim(),evidence=document.getElementById('workflow-replacement-evidence')?.value.trim();
- if(!category||!reason||reason.length<5||!handover||handover.length<10||!evidence||evidence.length<5)throw Error('Lengkapi alasan pergantian, hasil/sisa pekerjaan, serta rujukan bukti serah terima.');
- return panggilAlurTiket_(ticket,'replacement',patch,{category,reason,handover,evidence,resetSla:!!ganti},konteksTiketUI_.replacementRequest||crypto.randomUUID());
+ const category=document.getElementById('workflow-replacement-category')?.value,reason=document.getElementById('workflow-replacement-reason')?.value.trim(),handover=document.getElementById('workflow-replacement-handover')?.value.trim();
+ if(!category||!reason||reason.length<5||!handover||handover.length<10)throw Error('Lengkapi alasan pergantian serta hasil dan sisa pekerjaan.');
+ return panggilAlurTiket_(ticket,'replacement',patch,{category,reason,handover,resetSla:!!ganti},konteksTiketUI_.replacementRequest||crypto.randomUUID());
 }
 function htmlKonteksPekerjaan_(ticket){
  const events=ticket['Konteks Pekerjaan']?.events||[];if(!events.length)return '';
  const articles=events.map(e=>{
   const detail=e.kind==='pending'
-   ? '<p>Tindak lanjut: '+amanKonteksTiket_(waktuKonteksTiket_(e.followUpAt))+(e.closedAt?' · Dilanjutkan: '+amanKonteksTiket_(waktuKonteksTiket_(e.closedAt)):'')+'</p>'
+   ? (e.closedAt?'<p>Dilanjutkan: '+amanKonteksTiket_(waktuKonteksTiket_(e.closedAt))+'</p>':'')
    : '<p>'+amanKonteksTiket_(e.from)+' → '+amanKonteksTiket_(e.to)+'</p><p>'+amanKonteksTiket_(e.handover)+'</p>';
-  return '<article><strong>'+amanKonteksTiket_(labelKonteksTiket_(e.kind,e.category))+'</strong><small>'+amanKonteksTiket_(waktuKonteksTiket_(e.at))+' · '+amanKonteksTiket_(e.actorName)+'</small><p>'+amanKonteksTiket_(e.reason)+'</p>'+detail+'<small>Bukti: '+amanKonteksTiket_(e.evidence)+' · sebab menunggu tinjauan penilaian</small></article>';
+  return '<article><strong>'+amanKonteksTiket_(labelKonteksTiket_(e.kind,e.category))+'</strong><small>'+amanKonteksTiket_(waktuKonteksTiket_(e.at))+' · '+amanKonteksTiket_(e.actorName)+'</small><p>'+amanKonteksTiket_(e.reason)+'</p>'+detail+(e.kind==='pending'&&e.evidence?'<small>Bukti: '+amanKonteksTiket_(e.evidence)+'</small>':'')+'<small>Sebab menunggu tinjauan penilaian</small></article>';
  });
  return '<details class="workflow-history"><summary>Alasan pending & serah terima · '+events.length+' catatan</summary>'+articles.join('')+'</details>';
 }

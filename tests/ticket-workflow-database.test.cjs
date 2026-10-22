@@ -1,10 +1,10 @@
 const {test,before,after}=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto'),{workflowFixture}=require('../maintenance/ticket-workflow-test-fixture.cjs');let f;
 before(async()=>f=await workflowFixture());after(async()=>f?.db.close());
 test('pending saves status + structured reason + actor in one transaction, preserving SLA pause and grade/bonus',async()=>{
- const old=await f.row();await f.act('pending',f.pending,{status:'Pending',keterangan:'Riwayat palsu pengganti'},'tech');const t=await f.row(),e=t.konteks_pekerjaan.events[0];assert.equal(t.status,'Pending');assert.equal(t.status_sla,'DIPENDING');assert.ok(t.sla_jeda_mulai);assert.ok(t.keterangan.startsWith(old.keterangan));assert.ok(!t.keterangan.includes('Riwayat palsu'));assert.equal(e.actor,'tech');assert.equal(e.reviewStatus,'unreviewed');assert.equal(e.category,'parts_vendor');assert.equal(t.bobot_poin,old.bobot_poin);assert.equal(t.penilaian_teknisi,old.penilaian_teknisi);assert.equal(t.versi_workflow,old.versi_workflow+1);
+ const old=await f.row();await f.act('pending',f.pending,{status:'Pending',keterangan:'Riwayat palsu pengganti'},'tech');const t=await f.row(),e=t.konteks_pekerjaan.events[0];assert.equal(t.status,'Pending');assert.equal(t.status_sla,'DIPENDING');assert.ok(t.sla_jeda_mulai);assert.ok(t.keterangan.startsWith(old.keterangan));assert.ok(!t.keterangan.includes('Riwayat palsu'));assert.equal(e.actor,'tech');assert.equal(e.reviewStatus,'unreviewed');assert.equal(e.category,'parts_vendor');assert.equal(Object.hasOwn(e,'followUpAt'),false);assert.equal(t.bobot_poin,old.bobot_poin);assert.equal(t.penilaian_teknisi,old.penilaian_teknisi);assert.equal(t.versi_workflow,old.versi_workflow+1);
 });
 test('incomplete pending, wrong branch/role, salary/bonus fields and stale versions never partially update',async()=>{
- const before=await f.row();for(const context of [{...f.pending,category:''},{...f.pending,evidence:''},{...f.pending,followUpAt:'2000-01-01T00:00:00Z'}])await assert.rejects(f.act('pending',context));
+ const before=await f.row();for(const context of [{...f.pending,category:''},{...f.pending,evidence:''}])await assert.rejects(f.act('pending',context));
  await assert.rejects(f.act('pending',f.pending,{status:'Pending'},'raha'),/Cabang/);await assert.rejects(f.act('pending',f.pending,{status:'Pending'},'logistik'),/berhak/);
  await assert.rejects(f.act('pending',f.pending,{status:'Pending',bobot_poin:999}),/Kolom/);
  await assert.rejects(f.act('pending',f.pending,{status:'Pending'},'admin','TKT-1',before.versi_workflow-1),/sudah berubah/);assert.deepEqual(await f.row(),before);
@@ -19,7 +19,7 @@ test('legacy resume continues remaining SLA and closes facts automatically witho
 });
 test('admin replacement records reason and handover and keeps the outgoing SLA episode; technicians cannot decide assignment',async()=>{
  const before=await f.row();await assert.rejects(f.act('replacement',f.replacement,{teknisi:'Teknisi B'},'tech'),/berhak/);await assert.rejects(f.act('replacement',{...f.replacement,handover:''},{teknisi:'Teknisi B'}),/hasil dan sisa/);
- await f.act('replacement',f.replacement,{teknisi:'Teknisi B'});const t=await f.row(),e=t.konteks_pekerjaan.events.at(-1);assert.equal(e.from,before.teknisi);assert.equal(e.to,'Teknisi B');assert.equal(e.reason,f.replacement.reason);assert.equal(e.handover,f.replacement.handover);assert.equal(t.teknisi_sebelumnya,before.teknisi);assert.equal(t.tenggat_pengganti.getTime(),t.tenggat_waktu.getTime());assert.equal(t.waktu_respon,null);
+ await f.act('replacement',f.replacement,{teknisi:'Teknisi B'});const t=await f.row(),e=t.konteks_pekerjaan.events.at(-1);assert.equal(e.from,before.teknisi);assert.equal(e.to,'Teknisi B');assert.equal(e.reason,f.replacement.reason);assert.equal(e.handover,f.replacement.handover);assert.equal(Object.hasOwn(e,'evidence'),false);assert.equal(t.teknisi_sebelumnya,before.teknisi);assert.equal(t.tenggat_pengganti.getTime(),t.tenggat_waktu.getTime());assert.equal(t.waktu_respon,null);
  assert.equal(t.riwayat_penggantian_teknisi.at(-1).dari,before.teknisi);assert.equal((await f.db.query('select * from sla_performa_episode order by id desc limit 1')).rows[0].teknisi,before.teknisi);
 });
 test('adding assistance without requesting a fresh SLA preserves the existing assignment clock',async()=>{
