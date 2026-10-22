@@ -152,7 +152,7 @@ test('partial failures and transport errors identify undelivered recipients accu
     });
     await context.kirimFollowUpTiket('TKT-UJI');
     assert.equal(calls.filter(c => c.action).length, 2);
-    assert.match(toasts.at(-1).message, /dikirim ke Muhammad Syawal[\s\S]*Gagal dikirim ke Budi/);
+    assert.match(toasts.at(-1).message, /diterima sistem untuk Muhammad Syawal[\s\S]*Gagal dikirim ke Budi/);
     assert.equal(toasts.at(-1).type, 'error');
   }
 });
@@ -227,4 +227,3 @@ test('TKT-153 reduced-team server assignment keeps Muaz eligible without notifyi
  const h=harness({row:{teknisi:'Muaz',teknisi_sebelumnya:null,riwayat_penggantian_teknisi:[{dari:'Ardi S, Muaz',ke:'Muaz',sumber:'server'}]},users:[{Role:'teknisi',Username:'Muaz','Nama Asli':'Muaz','No WA':'081234567891',Cabang:'Kendari'}]});
  await h.context.kirimFollowUpTiket('TKT-UJI');assert.deepEqual(h.calls.filter(c=>c.action).map(c=>c.payload.nomorTujuan),['6281234567891']);assert.match(h.calls[1].payload.pesan,/Teknisi: Muaz\n/);assert.doesNotMatch(h.calls[1].payload.pesan,/Ardi S/);assert.doesNotMatch(h.context.tombolFollowUpTiket_(h.context.globalTickets[0]),/disabled/);
 });
-

@@ -1,5 +1,10 @@
 # Gateway integrasi lama
 
+> Digantikan pada 22 Oktober 2026. `sla-legacy-gateway` kini mengimpor layanan
+> Supabase yang sama dengan `sla-operations`; tidak ada forwarding ke GAS.
+> Lihat `maintenance/operations-supabase.md`. Bagian berikut adalah riwayat
+> implementasi sebelum pengalihan.
+
 Halaman aplikasi tidak menyimpan kunci integrasi operasional. Empat tindakan yang masih memakai Apps Script (`relayWA`, `syncCRM`, `broadcastCRM`, `laporBug`) dikirim ke `sla-legacy-gateway`. API profil, klaim sales, tiket, payroll, garansi dan tracking pelanggan tetap memakai layanan Supabase masing-masing.
 
 Gateway memverifikasi JWT melalui Supabase Auth, mengambil profil berdasarkan `auth_id`, dan memeriksa role serta cabang sebelum mengakses integrasi. Identitas pengguna di payload diganti dengan hasil verifikasi server. Daftar tujuan Apps Script dan kunci dibaca dari satu konfigurasi JSON privat pada Supabase Vault bernama `sla_legacy_gateway`. Nilainya tidak dicantumkan dalam migrasi, source, dokumentasi, maupun respons browser.

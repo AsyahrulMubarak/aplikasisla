@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.vercel.app https://*.supabase.co wss://*.supabase.co https://alfacom-kpi.alfacomapp.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.vercel.app https://*.supabase.co wss://*.supabase.co https://alfacom-kpi.alfacomapp.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
     <title>Sistem Manajemen SLA</title>
     <link rel="stylesheet" href="./sales-workspace.css?v=20261022a">
     <script src="./sales-workspace.js?v=20261022a" defer></script>
@@ -1729,9 +1729,9 @@
     </div>
 
     <script>
-        // Endpoint Apps Script untuk integrasi operasional yang masih digunakan.
-        const API_URL_KENDARI = 'https://script.google.com/macros/s/AKfycbwSM1xnhkQPAyK0P_menZjmuix77t6yqErHwVi3FFCGPcCD4GSogHGbIxTepZWmIFey/exec';
-        const API_URL_RAHA = 'https://script.google.com/macros/s/AKfycbzjOMSbHiONjt9w16TzuYNxeDUMjqwKU5W6sdRpDatEnwcITZjFY-u3TxN8RYIuvWj5/exec';
+        // Identitas cabang; seluruh integrasi operasional memakai Supabase.
+        const API_URL_KENDARI = 'Kendari';
+        const API_URL_RAHA = 'Raha';
         const API_AUTH_URL = API_URL_KENDARI;
         const API_URL_CABANG = Object.freeze({ Kendari: API_URL_KENDARI, Raha: API_URL_RAHA });
         let apiUrl = API_URL_KENDARI;
@@ -1869,7 +1869,7 @@
                 return kirimKlaimSalesSupabase_(action, payload);
             }
             const cabangTujuan = Object.keys(API_URL_CABANG).find(cabang => API_URL_CABANG[cabang] === url) || cabangAktif;
-            const request = Object.assign({}, payload || {}, { action: action, cabang: cabangTujuan });
+            const request = Object.assign({ requestId: crypto.randomUUID() }, payload || {}, { action: action, cabang: cabangTujuan });
             let token = '';
             if (perluSesi) {
                 if (!penggunaAktif || !penggunaAktif.Username || !penggunaAktif.SessionToken) {
@@ -1881,10 +1881,10 @@
 
             // Use POST with credentials
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), ['ajukanBanding', 'responBanding'].includes(action) ? 60000 : 25000);
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
 
             try {
-                const response = await fetch(SUPABASE_URL + '/functions/v1/sla-legacy-gateway', Object.assign({
+                const response = await fetch(SUPABASE_URL + '/functions/v1/sla-operations', Object.assign({
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token },
                     body: JSON.stringify(request),
@@ -1899,17 +1899,15 @@
                     throw new Error('CORS blocked: Cannot connect to server. Please check deployment.');
                 }
 
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
                 let hasil;
                 try { hasil = await response.json(); }
                 catch (error) { throw new Error('Server mengembalikan respons yang tidak valid.'); }
-                if (hasil && hasil.status === 'gagal') throw new Error(hasil.pesan || 'Permintaan ditolak server.');
+                if (!response.ok || hasil && hasil.status === 'gagal') throw new Error(hasil && hasil.pesan || 'Permintaan ditolak server.');
                 return hasil;
             } catch (error) {
                 clearTimeout(timeoutId);
                 if (error.name === 'AbortError') {
-                    throw new Error('Server tidak merespons dalam 25 detik. Periksa koneksi atau coba lagi nanti.');
+                    throw new Error('Server belum merespons dalam 60 detik. Periksa status sebelum mengulangi pengiriman.');
                 }
                 throw error;
             }
@@ -2581,7 +2579,7 @@
                 const hasilPengiriman = await Promise.all(Array.from(nomorTujuan).map(async nomorWa => {
                     try {
                         const hasil = await kirimKeBackend_(apiUrl, 'relayWA', { nomorTujuan: nomorWa, pesan: pesan });
-                        return !!(hasil && hasil.status === 'sukses' && hasil.terkirim === true);
+                        return !!(hasil && hasil.status === 'sukses' && (hasil.terkirim === true || hasil.terantre === true));
                     } catch (error) {
                         console.error(`Relay WhatsApp ke ${nomorWa} gagal:`, error);
                         return false;
@@ -2601,7 +2599,7 @@
                 if (!/^628\d{7,12}$/.test(nomorTujuan) || !String(pesan || '').trim()) return { terkirim: 0, gagal: 0 };
 
                 const hasil = await kirimKeBackend_(apiUrl, 'relayWA', { nomorTujuan: nomorTujuan, pesan: pesan });
-                const berhasil = !!(hasil && hasil.status === 'sukses' && hasil.terkirim === true);
+                const berhasil = !!(hasil && hasil.status === 'sukses' && (hasil.terkirim === true || hasil.terantre === true));
                 return { terkirim: berhasil ? 1 : 0, gagal: berhasil ? 0 : 1 };
             } catch (error) {
                 console.error('Pengiriman notifikasi WhatsApp eksternal gagal:', error);
@@ -4358,14 +4356,16 @@
         }
 
 
-        function bukaModalBug() { document.getElementById('bug-deskripsi').value = ''; document.getElementById('bug-bukti').value = ''; document.getElementById('modal-bug').style.display = 'flex'; }
+        let idPermintaanBug_ = '';
+        function bukaModalBug() { idPermintaanBug_ = crypto.randomUUID(); document.getElementById('bug-deskripsi').value = ''; document.getElementById('bug-bukti').value = ''; document.getElementById('modal-bug').style.display = 'flex'; }
 
         async function kirimBug(e) {
             e.preventDefault(); const btn = document.getElementById('btn-submit-bug'); btn.innerText = 'Mengirim Laporan...'; btn.disabled = true;
             try {
                 const deskripsi = document.getElementById('bug-deskripsi').value; const fileInput = document.getElementById('bug-bukti'); let base64Bukti = '';
                 if (fileInput.files.length > 0) { base64Bukti = await prosesUploadBebas(fileInput.files[0]); }
-                await kirimKeBackend_(apiUrl, 'laporBug', { deskripsi: deskripsi, buktiBug: base64Bukti });
+                const laporan = await kirimKeBackend_(apiUrl, 'laporBug', { deskripsi: deskripsi, buktiBug: base64Bukti, requestId: idPermintaanBug_ || (idPermintaanBug_ = crypto.randomUUID()) });
+                if (laporan.peringatan) showToast(laporan.peringatan, 'warning');
                 showToast('Alhamdulillah! Laporan bug terkirim.', 'success'); document.getElementById('modal-bug').style.display = 'none';
             } catch (err) { showToast('Afwan, Gagal mengirim laporan.', 'error'); } finally { btn.innerText = 'Kirim Laporan'; btn.disabled = false; }
         }
@@ -6823,14 +6823,14 @@
                 for (const tujuan of penerima) {
                     try {
                         const respons = await kirimKeBackend_(API_URL_CABANG[cabang], 'relayWA', { nomorTujuan: tujuan.nomor, pesan });
-                        hasil.push({ nama: tujuan.nama, terkirim: !!(respons && respons.status === 'sukses' && respons.terkirim === true) });
+                        hasil.push({ nama: tujuan.nama, terkirim: !!(respons && respons.status === 'sukses' && (respons.terkirim === true || respons.terantre === true)) });
                     } catch (error) {
                         hasil.push({ nama: tujuan.nama, terkirim: false });
                     }
                 }
                 const terkirim = hasil.filter(item => item.terkirim).map(item => item.nama);
                 const gagal = hasil.filter(item => !item.terkirim).map(item => item.nama);
-                showToast(`${terkirim.length ? 'Follow Up dikirim ke ' + terkirim.join(', ') + '.' : 'Follow Up belum terkirim.'}${gagal.length ? ' Gagal dikirim ke ' + gagal.join(', ') + '. Periksa layanan WA sebelum mengirim ulang.' : ''}`, gagal.length ? 'error' : 'success');
+                showToast(`${terkirim.length ? 'Follow Up diterima sistem untuk ' + terkirim.join(', ') + '.' : 'Follow Up belum terkirim.'}${gagal.length ? ' Gagal dikirim ke ' + gagal.join(', ') + '. Periksa status layanan WA sebelum mengirim ulang.' : ''}`, gagal.length ? 'error' : 'success');
                 return { terkirim, gagal };
             } catch (error) {
                 showToast(error.message || 'Follow Up gagal dikirim.', 'error');
