@@ -8,6 +8,8 @@
     <meta http-equiv="Expires" content="0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.vercel.app https://*.supabase.co wss://*.supabase.co https://alfacom-kpi.alfacomapp.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
     <title>Sistem Manajemen SLA</title>
+    <link rel="stylesheet" href="./sales-workspace.css?v=20261022a">
+    <script src="./sales-workspace.js?v=20261022a" defer></script>
     <link rel="stylesheet" href="./ticket-assessment.css?v=20261021a">
     <script src="./ticket-assessment.js?v=20261021b" defer></script>
     <link rel="stylesheet" href="./ticket-workflow.css?v=20261021a">
@@ -691,9 +693,9 @@
         }
 
         .warranty-item-editor { display:grid; gap:12px; }
-        .warranty-item-input { display:grid; grid-template-columns:minmax(0,1fr) 110px 65px; gap:10px; align-items:end; padding:12px; border:1px solid var(--border); border-radius:10px; }
+        .warranty-item-input { display:grid; grid-template-columns:minmax(0,1fr) 170px 65px; gap:10px; align-items:end; padding:12px; border:1px solid var(--border); border-radius:10px; }
         .warranty-item-input label { margin:0; font-size:12px; min-width:0; }
-        .warranty-item-input input { margin:6px 0 0; box-sizing:border-box; width:100%; }
+        .warranty-item-input input, .warranty-item-input select { margin:6px 0 0; box-sizing:border-box; width:100%; }
         .warranty-item-input button { margin:0 0 2px; min-height:40px; }
         .warranty-item-summary { margin:14px 0 8px; font-weight:600; color:var(--primary); font-size:13px; }
         .warranty-coverage-list { list-style:none; padding:0; margin:0; }
@@ -705,7 +707,7 @@
         .warranty-claim-option span { min-width:0; overflow-wrap:anywhere; }
         .warranty-claim-history { margin:14px 0; font-size:12px; overflow-wrap:anywhere; }
         .warranty-claim-history li { margin:10px 0; line-height:1.6; }
-        @media (max-width:600px) { .warranty-item-input { grid-template-columns:minmax(0,1fr) 90px; } .warranty-item-input > button { grid-column:1 / -1; } .warranty-coverage-row { flex-direction:column; gap:6px; } }
+        @media (max-width:600px) { .warranty-item-input { grid-template-columns:minmax(0,1fr); } .warranty-item-input > button { justify-self:end; width:auto; } .warranty-coverage-row { flex-direction:column; gap:6px; } }
     </style>
 </head>
 <body>
@@ -1007,18 +1009,31 @@
         </div>
     </div>
 
-    <div id="modal-followup" class="modal">
-        <div class="modal-content" style="border-top:4px solid #0f766e;">
-            <h3 class="modal-title" style="color:#0f766e;">💬 Catat Follow Up CRM</h3>
-            <form onsubmit="submitFollowUp(event)">
+    <div id="modal-followup" class="modal" role="dialog" aria-modal="true" aria-labelledby="sales-followup-title">
+        <div class="modal-content sales-followup">
+            <h3 id="sales-followup-title">Catat tindak lanjut</h3>
+            <div class="sales-steps" aria-label="Tahapan pengisian"><div class="sales-step" data-sales-marker="1" aria-current="step">1 · Hasil kontak</div><div class="sales-step" data-sales-marker="2">2 · Bukti & jadwal</div><div class="sales-step" data-sales-marker="3">3 · Periksa & simpan</div></div>
+            <div class="sales-customer" id="followup-customer"></div>
+            <form id="sales-followup-form" novalidate>
                 <input type="hidden" id="followup-id-prospek">
-                <label>Keterangan Follow Up</label>
-                <textarea id="followup-keterangan" rows="4" placeholder="Tuliskan hasil komunikasi, kebutuhan terbaru, atau rencana tindak lanjut..." required></textarea>
-                <label>Bukti Chat</label>
-                <input type="file" id="followup-bukti" accept="image/*" required style="font-size:12px;">
-                <p id="followup-status" style="font-size:11px; color:#0f766e; font-weight:600; display:none; margin-top:10px;">Mengompres dan mengirim bukti chat, mohon tunggu...</p>
-                <button type="submit" id="btn-submit-followup" class="btn-solid-primary" style="background:#0f766e;">Simpan Follow Up</button>
-                <button type="button" class="btn-outline-cancel" onclick="document.getElementById('modal-followup').style.display='none'">Batal</button>
+                <fieldset id="followup-fields">
+                    <div data-sales-step="1" class="sales-fields">
+                        <div class="sales-two"><label>Cara menghubungi<select id="followup-kanal"><option>WhatsApp</option><option>Telepon</option><option>Kunjungan</option><option>Email</option></select></label><label>Waktu kontak · WITA<input id="followup-waktu" type="datetime-local" required></label></div>
+                        <label>Hasil kontak *<select id="followup-hasil" required><option value="">Pilih hasil kontak</option><option>Kunjungan Toko</option><option>Tertarik / meminta penawaran</option><option>Menunggu keputusan</option><option>Belum merespons</option><option>Tidak berminat</option></select></label>
+                        <div><label for="followup-keterangan">Ringkasan percakapan *</label><textarea id="followup-keterangan" rows="4" maxlength="1000" placeholder="Contoh: Pelanggan setuju dengan SSD 512 GB. Minta penawaran dikirim sore ini." required aria-describedby="followup-summary-help"></textarea><p class="sales-muted" id="followup-summary-help">Cukup tulis kebutuhan pelanggan dan hasil pembicaraan.</p></div>
+                    </div>
+                    <div data-sales-step="2" class="sales-fields" hidden>
+                        <div><label id="followup-proof-label">Bukti tindak lanjut *</label><div class="sales-radio"><label><input type="radio" name="sales-proof-kind" value="file" checked>Unggah file</label><label><input type="radio" name="sales-proof-kind" value="link">Tautan bukti</label></div></div>
+                        <div id="followup-file-zone" class="sales-upload"><label for="followup-bukti">Screenshot, log panggilan, atau foto kunjungan</label><p class="sales-muted">JPG, PNG, WEBP, atau PDF · maksimal 10 MB</p><input type="file" id="followup-bukti" accept="image/jpeg,image/png,image/webp,application/pdf"><div id="followup-proof-name" class="sales-proof-name" aria-live="polite">Belum ada file dipilih.</div><img id="followup-preview" class="sales-proof-preview" alt="Pratinjau bukti tindak lanjut" hidden></div>
+                        <div id="followup-link-zone" hidden><label>Tautan file atau percakapan<input type="url" id="followup-link" placeholder="https://..."></label><p class="sales-muted">Pastikan peninjau memiliki akses ke tautan tersebut.</p></div>
+                        <div id="followup-next-fields" class="sales-two"><label>Langkah berikutnya *<select id="followup-langkah"><option value="">Pilih tindakan</option><option>Kirim penawaran</option><option>Hubungi kembali</option><option>Jadwalkan kunjungan</option><option>Konfirmasi pembayaran</option></select></label><label>Jadwal berikutnya · WITA *<input type="datetime-local" id="followup-jadwal"></label></div>
+                        <p id="followup-finished" class="sales-muted" hidden>Pelanggan tidak berminat. Jadwal tindak lanjut berikutnya tidak diperlukan.</p>
+                    </div>
+                    <div data-sales-step="3" hidden><h3>Periksa catatan sebelum disimpan</h3><dl class="sales-review" id="followup-review"></dl><p class="sales-review-note">Satu pelanggan dihitung sekali per hari. Bukti disimpan pada catatan ini dan tidak menimpa bukti prospek sebelumnya.</p></div>
+                </fieldset>
+                <p id="followup-error" class="sales-message" role="alert"></p>
+                <div class="sales-footer"><span id="followup-step-label" class="sales-muted">Langkah 1 dari 3</span><div class="sales-actions"><button type="button" id="followup-prev" class="btn-outline-cancel" hidden>Sebelumnya</button><button type="submit" id="btn-submit-followup" class="btn-solid-primary">Lanjut: bukti & jadwal</button></div></div>
+                <button type="button" id="followup-close" class="btn-outline-cancel">Batal</button>
             </form>
         </div>
     </div>
@@ -1330,6 +1345,7 @@
         </div>
 
         <div id="page-prospek" class="tab-page">
+            <section id="sales-workspace" class="sales-workspace" aria-label="Target dan tindak lanjut sales" hidden></section>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:var(--success);">Data Prospek (Leads)</h3>
                 <button id="btn-tambah-prospek" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:var(--success);" onclick="bukaFormProspek()">+ Input Prospek</button>
@@ -1388,11 +1404,10 @@
                         <div class="checkbox-group" id="prospek-sales-group"></div>
                     </div>
 
-                    <label>Status Prospek</label>
+                    <label id="prospek-status-label">Status Prospek</label>
                     <select id="prospek-status" required onchange="cekStatusProspek()">
                         <option value="Tahap Penawaran">📝 Tahap Penawaran</option>
                         <option value="Kunjungan Toko">🏪 Kunjungan Toko</option>
-                        <option value="Closing / Deal">✅ Closing / Deal</option>
                     </select>
 
                     <!-- ESTIMASI TOTAL OTOMATIS -->
@@ -2680,7 +2695,7 @@
         }
 
         function statusProspekDariStatusTiket_(status) {
-            return ({'on progress':'On Progress', 'pending':'Pending', 'selesai':'Closing / Deal', 'closed':'Closing / Deal', 'cancel':'Batal', 'batal':'Batal'})[String(status || '').trim().toLowerCase()] || '';
+            return ({'on progress':'On Progress', 'pending':'Pending', 'selesai':'Closing / Deal', 'closed':'Closing / Deal', 'closing':'Closing / Deal', 'cancel':'Batal', 'batal':'Batal'})[String(status || '').trim().toLowerCase()] || '';
         }
 
         function pilihProspekUntukTiket_(daftar, tiket) {
@@ -6421,6 +6436,7 @@
                 }
                 if (u && u.Role === 'sales' && u['Nama Asli']) {
                     let namaSales = u['Nama Asli']; let rawTarget = u['Target Sales (Rp)'] || u['Target Sales'] || u['Target Penjualan'] || u['Target'] || 0;
+                    if (typeof SalesWorkspace !== 'undefined') rawTarget = SalesWorkspace.revenueTarget(u, selBulan, selTahun, rawTarget);
                     if (!statsSales[namaSales]) { statsSales[namaSales] = { nama: namaSales, target: nilaiDashboard_(rawTarget), revenue: 0, total: 0, selesai:0, progress:0, batal:0, potensi_omzet: 0, prospek_deal: 0, prospek_batal: 0 }; }
                 }
             });
@@ -7356,11 +7372,12 @@
             const baris = document.createElement('div');
             baris.className = 'warranty-item-input';
             baris.dataset.itemId = item.id || crypto.randomUUID();
-            const hari = Number(item.durasi_hari ?? (wadah.dataset.datesLocked === 'true' ? wadah.dataset.originalDays : 7) ?? 7);
+            const nilaiAwal = item.durasi_hari ?? (wadah.dataset.datesLocked === 'true' ? wadah.dataset.originalDays : '');
+            const hari = nilaiAwal === '' ? '' : Number(nilaiAwal);
             const terkunci = wadah.dataset.datesLocked === 'true';
             const nomor = wadah.children.length + 1;
             baris.innerHTML = `<label>Item ${nomor}<input class="warranty-item-name" type="text" maxlength="500" required placeholder="Nama barang / jasa dan nomor seri/unit" value="${amanTeks_(item.nama || '')}"></label>
-                <label>Durasi (hari)<input class="warranty-item-days" type="number" min="0" max="36500" step="1" required value="${hari}" ${terkunci ? 'readonly' : ''}></label>
+                <label>Durasi garansi<select class="warranty-item-days" required ${terkunci ? 'disabled' : ''}>${[['','Pilih durasi'],[0,'Tanpa garansi'],[7,'7 hari'],[14,'14 hari'],[30,'30 hari'],[60,'2 bulan'],[90,'3 bulan'],[180,'6 bulan'],[365,'1 tahun'],[730,'2 tahun']].concat(hari !== '' && ![0,7,14,30,60,90,180,365,730].includes(hari) ? [[hari,hari+' hari (tersimpan)']] : []).map(([nilai,label])=>'<option value="'+nilai+'"'+(String(nilai)===String(hari)?' selected':'')+'>'+label+'</option>').join('')}</select></label>
                 <button type="button" class="btn-del" aria-label="Hapus item ${nomor}" onclick="hapusBarisItemGaransi_(this)">Hapus</button>`;
             wadah.appendChild(baris);
         }
@@ -7973,7 +7990,8 @@
             if (judul) judul.innerText = 'Input Prospek Baru';
             if (btn) { btn.innerText = 'Simpan Prospek'; btn.disabled = false; }
             if (buktiChat) buktiChat.required = true;
-            if (status) status.querySelectorAll('.prospek-status-dinamis').forEach(option => option.remove());
+            if (status) { status.querySelectorAll('.prospek-status-dinamis').forEach(option => option.remove()); status.disabled=false; status.style.display=''; }
+            const labelStatus = document.getElementById('prospek-status-label'); if(labelStatus) labelStatus.style.display='';
             if (salesGroup) salesGroup.querySelectorAll('.prospek-sales-dinamis').forEach(label => label.remove());
         }
 
@@ -8027,6 +8045,10 @@
                 selectStatus.appendChild(optionStatus);
             }
             selectStatus.value = statusProspek;
+            if (/closing|deal|on progress|pending/i.test(statusProspek)) {
+                selectStatus.disabled = true;
+                if (rolePengguna() === 'sales') { selectStatus.style.display='none'; document.getElementById('prospek-status-label').style.display='none'; }
+            }
 
             const barisKebutuhan = String(p['Kebutuhan'] || '').split(/\r?\n/).map(item => item.trim()).filter(Boolean);
             const kebutuhanLama = barisKebutuhan.length ? barisKebutuhan : [''];
@@ -8305,7 +8327,6 @@
                             <select id="update-prospek-${p['ID Prospek']}" style="flex:1; padding:6px; font-size:12px;">
                                 <option value="Tahap Penawaran" ${textStatus.includes('Penawaran')?'selected':''}>Tahap Penawaran</option>
                                 <option value="Kunjungan Toko" ${textStatus.includes('Kunjungan')?'selected':''}>Kunjungan Toko</option>
-                                <option value="Closing / Deal" ${textStatus.includes('Closing')?'selected':''}>Closing / Deal</option>
                                 ${statusAkhirOptions}
                             </select>
                             <button class="btn-solid-primary" style="margin:0; width:auto; padding:6px 12px; font-size:11px;" onclick="updateStatusProspek('${p['ID Prospek']}')">Simpan</button>
@@ -8416,56 +8437,18 @@
                 tambahkanHtmlAman_(container, `<div class="card ${sc}"><h3><span>${p['ID Prospek']}</span><span class="badge ${bc}">${textStatus}</span></h3><p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Calon Customer:</strong> ${p['Nama Calon Customer']}</p>${waHtml}<p><strong>Kebutuhan:</strong> ${p['Kebutuhan']}</p><p><strong>Sales:</strong> ${p['Sales Penanggung Jawab']}</p>${estimasiHtml}${buktiChatHtml}${penawaranHtml}${htmlSlaPenawaran}${riwayatFollowUpHtml}${btnHtml}</div>`);
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Belum ada daftar calon customer (Leads).</p>';
+            if (typeof SalesWorkspace !== 'undefined') void SalesWorkspace.refresh();
         }
 
         function bukaModalFollowUp(idProspek) {
-            document.getElementById('followup-id-prospek').value = idProspek;
-            document.getElementById('followup-keterangan').value = '';
-            document.getElementById('followup-bukti').value = '';
-            document.getElementById('followup-status').style.display = 'none';
-            document.getElementById('modal-followup').style.display = 'flex';
+            if (typeof SalesWorkspace !== 'undefined') return SalesWorkspace.open(idProspek);
+            showToast('Form tindak lanjut belum dimuat. Muat ulang halaman.','error');
         }
 
         async function submitFollowUp(e) {
+            if (typeof SalesWorkspace !== 'undefined') return SalesWorkspace.save(e);
             e.preventDefault();
-            const idProspek = document.getElementById('followup-id-prospek').value;
-            const keterangan = document.getElementById('followup-keterangan').value.trim();
-            const fileInput = document.getElementById('followup-bukti');
-            const btn = document.getElementById('btn-submit-followup');
-            const statusInfo = document.getElementById('followup-status');
-
-            if (!keterangan) { showToast('Afwan, Keterangan Follow Up wajib diisi.', 'warning'); return; }
-            if (!fileInput.files.length) { showToast('Afwan, Bukti chat wajib dipilih.', 'warning'); return; }
-
-            btn.disabled = true;
-            btn.innerText = 'Mengompres & Menyimpan...';
-            statusInfo.style.display = 'block';
-
-            try {
-                const buktiFollowUp = await prosesUploadBebas(fileInput.files[0]);
-                const prospek = (globalProspek || []).find(item => item && String(item['ID Prospek']).trim() === String(idProspek).trim());
-                if (!prospek) throw new Error(`Prospek ${idProspek} tidak ditemukan.`);
-                const waktuFollowUp = new Date();
-                const waktuTeks = waktuFollowUp.toLocaleString('id-ID');
-                const riwayatBaru = `[${waktuTeks}] ${penggunaAktif ? penggunaAktif['Nama Asli'] : '-'}\nKeterangan: ${keterangan}\nBukti: tersimpan pada kolom bukti_chat`;
-                const riwayatLama = String(prospek['Riwayat Follow Up'] || '').trim();
-                const payload = {
-                    waktu_follow_up_terakhir: tanggalIsoSupabase_(waktuFollowUp),
-                    riwayat_follow_up: riwayatLama ? `${riwayatLama}\n\n${riwayatBaru}` : riwayatBaru,
-                    bukti_chat: buktiFollowUp
-                };
-                const hasil = await callSupabase(endpointFilterSupabase_('prospek', 'id_prospek', idProspek), 'PATCH', payload);
-                pastikanHasilMutasiSupabase_(hasil, `Prospek ${idProspek}`);
-                showToast('Alhamdulillah! Follow Up berhasil dicatat.', 'success');
-                document.getElementById('modal-followup').style.display = 'none';
-                await ambilSemuaData(true);
-            } catch (err) {
-                showToast('Afwan, Gagal menyimpan Follow Up: ' + err.message, 'error');
-            } finally {
-                statusInfo.style.display = 'none';
-                btn.disabled = false;
-                btn.innerText = 'Simpan Follow Up';
-            }
+            return showToast('Form tindak lanjut belum dimuat. Muat ulang halaman.','error');
         }
 
         async function submitProspek(e) {
@@ -8521,6 +8504,9 @@
                 let finalKebutuhan = stringKebutuhan.join('\n'); // Pisahkan tiap barang dengan Enter (Baris Baru)
 
                 const nilaiEstimasi = document.getElementById('prospek-nominal').value;
+                const statusDiminta = document.getElementById('prospek-status').value;
+                const prospekStatusLama = sedangEditProspek ? (globalProspek || []).find(p => p['ID Prospek'] === idPrp) : null;
+                if (/closing|deal/i.test(statusDiminta) && !/closing|deal/i.test(prospekStatusLama?.['Status Prospek'] || '')) throw new Error('Closing mengikuti status tiket secara otomatis.');
                 const cabangAktual = normalisasiCabang(cabangAktif) || 'Kendari';
                 const payload = {
                     nama_calon_customer: document.getElementById('prospek-nama').value,
@@ -8558,8 +8544,8 @@
         async function updateStatusProspek(id) {
             const newVal = document.getElementById('update-prospek-'+id).value;
             const prospek = (globalProspek || []).find(item => item && String(item['ID Prospek'] || '').trim() === String(id || '').trim());
-            const statusDiizinkan = new Set(['Tahap Penawaran', 'Kunjungan Toko', 'Closing / Deal', 'Batal', 'Tanpa Keterangan']);
-            if (!prospek || !statusDiizinkan.has(newVal)) {
+            const statusDiizinkan = new Set(['Tahap Penawaran', 'Kunjungan Toko', 'Batal', 'Tanpa Keterangan']);
+            if (!prospek || !statusDiizinkan.has(newVal) || /closing|deal/i.test(prospek['Status Prospek'] || '')) {
                 showToast('Afwan, Prospek atau status yang dipilih tidak valid.', 'error');
                 return;
             }
@@ -10667,4 +10653,5 @@
 
 <script src="employee-account.js?v=20261022"></script>
 <script src="ticket-admin-whatsapp.js?v=20261022"></script>
+
 
