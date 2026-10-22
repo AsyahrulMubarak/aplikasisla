@@ -15,7 +15,7 @@ test('profile Edge disables/reactivates same Auth identity, retries Auth failure
 });
 test('all eight employee Edge entrypoints check live session before reading privileged data',async()=>{
  for(const slug of ['sla-profile','sla-payroll-attendance','sla-operations','sla-ticket-assessment','sla-ticket-workflow','sla-performance-credit','sla-client-tracking','kpi-api']){
-  const cached=__dirname+'/../tmp/account-access-release/edges/'+slug+'/index.ts',source=fs.existsSync(cached)?cached:__dirname+'/../'+(slug==='kpi-api'?'aplikasi kpi/':'')+'supabase/functions/'+slug+'/index.ts';
+  const cached=__dirname+'/../tmp/account-access-release/edges/'+slug+'/index.ts',source=slug==='kpi-api'&&fs.existsSync(cached)?cached:__dirname+'/../'+(slug==='kpi-api'?'aplikasi kpi/':'')+'supabase/functions/'+slug+'/index.ts';
   let s=fs.readFileSync(source,'utf8').replace(/^import[^\n]+\n/gm,'');const calls=[];
   const c=vm.createContext({console,Response,Request,AbortSignal,URL,URLSearchParams,TextEncoder,Uint8Array,Date,Intl,crypto,atob,btoa,setTimeout,clearTimeout,Deno:{env:{get:n=>({SUPABASE_URL:'https://db.test',SUPABASE_SERVICE_ROLE_KEY:'service-test',SUPABASE_ANON_KEY:'public-test'})[n]},serve(){}},fetch:async(url,o)=>{calls.push(String(url));if(String(url).includes('/auth/v1/user'))return Response.json({id:'33333333-3333-4333-8333-333333333333',email:'worker@alfacom.local'});if(String(url).includes('sla_assert_account_session'))return Response.json({},{status:401});throw Error('Privileged call before active check: '+url)}});
   vm.runInContext(s,c);

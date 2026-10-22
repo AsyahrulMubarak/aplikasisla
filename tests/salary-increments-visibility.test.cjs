@@ -9,19 +9,19 @@ function harness(){
  return {c,panel:()=>fields.get('salary-progress'),fields};
 }
 const program={gajiSekarang:2000000,bulanTerkumpul:0,evaluasi:[],riwayat:[]};
-test('Programme stays hidden for Raha with cached programme data and when changing employees',()=>{
+test('Scheduled salaried Raha programme stays visible when changing employees',()=>{
  const {c,panel}=harness();
  c.renderProgramGaji_({Hak_Akses_Cabang:'Kendari','Program Gaji':program});assert.equal(panel().hidden,false);
  for(const profile of [{Hak_Akses_Cabang:'Raha'},{Hak_Akses_Cabang:' raha '},{Hak_Akses_Cabang:'Semua',Cabang:'Raha'},{hak_akses_cabang:'Raha',cabang:'Kendari'}]){
-  c.renderProgramGaji_({...profile,'Program Gaji':program});assert.equal(panel().hidden,true);
+  c.renderProgramGaji_({...profile,'Program Gaji':{...program,mulaiPeriode:'2026-11',berlakuOtomatis:true}});assert.equal(panel().hidden,false);
  }
- c.cabangAktif='Raha';c.renderProgramGaji_({'Program Gaji':program});assert.equal(panel().hidden,true);
+ c.cabangAktif='Raha';c.renderProgramGaji_({'Program Gaji':program});assert.equal(panel().hidden,false);
  c.renderProgramGaji_({Hak_Akses_Cabang:'Kendari','Program Gaji':program});assert.equal(panel().hidden,false);
 });
 test('Server ineligibility and absent programme hide the panel; Kendari retains progress',()=>{
  const {c,panel,fields}=harness();
  c.renderProgramGaji_({Hak_Akses_Cabang:'Kendari','Program Gaji':{...program,bulanTerkumpul:3,berlakuOtomatis:true}});
- assert.equal(panel().hidden,false);assert.equal(fields.get('salary-progress-count').textContent,'3 / 6 bulan');
+ assert.equal(panel().hidden,false);assert.equal(fields.get('salary-progress-count').textContent,'3 / 6 kredit');
  c.renderProgramGaji_({Hak_Akses_Cabang:'Kendari','Program Gaji':{...program,berlakuOtomatis:false}});assert.equal(panel().hidden,true);
  c.renderProgramGaji_({Hak_Akses_Cabang:'Kendari','Program Gaji':null});assert.equal(panel().hidden,true);
 });

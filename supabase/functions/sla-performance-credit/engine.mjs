@@ -1,4 +1,5 @@
 // Shared deterministic scoring. Money/bonus points are deliberately not inputs.
+import {calculateSales} from './sales.mjs';
 export const POLICY = Object.freeze({version:2,start:'2026-11',baseTarget:27,baseDays:26,weights:{P:.30,K:.25,R:.15,T:.10,G:.10,U:.10}});
 const norm=v=>String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
 const names=v=>String(v||'').split(/[,;\r\n]/).map(norm).filter(Boolean);
@@ -7,6 +8,7 @@ const round=v=>Math.round((v+Number.EPSILON)*10000)/10000;
 const pointRound=v=>Math.round((v+Number.EPSILON)*1000000)/1000000;
 const clamp=v=>Math.max(0,Math.min(100,v));
 export function calculate(source,input={}) {
+  if(source.profile?.role==='sales')return calculateSales(source);
   const {period,profile}=source, start=time(period+'-01T00:00:00+08:00');
   const [year,month]=period.split('-').map(Number),end=Date.UTC(year,month,1)-8*3600000;
   const inMonth=v=>time(v)>=start&&time(v)<end;

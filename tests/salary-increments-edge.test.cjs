@@ -40,11 +40,23 @@ test('Historical payroll uses audited month salary and never the latest raised b
  assert.ok(calls.find(x=>x.url.includes('/users?')).url.includes('auth_id=eq.self'));
 });
 
-test('Raha payroll omits the automatic programme while retaining audited salary',async()=>{
+test('Logistik uses its own salaried payroll and attendance branch without management access',async()=>{
+ const {c,calls}=harness('empty',{role:'logistik'});
+ const actor={role:'logistik',name:'Teknisi',branch:'Kendari',homeBranch:'Kendari',salary:1750000,authId:'self'};
+ const payroll=await c.dispatch({action:'getPayrollData',periode:'2026-10',cabang:'Kendari'},actor);
+ assert.equal(payroll.users.length,1);assert.equal(payroll.users[0].Role,'logistik');
+ assert.ok(calls.find(x=>x.url.includes('/users?')).url.includes('auth_id=eq.self'));
+ await assert.rejects(c.dispatch({action:'getPayrollData',periode:'2026-10',cabang:'Raha'},actor),/Slip pribadi/);
+ assert.equal((await c.dispatch({action:'getKonfigurasiAbsensi',cabang:'Raha'},actor)).kebijakan.cabang,'Kendari');
+ await assert.rejects(c.dispatch({action:'getDaftarGaji'},actor),/hanya|khusus/i);
+ await assert.rejects(c.dispatch({action:'ubahGajiPokok'},actor),/hanya/i);
+});
+
+test('Raha payroll includes its scheduled automatic programme while retaining audited salary',async()=>{
  for(const profile of [{hak_akses_cabang:'Raha'},{hak_akses_cabang:'Semua',cabang:'Raha'},{hak_akses_cabang:' raha ',cabang:'Kendari'}]){
   const {c}=harness('empty',profile);
   const result=await c.dispatch({action:'getPayrollData',periode:'2026-10',cabang:'Raha'},{role:'teknisi',name:'Teknisi',branch:'Raha',salary:1750000,authId:'self'});
-  assert.equal(result.users[0]['Program Gaji'],null);
+  assert.ok(result.users[0]['Program Gaji']);
   assert.equal(result.users[0]['Gaji Pokok'],1500000);
   assert.equal(result.users[0]['Gaji Pokok Saat Ini'],1750000);
  }

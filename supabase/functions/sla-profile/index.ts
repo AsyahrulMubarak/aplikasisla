@@ -1,3 +1,9 @@
+
+// Check the live account and original Auth session; never authorize from JWT metadata.
+async function requireActiveAccountSession(token,base,key){
+ const r=await fetch(base+'/rest/v1/rpc/sla_assert_account_session',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(15000)});
+ if(!r.ok||await r.json()!==true)throw Object.assign(new Error('Akun nonaktif atau sesi sudah dicabut. Silakan hubungi admin atau login kembali.'),{status:401,httpStatus:401});
+}
 // @ts-nocheck
 // Identity and permissions always come from verified Auth and the stored profile.
 const BASE = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
@@ -19,7 +25,7 @@ function headers() {
 function cors(origin) {
   return { 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://aplikasisla.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
-    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'profile-welcome-bidi-20261019' };
+    'Cache-Control': 'no-store', Vary: 'Origin', 'X-SLA-Revision': 'profile-account-access-20261022' };
 }
 const reply = (data, origin, status = 200) => Response.json(data, { status, headers: cors(origin) });
 async function requestJson(resource, method = 'GET', body) {
@@ -48,6 +54,8 @@ async function authenticate(request) {
   const r = await fetch(BASE + '/auth/v1/user', { headers: { apikey: PUBLIC, Authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(20000) });
   if (!r.ok) throw Object.assign(new Error('Sesi Anda tidak sah atau telah kedaluwarsa.'), { httpStatus: 401 });
   const auth = await r.json();
+ await requireActiveAccountSession(token,BASE,PUBLIC);
+
   if (!uuid(auth.id) || !/^[a-z0-9._-]{1,80}@alfacom\.local$/.test(String(auth.email || '').toLowerCase())) throw new Error('Identitas akun tidak valid.');
   const p = await getProfile(auth.email.slice(0, -'@alfacom.local'.length));
   if (!p || p.auth_id !== auth.id || normalize(p.username) + '@alfacom.local' !== auth.email.toLowerCase()) throw new Error('Profil tidak cocok dengan akun yang login.');
@@ -167,15 +175,8 @@ async function manageProfile(body, actor) {
   if (!old) throw new Error('Profil tidak ditemukan.');
   const own = old.auth_id === actor.auth_id;
   if (!own) requireProfileScope(actor, old);
-  if (body.action === 'hapusProfil') {
-    requireProfileScope(actor, old);
-    if (own || normalize(old.username) === 'admin') throw new Error('Penghapusan profil ditolak.');
-    // Keep Auth identity/history; API authorization requires a live linked profile.
-    const rows = await rest('users', 'username=eq.' + encodeURIComponent(old.username), 'DELETE');
-    if (!Array.isArray(rows) || rows.length !== 1) throw new Error('Penghapusan profil belum terkonfirmasi.');
-    await audit(actor, old.username, 'hapusProfil');
-    return { status: 'sukses', data: rows };
-  }
+  if (body.action === 'hapusProfil') throw new Error('Gunakan Nonaktifkan akun agar identitas dan riwayat pegawai tetap tersimpan.');
+
   if (body.action !== 'ubahProfil') throw new Error('Operasi profil tidak dikenal.');
   let record;
   if (masterAdmin(actor)) {
@@ -314,7 +315,34 @@ async function resendProfileWelcome(body) {
   const password = safePassword(body.passwordPegawai);
   return { status: 'sukses', notifikasiSelamatDatang: await sendProfileWelcome(profile, password) };
 }
+async function setAccountAccess(body,actor){
+ if(!resetAdmin(actor))throw new Error('Hanya admin dapat mengelola akses akun.');
+ const target=await getProfile(body.usernameTarget);
+ if(!target||!canReset(actor,target))throw new Error('Cabang akun tidak sesuai hak akses admin.');
+ if(actor.auth_id===target.auth_id)throw new Error('Anda tidak dapat mengubah status akses akun sendiri.');
+ if(typeof body.active!=='boolean'||!Number.isSafeInteger(body.version)||body.version<0||typeof body.reason!=='string'||body.reason.trim().length<3||body.reason.trim().length>1000)throw new Error('Isi status, versi, dan alasan perubahan yang valid.');
+ await authUserForProfile(target);
+ const pending=await rpc('sla_begin_account_access',{p_actor:actor.auth_id,p_username:target.username,p_active:body.active,p_version:body.version,p_reason:body.reason.trim()});
+ if(pending.unchanged)return {status:'sukses',active:pending.active,pesan:'Status akun sudah sesuai.',pending:false};
+ try{
+  // Ban/unban the same Auth identity. No password, passkey, profile, or history is deleted.
+  const auth=await requestJson('/auth/v1/admin/users/'+pending.auth_id,'PUT',{ban_duration:body.active?'none':'876000h'});
+  if(auth.id!==pending.auth_id)throw new Error('Identitas Auth tidak cocok.');
+  const verified=await authUserForProfile(target);
+  const banned=verified.banned_until&&new Date(verified.banned_until).getTime()>Date.now();
+  if(Boolean(banned)===body.active)throw new Error('Status Auth belum sesuai.');
+  const saved=await rpc('sla_finish_account_access',{p_actor:actor.auth_id,p_username:pending.username,p_auth_id:pending.auth_id,p_version:pending.version});
+  return {status:'sukses',active:saved.active,pending:false,pesan:saved.active?'Akun aktif kembali. Pegawai harus login ulang.':'Akun dinonaktifkan. Login dan sesi lama diblokir; riwayat tetap tersimpan.'};
+ }catch{
+  // Fail closed even if Auth is unavailable or a response is lost after commit.
+  const stored=await getProfile(target.username);
+  if(stored&&stored.account_access_version===pending.version&&!stored.account_sync_pending&&stored.account_active===body.active)return {status:'sukses',active:stored.account_active,pending:false,pesan:body.active?'Akun aktif kembali. Pegawai harus login ulang.':'Akun dinonaktifkan; riwayat tetap tersimpan.'};
+  return {status:'sukses',active:false,pending:true,pesan:'Akses aplikasi diblokir. Sinkronisasi layanan login belum selesai; klik Coba sinkron ulang pada akun ini.'};
+ }
+}
+
 async function dispatch(body, actor) {
+  if(body.action==='setAccountAccess')return setAccountAccess(body,actor);
   if (['buatProfil','ubahProfil','hapusProfil'].includes(body.action)) return manageProfile(body, actor);
   if (body.action === 'resetPassword') return changePassword(body, actor);
   if (body.action === 'getPermintaanResetSandi') return listResetRequests(actor);

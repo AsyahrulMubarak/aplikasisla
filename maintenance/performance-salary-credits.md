@@ -1,5 +1,7 @@
 # Pencapaian dan kredit gaji teknisi
 
+Perluasan 22 Oktober 2026: program pegawai Raha bergaji dimulai November; penilaian sales memakai tiga target wajib pada panel aplikasi. Lihat [Kredit November dan ringkasan lobby](november-credit-rollout-2026-10-22.md). Rumus teknisi dan pengaman sumber di bawah tetap berlaku; keterangan lama yang mengecualikan Raha/sales merupakan riwayat sebelum perluasan ini.
+
 Mulai resmi November 2026 sesuai keputusan pengguna. Oktober tetap memakai satu kredit kehadiran dan dapat dibuka sebagai pratinjau pencapaian, tanpa kredit performa retroaktif. Program otomatis tetap mengikuti kepesertaan gaji Kendari yang sudah berjalan (termasuk profil Semua yang dipetakan ke Kendari), gaji positif di bawah Rp3.000.000, dan bulan mulai masing-masing pegawai. Raha dan pekerja tanpa gaji pokok tidak diperluas ke program ini. Sales dan peran lain tetap memakai kredit kehadiran; rancangan performa sales belum diaktifkan.
 
 ## Alur pemakaian

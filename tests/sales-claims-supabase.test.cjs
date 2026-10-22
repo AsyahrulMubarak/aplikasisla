@@ -11,6 +11,7 @@ function harness({role='admin',access='Kendari',events=[],provider=true,phone='0
   fetch:async(url,o={})=>{
    const body=o.body&&String(o.body).startsWith('{')?JSON.parse(o.body):{};calls.push({url,...o,data:body});
    if(url.includes('/auth/v1/user'))return Response.json({id:'verified-auth',email:'admin@alfacom.local'});
+   if(url.includes('sla_assert_account_session'))return Response.json(true);
    if(url.includes('sla_gaji_program?'))return Response.json([],{status:o.headers.apikey==='sb_secret_job'?200:403});
    if(url.includes('sla_profile_lock_active')||url.includes('sla_claims_edge_active'))return Response.json(true);
    if(url.includes('sla_mulai_pengiriman_klaim_sales'))return Response.json(busy?null:'sender');

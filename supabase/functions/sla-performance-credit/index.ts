@@ -22,8 +22,25 @@ if(!/^[0-9a-f-]{36}$/i.test(String(a.id||'')))throw deny();
  const profiles=await rest('users?select=username&auth_id=eq.'+encodeURIComponent(a.id)+'&limit=2');
  if(profiles.length!==1||String(a.email||'').toLowerCase()!==profiles[0].username.trim().toLowerCase().replace(/\s+/g,'')+'@alfacom.local')throw deny();return a.id;
 }
+async function lobbyProgress(id){
+ const data=await rest('rpc/sla_lobby_kredit_sumber',{p_auth_id:id});
+ const rows=data.rows.map(row=>{
+  const attendanceEligible=!!row.programStart&&data.period>=row.programStart&&!row.programFinished;
+  const official=data.period>='2026-11',attendancePass=row.attendance.telat_pagi<=3&&row.attendance.alpa<=2;
+  let r=null;try{r=calculate(row.source.data);}catch{/* Never invent a result for incomplete sources. */}
+  const target=Number(r?.target)||0,achieved=official?Number(r?.achieved)||0:0;
+  return {username:row.username,name:row.name,role:row.role,branch:row.branch,programStart:row.programStart,programFinished:row.programFinished,
+   attendance:{late:row.attendance.telat_pagi,absent:row.attendance.alpa,lateLimit:3,absentLimit:2,eligible:attendanceEligible,potentialCredit:attendanceEligible&&attendancePass?1:0},
+   achievement:{achieved,target,percent:target>0?Math.min(100,Math.max(0,achieved/target*100)):0,unit:row.role==='sales'?'rupiah':'poin',
+    official,potentialCredit:attendanceEligible&&official&&r?.pass?1:0,qualified:official&&!!r?.pass,complete:!!r?.complete,
+    sales:r?.sales?{conversion:r.sales.conversion,conversionTarget:r.sales.target?.konversi,countedFollowups:r.sales.countedFollowups,requiredFollowups:r.sales.requiredFollowups}:null,
+    reasons:r?.reasons||['Data pencapaian belum dapat dihitung.']}};
+ });
+ return {status:'sukses',period:data.period,allEmployees:data.allEmployees,provisional:true,rows};
+}
 async function dispatch(body,id){
- if(!body||Array.isArray(body)||!['list','read','preview','approve'].includes(body.action))throw Error('Tindakan tidak valid.');
+ if(!body||Array.isArray(body)||!['list','read','preview','approve','lobby'].includes(body.action))throw Error('Tindakan tidak valid.');
+ if(body.action==='lobby')return lobbyProgress(id);
  if(body.action==='list')return rest('rpc/sla_performa_akses',{p_auth_id:id});
  if(typeof body.username!=='string'||body.username.length>180||!/^\d{4}-(0[1-9]|1[0-2])$/.test(body.period||''))throw Error('Pilih pegawai dan periode.');
  const args={p_auth_id:id,p_username:body.username,p_periode:body.period};

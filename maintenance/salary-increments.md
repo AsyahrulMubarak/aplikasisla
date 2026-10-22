@@ -1,4 +1,6 @@
-# Kenaikan gaji pokok berkala
+# Kenaikan gaji pokok berkala — catatan pemasangan sebelumnya
+
+Dokumen ini merekam aturan dan migrasi sebelum perluasan 22 Oktober 2026. Kebijakan aktif kini mencakup pegawai Raha bergaji mulai November, penilaian sales berbasis target, dan enam kredit dari minimal tiga bulan. Lihat [Kredit November dan ringkasan lobby](november-credit-rollout-2026-10-22.md) untuk ketentuan aktif; pembatasan Raha di bawah adalah catatan historis.
 
 Mulai November 2026, teknisi dapat memperoleh satu kredit performa tambahan setelah rekap lengkap disahkan. Kehadiran tetap memberi satu kredit dengan batas disiplin yang sama. Kenaikan Rp250.000 membutuhkan enam kredit dari minimal tiga bulan berbeda, maksimal dua kredit per bulan. Oktober hanya memberi kredit kehadiran. Detail skor, pengesahan tanggal 8, audit sumber, dan penggunaan kredit ada pada [Pencapaian dan kredit gaji teknisi](performance-salary-credits.md). Sales/peran lain tetap memakai kredit kehadiran sampai rancangan performanya diaktifkan.
 

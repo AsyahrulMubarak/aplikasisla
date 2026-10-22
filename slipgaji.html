@@ -3011,13 +3011,13 @@
             const cabang=['Kendari','Raha'].includes(akses)?akses:
                 normalisasiCabangSesi(profil && (profil.Cabang || profil.cabang)) || normalisasiCabangSesi(cabangAktif);
             const gajiSekarang=Number(profil && (profil['Gaji Pokok Saat Ini'] ?? profil.gaji_pokok ?? p?.gajiSekarang ?? profil['Gaji Pokok']));
-            panel.hidden=!p || !(gajiSekarang>0) || cabang!=='Kendari' || p.berlakuOtomatis===false;if(panel.hidden)return;
+            panel.hidden=!p || !(gajiSekarang>0) || !['Kendari','Raha'].includes(cabang) || p.berlakuOtomatis===false;if(panel.hidden)return;
             const count=Math.min(6,Number(p.kreditTerkumpul ?? p.bulanTerkumpul)||0),done=p.selesai || Number(p.gajiSekarang)>=3000000;
             document.getElementById('salary-progress-count').textContent=done?'Program selesai':count+' / 6 kredit';
             document.getElementById('salary-progress-current').textContent=formatRp(Number(p.gajiSekarang)||0);
             document.getElementById('salary-progress-bar').style.width=(done?100:count/6*100)+'%';
             document.getElementById('salary-progress-note').textContent=done?'Gaji telah mencapai batas otomatis Rp3.000.000. Penyesuaian berikutnya oleh Manajemen.':
-                'Kehadiran: 1 kredit jika telat pagi ≤3 dan alpa ≤2. Performa teknisi mulai November 2026: maksimal 1 kredit tambahan setelah rekap disahkan. Maksimal 2 kredit/bulan; 6 kredit dari minimal 3 bulan. Evaluasi setelah masa tenggang, tanggal 8.';
+                'Mulai '+(p.mulaiPeriode||(cabang==='Raha'?'2026-11':'2026-10'))+' · Kehadiran: telat pagi ≤3 dan alpa ≤2. Pencapaian teknisi/sales mulai November 2026. Maksimal 2 kredit per bulan; 6 kredit dari minimal 3 bulan berbeda. Evaluasi sejak tanggal 8 bulan berikutnya.';
             const list=document.getElementById('salary-progress-months');list.replaceChildren();
             (p.evaluasi||[]).slice(0,6).forEach(m=>{const item=document.createElement('div');item.style.cssText='padding:9px 12px;border-radius:8px;background:'+(m.memenuhi_syarat?'#ecfdf5':'#fff1f2')+';font-size:12px;';
                 item.textContent=m.periode+' · '+(m.memenuhi_syarat?(m.dipakai?'Sudah dihitung':'Memenuhi syarat'):'Dilewati')+' · Telat '+m.telat_pagi+', alpa '+m.alpa;list.appendChild(item);});

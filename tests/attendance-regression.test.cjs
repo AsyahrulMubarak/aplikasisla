@@ -278,14 +278,14 @@ test('Slip: sakit pagi kosong biru saat masuk siang nyata, dan auto keluar 17:00
     row(`2026-09-${String(day).padStart(2, '0')}`, '13:30:00', 'Masuk Setelah Istirahat'),
     row(`2026-09-${String(day).padStart(2, '0')}`, '17:00:00', 'Keluar')
   ]);
-  const result = payroll([...hariSebelumnya, sakit, row('2026-09-08', '12:36:26', 'Masuk')], '2026-09-08T12:39:00+08:00');
+  const result = payroll([...hariSebelumnya, sakit, row('2026-09-08', '12:36:26', 'Masuk')], '2026-09-09T12:39:00+08:00');
   const html = dayHtml(result, '08/09/2026');
   assert.match(html, /background-color:#bfdbfe[^>]*>-<\/td>/);
   assert.match(html, />12:36:26<\/td>/);
-  assert.match(html, />17:00<\/td>/);
+  assert.match(html, />17:00:00<\/td>/);
   assert.match(html, />09:00:00<\/strong>/);
   assert.match(html, /background-color:#bfdbfe/);
-  assert.match(html, /Sakit \(Kuota Tersedia\)/);
+  assert.match(html, /Sakit berhenti saat absen fisik 12:36:26/);
   assert.doesNotMatch(html, /Berjalan/);
   assert.equal(result.totalPotongan, 0);
 });

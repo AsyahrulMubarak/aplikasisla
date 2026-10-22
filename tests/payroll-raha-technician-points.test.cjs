@@ -154,7 +154,7 @@ function makeTicketLoaderContext(access='Semua'){
     janjiTiketPayrollCabang_:Object.create(null),
     urutanLoadDataPayroll:1,
     controllerLoadDataPayroll_:null,
-    apiUrl:'kendari-gas',
+    apiUrl:'https://db.test/functions/v1/sla-payroll-attendance',
     payloadSesiSlip:(action,data)=>({action,...data}),
     pastikanTokenSupabaseAktif_:async()=>{},
     jalankanSumberPayrollDenganUlang_:async(_label,run)=>run(),
@@ -171,28 +171,28 @@ function makeTicketLoaderContext(access='Semua'){
   return {context,requests};
 }
 
-test('Manajemen memuat tiket Raha lewat GAS cabang aktif yang memverifikasi sesi',async()=>{
+test('Manajemen memuat tiket Raha lewat Supabase dengan sesi terverifikasi',async()=>{
   const {context,requests}=makeTicketLoaderContext();
   await Promise.all([
     context.pastikanTiketPayrollCabang_('Raha','2026-09'),
     context.pastikanTiketPayrollCabang_('Raha','2026-09')
   ]);
   assert.equal(requests.length,1);
-  assert.equal(requests[0].url,'kendari-gas');
+  assert.equal(requests[0].url,'https://db.test/functions/v1/sla-payroll-attendance');
   assert.equal(requests[0].payload.action,'getPayrollData');
   assert.equal(requests[0].payload.periode,'2026-09');
   assert.equal(requests[0].payload.cabang,'Raha');
   assert.equal(context.tiketPayrollPerCabang_.Raha.length,1);
 });
 
-test('Respons GAS cabang yang keliru tidak pernah dipakai sebagai nol poin Raha',async()=>{
+test('Respons Supabase cabang yang keliru tidak pernah dipakai sebagai nol poin Raha',async()=>{
   const {context}=makeTicketLoaderContext();
   context.fetchJsonDenganTimeout_=async()=>({cabang:'Kendari',tickets:[]});
   await assert.rejects(context.pastikanTiketPayrollCabang_('Raha','2026-09'),/tidak sesuai/);
   assert.equal(context.tiketPayrollPerCabang_.Raha,undefined);
 });
 
-test('Akun pegawai tidak mengambil tiket payroll cabang lain',async()=>{
+test('Pegawai tanpa kewenangan manajemen tidak mengambil tiket cabang lain',async()=>{
   const {context,requests}=makeTicketLoaderContext('Kendari');
   context.penggunaBolehKelolaPayroll_=()=>false;
   await assert.rejects(context.pastikanTiketPayrollCabang_('Raha','2026-09'),/tidak memiliki akses/);

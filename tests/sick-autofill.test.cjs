@@ -31,16 +31,16 @@ test('Alasan sakit berisi kata izin tetap biru dan mempertahankan waktu masuk si
   const { row, cells } = calculate(sickDay());
   assert.equal(cells[1], '-');
   assert.equal(cells[3], '12:36:26');
-  assert.equal(cells[4], '17:00');
+  assert.equal(cells[4], '17:00:00');
   assert.equal(cells[5], '<strong>09:00:00</strong>');
   assert.equal(cells[6], 'Rp 38462');
   assert.match(row, /background-color:#bfdbfe/);
   assert.doesNotMatch(row, /#bbf7d0|Berjalan/);
 });
 test('Autofill mengikuti Raha 20:00 dan pengecualian admin Raha 17:00', () => {
-  assert.equal(calculate(sickDay(), 'Raha').cells[4], '20:00');
+  assert.equal(calculate(sickDay(), 'Raha').cells[4], '20:00:00');
   assert.equal(calculate(sickDay(), 'Raha').cells[5], '<strong>12:00:00</strong>');
-  assert.equal(calculate(sickDay(), 'Raha', 'admin').cells[4], '17:00');
+  assert.equal(calculate(sickDay(), 'Raha', 'admin').cells[4], '17:00:00');
 });
 test('Sakit tanpa hadir fisik terisi penuh dan tidak dianggap lupa keluar', () => {
   const { cells } = calculate(sickDay().slice(0, 1));
@@ -66,7 +66,7 @@ test('Auto keluar penalti tetap mengurangi 90 menit pada hari sakit, dengan sel 
   assert.equal(cells[4], '15:30:00');
   assert.equal(cells[5], '<strong>07:30:00</strong>');
   assert.equal(cells[6], 'Rp 32051'); // Upah harian sudah dikurangi potongan Rp 6410, tanpa lembur.
-  assert.equal(cells[9], '- Rp 6410');
+  assert.equal(cells[9], '- Rp 0'); // The 90-minute reduction is already included in the paid duration.
   assert.match(row, /background-color:#bfdbfe[^>]*>-/);
   assert.match(row, /background:#e2e8f0[^>]*>15:30:00/);
 });
@@ -123,7 +123,7 @@ test('Sakit pagi: masuk siang nyata putih, pagi kosong biru, penalti keluar teta
   assert.match(styles[3], /background-color:#ffffff/);
   assert.match(styles[4], /background:#e2e8f0/);
   assert.equal(cells[5], '<strong>07:30:00</strong>');
-  assert.equal(cells[9], '- Rp 6410');
+  assert.equal(cells[9], '- Rp 0'); // Do not deduct the shortened paid duration a second time.
 });
 
 test('Izin pagi dan masuk siang hari berjalan: pagi kosong hijau, masuk siang putih', () => {
@@ -176,8 +176,8 @@ test('Kehadiran siang Raha putih dengan jadwal autofill dan warna keluar yang te
   const { cells, styles } = calculate(sickDay(), 'Raha');
   assert.match(styles[1], /background-color:#bfdbfe/);
   assert.match(styles[3], /background-color:#ffffff/);
-  assert.equal(cells[4], '20:00');
-  assert.match(styles[4], /background-color:#bfdbfe/);
+  assert.equal(cells[4], '20:00:00');
+  assert.match(styles[4], /background:#e0f2fe/); // Virtual end-of-day checkpoint keeps its existing blue style.
   assert.equal(cells[5], '<strong>12:00:00</strong>');
 });
 

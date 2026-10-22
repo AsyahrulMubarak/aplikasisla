@@ -1,3 +1,9 @@
+
+// Check the live account and original Auth session; never authorize from JWT metadata.
+async function requireActiveAccountSession(token,base,key){
+ const r=await fetch(base+'/rest/v1/rpc/sla_assert_account_session',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(15000)});
+ if(!r.ok||await r.json()!==true)throw Object.assign(new Error('Akun nonaktif atau sesi sudah dicabut. Silakan hubungi admin atau login kembali.'),{status:401,httpStatus:401});
+}
 // @ts-nocheck
 // Payroll and attendance API. No browser-supplied identity or branch is trusted.
 const BASE = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
@@ -125,6 +131,8 @@ async function authenticate(request) {
   const authResponse = await fetch(BASE + '/auth/v1/user', { headers: { apikey: PUBLIC, Authorization: 'Bearer ' + token } });
   if (!authResponse.ok) throw new Error('Sesi Anda tidak sah atau telah kedaluwarsa.');
   const auth = await authResponse.json();
+ await requireActiveAccountSession(token,BASE,PUBLIC);
+
   if (!auth.id) throw new Error('Sesi Anda tidak sah atau telah kedaluwarsa.');
   const profiles = await rest('users', 'select=username,nama_asli,role,hak_akses_cabang,cabang,gaji_pokok,no_wa,auth_id&auth_id=eq.' + encode(auth.id) + '&limit=2');
   if (profiles.length !== 1) throw new Error('Profil pengguna tidak ditemukan atau tidak unik.');
@@ -975,7 +983,7 @@ async function salaryJobAuthorized(request) {
 }
 function salaryProgramApplies(profile) {
   return Number(profile.gaji_pokok)>0 &&
-    (branch(String(profile.hak_akses_cabang||'').trim())||branch(String(profile.cabang||'').trim())||'Kendari')==='Kendari';
+    ['Kendari','Raha'].includes(branch(String(profile.hak_akses_cabang||'').trim())||branch(String(profile.cabang||'').trim())||'Kendari');
 }
 async function salarySummary(users,period) {
   if(!users.length)return [];
