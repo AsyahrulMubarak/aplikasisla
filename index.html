@@ -1693,7 +1693,7 @@
                     <h3 class="section-title" style="margin-top:30px;">Daftar Akun Sistem</h3>
                     <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 8px;">
                         <table>
-                            <thead><tr><th>Username</th><th>Nama</th><th>Role</th><th>Opsi</th></tr></thead>
+                            <thead><tr><th>Username</th><th>Nama</th><th>No WA</th><th>Role</th><th>Status akun</th><th>Opsi</th></tr></thead>
                             <tbody id="tabel-user-body"></tbody>
                         </table>
                     </div>
@@ -2062,6 +2062,7 @@
                 const userSendiri = String(row.username || '').toLowerCase() === String(penggunaAktif && penggunaAktif.Username || '').toLowerCase();
                 const bolehLihatKeuangan = isManajemen || userSendiri;
                 const record = {
+                    "Akun Aktif": row.account_active, "Versi Akses Akun": row.account_access_version, "Sinkron Akses Akun": row.account_sync_pending, "Permintaan Akun Aktif": row.account_requested_active,
                     "Username": row.username, "Role": row.role, "Nama Asli": row.nama_asli, "Email": row.email,
                     "Target Sales (Rp)": row.target_sales_rp, "No WA": row.no_wa,
                     "Hak_Akses_Cabang": row.hak_akses_cabang || row.cabang,
@@ -4234,6 +4235,7 @@
                 penggunaAktif = null;
                 throw new Error('Passkey berhasil diverifikasi, tetapi belum dapat membuat sesi Direct-to-Supabase. Silakan login menggunakan password.');
             }
+            await periksaSesiAkunPegawai_();
             const hakAksesCabang = hakAksesCabangPengguna();
             if (!hakAksesCabang) throw new Error('Hak_Akses_Cabang belum valid. Hubungi administrator Master Kendari.');
             waktuLoginAktif = new Date().getTime();
@@ -4884,6 +4886,7 @@
                     void rekonsiliasiAuthIdProfilKosong_();
                 }
                 else if (penggunaAktif) { siapkanProfilPribadi(); }
+                if(['admin','admin_raha'].includes(rolePengguna())){document.getElementById('tabel-user-wrapper').style.display='block';renderTabelUser();}
                 void muatGajiManajemen_();
                 void muatResetPasswordAdmin_();
             }
@@ -5004,7 +5007,7 @@
                         
                         const cabangFilter = cabangAktif === 'Kendari' ? 'or=(cabang.eq.Kendari,cabang.is.null)' : `cabang=eq.${encodeURIComponent(cabangAktif)}`;
 
-                        const kolomUsers = 'username,role,nama_asli,email,target_sales_rp,no_wa,gaji_pokok,bonus_tambahan,hak_akses_cabang';
+                        const kolomUsers = 'username,role,nama_asli,email,target_sales_rp,no_wa,gaji_pokok,bonus_tambahan,hak_akses_cabang,account_active,account_access_version,account_sync_pending,account_requested_active';
                         let reqs = [
                             jalankanSumberDataDenganUlang_('Tiket', () => callSupabase(`tiket?select=*&${cabangFilter}&order=id_tiket.desc`, 'GET', null, { signal: sinyalMuat }), sinyalMuat),
                             jalankanSumberDataDenganUlang_('User', () => callSupabase(`users?select=${kolomUsers}`, 'GET', null, { signal: sinyalMuat }), sinyalMuat)
@@ -5034,6 +5037,7 @@
                             let userSendiri = (String(u.username || '').toLowerCase() === String(penggunaAktif.Username || '').toLowerCase());
                             let bolehLihatKeuangan = isManajemen || userSendiri;
                             return {
+                                "Akun Aktif": u.account_active, "Versi Akses Akun": u.account_access_version, "Sinkron Akses Akun": u.account_sync_pending, "Permintaan Akun Aktif": u.account_requested_active,
                                 "Username": u.username, "Role": u.role, "Nama Asli": u.nama_asli, "Email": u.email,
                                 "Target Sales (Rp)": u.target_sales_rp, "No WA": u.no_wa, "Hak_Akses_Cabang": u.hak_akses_cabang || u.cabang,
                                 "Gaji Pokok": bolehLihatKeuangan ? u.gaji_pokok : null, "Bonus Tambahan": bolehLihatKeuangan ? u.bonus_tambahan : null
@@ -6731,6 +6735,14 @@
             const sebelumnya = namaTeknisiPenggantian_(terakhir ? terakhir.dari : ticket['Teknisi Sebelumnya']);
             // Nama yang masih tercantum dari tim sebelum pergantian bukan penerima Follow Up pengganti.
             sebelumnya.forEach((nama, kunci) => aktif.delete(kunci));
+            // A reduced team can consist entirely of retained technicians. The
+            // last server assignment confirms they still own the work.
+            if (!aktif.size && terakhir && terakhir.sumber === 'server') {
+                const ditetapkan = namaTeknisiPenggantian_(terakhir.ke);
+                namaTeknisiPenggantian_(ticket.Teknisi).forEach((nama,kunci) => {
+                    if (ditetapkan.has(kunci)) aktif.set(kunci,nama);
+                });
+            }
             return aktif;
         }
 
@@ -7103,7 +7115,8 @@
                     </div>
                     ${typeof htmlPenilaianTiket_ === 'function' ? htmlPenilaianTiket_(ticket) : ''}
                     ${htmlTracking || htmlBA || pdfHtml ? '<details class="ticket-service-details"><summary>Riwayat &amp; Berita Acara</summary>'+htmlTracking+htmlBA+pdfHtml+'</details>' : ''}
-                    ${htmlBanding}${btnHtml}${tombolFollowUpTiket_(ticket)}${linkTrackBtn}
+                    ${htmlBanding}${btnHtml}${tombolFollowUpTiket_(ticket)}${typeof htmlTombolChatKlienAdmin_==='function'?htmlTombolChatKlienAdmin_(ticket):''}${typeof htmlTombolChatSalesAdmin_==='function'?htmlTombolChatSalesAdmin_(ticket):''}
+                    ${linkTrackBtn}
                 </div>`);
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket yang cocok dengan status, nota, periode, atau pencarian terpilih.</p>';
@@ -10650,4 +10663,8 @@
     </script>
 
 
+
+
+<script src="employee-account.js?v=20261022"></script>
+<script src="ticket-admin-whatsapp.js?v=20261022"></script>
 

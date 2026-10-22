@@ -1,3 +1,9 @@
+
+// Check the live account and original Auth session; never authorize from JWT metadata.
+async function requireActiveAccountSession(token,base,key){
+ const r=await fetch(base+'/rest/v1/rpc/sla_assert_account_session',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(15000)});
+ if(!r.ok||await r.json()!==true)throw Object.assign(new Error('Akun nonaktif atau sesi sudah dicabut. Silakan hubungi admin atau login kembali.'),{status:401,httpStatus:401});
+}
 // @ts-nocheck
 import {calculate} from './engine.mjs';
 const BASE=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
@@ -10,7 +16,9 @@ async function authenticate(req){
  const token=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();const deny=()=>Object.assign(Error('Silakan login kembali.'),{status:401});
  if(token.split('.').length!==3)throw deny();
  const r=await fetch(BASE+'/auth/v1/user',{headers:{apikey:PUBLIC,Authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)});if(!r.ok)throw deny();
- const a=await r.json();if(!/^[0-9a-f-]{36}$/i.test(String(a.id||'')))throw deny();
+ const a=await r.json();
+ await requireActiveAccountSession(token,BASE,PUBLIC);
+if(!/^[0-9a-f-]{36}$/i.test(String(a.id||'')))throw deny();
  const profiles=await rest('users?select=username&auth_id=eq.'+encodeURIComponent(a.id)+'&limit=2');
  if(profiles.length!==1||String(a.email||'').toLowerCase()!==profiles[0].username.trim().toLowerCase().replace(/\s+/g,'')+'@alfacom.local')throw deny();return a.id;
 }

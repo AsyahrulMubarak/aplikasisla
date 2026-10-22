@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { test } = require('node:test');
-const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+const html = fs.readFileSync(process.env.SLA_FOLLOWUP_HTML || path.resolve(__dirname, '../index.html'), 'utf8');
 
 function extract(name) {
   const match = html.match(new RegExp('^([ \\t]*)(?:async )?function ' + name + '\\([^]*?^\\1\\}', 'm'));
@@ -222,3 +222,9 @@ test('old names are excluded after alias normalization and missing replacement b
   assert.match(missing.toasts.at(-1).message, /Teknisi pengganti aktif belum ditetapkan/);
   assert.match(missing.context.tombolFollowUpTiket_(missing.context.globalTickets[0]), /disabled[\s\S]*Periksa teknisi pengganti/);
 });
+
+test('TKT-153 reduced-team server assignment keeps Muaz eligible without notifying Ardi S',async()=>{
+ const h=harness({row:{teknisi:'Muaz',teknisi_sebelumnya:null,riwayat_penggantian_teknisi:[{dari:'Ardi S, Muaz',ke:'Muaz',sumber:'server'}]},users:[{Role:'teknisi',Username:'Muaz','Nama Asli':'Muaz','No WA':'081234567891',Cabang:'Kendari'}]});
+ await h.context.kirimFollowUpTiket('TKT-UJI');assert.deepEqual(h.calls.filter(c=>c.action).map(c=>c.payload.nomorTujuan),['6281234567891']);assert.match(h.calls[1].payload.pesan,/Teknisi: Muaz\n/);assert.doesNotMatch(h.calls[1].payload.pesan,/Ardi S/);assert.doesNotMatch(h.context.tombolFollowUpTiket_(h.context.globalTickets[0]),/disabled/);
+});
+

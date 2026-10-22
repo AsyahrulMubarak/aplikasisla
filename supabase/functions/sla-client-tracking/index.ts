@@ -1,3 +1,9 @@
+
+// Check the live account and original Auth session; never authorize from JWT metadata.
+async function requireActiveAccountSession(token,base,key){
+ const r=await fetch(base+'/rest/v1/rpc/sla_assert_account_session',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(15000)});
+ if(!r.ok||await r.json()!==true)throw Object.assign(new Error('Akun nonaktif atau sesi sudah dicabut. Silakan hubungi admin atau login kembali.'),{status:401,httpStatus:401});
+}
 // @ts-nocheck
 import { createPdf } from './pdf.ts';
 const BASE=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
@@ -89,6 +95,8 @@ async function authenticate(request){
   const response=await fetch(BASE+'/auth/v1/user',{headers:{apikey:PUBLIC,Authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)});
   if(!response.ok)throw error('Silakan login kembali.',401);
   const auth=await response.json();
+ await requireActiveAccountSession(token,BASE,PUBLIC);
+
   if(!auth.id)throw error('Silakan login kembali.',401);
   const profiles=await rest('users','auth_id=eq.'+encode(auth.id)+'&select=auth_id,username,nama_asli,role,hak_akses_cabang,cabang&limit=2');
   if(profiles.length!==1)throw error('Profil pengguna tidak tersedia.',403);

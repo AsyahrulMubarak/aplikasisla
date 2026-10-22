@@ -16,6 +16,9 @@ async function performanceFixture(){
  await db.exec(fs.readFileSync(__dirname+'/salary-increments-positive-only.sql','utf8'));
  await db.exec("update sla_gaji_program set mulai_periode='2026-10';");
  await db.exec(migration);
+ await db.exec(fs.readFileSync(__dirname+'/../supabase/migrations/20261022010451_achievement_exclude_warranty_cancel.sql','utf8'));
+ await db.exec(fs.readFileSync(__dirname+'/../supabase/migrations/20261022011237_performance_achievement_policy_v2.sql','utf8'));
+ await db.exec(fs.readFileSync(__dirname+'/../supabase/migrations/20261022013050_achievement_exclude_outsource.sql','utf8'));
  const raw=async(username='tech',period='2026-11')=>(await db.query('select sla_performa_sumber($1,$2) as r',[username,period])).rows[0].r;
  const context=async(actor='admin',username='tech',period='2026-11')=>(await db.query('select sla_performa_akses($1,$2,$3) as r',[ids[actor],username,period])).rows[0].r;
  const approve=async(input={},username='tech',period='2026-11',actor='admin',revision=0,hash)=>{
@@ -36,3 +39,4 @@ async function performanceFixture(){
  return {...f,clock,raw,context,approve,seed,migration};
 }
 module.exports={performanceFixture,migration};
+

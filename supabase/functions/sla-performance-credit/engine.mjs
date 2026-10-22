@@ -1,5 +1,5 @@
 // Shared deterministic scoring. Money/bonus points are deliberately not inputs.
-export const POLICY = Object.freeze({version:1,start:'2026-11',baseTarget:27,baseDays:26,weights:{P:.30,K:.25,R:.15,T:.10,G:.10,U:.10}});
+export const POLICY = Object.freeze({version:2,start:'2026-11',baseTarget:27,baseDays:26,weights:{P:.30,K:.25,R:.15,T:.10,G:.10,U:.10}});
 const norm=v=>String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
 const names=v=>String(v||'').split(/[,;\r\n]/).map(norm).filter(Boolean);
 const time=v=>v?Date.parse(v):NaN;
@@ -30,12 +30,13 @@ export function calculate(source,input={}) {
     const a=t.penilaian_teknisi||{},achievement=a.achievement, current=own(t.teknisi);
     const related=current||own(t.teknisi_sebelumnya)||(t.riwayat_penggantian_teknisi||[]).some(h=>own(h.dari)||own(h.ke))||(achievement?.members||[]).some(belongs);
     if(!related)continue;
-    if(achievement&&inMonth(achievement.completedAt)){
+    const achievementEligible=norm(t.status)!=='outsource'&&!String(t.garansi_asal||'').trim()&&!String(t.referensi_tiket_asal||'').trim();
+    if(achievementEligible&&achievement&&inMonth(achievement.completedAt)){
       const share=(achievement.members||[]).filter(belongs).reduce((n,m)=>n+Number(m.share||0),0);
       const value=Number(achievement.points)*share/100;
       if(norm(t.status)!=='selesai'||time(t.waktu_selesai)!==time(achievement.completedAt))warnings.push(t.id_tiket+': status/waktu selesai berubah setelah pencapaian disahkan; perlu koreksi hasil.');
       else if(value>0)points.push({id:t.id_tiket,grade:achievement.grade,share,points:pointRound(value),completedAt:achievement.completedAt});
-    } else if(current&&inMonth(t.waktu_selesai)&&norm(t.status)==='selesai')unfinished.push({id:t.id_tiket,grade:a.grade?.value||null,reason:a.grade?.status==='approved'?'Hasil pencapaian belum disahkan':'Grade belum disahkan'});
+    } else if(achievementEligible&&current&&inMonth(t.waktu_selesai)&&norm(t.status)==='selesai')unfinished.push({id:t.id_tiket,grade:a.grade?.value||null,reason:a.grade?.status==='approved'?'Hasil pencapaian belum disahkan':'Grade belum disahkan'});
     if(current&&inMonth(t.tenggat_waktu)&&!['pending','outsource'].includes(norm(t.status))){
       const good=Number.isFinite(time(t.waktu_selesai))&&time(t.waktu_selesai)<=time(t.tenggat_waktu)&&norm(t.status)==='selesai';
       workTotal++;if(good)workGood++;workTickets.push({id:t.id_tiket,good,deadline:t.tenggat_waktu});
@@ -111,3 +112,4 @@ export function calculate(source,input={}) {
   for(const [k,min] of [['P',80],['K',70],['R',80]])if(values[k]!==null&&values[k]<min)reasons.push(k+' di bawah '+min+'%.');
   return {policy:POLICY,period,days,effectiveDays,target:round(target),targetReason,achieved:pointRound(achieved),values:Object.fromEntries(Object.entries(values).map(([k,v])=>[k,v===null?null:round(v)])),score:score===null?null:round(score),complete,pass,credit:pass?1:0,reasons,cases,points,unfinished,counts:{workGood,workTotal,responseGood,responseTotal,completed:completed.length,warranted:warranted.size,assigned:new Set(assigned).size},workTickets,responseTickets};
 }
+

@@ -1,6 +1,6 @@
 const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
 const { test } = require('node:test');
-const source = fs.readFileSync(__dirname + '/../supabase/functions/sla-profile/index.ts', 'utf8');
+const source = fs.readFileSync(process.env.SLA_PROFILE_SOURCE || __dirname + '/../supabase/functions/sla-profile/index.ts', 'utf8');
 const id = '11111111-1111-4111-8111-111111111111';
 const targetId = '22222222-2222-4222-8222-222222222222';
 const actor = { username:'admin', nama_asli:'Admin', role:'admin', hak_akses_cabang:'Semua', auth_id:id };
@@ -39,6 +39,7 @@ function harness({users=[{...target}], insertFailure=false, committedTimeout=fal
         if(method==='DELETE'){users.splice(users.indexOf(rows[0]),1);return Response.json(rows);}
         return Response.json(rows);
       }
+      if(u.pathname==='/rest/v1/rpc/sla_assert_account_session')return Response.json(true);
       if(u.pathname==='/rest/v1/rpc/sla_profile_lock_active')return Response.json(true);
       if(u.pathname==='/rest/v1/rpc/sla_complete_password_reset')return Response.json(1);
       if(u.pathname==='/rest/v1/rpc/sla_request_password_reset')return Response.json(null);
@@ -51,6 +52,20 @@ test('Self edits ignore forged role, salary, name, branch and Auth ID',async()=>
   const h=harness();await h.c.manageProfile({action:'ubahProfil',profil:{...profile,role:'direktur',gaji_pokok:9999999,auth_id:id,hak_akses_cabang:'Semua'}},target);
   const patch=h.calls.find(x=>x.method==='PATCH');assert.deepEqual(patch.body,{email:profile.email,no_wa:profile.no_wa});
   assert.equal(h.users[0].role,'teknisi');assert.equal(h.users[0].gaji_pokok,1750000);
+});
+
+test('Admin can create Logistik in a single branch; central access and self-promotion are rejected',async()=>{
+  for(const branch of ['Kendari','Raha']){
+    const h=harness({users:[]});
+    await h.c.manageProfile({action:'buatProfil',profil:{...profile,role:'logistik',hak_akses_cabang:branch},passwordBaru:'TestOnly123!'},actor);
+    assert.equal(h.users[0].role,'logistik');assert.equal(h.users[0].hak_akses_cabang,branch);
+  }
+  const invalid=harness({users:[]});
+  await assert.rejects(invalid.c.manageProfile({action:'buatProfil',profil:{...profile,role:'logistik',hak_akses_cabang:'Semua'},passwordBaru:'TestOnly123!'},actor),/Cabang profil/);
+  assert.equal(invalid.auth.length,0);
+  const employee={...target,role:'logistik'},own=harness({users:[employee]});
+  await own.c.manageProfile({action:'ubahProfil',profil:{...profile,role:'admin',hak_akses_cabang:'Semua'}},employee);
+  assert.equal(own.users[0].role,'logistik');assert.equal(own.users[0].hak_akses_cabang,'Kendari');
 });
 test('Admin profile updates preserve concurrent salary and reject stale values',async()=>{
   const h=harness();await assert.rejects(h.c.manageProfile({action:'ubahProfil',profil:{...profile,gaji_pokok:1500000}},actor),/Gaji pokok sudah berbeda/);
@@ -155,7 +170,7 @@ test('Authenticated create request reaches saved Auth/profile and the employee w
   assert.equal(result.status,'sukses');assert.equal(result.notifikasiSelamatDatang.terkirim,true);
   assert.equal(h.sends.length,1);assert.equal(h.sends[0].profileStored,true);assert.equal(h.sends[0].auditRecorded,true);
   assert.equal(result.data[0].auth_id,targetId);assert.equal(h.users.length,2);
-  assert.equal(response.headers.get('X-SLA-Revision'),'profile-welcome-bidi-20261019');
+  assert.equal(response.headers.get('X-SLA-Revision'),source.includes('profile-account-access-20261022')?'profile-account-access-20261022':'profile-welcome-bidi-20261019');
   assert.ok(!JSON.stringify(result).includes('HandlerWelcome123!'));
 });
 
@@ -242,3 +257,4 @@ test('Resend rejects a missing or mismatched Auth profile before contacting What
     assert.equal(h.sends.length,0);
   }
 });
+

@@ -1,3 +1,9 @@
+
+// Check the live account and original Auth session; never authorize from JWT metadata.
+async function requireActiveAccountSession(token,base,key){
+ const r=await fetch(base+'/rest/v1/rpc/sla_assert_account_session',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(15000)});
+ if(!r.ok||await r.json()!==true)throw Object.assign(new Error('Akun nonaktif atau sesi sudah dicabut. Silakan hubungi admin atau login kembali.'),{status:401,httpStatus:401});
+}
 // @ts-nocheck
 const BASE=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
 const SECRET=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}').default;
@@ -18,6 +24,8 @@ async function verifiedActor(request){
  const response=await fetch(BASE+'/auth/v1/user',{headers:{apikey:PUBLIC,Authorization:bearer},signal:AbortSignal.timeout(20000)});
  if(!response.ok)throw new GatewayError(401,'Sesi login telah berakhir.');
  const auth=await response.json();
+ await requireActiveAccountSession(bearer.slice(7),BASE,PUBLIC);
+
  if(!auth.id)throw new GatewayError(401,'Sesi login tidak valid.');
  const profiles=await rest('users?auth_id=eq.'+encodeURIComponent(auth.id)+'&select=username,nama_asli,role,cabang,hak_akses_cabang&limit=2');
  if(!Array.isArray(profiles)||profiles.length!==1||!profiles[0]?.username)throw new GatewayError(403,'Profil login tidak tersedia.');

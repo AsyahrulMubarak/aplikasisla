@@ -1,3 +1,9 @@
+
+// Check the live account and original Auth session; never authorize from JWT metadata.
+async function requireActiveAccountSession(token,base,key){
+ const r=await fetch(base+'/rest/v1/rpc/sla_assert_account_session',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(15000)});
+ if(!r.ok||await r.json()!==true)throw Object.assign(new Error('Akun nonaktif atau sesi sudah dicabut. Silakan hubungi admin atau login kembali.'),{status:401,httpStatus:401});
+}
 // @ts-nocheck
 // Atomic ticket facts + legacy field update. No salary evaluation and no WA sender here.
 const BASE=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
@@ -7,7 +13,9 @@ const ORIGIN='https://aplikasisla.vercel.app';
 const cors={'Access-Control-Allow-Origin':ORIGIN,'Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'authorization, apikey, content-type','Cache-Control':'no-store',Vary:'Origin','X-SLA-Revision':'ticket-workflow-v1'};
 const headers={apikey:SECRET,'Content-Type':'application/json',...(!String(SECRET).startsWith('sb_secret_')?{Authorization:'Bearer '+SECRET}:{})};
 async function rest(path,body){const r=await fetch(BASE+'/rest/v1/'+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(25000)});const d=await r.json();if(!r.ok)throw Object.assign(Error(r.status===400?d.message:'Layanan tiket belum dapat menyimpan data.'),{status:r.status===400?400:503});return d;}
-async function authenticate(req){const token=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim(),deny=()=>Object.assign(Error('Sesi tidak sah. Silakan login kembali.'),{status:401});if(token.split('.').length!==3)throw deny();const r=await fetch(BASE+'/auth/v1/user',{headers:{apikey:PUBLIC,Authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)});if(!r.ok)throw deny();const a=await r.json();if(!/^[0-9a-f-]{36}$/i.test(a.id||''))throw deny();const ps=await rest('users?select=username&auth_id=eq.'+encodeURIComponent(a.id)+'&limit=2');if(ps.length!==1||String(a.email||'').toLowerCase()!==ps[0].username.trim().toLowerCase().replace(/\s+/g,'')+'@alfacom.local')throw deny();return a.id;}
+async function authenticate(req){const token=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim(),deny=()=>Object.assign(Error('Sesi tidak sah. Silakan login kembali.'),{status:401});if(token.split('.').length!==3)throw deny();const r=await fetch(BASE+'/auth/v1/user',{headers:{apikey:PUBLIC,Authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)});if(!r.ok)throw deny();const a=await r.json();
+ await requireActiveAccountSession(token,BASE,PUBLIC);
+if(!/^[0-9a-f-]{36}$/i.test(a.id||''))throw deny();const ps=await rest('users?select=username&auth_id=eq.'+encodeURIComponent(a.id)+'&limit=2');if(ps.length!==1||String(a.email||'').toLowerCase()!==ps[0].username.trim().toLowerCase().replace(/\s+/g,'')+'@alfacom.local')throw deny();return a.id;}
 async function dispatch(b,id){
  if(!b||!['pending','replacement'].includes(b.action)||!/^TKT-[A-Za-z0-9-]{1,100}$/.test(b.idTiket||'')||!Number.isSafeInteger(b.revision)||b.revision<0||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(b.requestId||''))throw Error('Permintaan tiket tidak valid.');
  if(!b.patch||Array.isArray(b.patch)||typeof b.patch!=='object'||!b.context||Array.isArray(b.context)||typeof b.context!=='object')throw Error('Isi formulir tidak valid.');

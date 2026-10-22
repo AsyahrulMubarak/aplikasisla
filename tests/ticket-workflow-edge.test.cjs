@@ -16,5 +16,6 @@ test('auth actor wins over forged role, salary and identity, with atomic validat
 test('database rechecks branch/role, rejects missing facts and never dispatches WA or salary evaluation',async()=>{
  h.setAuth({id:f.ids.raha,email:'raha@alfacom.local'});assert.equal((await h.handler(req(await body()))).status,400);
  h.setAuth({id:f.ids.tech,email:'tech@alfacom.local'});const b=await body();b.action='replacement';b.patch={teknisi:'Teknisi B'};b.context=f.replacement;assert.equal((await h.handler(req(b))).status,400);
- assert.ok(h.calls.every(c=>/\/auth\/v1\/user$|\/users\?|\/rpc\/sla_tiket_workflow$/.test(c)));
+ assert.ok(h.calls.every(c=>/\/auth\/v1\/user$|\/users\?|\/rpc\/sla_(tiket_workflow|assert_account_session)$/.test(c)));
 });
+
