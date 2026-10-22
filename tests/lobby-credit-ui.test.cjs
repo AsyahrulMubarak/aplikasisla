@@ -8,14 +8,24 @@ function harness(fetcher=async()=>Response.json({status:'sukses',period:'2026-11
   window:{addEventListener(){},open(){}},document:{hidden:false,getElementById:get,createElement:tag=>new Node(tag),addEventListener(){}}});
  vm.runInContext(source,c);return {c,get,api:c.window.SLACreditLobby};
 }
-const row={username:'juna',name:'Juna <script>',role:'sales',branch:'Kendari',programStart:'2026-11',programFinished:false,attendance:{late:1,absent:0,lateLimit:3,absentLimit:2,eligible:true,potentialCredit:1},achievement:{achieved:125,target:500,percent:25,unit:'rupiah',official:true,potentialCredit:0,complete:true,sales:{conversion:40,conversionTarget:60,countedFollowups:16,requiredFollowups:208}}};
+const row={username:'juna',name:'Juna <script>',role:'sales',branch:'Kendari',programStart:'2026-11',programFinished:false,attendance:{late:1,absent:0,lateLimit:3,absentLimit:2,eligible:true,potentialCredit:1},achievement:{achieved:125,target:500,percent:200/3,unit:'rupiah',official:true,potentialCredit:0,complete:true,sales:{revenue:125,revenueTarget:500,conversion:60,conversionTarget:60,countedFollowups:156,requiredFollowups:208,progress:{omzet:25,konversi:100,tindakLanjut:75}}}};
 const walk=n=>[n,...n.children.filter(c=>c instanceof Node).flatMap(walk)];
 test('attendance uses criterion cards, achievement starts at zero and displays actual earned progress safely',()=>{
  const h=harness();h.api.render({period:'2026-11',rows:[row]});const nodes=walk(h.get('lobby-credit-list'));
  assert.equal(nodes.filter(n=>n.attrs.role==='progressbar').length,1,'no attendance bar');
- assert.equal(nodes.find(n=>n.className==='credit-fill').style.width,'25%');
+ assert.equal(nodes.find(n=>n.className==='credit-fill').style.width,(200/3)+'%');
+ assert.ok(nodes.some(n=>n.textContent==='Rata-rata 3 target · masing-masing maks. 100%'));
+ const criteria=nodes.filter(n=>n.className==='credit-sales-target');assert.equal(criteria.length,3);
+ assert.deepEqual(criteria.map(n=>n.children[0].textContent),['Omzet','Konversi','Tindak lanjut']);
+ assert.deepEqual(criteria.map(n=>n.children[1].textContent),['25%','100%','75%']);
  assert.ok(nodes.some(n=>n.textContent==='1 / 3'));assert.ok(nodes.some(n=>n.textContent==='0 / 2'));assert.ok(nodes.some(n=>n.textContent==='Juna <script>'));
  h.api.render({period:'2026-11',rows:[{...row,achievement:{...row.achievement,achieved:0,percent:0}}]});assert.equal(walk(h.get('lobby-credit-list')).find(n=>n.className==='credit-fill').style.width,'0%');
+});
+
+test('technician bars keep approved points against their target without sales criteria',()=>{
+ const h=harness();h.api.render({period:'2026-11',rows:[{...row,role:'teknisi',achievement:{...row.achievement,achieved:5,target:20,percent:25,unit:'poin',sales:null}}]});
+ const nodes=walk(h.get('lobby-credit-list'));assert.equal(nodes.find(n=>n.className==='credit-fill').style.width,'25%');
+ assert.ok(nodes.some(n=>n.textContent==='5 / 20 poin'));assert.equal(nodes.filter(n=>n.className==='credit-sales-target').length,0);
 });
 test('logout and account changes clear private cards and discard a late prior response',async()=>{
  let resolve,started;const ready=new Promise(r=>started=r);const h=harness(()=>{started();return new Promise(r=>resolve=r);});h.get('main-lobby-wrapper').attrs['aria-hidden']='false';h.get('main-lobby-wrapper').style.display='flex';

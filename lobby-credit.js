@@ -32,11 +32,15 @@
    const track=element('div','credit-track'),fill=element('div','credit-fill');
    track.setAttribute('role','progressbar');track.setAttribute('aria-label','Pencapaian '+row.name);track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');track.setAttribute('aria-valuenow',String(Math.round(p.percent)));
    fill.style.width='0%';track.append(fill);achievement.append(track);
-   achievement.append(element('p','credit-values',p.target>0?(p.unit==='rupiah'?money(p.achieved)+' / '+money(p.target):number(p.achieved)+' / '+number(p.target)+' poin'):'Target belum ditetapkan'));
+   achievement.append(element('p','credit-values',p.sales?'Rata-rata 3 target · masing-masing maks. 100%':p.target>0?number(p.achieved)+' / '+number(p.target)+' poin':'Target belum ditetapkan'));
    if(p.sales){
     const criteria=element('div','credit-sales-criteria');
-    criteria.append(element('span','', 'Konversi '+(p.sales.conversion===null?'—':number(p.sales.conversion)+'%')+' / '+number(p.sales.conversionTarget)+'%'),
-     element('span','','Tindak lanjut '+number(p.sales.countedFollowups)+' / '+number(p.sales.requiredFollowups)));
+    for(const [label,value,key] of [
+     ['Omzet',money(p.sales.revenue)+' / '+money(p.sales.revenueTarget),'omzet'],
+     ['Konversi',(p.sales.conversion===null?'—':number(p.sales.conversion)+'%')+' / '+number(p.sales.conversionTarget)+'%','konversi'],
+     ['Tindak lanjut',number(p.sales.countedFollowups)+' / '+number(p.sales.requiredFollowups),'tindakLanjut']]){
+     const item=element('div','credit-sales-target');item.append(element('span','',label),element('strong','',number(p.sales.progress?.[key])+'%'),element('small','',value));criteria.append(item);
+    }
     achievement.append(criteria);
    }
    const achievementLabel=!p.official?'Pencapaian mulai November 2026':row.programFinished?'Pencapaian tetap tercatat; program gaji selesai':p.potentialCredit?'Syarat terpenuhi · potensi 1 kredit':p.complete?'Syarat pencapaian belum seluruhnya terpenuhi':'Menunggu kelengkapan penilaian';

@@ -29,11 +29,16 @@ async function lobbyProgress(id){
   const official=data.period>='2026-11',attendancePass=row.attendance.telat_pagi<=3&&row.attendance.alpa<=2;
   let r=null;try{r=calculate(row.source.data);}catch{/* Never invent a result for incomplete sources. */}
   const target=Number(r?.target)||0,achieved=official?Number(r?.achieved)||0:0;
+  // Lobby progress gives each required sales target equal space; surplus cannot replace another target.
+  const salesProgress=r?.sales?Object.fromEntries(['omzet','konversi','tindakLanjut'].map(key=>{
+   const value=r.values[key];return [key,typeof value==='number'&&Number.isFinite(value)?Math.min(100,Math.max(0,value)):0];
+  })):null;
+  const percent=salesProgress?(official?Object.values(salesProgress).reduce((sum,value)=>sum+value,0)/3:0):target>0?Math.min(100,Math.max(0,achieved/target*100)):0;
   return {username:row.username,name:row.name,role:row.role,branch:row.branch,programStart:row.programStart,programFinished:row.programFinished,
    attendance:{late:row.attendance.telat_pagi,absent:row.attendance.alpa,lateLimit:3,absentLimit:2,eligible:attendanceEligible,potentialCredit:attendanceEligible&&attendancePass?1:0},
-   achievement:{achieved,target,percent:target>0?Math.min(100,Math.max(0,achieved/target*100)):0,unit:row.role==='sales'?'rupiah':'poin',
+   achievement:{achieved,target,percent,unit:row.role==='sales'?'rupiah':'poin',
     official,potentialCredit:attendanceEligible&&official&&r?.pass?1:0,qualified:official&&!!r?.pass,complete:!!r?.complete,
-    sales:r?.sales?{conversion:r.sales.conversion,conversionTarget:r.sales.target?.konversi,countedFollowups:r.sales.countedFollowups,requiredFollowups:r.sales.requiredFollowups}:null,
+    sales:r?.sales?{revenue:r.sales.revenue,revenueTarget:r.sales.target?.omzet||0,conversion:r.sales.conversion,conversionTarget:r.sales.target?.konversi||0,countedFollowups:r.sales.countedFollowups,requiredFollowups:r.sales.requiredFollowups,progress:salesProgress}:null,
     reasons:r?.reasons||['Data pencapaian belum dapat dihitung.']}};
  });
  return {status:'sukses',period:data.period,allEmployees:data.allEmployees,provisional:true,rows};
