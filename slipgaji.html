@@ -1663,6 +1663,7 @@
                     "Target Sales (Rp)": u['Target Sales (Rp)'] || u.target_sales_rp,
                     "No WA": u['No WA'] || u.no_wa,
                     "Gaji Pokok": u['Gaji Pokok'] ?? u.gaji_pokok,
+                    "Akun Aktif": u['Akun Aktif'] ?? u.account_active ?? true,
                     "Program Gaji": u['Program Gaji'] || null,
                     "Bonus Tambahan": u['Bonus Tambahan'] || u.bonus_tambahan,
                     "Hak_Akses_Cabang": u.Hak_Akses_Cabang || u.hak_akses_cabang,
@@ -1907,7 +1908,8 @@
           var namaNormal = normalisasiNamaProfilPayroll_(nama);
           if (!namaNormal) return null;
           var kandidat = (profiles || []).filter(function(profil) {
-            return normalisasiNamaProfilPayroll_(profil['Nama Asli']) === namaNormal;
+            return profil['Akun Aktif'] !== false && profil.account_active !== false &&
+              normalisasiNamaProfilPayroll_(profil['Nama Asli']) === namaNormal;
           });
           if (namaNormal === 'abu abdillah') {
             kandidat = kandidat.filter(function(profil) { return normalisasiNamaProfilPayroll_(profil.Role) === 'manager'; });
@@ -1947,12 +1949,9 @@
 
 
         function profilLayakTampilPayroll_(profil) {
-            if (profilPayrollAkunPercobaan_(profil)) return false;
+            if (!profil || profil['Akun Aktif'] === false || profil.account_active === false || profilPayrollAkunPercobaan_(profil)) return false;
             const gaji = parseFloat(profil['Gaji Pokok'] ?? profil['Gaji Pokok (Rp)']) || 0;
-            if (gaji > 0) return true;
-            if (String(profil.Role || '').toLowerCase() === 'freelance') return false;
-            const nama = normalisasiNamaProfilPayroll_(profil['Nama Asli']);
-            return globalAbsen.some(absen => normalisasiNamaProfilPayroll_(absen['Nama Pegawai']) === nama);
+            return gaji > 0;
         }
 
         function adalahBonusDisiplinPayroll(nama) {
