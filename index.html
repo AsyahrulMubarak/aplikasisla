@@ -350,7 +350,7 @@
 
         .ticket-advanced-filters {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 12px;
             margin-bottom: 15px;
             padding: 14px;
@@ -1324,6 +1324,15 @@
                         <option value="lunas">Nota Lunas</option>
                         <option value="belum_lunas">Nota Belum Lunas</option>
                         <option value="tidak_berlaku">Nota Tidak Berlaku</option>
+                    </select>
+                </div>
+                <div class="ticket-filter-field">
+                    <label for="filter-grade-tiket">Penilaian Grade</label>
+                    <select id="filter-grade-tiket" onchange="renderTickets()">
+                        <option value="all">Semua Grade</option>
+                        <option value="belum_grade">Belum mendapat grade</option>
+                        <option value="pending">Menunggu keputusan admin</option>
+                        <option value="approved">Grade sudah disahkan</option>
                     </select>
                 </div>
             </div>
@@ -6770,13 +6779,20 @@
             return ['Belum Ditugaskan', '-', ''].includes(teknisi) ? 'Menunggu Teknisi' : status;
         }
 
-        function tiketCocokFilterTambahan_(ticket, statusFilter, pembayaranFilter) {
+        function tiketCocokFilterTambahan_(ticket, statusFilter, pembayaranFilter, gradeFilter = 'all') {
             const filterStatus = String(statusFilter || 'all');
             const filterPembayaran = String(pembayaranFilter || 'all');
             const statusTiket = statusTiketUntukFilter_(ticket);
             if (filterStatus !== 'all' && statusTiket !== filterStatus) return false;
 
             if (filterPembayaran !== 'all' && statusNotaTiket_(ticket) !== filterPembayaran) return false;
+            const assessment = ticket['Penilaian Teknisi'];
+            const grade = assessment?.grade;
+            const gradeValid = ['S', 'A', 'B', 'C', 'D'].includes(String(grade?.value || '').trim().toUpperCase());
+            const gradeStatus = String(grade?.status || '').trim().toLowerCase();
+            if (gradeFilter === 'belum_grade' && gradeValid && gradeStatus !== 'rejected') return false;
+            if (gradeFilter === 'pending' && gradeStatus !== 'pending' && assessment?.gradeRequest?.status !== 'pending') return false;
+            if (gradeFilter === 'approved' && (!gradeValid || gradeStatus !== 'approved')) return false;
             return true;
         }
 
@@ -6898,6 +6914,7 @@
             const filterPembayaranTiket = document.getElementById('filter-pembayaran-tiket');
             const statusTiketDipilih = filterStatusTiket ? filterStatusTiket.value : 'all';
             const pembayaranTiketDipilih = filterPembayaranTiket ? filterPembayaranTiket.value : 'all';
+            const gradeTiketDipilih = document.getElementById('filter-grade-tiket')?.value || 'all';
             const infoPeriodeTiket = document.getElementById('ticket-period-help');
             const awalBulanBerjalan = new Date();
             awalBulanBerjalan.setDate(1);
@@ -6962,7 +6979,7 @@
 
                 if (currentTicketFilter === 'aktif' && !isAktif) return;
                 if (currentTicketFilter === 'riwayat' && !isRiwayat) return;
-                if (!tiketCocokFilterTambahan_(ticket, statusTiketDipilih, pembayaranTiketDipilih)) return;
+                if (!tiketCocokFilterTambahan_(ticket, statusTiketDipilih, pembayaranTiketDipilih, gradeTiketDipilih)) return;
                 if (currentTicketFilter === 'riwayat') {
                     const tanggalRiwayat = ticket['Waktu Selesai'] || ticket['Waktu Lapor'];
                     if (!dataMasukPeriodeDaftar_(tanggalRiwayat, bulanTiket, tahunTiket)) return;
@@ -7182,7 +7199,7 @@
                     ${linkTrackBtn}
                 </div>`);
             });
-            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket yang cocok dengan status, nota, periode, atau pencarian terpilih.</p>';
+            if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada tiket yang cocok dengan status, nota, grade, periode, atau pencarian terpilih.</p>';
         }
 
         function renderPenjualan() {
