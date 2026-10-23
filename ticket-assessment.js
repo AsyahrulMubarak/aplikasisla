@@ -19,17 +19,31 @@ function bagiRataPenilaian_(ticket){
   const sorted=[...names.keys()].sort(),count=sorted.length;
   return sorted.map((key,index)=>({name:names.get(key),share:(Math.floor(1000000/count)+(index<1000000%count?1:0))/10000}));
 }
+function tanpaGradePenilaian_(ticket){
+  return ['outsource','cancel','batal'].includes(namaPenilaian_(ticket.Status))||['garansi','free','gratis'].includes(namaPenilaian_(ticket['No Transaksi']??ticket.no_transaksi));
+}
+function batasGradeAwalPenilaian_(ticket){
+  const time=Date.parse(ticket['Waktu Selesai']||'');if(!Number.isFinite(time))return null;
+  const wita=new Date(time+8*3600000);
+  return Date.UTC(wita.getUTCFullYear(),wita.getUTCMonth()+1,7)-8*3600000;
+}
+function gradeAwalTertutupPenilaian_(ticket){
+  const a=ticket['Penilaian Teknisi'];
+  if(namaPenilaian_(ticket.Status)!=='selesai'||a?.achievement||a?.grade?.status==='approved')return false;
+  const deadline=batasGradeAwalPenilaian_(ticket);return deadline===null||Date.now()>=deadline;
+}
 function htmlPenilaianTiket_(ticket){
   if(!['admin','admin_raha','manager','direktur','teknisi','freelance'].includes(rolePengguna()))return '';
   const id=String(ticket['ID Tiket']||'');if(!/^TKT-[A-Za-z0-9-]{1,100}$/.test(id))return '';
   const a=ticket['Penilaian Teknisi'],g=a?.grade,allocation=a?.allocation;
+  const exempt=tanpaGradePenilaian_(ticket),gradeClosed=gradeAwalTertutupPenilaian_(ticket),gradeDeadline=batasGradeAwalPenilaian_(ticket);
   const excluded=['cancel','batal','outsource'].includes(namaPenilaian_(ticket.Status))||!!(ticket['Garansi Asal']||ticket.garansi_asal||ticket['Referensi Tiket Asal']||ticket.referensi_tiket_asal);
   const frozen=!!a?.achievement,paid=!!a?.bonusSnapshot;
-  const label=g?`${g.value} · ${g.points} poin · ${statusPenilaian_(g.status)}`:'Grade belum dinilai';
+  const label=exempt?'Tidak perlu grade · 0 poin pencapaian':g?`${g.value} · ${g.points} poin · ${statusPenilaian_(g.status)}`:'Grade belum dinilai';
   const recipient=penerimaPenilaian_(ticket),manager=pengelolaPenilaian_();
   const canReview=manager&&!recipient;
   const request=a?.gradeRequest?.status==='pending'?a.gradeRequest:g?.status==='pending'?g:null;
-  const canEditGrade=!manager||canReview;
+  const canEditGrade=!exempt&&!gradeClosed&&(!manager||canReview);
   const gradeActor=g?.status==='approved'?`Ditetapkan oleh: ${g.reviewedName||'-'}`:g?.status==='pending'?`Diajukan oleh: ${g.proposedName||'-'} · Menunggu keputusan admin cabang.`:'';
   const automatic=!allocation||allocation.status==='default';
   const members=paid?a.bonusSnapshot.members:automatic&&!frozen?bagiRataPenilaian_(ticket):allocation?.members||[];
@@ -38,11 +52,12 @@ function htmlPenilaianTiket_(ticket){
   const parts=members.map(m=>`<li><span>${teksPenilaian_(m.name)}</span><strong>${angkaPenilaian_(m.share)}%</strong></li>`).join('');
   const lockedLegacy=!a&&ticket['Status Pembayaran']==='Lunas';
   return `<details class="ticket-assessment"><summary><span><strong>Penilaian pekerjaan</strong><small>${teksPenilaian_(label)}</small></span><span>⌄</span></summary><div class="assessment-body">
-    <div class="assessment-row"><div><strong>Grade &amp; poin pencapaian</strong><small>${g?teksPenilaian_(g.reason):'D=1 · C=2 · B=4 · A=8 · S=16. Tetapkan setelah diagnosis.'}</small>${gradeActor?`<small>${teksPenilaian_(gradeActor)}</small>`:''}${g?.reviewNote?`<small>Catatan peninjau: ${teksPenilaian_(g.reviewNote)}</small>`:''}${request?`<small>Pengajuan ${teksPenilaian_(request.value)} oleh ${teksPenilaian_(request.proposedName)} menunggu keputusan admin. ${frozen?'Poin sah tetap berlaku.':''}</small>`:''}${a?.gradeRequest?.status==='rejected'?`<small>Pengajuan revisi ditolak: ${teksPenilaian_(a.gradeRequest.reviewNote)}</small>`:''}${manager&&recipient?'<small>Anda tercatat sebagai pelaksana tiket; minta admin lain menetapkan atau merevisi grade.</small>':''}</div>${canEditGrade&&!lockedLegacy?tombolPenilaian_(id,'grade',manager?'Revisi':'Pengajuan'):''}</div>
+    ${exempt?'<div class="assessment-row"><div><strong>Grade &amp; poin pencapaian</strong><small>Tidak perlu diisi untuk Outsource, Cancel/Batal, atau transaksi Garansi/Free/Gratis. Poin pencapaian: 0.</small></div></div>':`<div class="assessment-row"><div><strong>Grade &amp; poin pencapaian</strong><small>${g?teksPenilaian_(g.reason):'D=1 · C=2 · B=4 · A=8 · S=16. Tetapkan setelah diagnosis.'}</small>${gradeActor?`<small>${teksPenilaian_(gradeActor)}</small>`:''}${g?.reviewNote?`<small>Catatan peninjau: ${teksPenilaian_(g.reviewNote)}</small>`:''}${request?`<small>Pengajuan ${teksPenilaian_(request.value)} oleh ${teksPenilaian_(request.proposedName)} menunggu keputusan admin. ${frozen?'Poin sah tetap berlaku.':''}</small>`:''}${a?.gradeRequest?.status==='rejected'?`<small>Pengajuan revisi ditolak: ${teksPenilaian_(a.gradeRequest.reviewNote)}</small>`:''}${manager&&recipient?'<small>Anda tercatat sebagai pelaksana tiket; minta admin lain menetapkan atau merevisi grade.</small>':''}</div>${canEditGrade?tombolPenilaian_(id,'grade',manager?'Revisi':'Pengajuan'):''}</div>`}
     <div class="assessment-row"><div><strong>Kontribusi teknisi · opsional</strong><small>${paid?'Pembagian dikunci saat bonus cair':teksPenilaian_(allocationLabel)}</small>${allocationActor?`<small>${teksPenilaian_(allocationActor)}</small>`:''}${allocation?.reviewNote?`<small>${teksPenilaian_(allocation.reviewNote)}</small>`:''}</div>${!frozen&&!paid&&!lockedLegacy&&(!manager||canReview)?tombolPenilaian_(id,'allocation',manager?'Tetapkan kontribusi':'Atur kontribusi'):''}${canReview&&allocation&&!frozen&&!paid&&allocation.status==='pending'?tombolPenilaian_(id,'reviewAllocation','Tinjau pembagian'):''}</div>
     ${parts?`<ul class="assessment-parts">${parts}</ul>`:''}
-    <p class="assessment-help">Tanpa pengisian, poin pencapaian dan bonus dibagi rata kepada teknisi pada tiket. Persentase khusus berlaku setelah ditetapkan admin. Bonus tetap mengikuti pelunasan, SLA dan Veto Admin.</p>
-    ${excluded?'<p class="assessment-help">Tiket garansi, Cancel/Batal, dan Outsource: 0 poin pencapaian. Pembagian bonus tetap mengikuti aturan yang berlaku.</p>':a?.achievement?`<p class="assessment-posted">Pencapaian disahkan${a.achievement.automatic?' otomatis':''}: ${angkaPenilaian_(a.achievement.points)} poin · ${teksPenilaian_(a.achievement.approvedName)}</p>`:'<p class="assessment-help">Pencapaian disahkan otomatis setelah pekerjaan selesai, BA/PIC/tanda tangan lengkap, serta grade dan pembagian sah.</p>'}
+    <p class="assessment-help">${exempt?'Kontribusi bersifat opsional dan mengikuti aturan bonus yang berlaku.':'Tanpa pengisian, poin pencapaian dan bonus dibagi rata kepada teknisi pada tiket. Persentase khusus berlaku setelah ditetapkan admin. Bonus tetap mengikuti pelunasan, SLA dan Veto Admin.'}</p>
+    ${excluded||exempt?'<p class="assessment-help">Tiket garansi, Cancel/Batal, Outsource, dan transaksi Free/Gratis: 0 poin pencapaian. Pembagian bonus tetap mengikuti aturan yang berlaku.</p>':a?.achievement?`<p class="assessment-posted">Pencapaian disahkan${a.achievement.automatic?' otomatis':''}: ${angkaPenilaian_(a.achievement.points)} poin · ${teksPenilaian_(a.achievement.approvedName)}</p>`:'<p class="assessment-help">Pencapaian disahkan otomatis setelah pekerjaan selesai, BA/PIC/tanda tangan lengkap, serta grade dan pembagian sah.</p>'}
+    ${!exempt&&namaPenilaian_(ticket.Status)==='selesai'&&!a?.achievement&&g?.status!=='approved'?`<p class="assessment-help">${gradeDeadline===null?'Lengkapi waktu selesai sebelum pengisian grade.':(gradeClosed?'Masa pengisian grade awal sudah ditutup. Batas: sebelum ':'Grade awal dapat diisi atau diajukan sebelum ')+new Date(gradeDeadline).toLocaleDateString('id-ID',{timeZone:'Asia/Makassar',day:'numeric',month:'long',year:'numeric'})+' pukul 00.00 WITA.'}</p>`:''}
     ${lockedLegacy?'<p class="assessment-help">Tiket sudah cair: pembagian historis dipertahankan.</p>':''}
     <p class="assessment-help">Kredit performa mulai November 2026, setelah rekap bulanan disahkan. <a href="performa.html">Lihat rekap pencapaian &amp; kredit</a>.</p>
     ${typeof htmlKonteksPekerjaan_==='function'?htmlKonteksPekerjaan_(ticket):''}
@@ -73,6 +88,7 @@ async function bukaPenilaianTiket_(id,section='grade'){
     if(generation!==penilaianTiketUI_.generation||modal.style.display==='none')return;
     const ticket=(globalTickets||[]).find(t=>t['ID Tiket']===id);if(!ticket)throw new Error('Tiket tidak ditemukan pada cabang aktif.');
     ticket['Penilaian Teknisi']=result.assessment;
+    if(['grade','reviewGrade','post'].includes(section)&&(result.gradeRequired===false||result.gradeClosed))throw new Error(result.gradeRequired===false?'Tiket ini tidak perlu grade dan tidak mendapat poin pencapaian.':'Masa pengisian grade awal sudah berakhir sebelum tanggal 7 bulan berikutnya.');
     penilaianTiketUI_.context={id,section,ticket,...result};
     isiModalPenilaian_();modal.querySelector('select,input,textarea,button')?.focus();
   }catch(e){if(generation!==penilaianTiketUI_.generation)return;modal.querySelector('#assessment-content').textContent='';galatPenilaian_(e.message)}
