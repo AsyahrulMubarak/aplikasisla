@@ -2040,6 +2040,7 @@
 
         function pembagianPoinTeknisi_(ticket, legacyNames) {
             const state = ticket && (ticket.penilaian_teknisi || ticket['Penilaian Teknisi']);
+            if (['excluded','review_required'].includes(state?.technicianPoints?.status)) return [];
             if (!state) return legacyNames.map(name => ({ name, ratio: legacyNames.length ? 1 / legacyNames.length : 0 }));
             const members = state.bonusSnapshot && state.bonusSnapshot.members;
             if (!Array.isArray(members) || !members.length || members.length > 32) return [];
