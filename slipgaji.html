@@ -718,6 +718,7 @@
 
         let penggunaAktif = null;
         let globalUsers = []; let globalTickets = []; let globalAbsen = [];        let poinRahaPribadi_ = null;
+        let poinAlifAdminRaha_ = null;
         let tiketPayrollPerCabang_ = Object.create(null);
         let periodeTiketPayroll_ = '';
         let janjiTiketPayrollCabang_ = Object.create(null);
@@ -1678,6 +1679,7 @@
                 globalUsers = usersBaru;
                 globalTickets = dataSLA.tickets;
                 globalAbsen = absenBaru;                poinRahaPribadi_ = dataSLA.poinRahaPribadi || null;
+                poinAlifAdminRaha_ = dataSLA.poinAlifAdminRaha || null;
                 tiketPayrollPerCabang_ = Object.create(null);
                 tiketPayrollPerCabang_[cabangAktif] = dataSLA.tickets;
                 periodeTiketPayroll_ = periode;
@@ -2810,12 +2812,25 @@
                 (bulanTahun >= '2026-10' ? roleProfilPoin === 'teknisi'
                     : roleProfilPoin === 'admin_raha' || roleProfilPoin === 'admin');
             const salesArdanRaha = namaProfilPoin === 'ardan' && roleProfilPoin === 'sales' && cabangProfilPoin === 'Raha';
+            const poinAlifAdminRaha = bulanTahun >= '2026-10' && namaProfilPoin === 'alif' &&
+                roleProfilPoin === 'admin_raha' && cabangProfilPoin === 'Raha' &&
+                normalisasiNamaProfilPayroll_(profil.Username) === 'admin raha';
             let totalPoinSla = 0;
             let nilaiPerPoin = 10000;
             let labelBonusPoin = 'Bonus Poin SLA';
             let totalPoinTeknisiRaha = 0;
             let totalBonusPoinTeknisiRaha = 0;
-            if (poinNotaAdminKendari) {
+            if (poinAlifAdminRaha) {
+                const sumber = typeof poinAlifAdminRaha_ !== 'undefined' ? poinAlifAdminRaha_ : null;
+                if (!sumber || sumber.periode !== bulanTahun || sumber.cabang !== 'Raha' ||
+                    normalisasiNamaProfilPayroll_(sumber.username) !== 'admin raha' ||
+                    normalisasiNamaProfilPayroll_(sumber.pemilik) !== 'alif' || sumber.sumberUsername !== 'Alif' ||
+                    !Number.isFinite(sumber.poinSla) || sumber.poinSla < 0) {
+                    throw new Error('Data poin teknisi Alif belum siap untuk periode ini. Muat ulang data payroll.');
+                }
+                totalPoinSla = sumber.poinSla;
+                labelBonusPoin = 'Bonus Poin SLA Alif (Teknisi)';
+            } else if (poinNotaAdminKendari) {
                 totalPoinSla = hitungPoinNotaAdminKendari_(tiketSumberPoin, bulanTahun);
                 nilaiPerPoin = 2500;
                 labelBonusPoin = 'Bonus Poin Nota iPOS';
@@ -3621,6 +3636,3 @@
     </script>
 </body>
 </html>
-
-
-
