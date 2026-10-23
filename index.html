@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="./sales-workspace.css?v=20261022a">
     <script src="./sales-workspace.js?v=20261022a" defer></script>
     <link rel="stylesheet" href="./ticket-assessment.css?v=20261021a">
-    <script src="./ticket-assessment.js?v=20261023auto" defer></script>
+    <script src="./ticket-assessment.js?v=20261023rules" defer></script>
     <link rel="stylesheet" href="./ticket-workflow.css?v=20261021a">
     <script src="./ticket-workflow.js?v=20261022b" defer></script>
     <link rel="stylesheet" href="./lobby-credit.css?v=20261022b">
@@ -1379,6 +1379,7 @@
                 <h3 class="section-title" style="margin:0; border:none; padding:0; color:var(--success);">Data Prospek (Leads)</h3>
                 <button id="btn-tambah-prospek" class="btn-solid-primary" style="margin:0; width:auto; padding:8px 15px; font-size:12px; background:var(--success);" onclick="bukaFormProspek()">+ Input Prospek</button>
             </div>
+            <p id="prospek-expiry-help" class="assessment-help">Prospek aktif otomatis menjadi Tanpa Keterangan setelah 7 hari kalender tanpa follow-up yang tercatat. Waktu dihitung dari follow-up terakhir, atau tanggal input jika belum ada follow-up, berdasarkan tanggal WITA. Pengingat diberikan pada hari ke-3 dan ke-6.</p>
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
                 <input type="text" id="search-prospek-input" placeholder="Cari Calon Customer, No WA, Kebutuhan, Sales..." oninput="toggleClearBtn(this); renderProspek()">
@@ -6410,6 +6411,7 @@
                     let kunciNoTransaksi = '';
                     if (referensi.startsWith('TKT')) {
                         tiketReferensi = tiketById.get(referensi) || null;
+                        if (['cancel','batal'].includes(String(tiketReferensi?.Status || '').trim().toLowerCase())) return;
                         let noTransaksiTiket = noTransaksiDashboard_(tiketReferensi) || noTransaksiDashboard_(g);
                         kunciTiket = 'TKT:' + referensi;
                         kunciNoTransaksi = noTransaksiTiket ? 'TRX:' + noTransaksiTiket : '';
@@ -6786,6 +6788,7 @@
             if (filterStatus !== 'all' && statusTiket !== filterStatus) return false;
 
             if (filterPembayaran !== 'all' && statusNotaTiket_(ticket) !== filterPembayaran) return false;
+            if (gradeFilter !== 'all' && (['outsource','cancel','batal'].includes(String(ticket.Status || '').trim().toLowerCase()) || nomorTransaksiNotaGratis_(ticket['No Transaksi'] ?? ticket.no_transaksi))) return false;
             const assessment = ticket['Penilaian Teknisi'];
             const grade = assessment?.grade;
             const gradeValid = ['S', 'A', 'B', 'C', 'D'].includes(String(grade?.value || '').trim().toUpperCase());
