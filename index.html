@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="./sales-workspace.css?v=20261022a">
     <script src="./sales-workspace.js?v=20261022a" defer></script>
     <link rel="stylesheet" href="./ticket-assessment.css?v=20261021a">
-    <script src="./ticket-assessment.js?v=20261023rules" defer></script>
+    <script src="./ticket-assessment.js?v=20261023contribution" defer></script>
     <link rel="stylesheet" href="./ticket-workflow.css?v=20261021a">
     <script src="./ticket-workflow.js?v=20261022b" defer></script>
     <link rel="stylesheet" href="./lobby-credit.css?v=20261022b">
@@ -1332,6 +1332,7 @@
                         <option value="all">Semua Grade</option>
                         <option value="belum_grade">Belum mendapat grade</option>
                         <option value="pending">Menunggu keputusan admin</option>
+                        <option value="contribution_review">Tinjau kontribusi teknisi</option>
                         <option value="approved">Grade sudah disahkan</option>
                     </select>
                 </div>
@@ -2436,7 +2437,7 @@
                 'this.parentElement.parentElement.remove(); hitungTotalProspek();'
             ]);
             if (handlerStatis.has(handler)) return true;
-            if (/^bukaPenilaianTiket_\('TKT-[A-Za-z0-9-]{1,100}',\s*'(?:grade|allocation|reviewGrade|reviewAllocation|post)'\)$/.test(handler)) return true;
+            if (/^bukaPenilaianTiket_\('TKT-[A-Za-z0-9-]{1,100}',\s*'(?:grade|allocation|reviewGrade|reviewAllocation|post|technicianPoints)'\)$/.test(handler)) return true;
 
             const fungsiSatuId = '(?:hapusTiket|bukaModalBanding|aktifkanEditTiket|bukaModalPoin|bukaModalUpdate|tandaiLunas|hapusPenjualan|prosesKlaimGaransi|bukaKlaimItemGaransi|bukaRincianItemGaransi|aktifkanGaransi|bukaEditGaransi|hapusGaransi|bukaModalFollowUp|kirimFollowUpTiket|updateStatusProspek|ajukanPemulihan|mintaPenawaran|hapusProspek|bukaModalPenawaran|aktifkanEditProspek|mintaRevisiPenawaran|aktifkanEditUser|hapusUser|salinLinkTracking|bukaDokumenBATiket_|lihatBuktiChatProspek|unduhBuktiChatProspek)';
             if (new RegExp('^' + fungsiSatuId + "\\('[A-Za-z0-9._-]{1,120}'\\)$").test(handler)) return true;
@@ -6096,6 +6097,7 @@
 
         function pembagianPoinTeknisi_(ticket, legacyNames) {
             const state = ticket && (ticket.penilaian_teknisi || ticket['Penilaian Teknisi']);
+            if (['excluded','review_required'].includes(state?.technicianPoints?.status)) return [];
             if (!state) return legacyNames.map(name => ({ name, ratio: legacyNames.length ? 1 / legacyNames.length : 0 }));
             const members = state.bonusSnapshot && state.bonusSnapshot.members;
             if (!Array.isArray(members) || !members.length || members.length > 32) return [];
@@ -6790,6 +6792,8 @@
             if (filterPembayaran !== 'all' && statusNotaTiket_(ticket) !== filterPembayaran) return false;
             if (gradeFilter !== 'all' && (['outsource','cancel','batal'].includes(String(ticket.Status || '').trim().toLowerCase()) || nomorTransaksiNotaGratis_(ticket['No Transaksi'] ?? ticket.no_transaksi))) return false;
             const assessment = ticket['Penilaian Teknisi'];
+            if (gradeFilter === 'contribution_review') return assessment?.technicianPoints?.status === 'review_required';
+            if (gradeFilter !== 'all' && ['excluded','review_required'].includes(assessment?.technicianPoints?.status)) return false;
             const grade = assessment?.grade;
             const gradeValid = ['S', 'A', 'B', 'C', 'D'].includes(String(grade?.value || '').trim().toUpperCase());
             const gradeStatus = String(grade?.status || '').trim().toLowerCase();
@@ -7162,7 +7166,9 @@
                     let statusSlaKerja = ticket['Status SLA'];
                     let statusBayar = ticket['Status Pembayaran'] || '';
 
-                    if (nilaiPoin === 0) {
+                    if (['excluded','review_required'].includes(ticket['Penilaian Teknisi']?.technicianPoints?.status)) {
+                        htmlPoinTeknisi = '<div style="margin-top:8px; padding:6px 10px; background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; font-size:12px; color:#9a3412; font-weight:bold;">Bonus &amp; pencapaian teknisi: 0 · '+(ticket['Penilaian Teknisi'].technicianPoints.status==='review_required'?'Menunggu tinjauan kontribusi':'Tanpa kontribusi teknisi')+'</div>';
+                    } else if (nilaiPoin === 0) {
                         htmlPoinTeknisi = `<div style="margin-top:8px; padding:6px 10px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; display:inline-block; font-size:12px; color:#991b1b; font-weight:bold;">❌ Poin 0 (Garansi / Non-Revenue)</div>`;
                     } else if (!statusPoinSudahCair_(statusBayar)) {
                         // SEMUA TIKET DIBEKUKAN SAMPAI ADMIN TEKAN VERIFIKASI / LUNAS
