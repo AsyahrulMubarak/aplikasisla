@@ -127,9 +127,9 @@ test('Sales and technicians render only their complete personal card and safely 
     assert.ok(content.includes('A &lt;img src=x onerror=alert(1)&gt;'));
     assert.ok(!content.includes('<img'));
     assert.ok(!content.includes('Other Sales') && !content.includes('Other Technician'));
-    const headings = role === 'sales' ? ['PENCAPAIAN TARGET', 'STATUS TRANSAKSI', 'Potensi Pipeline', 'Tingkat Konversi'] : ['TOTAL POIN KINERJA BULAN INI', 'SLA RESPON', 'SLA PENGERJAAN', 'Tuntas Tanpa Pending', 'Kebocoran Garansi'];
+    const headings = role === 'sales' ? ['PENCAPAIAN TARGET', 'STATUS TRANSAKSI', 'Potensi Pipeline', 'Tingkat Konversi'] : ['POIN PENCAPAIAN', 'Poin bonus pekerjaan lunas', 'SLA RESPON', 'SLA PENGERJAAN', 'Tuntas Tanpa Pending', 'Kebocoran Garansi'];
     for (const heading of headings) assert.ok(content.includes(heading), heading);
-    assert.equal(node('lobby-point-preview').textContent, role === 'sales' ? 'Omzet pribadi · Rp 1.000.000' : 'Poin pribadi · 6');
+    assert.equal(node('lobby-point-preview').textContent, role === 'sales' ? 'Omzet pribadi · Rp 1.000.000' : 'Poin pencapaian · lihat rincian penilaian');
   }
 });
 test('Sales target remains personal when opening an authorized branch other than the profile branch', async () => {

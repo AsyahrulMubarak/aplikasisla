@@ -1,0 +1,11 @@
+# Poin pencapaian gabungan — 24 Oktober 2026
+
+Kebijakan teknisi versi 3 memakai grade 50%, SLA respons 10%, SLA pengerjaan 15%, ketuntasan tanpa pending akibat teknisi 10%, kualitas garansi 10%, dan stabilitas penugasan 5%. Seluruh komponen dinormalisasi 0–100. Poin grade tetap ditampilkan terpisah, mengikuti snapshot grade dan porsi kontribusi resmi pada bulan selesai; pelunasan dan potongan bonus/SLA tidak mengurangi dasar grade. Solo/tim tidak diberi poin tambahan di luar pembagian grade.
+
+Target grade = 27 × hari penugasan efektif / 26. Batas kelulusan: skor ≥80, nilai grade ≥80%, respons ≥80%, pengerjaan ≥70%, seluruh sampel, grade, dan tinjauan mutu lengkap. Sampel kosong tidak dianggap sempurna atau dibobot ulang. Penyebab pending, klaim dan pergantian harus ditinjau; satu akar masalah hanya satu penalti utama. Tiket berjalan sebelum tenggat belum menjadi sampel gagal. Jeda setelah terlambat tetap menyimpan kegagalan SLA bila sisa jeda negatif.
+
+Kartu dashboard dan lobi mengambil hasil dari Edge Function yang sama dengan rekap. Rincian menampilkan persentase, bobot dan sumbangan poin setiap komponen. Kasus yang belum ditinjau diberi label sementara; sumber berubah membatalkan penggunaan keputusan mutu lama sampai ditinjau ulang. Filter Semua Periode meminta pengguna memilih satu bulan, karena skor bulanan tidak boleh dijumlahkan lintas periode. Hanya pegawai aktif bergaji dan cakupan akses yang sudah berlaku yang ditampilkan. Penilaian sales tetap tiga target wajib.
+
+Pengesahan SQL memerlukan versi 3 untuk teknisi dan versi 1 untuk sales. Tidak ada perubahan snapshot bonus, nominal gaji, kredit historis atau jadwal evaluasi. Kredit performa tetap mulai November 2026; Oktober tersedia sebagai pratinjau. Hasil yang kreditnya telah digunakan tetap memakai hasil historis terkunci.
+
+Validasi: contoh grade 21,6/27, respons 90%, pengerjaan 80%, ketuntasan 90%, garansi 95%, stabilitas 80% menghasilkan 83,5. Pengujian mencakup batas kelulusan, tanggal WITA, jatuh tempo, pembagian grade, kekurangan sampel, sebab eksternal, deduplikasi akar masalah, autentikasi/cabang, tinjauan sumber berubah, penolakan versi lama, kompatibilitas sales dan kredit gaji. Browser memeriksa dashboard → Edge → PostgreSQL → tinjauan → pengesahan → dashboard, serta lebar desktop, 390px dan 320px. Data contoh terisolasi dari produksi.

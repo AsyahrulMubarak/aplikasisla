@@ -22,10 +22,10 @@ test('attendance uses criterion cards, achievement starts at zero and displays a
  h.api.render({period:'2026-11',rows:[{...row,achievement:{...row.achievement,achieved:0,percent:0}}]});assert.equal(walk(h.get('lobby-credit-list')).find(n=>n.className==='credit-fill').style.width,'0%');
 });
 
-test('technician bars keep approved points against their target without sales criteria',()=>{
- const h=harness();h.api.render({period:'2026-11',rows:[{...row,role:'teknisi',achievement:{...row.achievement,achieved:5,target:20,percent:25,unit:'poin',sales:null}}]});
- const nodes=walk(h.get('lobby-credit-list'));assert.equal(nodes.find(n=>n.className==='credit-fill').style.width,'25%');
- assert.ok(nodes.some(n=>n.textContent==='5 / 20 poin'));assert.equal(nodes.filter(n=>n.className==='credit-sales-target').length,0);
+test('technician progress uses composite score and retains separate raw grade target',()=>{
+ const h=harness();h.api.render({period:'2026-11',rows:[{...row,role:'teknisi',achievement:{...row.achievement,achieved:5,target:20,score:62.5,percent:62.5,unit:'skor',sales:null}}]});
+ const nodes=walk(h.get('lobby-credit-list'));assert.equal(nodes.find(n=>n.className==='credit-fill').style.width,'62.5%');
+ assert.ok(nodes.some(n=>n.textContent==='62,5 / 100'));assert.ok(nodes.some(n=>n.textContent==='Total poin grade: 5 / 20 poin'));assert.equal(nodes.filter(n=>n.className==='credit-sales-target').length,0);
 });
 test('logout and account changes clear private cards and discard a late prior response',async()=>{
  let resolve,started;const ready=new Promise(r=>started=r);const h=harness(()=>{started();return new Promise(r=>resolve=r);});h.get('main-lobby-wrapper').attrs['aria-hidden']='false';h.get('main-lobby-wrapper').style.display='flex';

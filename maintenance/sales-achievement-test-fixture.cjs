@@ -16,6 +16,8 @@ async function salesAchievementFixture(){
  "('Raha','2026-10','ardan',200,60,1,true,'33333333-3333-4333-8333-333333333333');");
  await db.exec(fs.readFileSync(__dirname+'/../supabase/migrations/20261022072438_november_raha_salary_credits.sql','utf8'));
  await db.exec(fs.readFileSync(__dirname+'/../supabase/migrations/20261022072839_november_sales_achievement.sql','utf8'));
+ await db.exec(fs.readFileSync(__dirname+'/../supabase/migrations/20261023020608_active_salaried_performance_only.sql','utf8'));
+ await db.exec(fs.readFileSync(__dirname+'/../supabase/migrations/'+fs.readdirSync(__dirname+'/../supabase/migrations').find(name=>name.endsWith('_achievement_composite_policy_v3.sql')),'utf8'));
  const seed=async(username='juna',period='2026-11')=>{
   const user=(await db.query('select * from users where username=$1',[username])).rows[0],b=user.cabang,name=user.nama_asli;
   for(let n=1;n<=5;n++)await db.query('insert into prospek values($1,$2,$3,$4,$5,$6)',[username+'-P'+n,period+'-02T10:00:00+08:00',n<=3?'Closing / Deal':'Tahap Penawaran',name,'628000000000'+n,b]);

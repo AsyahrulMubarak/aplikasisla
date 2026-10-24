@@ -21,7 +21,9 @@ export function calculateSales(source){
  for(const g of warranties){
   const ref=key(g.referensi_tiket_nota);
   if(ref.startsWith('SLS')||saleIds.has(ref)||saleRefs.has(ref))continue;
-  const t=tickets.find(t=>key(t.id_tiket)===ref),at=g.tanggal_mulai||t?.tanggal_lunas||t?.waktu_selesai||t?.waktu_lapor;
+  const t=tickets.find(t=>key(t.id_tiket)===ref);
+  if(['cancel','batal'].includes(norm(t?.status)))continue;
+  const at=g.tanggal_mulai||t?.tanggal_lunas||t?.waktu_selesai||t?.waktu_lapor;
   if(!inMonth(at))continue;
   add(ref.startsWith('TKT')?'TKT:'+ref:null,key(t?.no_transaksi)||key(g.no_transaksi),g.omzet,g.sales||t?.sales,ref.startsWith('TKT')?'TKT':'MANUAL');
  }

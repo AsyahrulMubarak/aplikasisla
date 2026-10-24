@@ -1,17 +1,19 @@
 // Shared deterministic scoring. Money/bonus points are deliberately not inputs.
 import {calculateSales} from './sales.mjs';
-export const POLICY = Object.freeze({version:2,start:'2026-11',baseTarget:27,baseDays:26,weights:{P:.30,K:.25,R:.15,T:.10,G:.10,U:.10}});
+export const POLICY = Object.freeze({version:3,start:'2026-11',baseTarget:27,baseDays:26,weights:Object.freeze({P:.50,K:.15,R:.10,T:.10,G:.10,U:.05})});
 const norm=v=>String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
 const names=v=>String(v||'').split(/[,;\r\n]/).map(norm).filter(Boolean);
 const time=v=>v?Date.parse(v):NaN;
 const round=v=>Math.round((v+Number.EPSILON)*10000)/10000;
 const pointRound=v=>Math.round((v+Number.EPSILON)*1000000)/1000000;
 const clamp=v=>Math.max(0,Math.min(100,v));
-export function calculate(source,input={}) {
+export function calculate(source,input={},evaluatedAt=Date.now()) {
   if(source.profile?.role==='sales')return calculateSales(source);
   const {period,profile}=source, start=time(period+'-01T00:00:00+08:00');
   const [year,month]=period.split('-').map(Number),end=Date.UTC(year,month,1)-8*3600000;
   const inMonth=v=>time(v)>=start&&time(v)<end;
+  const now=typeof evaluatedAt==='number'?evaluatedAt:time(evaluatedAt);
+  if(!Number.isFinite(now))throw Error('Waktu penilaian tidak valid.');
   const own=v=>names(v).includes(norm(profile.name));
   const belongs=m=>m.username?m.username===profile.username:norm(m.name)===norm(profile.name);
   const tickets=source.tickets||[], warnings=[], cases=[], points=[], unfinished=[];
@@ -32,18 +34,20 @@ export function calculate(source,input={}) {
     const a=t.penilaian_teknisi||{},achievement=a.achievement, current=own(t.teknisi);
     const related=current||own(t.teknisi_sebelumnya)||(t.riwayat_penggantian_teknisi||[]).some(h=>own(h.dari)||own(h.ke))||(achievement?.members||[]).some(belongs);
     if(!related)continue;
-    const achievementEligible=norm(t.status)!=='outsource'&&!String(t.garansi_asal||'').trim()&&!String(t.referensi_tiket_asal||'').trim();
+    const achievementEligible=norm(t.status)!=='outsource'&&!['garansi','free','gratis'].includes(norm(t.no_transaksi))&&!['excluded','review_required'].includes(a.technicianPoints?.status)&&!String(t.garansi_asal||'').trim()&&!String(t.referensi_tiket_asal||'').trim();
     if(achievementEligible&&achievement&&inMonth(achievement.completedAt)){
       const share=(achievement.members||[]).filter(belongs).reduce((n,m)=>n+Number(m.share||0),0);
       const value=Number(achievement.points)*share/100;
       if(norm(t.status)!=='selesai'||time(t.waktu_selesai)!==time(achievement.completedAt))warnings.push(t.id_tiket+': status/waktu selesai berubah setelah pencapaian disahkan; perlu koreksi hasil.');
       else if(value>0)points.push({id:t.id_tiket,grade:achievement.grade,share,points:pointRound(value),completedAt:achievement.completedAt});
     } else if(achievementEligible&&current&&inMonth(t.waktu_selesai)&&norm(t.status)==='selesai')unfinished.push({id:t.id_tiket,grade:a.grade?.value||null,reason:a.grade?.status==='approved'?'Hasil pencapaian belum disahkan':'Grade belum disahkan'});
-    if(current&&inMonth(t.tenggat_waktu)&&!['pending','outsource'].includes(norm(t.status))){
+    const done=norm(t.status)==='selesai'&&Number.isFinite(time(t.waktu_selesai));
+    const paused=['pending','outsource'].includes(norm(t.status));
+    if(current&&inMonth(t.tenggat_waktu)&&(done||!paused&&time(t.tenggat_waktu)<=now||paused&&Number(t.sla_jeda_sisa_detik)<0)){
       const good=Number.isFinite(time(t.waktu_selesai))&&time(t.waktu_selesai)<=time(t.tenggat_waktu)&&norm(t.status)==='selesai';
       workTotal++;if(good)workGood++;workTickets.push({id:t.id_tiket,good,deadline:t.tenggat_waktu});
     }
-    if(current&&inMonth(t.tenggat_respon)){
+    if(current&&inMonth(t.tenggat_respon)&&(Number.isFinite(time(t.waktu_respon))||time(t.tenggat_respon)<=now)){
       const good=Number.isFinite(time(t.waktu_respon))&&time(t.waktu_respon)<=time(t.tenggat_respon);
       responseTotal++;if(good)responseGood++;responseTickets.push({id:t.id_tiket,good,deadline:t.tenggat_respon});
     }
@@ -99,10 +103,11 @@ export function calculate(source,input={}) {
   for(const key of Object.keys(decisions))if(!cases.some(c=>c.key===key))throw Error('Kasus sudah berubah atau bukan bagian penilaian bulan ini. Muat ulang.');
   const ratio=(n,d)=>d>0?clamp(100*n/d):null;
   const target=POLICY.baseTarget*effectiveDays/POLICY.baseDays;
-  const achieved=points.reduce((n,p)=>n+p.points,0);
+  const achieved=pointRound(points.reduce((n,p)=>n+p.points,0));
   const values={P:target>0?clamp(achieved/target*100):null,K:ratio(workGood,workTotal),R:ratio(responseGood,responseTotal),T:ratio(completed.length-fault.T.size,completed.length),G:ratio(warranted.size-fault.G.size,warranted.size),U:ratio(new Set(assigned).size-fault.U.size,new Set(assigned).size)};
   const missing=Object.keys(values).filter(k=>values[k]===null);
   const complete=!missing.length&&!unresolved&&!warnings.length&&unfinished.length===0;
+  const contributions=Object.fromEntries(Object.entries(POLICY.weights).map(([k,w])=>[k,values[k]===null?null:round(w*values[k])]));
   const score=missing.length?null:Object.entries(POLICY.weights).reduce((s,[k,w])=>s+w*values[k],0);
   const pass=complete&&score>=80&&values.P>=80&&values.K>=70&&values.R>=80;
   const reasons=[];
@@ -112,6 +117,6 @@ export function calculate(source,input={}) {
   reasons.push(...warnings);
   if(score!==null&&score<80)reasons.push('Skor gabungan di bawah 80.');
   for(const [k,min] of [['P',80],['K',70],['R',80]])if(values[k]!==null&&values[k]<min)reasons.push(k+' di bawah '+min+'%.');
-  return {policy:POLICY,period,days,effectiveDays,target:round(target),targetReason,achieved:pointRound(achieved),values:Object.fromEntries(Object.entries(values).map(([k,v])=>[k,v===null?null:round(v)])),score:score===null?null:round(score),complete,pass,credit:pass?1:0,reasons,cases,points,unfinished,counts:{workGood,workTotal,responseGood,responseTotal,completed:completed.length,warranted:warranted.size,assigned:new Set(assigned).size},workTickets,responseTickets};
+  return {policy:POLICY,period,days,effectiveDays,target:round(target),targetReason,achieved:pointRound(achieved),values:Object.fromEntries(Object.entries(values).map(([k,v])=>[k,v===null?null:round(v)])),contributions,score:score===null?null:round(score),complete,pass,credit:pass?1:0,reasons,cases,points,unfinished,counts:{workGood,workTotal,responseGood,responseTotal,completed:completed.length,warranted:warranted.size,assigned:new Set(assigned).size},workTickets,responseTickets};
 }
 
