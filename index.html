@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="./sales-workspace.css?v=20261022a">
     <script src="./sales-workspace.js?v=20261022a" defer></script>
     <link rel="stylesheet" href="./ticket-assessment.css?v=20261021a">
-    <script src="./ticket-assessment.js?v=20261023contribution" defer></script>
+    <script src="./ticket-assessment.js?v=20261024-grade-status" defer></script>
     <link rel="stylesheet" href="./ticket-workflow.css?v=20261021a">
     <script src="./ticket-workflow.js?v=20261022b" defer></script>
     <link rel="stylesheet" href="./lobby-credit.css?v=20261022b">
@@ -1368,7 +1368,7 @@
             </div>
             <div class="search-wrapper">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="search-sls" placeholder="Cari ID, No Trx, Pembeli, Barang..." oninput="toggleClearBtn(this); renderPenjualan()">
+                <input type="text" id="search-sls" placeholder="Cari ID, No Trx, Pembeli, No WA, Barang..." oninput="toggleClearBtn(this); renderPenjualan()">
                 <span class="clear-icon" onclick="clearSearch('search-sls')">✖</span>
             </div>
             <div id="penjualan-container"></div>
@@ -2061,7 +2061,16 @@
             const index = target.findIndex(item =>
                 String(item && item[namaKunci] || '').trim().toLowerCase() === nilaiNormal
             );
-            if (index >= 0) target[index] = recordBaru;
+            if (index >= 0 && namaKunci === 'ID Tiket') {
+                const lama = target[index];
+                const versiLama = Number(lama['Versi Workflow']);
+                const versiBaru = Number(recordBaru['Versi Workflow']);
+                // Event yang terlambat tidak boleh mengembalikan status atau grade lama.
+                if (Number.isFinite(versiLama) && Number.isFinite(versiBaru) && versiBaru < versiLama) return target;
+                const tersedia = Object.fromEntries(Object.entries(recordBaru).filter(([, nilai]) => nilai !== undefined));
+                target[index] = { ...lama, ...tersedia };
+            }
+            else if (index >= 0) target[index] = recordBaru;
             else target.unshift(recordBaru);
             return target;
         }
@@ -2125,11 +2134,7 @@
 
             if (tabel === 'penjualan') {
                 if (!isManajemen && !isSales) return true;
-                const record = {
-                    "ID Penjualan": row.id_penjualan, "No Transaksi": row.no_transaksi, "Waktu Lapor": row.waktu_lapor,
-                    "Nama Pembeli": row.nama_pembeli, "Barang / Jasa": row.barang_jasa, "Sales": row.sales,
-                    "Nominal (Rp)": row.nominal_rp, "Cabang": row.cabang || 'Kendari'
-                };
+                const record = petakanPenjualanSupabase_(row);
                 globalPenjualan = upsertRecordRealtime_(globalPenjualan, 'ID Penjualan', row.id_penjualan, record);
                 renderDashboard();
                 renderPenjualan();
@@ -3494,6 +3499,7 @@
             return {
                 "ID Penjualan": p.id_penjualan, "No Transaksi": p.no_transaksi, "Waktu Lapor": p.waktu_lapor,
                 "Nama Pembeli": p.nama_pembeli, "Barang / Jasa": p.barang_jasa, "Sales": p.sales, "Nominal (Rp)": p.nominal_rp,
+                "No WA Pembeli": p.no_wa_pembeli || '',
                 "Cabang": p.cabang || 'Kendari'
             };
         }
@@ -7243,8 +7249,10 @@
                 if (!dataMasukPeriodeDaftar_(tanggalPenjualan, bulanPenjualan, tahunPenjualan)) return;
 
                 if (searchVal !== '') {
-                    let strCari = `${p['ID Penjualan']} ${p['No Transaksi']} ${p['Nama Pembeli']} ${p['Barang / Jasa']} ${p['Sales']}`.toLowerCase();
-                    if (!strCari.includes(searchVal)) return;
+                    let strCari = `${p['ID Penjualan']} ${p['No Transaksi']} ${p['Nama Pembeli']} ${p['No WA Pembeli'] || ''} ${p['Barang / Jasa']} ${p['Sales']}`.toLowerCase();
+                    const waDicari = normalisasiWASementara_(searchVal);
+                    const cocokWA = waDicari.length >= 8 && normalisasiWASementara_(p['No WA Pembeli']).includes(waDicari);
+                    if (!strCari.includes(searchVal) && !cocokWA) return;
                 }
                 htmlAda = true;
 
@@ -7255,8 +7263,12 @@
 
                 let noTrans = p['No Transaksi'] ? `<p><strong>No Transaksi:</strong> <span class="code-badge">${p['No Transaksi']}</span></p>` : '';
                 let tgl = p['Waktu Lapor'] ? new Date(p['Waktu Lapor']).toLocaleDateString('id-ID') : '-';
+                const nomorWA = normalisasiWASementara_(p['No WA Pembeli']);
+                const infoWA = /^628\d{7,12}$/.test(nomorWA)
+                    ? `<a href="https://wa.me/${nomorWA}" target="_blank" rel="noopener noreferrer">${nomorWA}</a>`
+                    : '<span style="color:var(--text-muted);">Belum tercatat</span>';
 
-                tambahkanHtmlAman_(container, `<div class="card status-terpenuhi"><h3><span>${p['ID Penjualan']}</span><span class="badge badge-sales">Lunas</span></h3>${noTrans}<p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Pembeli:</strong> ${p['Nama Pembeli']}</p><p><strong>Barang:</strong> ${p['Barang / Jasa']}</p><p><strong>Sales:</strong> ${p['Sales']}</p><p style="color:var(--success);"><strong>Nominal Omzet:</strong> ${formatRp(p['Nominal (Rp)'] || p['Nominal'])}</p>${btnHtml}</div>`);
+                tambahkanHtmlAman_(container, `<div class="card status-terpenuhi"><h3><span>${p['ID Penjualan']}</span><span class="badge badge-sales">Lunas</span></h3>${noTrans}<p><strong>Tgl Input:</strong> ${tgl}</p><p><strong>Pembeli:</strong> ${p['Nama Pembeli']}</p><p><strong>WhatsApp Pembeli:</strong> ${infoWA}</p><p><strong>Barang:</strong> ${p['Barang / Jasa']}</p><p><strong>Sales:</strong> ${p['Sales']}</p><p style="color:var(--success);"><strong>Nominal Omzet:</strong> ${formatRp(p['Nominal (Rp)'] || p['Nominal'])}</p>${btnHtml}</div>`);
             });
             if(!htmlAda) container.innerHTML = '<p style="text-align:center; color:var(--text-muted); margin-top:40px;">Tidak ada data penjualan pada periode atau pencarian terpilih.</p>';
         }
@@ -8967,6 +8979,7 @@
 
                     const cabangAktual = normalisasiCabang(cabangAktif) || 'Kendari';
                     const noWaPenjualanCRM = normalisasiWASementara_(document.getElementById('input-wa-sls').value);
+                    if (!/^628\d{7,12}$/.test(noWaPenjualanCRM)) throw new Error('Nomor WhatsApp pembeli tidak valid. Gunakan nomor aktif dengan awalan 08 atau 628.');
                     const idPenjualanTerbaru = await idPenjualanTerbaruDariServer_();
                     document.getElementById('input-id-sls').value = idPenjualanTerbaru;
                     const penjualanBaru = {
@@ -8974,6 +8987,7 @@
                         no_transaksi: noTransaksi,
                         waktu_lapor: tanggalIsoSupabase_(),
                         nama_pembeli: document.getElementById('input-pembeli-sls').value,
+                        no_wa_pembeli: noWaPenjualanCRM,
                         barang_jasa: document.getElementById('input-barang-sls').value,
                         sales: sales,
                         nominal_rp: angkaRupiahSupabase_(document.getElementById('input-nilai-sls').value, 0),
