@@ -1635,7 +1635,7 @@
                     <input type="text" id="input-notrans-sls" required placeholder="Wajib diisi">
                     <label>Nama Pembeli</label><input type="text" id="input-pembeli-sls" required oninput="deteksiSalesDariProspek(this, 'input-sales-sls-group')">
                     <label style="color:#1e3a8a;">Nomor WhatsApp Pembeli <span style="color:var(--danger);">*</span></label>
-                    <input type="tel" id="input-wa-sls" required placeholder="Contoh: 6285123456789" oninput="formatWA(this)">
+                    <input type="tel" id="input-wa-sls" required placeholder="Contoh: 6285123456789" oninput="formatWA(this); deteksiSalesDariProspek(this, 'input-sales-sls-group', 'wa')">
                     <label>Barang / Jasa Terjual</label><input type="text" id="input-barang-sls" required>
                     <label>Sales Bertugas</label><div class="checkbox-group" id="input-sales-sls-group"></div>
                     <label style="color:var(--purple);">Nominal Omzet (Rp)</label>
@@ -2658,30 +2658,37 @@
 
         function statusProspekAktifUntukSinkron_(statusProspek) {
             const statusNormal = String(statusProspek || '').trim().toLowerCase();
-            return statusNormal === 'tahap penawaran' || statusNormal === 'kunjungan toko';
+            return ['tahap penawaran', 'kunjungan toko', 'on progress', 'pending', 'proses servis'].includes(statusNormal);
         }
 
-        async function sinkronkanStatusProspekOtomatis_(statusProspekTujuan, noWaCustomer, namaCustomer, sumberPerubahan) {
+        async function sinkronkanStatusProspekOtomatis_(statusProspekTujuan, noWaCustomer, namaCustomer, sumberPerubahan, konteksPenjualan) {
             const statusTujuan = statusProspekKanonis_(statusProspekTujuan);
             if (!statusTujuan) return { ditemukan: 0, diperbarui: 0, status: '' };
 
-            // Nama dan WA wajib sama-sama cocok. Ini mencegah customer yang namanya
-            // kebetulan sama, atau nomor WA yang dipakai bersama, tertutup otomatis.
+            // Penjualan mengikuti identitas WA dan sales, meskipun nama pembeli ditulis berbeda.
+            const konteks = konteksPenjualan || {};
+            const dariPenjualan = sumberPerubahan === 'penjualan langsung';
             const waTarget = normalisasiWASementara_(noWaCustomer);
             const namaTarget = normalisasiNamaCustomerProspek_(namaCustomer);
-            if (!/^628\d{7,12}$/.test(waTarget) || !namaTarget) {
+            const cabang = normalisasiCabang(konteks.cabang || cabangAktif);
+            const daftarSales = nilai => String(nilai || '').split(',').map(nama => nama.trim().toLowerCase()).filter(Boolean).sort().join(',');
+            const salesTarget = daftarSales(konteks.sales);
+            if (!/^628\d{7,12}$/.test(waTarget) || (!dariPenjualan && !namaTarget) || !['Kendari', 'Raha'].includes(cabang)) {
                 return { ditemukan: 0, diperbarui: 0, status: statusTujuan };
             }
 
-            const daftarProspek = await callSupabase('prospek?select=id_prospek,no_wa,nama_calon_customer,status_prospek,sales_penanggung_jawab');
+            const filterCabang = cabang === 'Raha' ? 'cabang=eq.Raha' : 'or=(cabang.eq.Kendari,cabang.is.null)';
+            const daftarProspek = await callSupabase('prospek?select=id_prospek,no_wa,nama_calon_customer,status_prospek,sales_penanggung_jawab,cabang&' + filterCabang);
             if (!Array.isArray(daftarProspek)) throw new Error('Respons pencarian Prospek tidak valid.');
 
             const idSudahDiproses = new Set();
             const prospekCocok = daftarProspek.filter(prospek => {
                 if (!prospek || !prospek.id_prospek || !statusProspekAktifUntukSinkron_(prospek.status_prospek)) return false;
+                if ((normalisasiCabang(prospek.cabang) || 'Kendari') !== cabang) return false;
                 const cocokWa = normalisasiWASementara_(prospek.no_wa) === waTarget;
                 const cocokNama = normalisasiNamaCustomerProspek_(prospek.nama_calon_customer) === namaTarget;
-                if (!cocokWa || !cocokNama) return false;
+                if (!cocokWa || (!dariPenjualan && !cocokNama)) return false;
+                if (dariPenjualan && salesTarget && daftarSales(prospek.sales_penanggung_jawab) !== salesTarget) return false;
                 const idProspek = String(prospek.id_prospek).trim();
                 if (idSudahDiproses.has(idProspek)) return false;
                 idSudahDiproses.add(idProspek);
@@ -2691,10 +2698,12 @@
             const hasilPembaruan = await Promise.all(prospekCocok.map(async prospek => {
                 const idProspek = String(prospek.id_prospek).trim();
                 const hasil = await callSupabase(
-                    endpointFilterSupabase_('prospek', 'id_prospek', idProspek),
+                    endpointFilterSupabase_('prospek', 'id_prospek', idProspek) + '&' + filterCabang + '&status_prospek=eq.' + encodeURIComponent(prospek.status_prospek),
                     'PATCH',
                     { status_prospek: statusTujuan }
                 );
+                // Prospek yang berubah lebih dahulu tidak ditimpa atau mengirim notifikasi ulang.
+                if (Array.isArray(hasil) && hasil.length === 0) return { diperbarui: 0, notifTerkirim: 0, notifGagal: 0 };
                 pastikanHasilMutasiSupabase_(hasil, `Prospek ${idProspek}`);
                 const prospekLokal = (globalProspek || []).find(item => item && String(item['ID Prospek']).trim() === idProspek);
                 if (prospekLokal) prospekLokal['Status Prospek'] = statusTujuan;
@@ -2702,7 +2711,7 @@
                 const namaCustomerProspek = String(prospek.nama_calon_customer || namaCustomer || '-').trim();
                 const ikon = statusTujuan === 'Closing / Deal' ? '✅' : (statusTujuan === 'Batal' ? '❌' : (statusTujuan === 'Pending' ? '⏳' : '⚙️'));
                 const pemicu = sumberPerubahan === 'penjualan langsung'
-                    ? 'Penjualan langsung dengan nama dan nomor WA yang sama telah tersimpan.'
+                    ? 'Penjualan langsung untuk nomor WA pembeli yang terdaftar pada prospek ini telah tersimpan.'
                     : 'Status tiket dengan nama dan nomor WA yang sama telah diperbarui.';
                 const pesanWA = `⚠️ *UPDATE PROSPEK OTOMATIS*\n\nAssalamu'alaikum Sales,\nStatus prospek Anda atas nama *${namaCustomerProspek}* kini berubah menjadi:\n\n${ikon} *${statusTujuan}*\n\n${pemicu} Mohon pantau terus di aplikasi SLA!`;
 
@@ -2711,12 +2720,12 @@
                 const notifGagalDilaporkan = Number(hasilNotifProspek && hasilNotifProspek.gagal) || 0;
                 const notifGagal = notifGagalDilaporkan + (notifTerkirim === 0 && notifGagalDilaporkan === 0 ? 1 : 0);
                 if (notifGagal > 0) console.error(`Notif WA Prospek ${idProspek} ke Sales gagal atau nomor WA Sales tidak ditemukan.`);
-                return { notifTerkirim: notifTerkirim, notifGagal: notifGagal };
+                return { diperbarui: 1, notifTerkirim: notifTerkirim, notifGagal: notifGagal };
             }));
 
             return {
                 ditemukan: prospekCocok.length,
-                diperbarui: prospekCocok.length,
+                diperbarui: hasilPembaruan.reduce((total, item) => total + item.diperbarui, 0),
                 status: statusTujuan,
                 notifTerkirim: hasilPembaruan.reduce((total, item) => total + item.notifTerkirim, 0),
                 notifGagal: hasilPembaruan.reduce((total, item) => total + item.notifGagal, 0)
@@ -2793,8 +2802,8 @@
             return result;
         }
 
-        async function sinkronkanStatusProspekDariPenjualan_(noWaCustomer, namaCustomer) {
-            return sinkronkanStatusProspekOtomatis_('Closing / Deal', noWaCustomer, namaCustomer, 'penjualan langsung');
+        async function sinkronkanStatusProspekDariPenjualan_(noWaCustomer, namaCustomer, konteksPenjualan) {
+            return sinkronkanStatusProspekOtomatis_('Closing / Deal', noWaCustomer, namaCustomer, 'penjualan langsung', konteksPenjualan);
         }
         // =========================================================================
 
@@ -8941,6 +8950,7 @@
 
                 } else if (type === 'sls') {
                     btn.innerText = 'Menyimpan...';
+                    deteksiSalesDariProspek(document.getElementById('input-wa-sls'), 'input-sales-sls-group', 'wa');
                     const sales = Array.from(document.querySelectorAll('#input-sales-sls-group input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
 
                     if(sales === "") {
@@ -8956,6 +8966,7 @@
                     if (Array.isArray(duplikat) && duplikat.length > 0) throw new Error(`No Transaksi / SO '${noTransaksi}' sudah pernah diinput.`);
 
                     const cabangAktual = normalisasiCabang(cabangAktif) || 'Kendari';
+                    const noWaPenjualanCRM = normalisasiWASementara_(document.getElementById('input-wa-sls').value);
                     const idPenjualanTerbaru = await idPenjualanTerbaruDariServer_();
                     document.getElementById('input-id-sls').value = idPenjualanTerbaru;
                     const penjualanBaru = {
@@ -8971,11 +8982,11 @@
                     };
                     await simpanPenjualanTanpaBentrok_(penjualanBaru);
 
-                    const noWaDiisi = document.getElementById('input-wa-sls').value;
-                    const noWaPenjualanCRM = normalisasiWASementara_(noWaDiisi);
                     let sinkronProspekPenjualanGagal = false;
+                    let notifProspekPenjualanGagal = false;
                     try {
-                        await sinkronkanStatusProspekDariPenjualan_(noWaPenjualanCRM, penjualanBaru.nama_pembeli);
+                        const hasilProspek = await sinkronkanStatusProspekDariPenjualan_(noWaPenjualanCRM, penjualanBaru.nama_pembeli, penjualanBaru);
+                        notifProspekPenjualanGagal = Number(hasilProspek && hasilProspek.notifGagal) > 0;
                     } catch (errorProspek) {
                         console.error(`Sinkronisasi Prospek penjualan ${penjualanBaru.id_penjualan} gagal:`, errorProspek);
                         sinkronProspekPenjualanGagal = true;
@@ -8988,13 +8999,15 @@
                         crmPenjualanGagal = true;
                     }
 
-                    const adaPeringatanPenjualan = sinkronProspekPenjualanGagal || crmPenjualanGagal;
+                    const adaPeringatanPenjualan = sinkronProspekPenjualanGagal || crmPenjualanGagal || notifProspekPenjualanGagal;
                     let pesanPenjualan = 'Alhamdulillah! Data berhasil disimpan.';
                     if (sinkronProspekPenjualanGagal && crmPenjualanGagal) pesanPenjualan = 'Penjualan tersimpan, tetapi sinkronisasi Prospek dan CRM perlu dicoba ulang.';
                     else if (sinkronProspekPenjualanGagal) pesanPenjualan = 'Penjualan tersimpan, tetapi sinkronisasi Prospek perlu dicoba ulang.';
                     else if (crmPenjualanGagal) pesanPenjualan = 'Penjualan tersimpan, tetapi sinkronisasi CRM perlu dicoba ulang.';
+                    if (notifProspekPenjualanGagal) pesanPenjualan += ' Notifikasi WhatsApp ke sales belum terkonfirmasi.';
                     showToast(pesanPenjualan, adaPeringatanPenjualan ? 'warning' : 'success');
                     document.getElementById('form-sls').reset(); switchTab('penjualan');
+                    bukaKunciSalesProspek_(document.getElementById('input-sales-sls-group'));
                     await ambilSemuaData(true);
                 }
             } catch (err) {
@@ -10593,29 +10606,35 @@
         function deteksiSalesDariProspek(elemenInputKlien, idTargetKolomSales, modePencarian) {
             if (!elemenInputKlien) return;
 
-            let cariDenganWA = modePencarian === 'wa' || elemenInputKlien.id === 'input-wa-klien';
-            let inputNamaKlien = document.getElementById('input-klien');
+            let penjualanLangsung = idTargetKolomSales === 'input-sales-sls-group';
+            let inputNamaKlien = document.getElementById(penjualanLangsung ? 'input-pembeli-sls' : 'input-klien');
+            let inputWAPembeli = penjualanLangsung ? document.getElementById('input-wa-sls') : null;
+            let cariDenganWA = modePencarian === 'wa' || elemenInputKlien.id === 'input-wa-klien' || elemenInputKlien.id === 'input-wa-sls'
+                || (penjualanLangsung && String((inputWAPembeli || {}).value || '').trim() !== '');
             let targetInputSales = document.getElementById(idTargetKolomSales);
             let namaDiketik = cariDenganWA
                 ? String((inputNamaKlien || {}).value || '').toLowerCase().trim()
                 : String(elemenInputKlien.value || '').toLowerCase().trim();
             let waDiketik = cariDenganWA
-                ? normalisasiWASementara_(elemenInputKlien.value)
+                ? normalisasiWASementara_(penjualanLangsung ? (inputWAPembeli || {}).value : elemenInputKlien.value)
                 : '';
 
             // Lepaskan hasil autofill lama dan tampilkan konteks CRM selama nomor WA berubah.
-            if (cariDenganWA) {
+            if (cariDenganWA || penjualanLangsung) {
                 bukaKunciSalesProspek_(targetInputSales);
-                tampilkanInfoKlienCRM_(waDiketik);
+                if (!penjualanLangsung) tampilkanInfoKlienCRM_(waDiketik);
             }
 
             // Nama minimal 3 karakter; nomor WA minimal 8 digit agar tidak salah mencocokkan.
             let namaLayakDicari = namaDiketik.length >= 3;
-            let waLayakDicari = waDiketik.length >= 8;
+            let waLayakDicari = penjualanLangsung ? /^628\d{7,12}$/.test(waDiketik) : waDiketik.length >= 8;
             if (!namaLayakDicari && !waLayakDicari) return;
 
             // Cari dari data terbaru dan prioritaskan kecocokan WA sebelum fallback ke nama.
             let daftarProspek = typeof globalProspek !== 'undefined' ? globalProspek.slice().reverse() : [];
+            if (penjualanLangsung) {
+                daftarProspek = daftarProspek.filter(prp => prp && (normalisasiCabang(prp.Cabang) || 'Kendari') === normalisasiCabang(cabangAktif));
+            }
             let prospekMatch = waLayakDicari ? daftarProspek.find(prp => {
                 if (!prp) return false;
                 let waPrp = normalisasiWASementara_(prp['No WA'] || prp['No WhatsApp'] || prp['WA'] || prp['Telepon'] || '');
@@ -10636,16 +10655,17 @@
             let namaSales = prospekMatch['Sales Penanggung Jawab'] || prospekMatch['Sales'] || '';
             let namaBerhasilDiisi = false;
 
-            if (cariDenganWA && namaAsliKlien && inputNamaKlien) {
+            if (cariDenganWA && namaAsliKlien && inputNamaKlien && (!penjualanLangsung || !String(inputNamaKlien.value || '').trim())) {
                 inputNamaKlien.value = namaAsliKlien;
                 namaBerhasilDiisi = true;
             }
 
             let salesBerhasilDiisi = false;
-            if (cariDenganWA) {
+            if (cariDenganWA || penjualanLangsung) {
                 salesBerhasilDiisi = kunciDanIsiSalesProspek_(targetInputSales, namaSales);
+                if (salesBerhasilDiisi && !cariDenganWA) targetInputSales.title = 'Sales dikunci otomatis berdasarkan nama pembeli pada Prospek.';
             } else if (namaSales && targetInputSales) {
-                // Pencarian berdasarkan nama tetap tidak mengunci agar form Penjualan kompatibel.
+                // Pencarian nama pada form tiket tetap mempertahankan pilihan manual.
                 if (targetInputSales.matches('input, select, textarea')) {
                     if (String(targetInputSales.value || '').trim() === '') {
                         targetInputSales.value = namaSales;
@@ -10673,8 +10693,8 @@
             }
 
             if ((namaBerhasilDiisi || salesBerhasilDiisi) && typeof showToast === 'function') {
-                let pesanAutofill = cariDenganWA
-                    ? "🤖 Data Prospek ditemukan: Nama Klien diperbarui dan Sales dikunci otomatis."
+                let pesanAutofill = cariDenganWA || penjualanLangsung
+                    ? "🤖 Data Prospek ditemukan: Sales penanggung jawab terisi dan dikunci otomatis."
                     : "🤖 Sinkronisasi Prospek: Sales otomatis terisi!";
                 showToast(pesanAutofill, "info");
             }
