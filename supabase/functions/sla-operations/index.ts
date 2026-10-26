@@ -46,7 +46,7 @@ async function jobAuthorized(request){
  const r=await fetch(BASE+'/rest/v1/sla_ops_control?select=id&limit=1',{headers:{apikey:key},signal:AbortSignal.timeout(10000)});return r.ok;
 }
 async function sendQueue(key=null,limit=5){
- const events=await rpc('sla_ops_lease',{p_key:key,p_limit:limit}),result={terkirim:0,gagal:0,dilewati:0,perluPemeriksaan:0};
+ const events=await rpc('sla_ops_lease',{p_key:key,p_limit:limit}),result={terkirim:0,gagal:0,dilewati:0,perluPemeriksaan:0,tertunda:0};
  for(const e of events){
   let outcome='retry',error=null,provider=null;
   try{
@@ -54,9 +54,11 @@ async function sendQueue(key=null,limit=5){
    else{
     const token=Deno.env.get('FONNTE_TOKEN_'+e.cabang.toUpperCase())||Deno.env.get('FONNTE_TOKEN')||Deno.env.get('FONNTE_TOKEN_CADANGAN');
     if(!token)throw new Error('Konfigurasi Fonnte belum tersedia.');
+    const delivery=await rpc('sla_ops_prepare_delivery',{p_id:e.id,p_lease:e.lease});
+    if(!delivery.allowed){if(delivery.obsolete)result.dilewati++;else result.tertunda++;continue;}
     // Once the request starts, an ambiguous response must not be retried blindly.
     outcome='uncertain';
-    const r=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({target:e.phone,message:e.message,delay:'2'}),signal:AbortSignal.timeout(15000)});
+    const r=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:token,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({target:e.phone,message:delivery.message,delay:'2'}),signal:AbortSignal.timeout(15000)});
     const data=await r.json().catch(()=>null);
     if(r.ok&&data?.status===true){outcome='sent';provider=Array.isArray(data.id)?data.id.join(','):String(data.id||'');result.terkirim++;}
     else if(data?.status===false){outcome='retry';error='Provider menolak pengiriman.';result.gagal++;}

@@ -1063,7 +1063,8 @@
     <!-- 1. KOTAK POP-UP POIN (KINI TERPISAH) -->
     <div id="modal-poin" class="modal">
         <div class="modal-content" style="border-top-color: #eab308;">
-            <h3 class="modal-title" style="color: #eab308;">⭐ Input Poin Kinerja Teknisi</h3>
+            <h3 class="modal-title" style="color: #eab308;">⭐ Edit Poin / Veto Admin</h3>
+            <p style="font-size:12px; color:var(--text-muted);">Poin awal diinput melalui menu Garansi. Gunakan formulir ini untuk mengoreksi poin atau mengaktifkan Veto Admin.</p>
             <form onsubmit="simpanPoinSelesai(event)">
                 <input type="hidden" id="poin-id-tiket">
                 <label>Bobot Poin Pekerjaan</label>
@@ -7147,7 +7148,7 @@
                         btnHtml = `<button class="btn-action-primary" style="background:#fffbeb; color:#b45309; border-color:#fde68a;" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Tugaskan Teknisi</button><div class="btn-grid">${delBtn}</div>`;
                     } else {
                         let labelTombol = textStatus === 'Selesai' ? 'Revisi Dokumen' : 'Update Status';
-                        let btnPoin = textStatus === 'Selesai' ? `<button class="btn-action-primary" style="background:#fefce8; color:#a16207; border-color:#fde047; margin-top:10px;" onclick="bukaModalPoin('${ticket['ID Tiket']}')">⭐ Input / Edit Poin Pekerjaan</button>` : '';
+                        let btnPoin = textStatus === 'Selesai' && refsDiGaransi.includes(String(ticket['ID Tiket']).trim()) ? `<button class="btn-action-primary" style="background:#fefce8; color:#a16207; border-color:#fde047; margin-top:10px;" onclick="bukaModalPoin('${ticket['ID Tiket']}')">⭐ Edit Poin / Veto Admin</button>` : '';
                         btnHtml = `<button class="btn-action-primary" onclick="bukaModalUpdate('${ticket['ID Tiket']}')">${labelTombol}</button>${btnPoin}<div class="btn-grid"><button class="btn-edit" onclick="aktifkanEditTiket('${ticket['ID Tiket']}')">Edit Detail</button>${delBtn}</div>`;
                     }
                 } else if (penggunaAktif.Role === 'teknisi') {
@@ -10423,10 +10424,18 @@
                 }
             });
         });
+        function bolehEditPoinTiket_(tiket) {
+            if (!tiket || tiket.Status !== 'Selesai' || !(roleAdalahAdminOperasional_() || rolePengguna() === 'manager') || !dataSesuaiCabangAktif_(tiket)) return false;
+            const id = String(tiket['ID Tiket'] || '').trim();
+            const cabang = normalisasiCabang(tiket.Cabang || cabangAktif) || 'Kendari';
+            return !!id && (globalGaransi || []).some(g => g && String(g['Referensi (Tiket/Nota)'] || '').trim() === id && (normalisasiCabang(g.Cabang) || 'Kendari') === cabang);
+        }
+
         function bukaModalPoin(idTiket) {
             const t = (globalTickets || []).find(x => x && x['ID Tiket'] === idTiket); if(!t) return;
+            if (!bolehEditPoinTiket_(t)) return showToast('Input poin awal melalui menu Garansi. Edit poin dan Veto Admin tersedia setelah garansi tiket dibuat.', 'error');
             document.getElementById('poin-id-tiket').value = idTiket;
-            document.getElementById('poin-nilai-input').value = t['Bobot Poin'] || '';
+            document.getElementById('poin-nilai-input').value = t['Bobot Poin'] ?? '';
             document.getElementById('poin-veto-input').checked = (String(t['Veto Admin'] || '').toLowerCase() === 'ya');
             document.getElementById('modal-poin').style.display = 'flex';
         }
@@ -10441,6 +10450,7 @@
                 const bobotPoin = Number(nilaiInput);
                 const vetoPoin = document.getElementById('poin-veto-input').checked ? 'Ya' : 'Tidak';
                 if (!tiket) throw new Error('Tiket tidak ditemukan.');
+                if (!bolehEditPoinTiket_(tiket)) throw new Error('Garansi tiket harus dibuat melalui menu Garansi sebelum mengedit poin atau Veto Admin.');
                 if (nilaiInput === '' || !Number.isFinite(bobotPoin) || bobotPoin < 0) {
                     throw new Error('Bobot poin harus berupa angka nol atau lebih.');
                 }
@@ -10769,5 +10779,6 @@
 
 <script src="employee-account.js?v=20261022"></script>
 <script src="ticket-admin-whatsapp.js?v=20261022"></script>
+
 
 

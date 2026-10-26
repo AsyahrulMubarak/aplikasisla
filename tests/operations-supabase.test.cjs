@@ -3,7 +3,7 @@ const dir=__dirname+'/../supabase/functions/sla-operations/';
 const rules=fs.readFileSync(dir+'reminders.ts','utf8').replaceAll('export ','');
 function ruleContext(){const c=vm.createContext({Date,Set,Map});vm.runInContext(rules,c);return c;}
 const user=(role='teknisi',branch='Kendari')=>({username:'fixture',nama_asli:'Teknisi Contoh',role,no_wa:'081234567890',cabang:branch,hak_akses_cabang:branch,account_active:true});
-const ticket=(branch='Kendari')=>({id_tiket:'TKT-FIXTURE',status:'On Progress',teknisi:'Teknisi Contoh',cabang:branch,waktu_lapor:'2026-10-19T08:00:00+08:00',waktu_penugasan:'2026-10-19T08:00:00+08:00',tenggat_respon:'2026-10-22T10:00:00+08:00',tenggat_waktu:'2026-10-22T11:00:00+08:00',no_wa_klien:'081234567899'});
+const ticket=(branch='Kendari')=>({id_tiket:'TKT-FIXTURE',status:'Menunggu',teknisi:'Teknisi Contoh',cabang:branch,waktu_lapor:'2026-10-19T08:00:00+08:00',waktu_penugasan:'2026-10-19T08:00:00+08:00',tenggat_respon:'2026-10-22T10:00:00+08:00',tenggat_waktu:'2026-10-22T11:00:00+08:00',no_wa_klien:'081234567899'});
 test('work hours preserve both branches, prayer breaks, Sunday and exact boundaries',()=>{
  const c=ruleContext();assert.equal(c.workHours('2026-10-22T08:00:00+08:00','2026-10-22T20:00:00+08:00','Kendari'),6.5);assert.equal(c.workHours('2026-10-22T08:00:00+08:00','2026-10-22T20:00:00+08:00','Raha'),9.5);
  assert.equal(c.workHours('2026-10-25T08:00:00+08:00','2026-10-25T20:00:00+08:00','Raha'),0);assert.equal(c.workHours('2026-10-22T12:00:00+08:00','2026-10-22T13:30:00+08:00','Raha'),0);
@@ -11,6 +11,15 @@ test('work hours preserve both branches, prayer breaks, Sunday and exact boundar
 });
 test('ticket reminders operate for Kendari and Raha and suppress closed/pending/outsource/cancel',()=>{
  const c=ruleContext();for(const b of ['Kendari','Raha']){assert.equal(c.ticketReminders([ticket(b)],[user('teknisi',b)],[],new Date('2026-10-22T09:50:00+08:00')).length,2);for(const status of ['Pending','Outsource','Cancel'])assert.equal(c.ticketReminders([{...ticket(b),status}],[user('teknisi',b)],[],new Date('2026-10-22T09:50:00+08:00')).length,0);}
+});
+test('On Progress replacement technicians never receive a first-response alert even when response fields were reset',()=>{
+ const c=ruleContext(),now=new Date('2026-10-22T09:50:00+08:00');
+ for(const branch of ['Kendari','Raha']){
+  const t={...ticket(branch),status:'On Progress',teknisi_sebelumnya:'Teknisi Lama',waktu_respon:null};
+  const events=c.ticketReminders([t],[user('teknisi',branch)],[],now);
+  assert.equal(events.some(e=>e.marker==='RESPON_WARNED'),false);assert.equal(events.some(e=>e.marker==='PENGERJAAN_WARNED'),true);
+  for(const status of ['Menunggu','Claim Garansi'])assert.equal(c.ticketReminders([{...t,status}],[user('teknisi',branch)],[],now).some(e=>e.marker==='RESPON_WARNED'),true);
+ }
 });
 test('response reminder stops after a response; old successful markers prevent repeats',()=>{
  const c=ruleContext(),t={...ticket(),waktu_respon:'2026-10-22T09:00:00+08:00',status_peringatan:'[PENGERJAAN_WARNED]'};
@@ -29,12 +38,30 @@ test('prospect reminders repeat every three calendar days and deduplicate each W
  const c=ruleContext(),now=new Date('2026-10-22T07:00:00+08:00');assert.equal(c.prospectReminders([prospect],[user('sales','Raha')],now).length,1);assert.equal(c.prospectReminders([{...prospect,waktu_peringatan_crm_terakhir:now.toISOString()}],[user()],now).length,0);assert.equal(c.prospectReminders([prospect],[user()],new Date('2026-10-23T07:00:00+08:00')).length,0);
 });
 test('prospect reminder respects new followup, valid legacy history and terminal statuses',()=>{
- const c=ruleContext();for(const status of ['Closing / Deal','Batal','Tanpa Keterangan','On Progress','Proses Servis','Pending'])assert.equal(c.prospectReminders([{...prospect,status_prospek:status}],[user()],new Date('2026-10-22T07:00:00+08:00')).length,0);
+ const c=ruleContext();for(const status of ['Closing / Deal','Deal','Cancel','Batal','Tanpa Keterangan','On Progress','Proses Servis','Pending'])assert.equal(c.prospectReminders([{...prospect,status_prospek:status}],[user()],new Date('2026-10-22T07:00:00+08:00')).length,0);
  assert.equal(c.lastFollowUp({...prospect,riwayat_follow_up:'[21/10/2026] Hubungi pelanggan'}),'2026-10-20T16:00:00.000Z');assert.equal(c.lastFollowUp({...prospect,riwayat_follow_up:'[32/13/2026] Tidak valid'}),prospect.tanggal_input);
 });
-test('30 day expiry remains transactional even without a recipient',()=>{const c=ruleContext(),e=c.prospectReminders([{...prospect,tanggal_input:'2026-09-01T08:00:00+08:00'}],[],new Date('2026-10-22T07:00:00+08:00'));assert.equal(e[0].kind,'prospect_expired');assert.equal(e[0].messages.length,0);});
+test('prospects expire at seven WITA calendar days, with reminders on days 3 and 6 and fresh followups restarting the clock',()=>{
+ const c=ruleContext(),now=new Date('2026-10-22T00:00:00+08:00');
+ const old={...prospect,tanggal_input:'2026-10-15T23:59:59+08:00'};
+ const before=c.prospectReminders([old],[user()],new Date('2026-10-21T23:59:59+08:00'));assert.equal(before[0].kind,'prospect_reminder');assert.match(before[0].messages[0].message,/Sisa waktu: 1 hari/);
+ const expired=c.prospectReminders([old],[],now);assert.equal(expired[0].kind,'prospect_expired');assert.equal(expired[0].messages.length,0);
+ assert.match(c.prospectReminders([old],[user()],now)[0].messages[0].message,/7 HARI/);
+ const refreshed={...old,waktu_follow_up_terakhir:'2026-10-21T15:00:00+08:00',riwayat_follow_up:'[01/10/2026] Riwayat lama'};
+ assert.equal(c.lastFollowUp(refreshed),refreshed.waktu_follow_up_terakhir);assert.equal(c.prospectReminders([refreshed],[user()],now).length,0);
+});
 test('after-sales follows 7→5, 30→7 and 90–365→30 day rules and skips claimed/expired',()=>{
  const c=ruleContext();for(const [duration,days]of [[7,5],[30,7],[90,30],[365,30]]){const now=new Date('2026-10-22T09:00:00+08:00'),t={...ticket('Raha'),status:'Selesai',waktu_selesai:new Date(now-days*86400000).toISOString()},w={id_garansi:'GRS-FIXTURE',referensi_tiket_nota:t.id_tiket,cabang:'Raha',durasi_hari:duration,status:'Aktif'};assert.equal(c.warrantyReminders([w],[t],now).length,1);for(const status of ['Diklaim','Habis','Hangus'])assert.equal(c.warrantyReminders([{...w,status}],[t],now).length,0);assert.equal(c.warrantyReminders([{...w,follow_up_after_sales_terkirim:'HARI_'+days}],[t],now).length,0);}
+});
+test('after-sales only accepts active warranties, including waiting cards with stale expiry dates',()=>{
+ const c=ruleContext(),now=new Date('2026-10-22T09:00:00+08:00');
+ for(const branch of ['Kendari','Raha'])for(const [duration,days]of [[7,5],[30,7],[90,30],[365,30]]){
+  const t={...ticket(branch),status:'Selesai',waktu_selesai:new Date(now-days*86400000).toISOString()};
+  const w={id_garansi:'GRS-WAIT',referensi_tiket_nota:t.id_tiket,cabang:branch,durasi_hari:duration,tanggal_habis:'2027-01-01T00:00:00Z'};
+  for(const status of ['Masa Tunggu','Belum Diambil',' masa   tunggu ',null,'','Unknown','Diklaim (Hangus)','Habis (Expired)'])
+   assert.equal(c.warrantyReminders([{...w,status}],[t],now).length,0,branch+' '+duration+' '+status);
+  assert.equal(c.warrantyReminders([{...w,status:' Aktif '}],[t],now).length,1);
+ }
 });
 test('storage reminders cover both branches at days 5 and 28 and expire at 31; prior GAS/Supabase sends suppress duplicates',()=>{
  const c=ruleContext(),now=new Date('2026-10-22T09:00:00+08:00');
@@ -63,6 +90,7 @@ function harness(options={}){
   if(url.endsWith('/rpc/sla_ops_enqueue'))return Response.json([{id:'event-fixture',state:'pending'}]);
   if(url.endsWith('/rpc/sla_ops_lease'))return Response.json([{id:'event-fixture',lease:'lease-fixture',cabang:options.branch||'Kendari',phone:'6281234567890',message:'Fixture',guard:{}}]);
   if(url.endsWith('/rpc/sla_ops_guard_valid'))return Response.json(!options.obsolete);
+  if(url.endsWith('/rpc/sla_ops_prepare_delivery'))return Response.json({allowed:!options.deferred&&!options.inactiveWarranty,obsolete:!!options.inactiveWarranty,message:options.preparedMessage||'Fixture'});
   if(url==='https://api.fonnte.com/send'){if(options.timeout)throw Error('private provider failure');return Response.json({status:!options.rejected,id:['fixture-id']});}
   if(url.endsWith('/rpc/sla_ops_ack')){state.outcome=p.p_outcome;return Response.json(true);}
   if(url.includes('/sla_ops_outbox?'))return Response.json([{state:state.outcome}]);
@@ -87,6 +115,24 @@ test('invalid recipient is denied; stale reminders never reach provider',async()
 });
 test('provider rejection retries; ambiguous transport failures require review rather than duplicate resend',async()=>{
  for(const [opts,outcome]of [[{rejected:true},'retry'],[{timeout:true},'uncertain']]){const h=harness(opts);await h.run(relay);assert.equal(h.state.outcome,outcome);}
+});
+
+test('delivery gate holds a batch crossing a break without sending or acknowledging it',async()=>{
+ const h=harness({deferred:true}),r=await h.run({action:'processQueue'},{'x-sla-job-key':'sb_secret_fixture'});
+ assert.equal(r.status,200);assert.equal((await r.json()).tertunda,1);
+ assert.equal(h.calls.some(c=>c.url.includes('api.fonnte.com')||c.url.endsWith('/rpc/sla_ops_ack')),false);
+});
+test('the provider receives the prepared friendly message instead of the original payload',async()=>{
+ const preparedMessage="Assalamu'alaikum, Sahabat Alfacom.\n\nDetail tiket.";
+ const h=harness({preparedMessage});await h.run(relay);
+ const send=h.calls.find(c=>c.url.includes('api.fonnte.com'));assert.equal(new URLSearchParams(send.body).get('message'),preparedMessage);
+ const gate=h.calls.findIndex(c=>c.url.endsWith('/rpc/sla_ops_prepare_delivery'));
+ assert.ok(gate>=0&&gate<h.calls.indexOf(send));
+});
+test('inactive warranty cancelled by the delivery gate is skipped without contacting the provider',async()=>{
+ const h=harness({inactiveWarranty:true}),r=await h.run({action:'processQueue'},{'x-sla-job-key':'sb_secret_fixture'});
+ const result=await r.json();assert.equal(result.dilewati,1);assert.equal(result.tertunda,0);
+ assert.equal(h.calls.some(c=>c.url.includes('api.fonnte.com')||c.url.endsWith('/rpc/sla_ops_ack')),false);
 });
 test('invalid bug image and scheduler request cannot create records or send messages',async()=>{
  const h=harness({role:'admin'});assert.equal((await h.run({action:'laporBug',deskripsi:'Fixture',buktiBug:'data:image/png;base64,YWJj',requestId:'fixture-request-123'})).status,400);assert.equal((await h.run({action:'scanTickets'})).status,401);assert.equal(h.calls.some(c=>c.url.includes('sla_ops_enqueue')),false);

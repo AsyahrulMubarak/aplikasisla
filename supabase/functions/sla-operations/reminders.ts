@@ -56,7 +56,7 @@ export function ticketReminders(tickets,users,warranties,now=new Date()){
    continue;
   }
   const tech=namedRecipients(users,t.teknisi);
-  if(!t.waktu_respon&&t.tenggat_respon&&Number.isFinite(Date.parse(t.tenggat_respon))&&workHours(now,t.tenggat_respon,b)<=0.25)
+  if(['menunggu','claim garansi'].includes(status)&&!t.waktu_respon&&t.tenggat_respon&&Number.isFinite(Date.parse(t.tenggat_respon))&&workHours(now,t.tenggat_respon,b)<=0.25)
    add('RESPON_WARNED',tech,ticketText(t,'🚨 *DARURAT: SLA RESPON*','Waktu respons pertama tersisa paling lama 15 menit kerja atau telah lewat. Segera tekan On Progress.'));
   const deadline=t.tenggat_pengganti||t.tenggat_waktu;
   if(deadline&&Number.isFinite(Date.parse(deadline))&&workHours(now,deadline,b)<=2)
@@ -64,11 +64,14 @@ export function ticketReminders(tickets,users,warranties,now=new Date()){
  }
  return events;
 }
-export function stoppedProspect(status){return !norm(status)||/closing|batal|tanpa keterangan|on progress|proses servis|proses service|pending/.test(norm(status));}
+export function stoppedProspect(status){return !norm(status)||/closing|deal|cancel|batal|tanpa keterangan|on progress|proses servis|proses service|pending/.test(norm(status));}
 export function lastFollowUp(p){
  let date=p.waktu_follow_up_terakhir||p.tanggal_input;
  const matches=[...String(p.riwayat_follow_up||'').matchAll(/\[(\d{2})\/(\d{2})\/(\d{4})/g)];
- if(matches.length){const [,d,m,y]=matches.at(-1),candidate=`${y}-${m}-${d}`;const parsed=Date.parse(candidate+'T00:00:00+08:00');if(Number.isFinite(parsed)&&day(parsed)===candidate)date=new Date(parsed).toISOString();}
+ for(const [,d,m,y] of matches){
+  const candidate=`${y}-${m}-${d}`,parsed=Date.parse(candidate+'T00:00:00+08:00');
+  if(Number.isFinite(parsed)&&day(parsed)===candidate&&(!Number.isFinite(Date.parse(date))||parsed>Date.parse(date)))date=new Date(parsed).toISOString();
+ }
  return date;
 }
 export function prospectReminders(prospects,users,now=new Date()){
@@ -78,9 +81,9 @@ export function prospectReminders(prospects,users,now=new Date()){
   const last=lastFollowUp(p);if(!Number.isFinite(Date.parse(last)))continue;
   const age=Math.round((Date.parse(day(now))-Date.parse(day(last)))/86400000),b=branchOf(p);
   const g=guard('prospek',p.id_prospek,p,['status_prospek','tanggal_input','waktu_follow_up_terakhir','riwayat_follow_up','sales_penanggung_jawab']);
-  if(age>=30){events.push({key:`prospect:${b}:${p.id_prospek}:expired:${day(last)}`,branch:b,kind:'prospect_expired',guard:g,messages:messages(namedRecipients(users,p.sales_penanggung_jawab),`⚠️ *PROSPEK HANGUS (30 HARI)*\n\nProspek ${p.nama_calon_customer||'-'} dibatalkan otomatis karena sudah 30 hari tanpa follow up/kejelasan.\n🌐 https://aplikasisla.vercel.app/`)});continue;}
+  if(age>=7){events.push({key:`prospect:${b}:${p.id_prospek}:expired:${day(last)}`,branch:b,kind:'prospect_expired',guard:g,messages:messages(namedRecipients(users,p.sales_penanggung_jawab),`⚠️ *PROSPEK HANGUS (7 HARI)*\n\nProspek ${p.nama_calon_customer||'-'} dibatalkan otomatis karena sudah 7 hari tanpa follow up/kejelasan.\n🌐 https://aplikasisla.vercel.app/`)});continue;}
   if(age<=0||age%3!==0||p.waktu_peringatan_crm_terakhir&&day(p.waktu_peringatan_crm_terakhir)===day(now))continue;
-  const target=messages(namedRecipients(users,p.sales_penanggung_jawab),`⏰ *WAKTUNYA FOLLOW UP CRM*\n\nSudah ${age} hari belum ada follow up prospek:\n👤 ${p.nama_calon_customer||'-'}\n📦 ${p.kebutuhan||'-'}\n\nSegera hubungi klien dan catat hasilnya di aplikasi SLA.`);
+  const target=messages(namedRecipients(users,p.sales_penanggung_jawab),`⏰ *WAKTUNYA FOLLOW UP CRM*\n\nSudah ${age} hari belum ada follow up prospek:\n👤 ${p.nama_calon_customer||'-'}\n📦 ${p.kebutuhan||'-'}\n\nSegera hubungi klien dan catat hasilnya di aplikasi SLA. Prospek otomatis hangus setelah 7 hari tanpa follow up. Sisa waktu: ${7-age} hari.`);
   if(target.length)events.push({key:`prospect:${b}:${p.id_prospek}:${day(now)}`,branch:b,kind:'prospect_reminder',guard:g,messages:target});
  }
  return events;
@@ -90,14 +93,14 @@ export function warrantyReminders(warranties,tickets,now=new Date()){
  for(const w of warranties){
   const b=branchOf(w),duration=Number(w.durasi_hari),due=duration===7?5:duration===30?7:duration>=90&&duration<=365?30:0;
   const key=`warranty:${b}:${w.referensi_tiket_nota}:${due}`;
-  if(!due||seen.has(key)||/habis|hangus|diklaim/.test(norm(w.status))||w.follow_up_after_sales_terkirim)continue;
+  if(!due||seen.has(key)||norm(w.status)!=='aktif'||w.follow_up_after_sales_terkirim)continue;
   const t=tickets.find(t=>t.id_tiket===w.referensi_tiket_nota&&branchOf(t)===b);
   if(!t||norm(t.status)!=='selesai'||!Number.isFinite(Date.parse(t.waktu_selesai)))continue;
   if(Math.round((Date.parse(day(now))-Date.parse(day(t.waktu_selesai)))/86400000)!==due||w.tanggal_habis&&Date.parse(w.tanggal_habis)<now.getTime())continue;
   const p=phone(t.no_wa_klien);if(!p)continue;
   const g=guard('garansi',w.id_garansi,w,['status','durasi_hari','follow_up_after_sales_terkirim','tanggal_habis','referensi_tiket_nota']);
   g.ticket=guard('tiket',t.id_tiket,t,['status','waktu_selesai','no_wa_klien']);
-  events.push({key,branch:b,kind:'warranty_followup',guard:g,marker:`HARI_${due}`,messages:[{phone:p,message:`Assalamu'alaikum ${t.klien_lokasi||w.nama_pelanggan||'Bapak/Ibu'},\n\nKami dari *Alfacom Multi Solution* ingin memastikan hasil instalasi/perbaikan *${w.barang_jasa||t.jenis_pekerjaan||'-'}* berfungsi dengan lancar.\n\nGaransi ${duration} hari Anda masih dalam periode layanan. Jika ada kendala, cek status dan ajukan klaim melalui:\nhttps://aplikasisla.vercel.app/?track=${encodeURIComponent(t.id_tiket)}\n\nTerima kasih atas kepercayaannya.`}]});
+  events.push({key,branch:b,kind:'warranty_followup',guard:g,marker:`HARI_${due}`,messages:[{phone:p,message:`Assalamu'alaikum, Sahabat Alfacom.\n\nKami dari *Alfacom Multi Solution* ingin memastikan hasil instalasi/perbaikan *${w.barang_jasa||t.jenis_pekerjaan||'-'}* berfungsi dengan lancar.\n\nGaransi ${duration} hari Anda masih dalam periode layanan. Jika ada kendala, cek status dan ajukan klaim melalui:\nhttps://aplikasisla.vercel.app/?track=${encodeURIComponent(t.id_tiket)}\n\nTerima kasih atas kepercayaannya.`}]});
   seen.add(key);
  }
  return events;
@@ -118,7 +121,7 @@ export function storageReminders(warranties,tickets,previous=[],now=new Date()){
   if(due===5&&(previous.some(p=>p.id_garansi===w.id_garansi&&p.terkirim_pada)||/(HARI[_ ]?5|HARI KE-?5|H-5)/i.test(history)))continue;
   const p=phone(t.no_wa_klien);if(!p)continue;
   const detail=due===5?'Mohon segera diambil. Setelah 7 hari sejak siap diambil, garansi hangus dan biaya penitipan Rp1.000/hari mulai hari ke-8.':'Mohon segera diambil. Barang mendekati batas penyimpanan 30 hari; mulai hari ke-31 tidak lagi menjadi tanggung jawab penyimpanan Alfacom.';
-  events.push({key:`storage:${b}:${w.id_garansi}:H${due}`,branch:b,kind:'storage_reminder',guard:g,marker:`PENITIPAN_H${due}`,messages:[{phone:p,message:`Assalamu'alaikum ${w.nama_pelanggan||t.klien_lokasi||'Bapak/Ibu'},\n\nBarang servis *${w.barang_jasa||t.jenis_pekerjaan||'-'}* (tiket ${t.id_tiket}) sudah menunggu pengambilan ${age} hari.\n\n${detail}\n\nhttps://aplikasisla.vercel.app/?track=${encodeURIComponent(t.id_tiket)}`} ]});
+  events.push({key:`storage:${b}:${w.id_garansi}:H${due}`,branch:b,kind:'storage_reminder',guard:g,marker:`PENITIPAN_H${due}`,messages:[{phone:p,message:`Assalamu'alaikum, Sahabat Alfacom.\n\nBarang servis *${w.barang_jasa||t.jenis_pekerjaan||'-'}* (tiket ${t.id_tiket}) sudah menunggu pengambilan ${age} hari.\n\n${detail}\n\nhttps://aplikasisla.vercel.app/?track=${encodeURIComponent(t.id_tiket)}`} ]});
  }
  return events;
 }
