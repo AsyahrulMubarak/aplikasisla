@@ -37,6 +37,9 @@ function harness(role, branch) {
     roleAdalahAdminOperasional_: () => role === 'admin',
     dataSesuaiCabangAktif_: row => row.Cabang === branch,
     perbaruiStatusSLAAktualTiket_: () => {},
+    dataMasukPeriodeDaftar_: () => true,
+    hitungTenggatJamKerja: start => start,
+    hitungDurasiJamKerjaMs: () => 0,
     formatWaktu: value => String(value || '-'),
     tombolFollowUpTiket_: () => '',
     tambahkanHtmlAman_: (element, text) => { element.innerHTML += text; },
@@ -70,4 +73,20 @@ test('assigned warranty claims appear in active tickets for branch admins and as
 test('ticket status dropdown includes the warranty claim status', () => {
   const dropdown = html.match(/<select id="filter-status-tiket"[^]*?<\/select>/)[0];
   assert.ok(dropdown.includes('<option value="Claim Garansi">Claim Garansi</option>'));
+});
+
+test('completed ticket points button appears only after its own branch warranty exists', () => {
+  for (const branch of ['Kendari', 'Raha']) {
+    const { context, container } = harness('admin', branch);
+    context.currentTicketFilter = 'riwayat';
+    context.globalTickets = [{ 'ID Tiket':'TKT-POINTS', Status:'Selesai', Teknisi:'Teknisi A', Cabang:branch, 'Waktu Selesai':new Date().toISOString() }];
+    context.poinHangusKarenaSLA_ = () => false;
+    context.renderTickets();
+    assert.doesNotMatch(container.innerHTML, /bukaModalPoin/);
+    context.globalGaransi = [{ 'ID Garansi':'G-OTHER', 'Referensi (Tiket/Nota)':'TKT-POINTS', Cabang:branch==='Kendari'?'Raha':'Kendari' }];
+    context.renderTickets();assert.doesNotMatch(container.innerHTML, /bukaModalPoin/);
+    context.globalGaransi.push({ 'ID Garansi':'G-OWN', 'Referensi (Tiket/Nota)':'TKT-POINTS', Cabang:branch, Status:'Masa Tunggu' });
+    context.renderTickets();assert.match(container.innerHTML, /Edit Poin \/ Veto Admin/);
+    assert.doesNotMatch(container.innerHTML, /Input \/ Edit Poin/);
+  }
 });

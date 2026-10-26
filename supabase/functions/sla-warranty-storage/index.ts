@@ -23,7 +23,7 @@ async function jobAuthorized(request){
 }
 function reminder(g,t){
   const deadline=new Date(new Date(g.waktu_siap_diambil).getTime()+7*DAY).toLocaleDateString('id-ID',{timeZone:'Asia/Makassar'})+' pukul 17.00';
-  return `Assalamu'alaikum Kak ${g.nama_pelanggan||t.klien_lokasi||'Pelanggan'},\n\n*PEMBERITAHUAN ALFACOM — HARI KE-5*\nBarang servis Anda (${g.barang_jasa||t.jenis_pekerjaan||'-'}) sudah siap diambil.\n\nMohon diambil paling lambat ${deadline} WITA. Setelah melewati 7 hari sejak servis selesai, garansi otomatis hangus dan biaya penitipan Rp 1.000/hari mulai berjalan (hari ke-8). Kerusakan yang sama saat pengambilan tidak tercover garansi setelah batas tersebut.\n\nPantau status: https://aplikasisla.vercel.app/?track=${encodeURIComponent(g.referensi_tiket_nota)}`;
+  return `Assalamu'alaikum, Sahabat Alfacom.\n\n*PEMBERITAHUAN ALFACOM — HARI KE-5*\nBarang servis Anda (${g.barang_jasa||t.jenis_pekerjaan||'-'}) sudah siap diambil.\n\nMohon diambil paling lambat ${deadline} WITA. Setelah melewati 7 hari sejak servis selesai, garansi otomatis hangus dan biaya penitipan Rp 1.000/hari mulai berjalan (hari ke-8). Kerusakan yang sama saat pengambilan tidak tercover garansi setelah batas tersebut.\n\nPantau status: https://aplikasisla.vercel.app/?track=${encodeURIComponent(g.referensi_tiket_nota)}`;
 }
 async function processStorage(){
   await rest('rpc/sla_perbarui_penitipan',{});
@@ -43,7 +43,12 @@ async function processStorage(){
         const t=tickets[0];
         const phone=String(t?.no_wa_klien||'').replace(/\D/g,'').replace(/^0/,'62');
         if(!/^62\d{8,13}$/.test(phone))throw new Error('Nomor WhatsApp pelanggan belum valid.');
-        const r=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:token},body:new URLSearchParams({target:phone,message:reminder(g,t),countryCode:'62'}),signal:AbortSignal.timeout(15000)});
+        const message=await rest('rpc/sla_ops_branch_contact',{p_message:reminder(g,t),p_branch:g.cabang||'Kendari'});
+        if(!await rest('rpc/sla_client_working_time',{p_branch:g.cabang||'Kendari'})){
+          await rest('rpc/sla_selesai_notif_penitipan',{p_id:e.id,p_lease:e.lease,p_sukses:false,p_galat:'Menunggu hari dan jam kerja Alfacom.'});
+          result.dilewati++;continue;
+        }
+        const r=await fetch('https://api.fonnte.com/send',{method:'POST',headers:{Authorization:token},body:new URLSearchParams({target:phone,message,countryCode:'62'}),signal:AbortSignal.timeout(15000)});
         const data=await r.json();if(!r.ok||data.status!==true)throw new Error('Provider WhatsApp menolak notifikasi.');
         success=true;result.terkirim++;
       }
