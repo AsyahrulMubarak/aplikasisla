@@ -2,6 +2,8 @@
 
 26 Oktober 2026 WITA. Produksi: https://aplikasisla.vercel.app/.
 
+Status rilis: tiga perbaikan notifikasi sudah aktif di backend. Perubahan tombol poin pada HTML siap ditinjau melalui PR dan belum dipublikasikan ke main. Pemeriksaan persetujuan otomatis menolak pembaruan langsung main; penggabungan PR menunggu persetujuan pengguna.
+
 - After-sales hanya memindai kartu berstatus Aktif. Pemeriksaan terakhir sebelum pengiriman membatalkan antrean kartu Masa Tunggu/Belum Diambil atau status lain yang tidak aktif, termasuk antrean dari versi lama.
 - Poin awal tetap diinput lewat formulir Garansi. Tombol pada tiket Selesai disembunyikan sampai terdapat kartu garansi untuk tiket dan cabang tersebut, kemudian berlabel **Edit Poin / Veto Admin**. Handler buka/simpan juga memeriksa syarat tersebut. Nilai nol tetap terisi; koreksi tiket Lunas mempertahankan status pembayaran.
 - Seluruh pesan outbox SLA cabang Raha memperoleh footer nomor dan tautan WhatsApp Admin Raha yang aktif dari database. Nomor saat rilis: 0813-5611-1636. Format ini diterapkan saat pengiriman, tanpa mengubah payload asli, menduplikasi footer atau menambahkan kontak pada pesan Kendari. Worker penitipan kompatibilitas memakai helper yang sama. Notifikasi akun, absensi dan penggajian menggunakan alur pegawai yang sudah ada.
