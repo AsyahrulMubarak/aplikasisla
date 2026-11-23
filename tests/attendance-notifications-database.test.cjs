@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),assert=require('node:assert/strict'),{test,before,after}=require('node:test');
-const {PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite');
+const {PGlite}=require('@electric-sql/pglite');
 const db=new PGlite(),migration=fs.readFileSync(__dirname+'/../supabase/migrations/202610020001_attendance_storage_notifications.sql','utf8');
 before(async()=>{
   await db.exec(`create role anon;create role authenticated;create role service_role;

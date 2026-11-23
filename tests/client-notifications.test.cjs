@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
-const {PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite');
+const {PGlite}=require('@electric-sql/pglite');
 const migration=fs.readFileSync(__dirname+'/../supabase/migrations/20261025162134_client_notifications_work_hours_greeting.sql','utf8');
 const base=fs.readFileSync(__dirname+'/../supabase/migrations/20261022054308_sla_operations_supabase.sql','utf8');
 async function setup(){

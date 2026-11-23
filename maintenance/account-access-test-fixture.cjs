@@ -1,4 +1,4 @@
-const fs=require('node:fs'),{PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite');
+const fs=require('node:fs'),{PGlite}=require('@electric-sql/pglite');
 const ids={central:'11111111-1111-4111-8111-111111111111',admin:'22222222-2222-4222-8222-222222222222',worker:'33333333-3333-4333-8333-333333333333',raha:'44444444-4444-4444-8444-444444444444',workerRaha:'55555555-5555-4555-8555-555555555555'};
 const sessions=Object.fromEntries(Object.entries(ids).map(([k,v])=>[k,v.replace(/-4/, '-8')]));
 async function accountFixture(){

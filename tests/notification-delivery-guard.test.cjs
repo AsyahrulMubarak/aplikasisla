@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const {PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite');
+const {PGlite}=require('@electric-sql/pglite');
 const migration=fs.readFileSync(__dirname+'/../supabase/migrations/20261022070836_notification_uncertain_delivery_guard.sql','utf8');
 test('all five durable queues quarantine expired/uncertain delivery and preserve confirmed rejection retries',async()=>{
  const db=new PGlite();

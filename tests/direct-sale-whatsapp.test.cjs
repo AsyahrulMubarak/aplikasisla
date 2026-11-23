@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { PGlite } = require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite');
+const { PGlite } = require('@electric-sql/pglite');
 const migration = fs.readFileSync(path.join(__dirname, '../supabase/migrations/20261024010738_direct_sale_buyer_whatsapp.sql'), 'utf8');
 
 test('nomor WA penjualan disimpan dan divalidasi tanpa menghapus data lama', async () => {

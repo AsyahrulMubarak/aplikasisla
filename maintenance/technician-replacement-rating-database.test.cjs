@@ -1,8 +1,6 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict'), { test, before, after } = require('node:test');
-let PGlite;
-try { ({ PGlite } = require('@electric-sql/pglite')); }
-catch { ({ PGlite } = require(path.resolve(__dirname, '../tmp/sales-claims-qa/node_modules/@electric-sql/pglite'))); }
+const { PGlite } = require('@electric-sql/pglite');
 const db = new PGlite();
 const query = async (sql, values = []) => (await db.query(sql, values)).rows;
 const row = async id => (await query('select * from public.tiket where id_tiket = $1', [id]))[0];

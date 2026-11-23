@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {test,before,after}=require('node:test');
-let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require(path.resolve(__dirname,'../tmp/sales-claims-qa/node_modules/@electric-sql/pglite')));}
+const {PGlite}=require('@electric-sql/pglite');
 const db=new PGlite();let period;
 const id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
 async function setRole(role='service_role'){await db.exec('reset role; set role '+role);}

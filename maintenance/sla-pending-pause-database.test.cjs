@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {test,before,after}=require('node:test');
-const {PGlite}=require(path.resolve(__dirname,'../tmp/sales-claims-qa/node_modules/@electric-sql/pglite'));
+const {PGlite}=require('@electric-sql/pglite');
 const db=new PGlite();
 const query=async(sql,args=[]) => (await db.query(sql,args)).rows;
 const role=async(name='authenticated')=>db.exec('reset role; set role '+name);

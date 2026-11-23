@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{test,before,after}=require('node:test');
-let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require(path.resolve(__dirname,'../tmp/sales-claims-qa/node_modules/@electric-sql/pglite')));}
+const {PGlite}=require('@electric-sql/pglite');
 const db=new PGlite(),photo='data:image/jpeg;base64,'+'A'.repeat(100);let original;
 const rows=async sql=>(await db.query(sql)).rows;
 async function role(name='service_role'){

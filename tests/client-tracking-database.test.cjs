@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {test}=require('node:test');
-let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite'));}
+const {PGlite}=require('@electric-sql/pglite');
 const sql=fs.readFileSync(path.resolve(__dirname,'../maintenance/client-tracking-supabase.sql'),'utf8');
 const guards=fs.readFileSync(path.resolve(__dirname,'../maintenance/client-tracking-document-guards.sql'),'utf8');
 test('tracking limits and document commits are atomic, private and preserve ticket data',async()=>{

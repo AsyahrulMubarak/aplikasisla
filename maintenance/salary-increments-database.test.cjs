@@ -1,5 +1,5 @@
 const {test,before,beforeEach,after}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require(path.resolve(__dirname,fs.existsSync(path.resolve(__dirname,'../tmp/sales-claims-qa'))?'../tmp/sales-claims-qa/node_modules/@electric-sql/pglite':'../../sales-claims-qa/node_modules/@electric-sql/pglite')));}
+const {PGlite}=require('@electric-sql/pglite');
 const db=new PGlite(),migration=fs.readFileSync(__dirname+'/salary-increments.sql','utf8');
 const scalar=async(sql,args=[])=>(await db.query(sql,args)).rows[0];
 async function clock(value){await db.exec(`create or replace function sla_gaji_sekarang() returns timestamptz language sql stable as $$ select '${value}'::timestamptz $$`);}
