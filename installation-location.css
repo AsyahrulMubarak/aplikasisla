@@ -1,0 +1,7 @@
+.pekerjaan-item:has(.installation-location-field){flex-wrap:wrap}
+.installation-location-field{flex:0 0 100%;width:100%;min-width:0}
+.installation-location-field label{font-size:13px;margin-top:8px}
+.installation-location-field input{width:100%;box-sizing:border-box;margin-bottom:4px}
+.installation-location-field small{display:block;color:var(--theme-text-muted,#64748b);font-size:12px;line-height:1.5}
+.installation-location-note{padding:10px 12px;border-radius:8px;background:var(--theme-tint-blue,#eff6ff);font-size:13px;line-height:1.5}
+.installation-location-note[hidden]{display:none}

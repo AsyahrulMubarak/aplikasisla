@@ -1,23 +1,24 @@
 .lobby-credit-panel{grid-column:1/-1;min-width:0}
 .credit-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,285px),1fr));gap:14px}
-.credit-person{background:#fff;border:1px solid #dbe5f2;border-radius:16px;padding:17px;min-width:0;color:#15304e;box-shadow:0 3px 14px #132f5405}
+.credit-person{background: var(--theme-surface, #fff);border: 1px solid var(--theme-border, #dbe5f2);border-radius:16px;padding:17px;min-width:0;color: var(--theme-text, #15304e);box-shadow:0 3px 14px #132f5405}
 .credit-person-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:17px}
 .credit-person h4{margin:0 0 4px;font-size:14px;line-height:1.4;overflow-wrap:anywhere}
-.credit-meta{font-size:11px;color:#718097}
-.credit-detail{padding:5px 0;border:0;background:none;color:#235cca;font:inherit;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;width:auto;margin:0}
+.credit-meta{font-size:11px;color: var(--theme-muted, #718097)}
+.credit-detail{padding:5px 0;border: 0;background: none;color: var(--theme-blue, #235cca);font:inherit;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;width:auto;margin:0}
 .credit-label{font-size:11px;letter-spacing:.15px}
 .credit-attendance-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
-.credit-stat{display:flex;justify-content:space-between;align-items:center;padding:9px 11px;background:#f5f8fc;border:1px solid #e8eef6;border-radius:9px;gap:8px}
-.credit-stat span{font-size:11px;color:#63758c}.credit-stat strong{font-size:13px;font-variant-numeric:tabular-nums}
-.credit-state{font-size:10px;color:#65788f;line-height:1.55;margin:8px 0 0}.credit-stat.is-over{background:#fff5f2;border-color:#f8dbd1}.is-over{color:#b24e32}
-.credit-achievement{margin-top:15px;padding-top:14px;border-top:1px solid #eaf0f7}
+.credit-stat{display:flex;justify-content:space-between;align-items:center;padding:9px 11px;background: var(--theme-soft, #f5f8fc);border: 1px solid var(--theme-border, #e8eef6);border-radius:9px;gap:8px}
+.credit-stat span{font-size:11px;color: var(--theme-muted, #63758c)}.credit-stat strong{font-size:13px;font-variant-numeric:tabular-nums}
+.credit-state{font-size:10px;color: var(--theme-muted, #65788f);line-height:1.55;margin:8px 0 0}.credit-stat.is-over{background: var(--theme-tint-red, #fff5f2);border-color: var(--theme-border-red, #f8dbd1)}.is-over{color: var(--theme-red, #b24e32)}
+.credit-achievement{margin-top:15px;padding-top:14px;border-top: 1px solid var(--theme-border, #eaf0f7)}
 .credit-progress-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
-.credit-percent{font-weight:700;color:#255ec8;font-size:12px;font-variant-numeric:tabular-nums}
-.credit-track{height:8px;background:#eaf0fa;border-radius:8px;overflow:hidden}
-.credit-fill{height:100%;width:0;background:linear-gradient(90deg,#1d4ed8,#4f8cf1);border-radius:inherit;transition:width .6s ease}
-.credit-values{margin:8px 0 0;font-size:12px;font-weight:600;color:#334e70;font-variant-numeric:tabular-nums}
-.credit-sales-criteria{display:grid;gap:7px;margin-top:10px;font-size:11px;color:#65788f}
-.credit-sales-target{display:grid;grid-template-columns:1fr auto;gap:2px 8px}.credit-sales-target strong{font-size:11px;color:#334e70;font-variant-numeric:tabular-nums}.credit-sales-target small{grid-column:1/-1;font-size:10px;overflow-wrap:anywhere}
-#lobby-credit-status{font-size:11px;line-height:1.6;color:#63758c;margin:13px 0 0}
+.credit-percent{font-weight:700;color: var(--theme-blue, #255ec8);font-size:12px;font-variant-numeric:tabular-nums}
+.credit-track{height:8px;background: var(--theme-tint-blue, #eaf0fa);border-radius:8px;overflow:hidden}
+.credit-fill{height:100%;width:0;background: linear-gradient(90deg,#1d4ed8,#4f8cf1);border-radius:inherit;transition:width .6s ease}
+.credit-values{margin:8px 0 0;font-size:12px;font-weight:600;color: var(--theme-text, #334e70);font-variant-numeric:tabular-nums}
+.credit-sales-criteria{display:grid;gap:7px;margin-top:10px;font-size:11px;color: var(--theme-muted, #65788f)}
+.credit-sales-target{display:grid;grid-template-columns:1fr auto;gap:2px 8px}.credit-sales-target strong{font-size:11px;color: var(--theme-text, #334e70);font-variant-numeric:tabular-nums}.credit-sales-target small{grid-column:1/-1;font-size:10px;overflow-wrap:anywhere}
+#lobby-credit-status{font-size:11px;line-height:1.6;color: var(--theme-muted, #63758c);margin:13px 0 0}
 @media(max-width:430px){.credit-person{padding:14px}.credit-list{gap:11px}}
 @media(prefers-reduced-motion:reduce){.credit-fill{transition:none}}
+.credit-grade-summary{background: var(--theme-tint-blue, #eff6ff);border: 1px solid var(--theme-border-blue, #bfdbfe);border-radius:8px;padding:10px 12px;margin:10px 0}.credit-grade-summary span,.credit-grade-summary small{display:block;font-size:11px;color: var(--theme-muted, #475569)}.credit-grade-total{display:block;font-size:24px;line-height:1.5;color: var(--theme-blue, #1d4ed8)}

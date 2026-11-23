@@ -32,6 +32,10 @@ async function panggilAlurTiket_(ticket,action,patch,context,requestId){
  ticket['Konteks Pekerjaan']=row.konteks_pekerjaan;ticket['Versi Workflow']=row.versi_workflow;return result.data;
 }
 async function simpanStatusDenganKonteks_(id,patch,ticket){
+ if(patch.status==='On Progress'&&ticket.Status!=='On Progress'&&typeof titikPemasanganTiket_==='function'&&titikPemasanganTiket_(ticket)&&['teknisi','freelance'].includes(rolePengguna())){
+  const location=await ambilLokasiMulaiTiket_();
+  return panggilAlurTiket_(ticket,'start',patch,{location},crypto.randomUUID());
+ }
  if(patch.status!=='Pending')return callSupabase(endpointFilterSupabase_('tiket','id_tiket',id),'PATCH',patch);
  const category=document.getElementById('workflow-pending-category')?.value,evidence=document.getElementById('workflow-pending-evidence')?.value.trim(),reason=document.getElementById('update-keterangan')?.value.trim();
  if(!category||!evidence||evidence.length<5||!reason||reason.length<5)throw Error('Lengkapi kategori, rujukan bukti, dan log pending minimal 5 karakter.');
@@ -55,8 +59,8 @@ function htmlKonteksPekerjaan_(ticket){
  });
  return '<details class="workflow-history"><summary>Alasan pending & serah terima · '+events.length+' catatan</summary>'+articles.join('')+'</details>';
 }
-const bukaModalUpdateAwal_=bukaModalUpdate;bukaModalUpdate=function(id){bukaModalUpdateAwal_(id);mulaiKonteksPending_(id);};
-const cekKeteranganAwal_=cekKeterangan;cekKeterangan=function(){cekKeteranganAwal_();tampilkanFormPending_();};
+const bukaModalUpdateAwal_=bukaModalUpdate;bukaModalUpdate=function(id){bukaModalUpdateAwal_(id);mulaiKonteksPending_(id);if(typeof tampilkanAturanLokasiMulai_==='function')tampilkanAturanLokasiMulai_((globalTickets||[]).find(t=>t['ID Tiket']===id));};
+const cekKeteranganAwal_=cekKeterangan;cekKeterangan=function(){cekKeteranganAwal_();tampilkanFormPending_();if(typeof tampilkanAturanLokasiMulai_==='function')tampilkanAturanLokasiMulai_((globalTickets||[]).find(t=>t['ID Tiket']===document.getElementById('update-id')?.value));};
 const aktifkanEditTiketAwal_=aktifkanEditTiket;aktifkanEditTiket=function(id){aktifkanEditTiketAwal_(id);mulaiKonteksPergantian_(id);};
 const batalEditTiketAwal_=batalEditTiket;batalEditTiket=function(){batalEditTiketAwal_();tampilkanFormPergantian_();};
 document.getElementById('teknisi-group')?.addEventListener('change',tampilkanFormPergantian_);document.getElementById('ganti-teknisi-cek')?.addEventListener('change',tampilkanFormPergantian_);

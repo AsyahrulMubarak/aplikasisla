@@ -26,7 +26,7 @@ const functions = [
   'petakanTiketSupabase_', 'petakanGaransiSupabase_', 'petakanPenjualanSupabase_', 'petakanProspekSupabase_',
   'kolomGaransiPengguna_', 'hentikanRingkasanLobby_', 'aturTataLetakLobby_', 'muatRingkasanLobby_', 'amanTeks_', 'buatHtmlPerformaAdmin_',
   'ambilProfilTeknisiRingkasanLobby_', 'kunciNamaPekerjaanTeknisi_', 'rekapPekerjaanTeknisi_', 'namaTeknisiPenggantian_', 'tanggalCatatanPenggantian_', 'riwayatPenggantianTeknisi_', 'rekapPenggantianTeknisi_', 'buatHtmlDiagramPekerjaanTeknisi_', 'buatHtmlDiagramPerbandinganTeknisi_',
-  'buatHtmlKartuTeknisi_', 'buatHtmlKartuSales_'
+  'poinGradePribadiDashboard_', 'buatHtmlKartuTeknisi_', 'buatHtmlKartuSales_'
 ];
 function harness(activeUser = user()) {
   const elements = new Map();
@@ -81,12 +81,13 @@ test('Visible menu permissions enforce salary, branch and each role without wide
     assert.equal(c.penggunaBolehMenuLobby_('klaim-sales', user(role, 2000000, 'Semua')), false, role);
   }
 });
-test('Lobby lists KPI, attendance, payroll, both SLA branches and Sales claims for every account', () => {
+test('Lobby lists existing modules and keeps the posting menu visible but locked until role evaluation', () => {
   const menuStart = html.indexOf('id="lobby-menu-title"');
   const menu = html.slice(menuStart, html.indexOf('</section>', menuStart));
   assert.deepEqual([...menu.matchAll(/data-lobby-menu="([^"]+)"/g)].map(m => m[1]),
-    ['kpi', 'absen', 'gaji', 'sla-kendari', 'sla-raha', 'klaim-sales']);
-  assert.ok(!/style="display:none/.test(menu));
+    ['kpi', 'absen', 'gaji', 'sla-kendari', 'sla-raha', 'klaim-sales', 'bukti-postingan']);
+  assert.match(menu, /id="btn-lobby-bukti-postingan"[^>]*is-locked[^>]*disabled/);
+  const posting=menu.match(/<button[^>]*id="btn-lobby-bukti-postingan"[^]*?<\/button>/)[0];assert(!posting.includes('display:none'));assert.match(posting,/lobby-lock-indicator/);
 });
 function enableRendering(c) {
   c.formatRp = value => 'Rp ' + Number(value).toLocaleString('id-ID');
@@ -161,6 +162,39 @@ test('Personal points share team work and exclude unpaid, other branches, failed
   assert.equal(stats.statsTeknisi.Rendi.poin_terkumpul, 6);
   assert.equal(stats.statsTeknisi.Wawan.tiket_selesai, 6);
   assert.equal(node('dash-tek-content').innerHTML, 'existing dashboard');
+});
+
+test('Sales lobby includes service revenue metadata and scopes its projection to the selected branch',async()=>{
+ const profile={...user('sales'),'Nama Asli':'Sales A'};const {c,node}=harness(profile),tables=[];let shown;vm.runInContext(extract('statusGaransiEfektif_'),c);
+ node('lobby-periode').value='2026-10';c.ambilTabelRingkasanLobby_=async table=>{tables.push(table);return table==='garansi'?[{id_garansi:'G-1',referensi_tiket_nota:'MANUAL-1',cabang:'Raha',sales:'Sales A',omzet:125000,tanggal_mulai:'2026-10-10T08:00:00+08:00'}]:[]};c.callSupabase=async()=>[{target_sales_rp:50000000}];c.tampilkanRingkasanLobby_=r=>{shown=r};assert.equal(await c.muatRingkasanLobby_(),true);assert(tables.includes('garansi'));assert.equal(shown.statsSales['Sales A'].revenue,125000);
+ vm.runInContext(extract('kolomGaransiPengguna_')+'\n'+extract('ambilTabelRingkasanLobby_'),c);let endpoint;c.callSupabase=async value=>{endpoint=value;return[]};await c.ambilTabelRingkasanLobby_('garansi','Raha');assert.match(endpoint,/cabang=eq.Raha/);assert.match(endpoint,/sales,omzet,cabang/);assert(!/select=\*|nama_pelanggan|barang_jasa|keterangan|item_garansi/.test(endpoint));
+});
+
+test('dashboard ranks personal paid bonus descending, breaks ties by name and retains zero bonus profiles',()=>{
+ const {c,node}=harness(user('manager',2000000,'Semua'));c.cabangAktif='Raha';c.tetapkanHtmlAman_=(el,html)=>el.innerHTML=html;
+ c.globalUsers=['Zaki','Amin','Beni','Nol'].map(name=>({...user(),'Nama Asli':name}));
+ c.globalTickets=[ticket('z',12,{Teknisi:'Zaki'}),ticket('ab',40,{Teknisi:'Amin, Beni'}),ticket('late',200,{Teknisi:'Nol','Status SLA':'TERLAMBAT'})];
+ c.renderDashboard({bulan:'09',tahun:'2026'});
+ const rendered=node('dash-tek-content').innerHTML,names=[...rendered.matchAll(/<h3 style="margin-bottom:5px;[^>]+>([^<]+)<\/h3>/g)].map(m=>m[1]);
+ assert.deepEqual(names.filter(name=>['Amin','Beni','Zaki','Nol'].includes(name)),['Amin','Beni','Zaki','Nol']);
+ assert.deepEqual([...rendered.matchAll(/class="technician-bonus-total">([^<]+)/g)].map(m=>m[1]),['20','20','12','0']);
+});
+
+test('grade remains visible outside salary module and follows approved snapshot shares and WITA completion month',()=>{
+ const {c}=harness(user('teknisi',0));
+ const completed='2026-09-30T16:00:00Z',assessment={achievement:{grade:'A',points:8,completedAt:completed,members:[{username:'wawan',name:'Wawan',share:25}]}};
+ const assessed={'Waktu Selesai':completed,'Penilaian Teknisi':assessment};
+ c.globalTickets=[
+  ticket('grade',100,{...assessed,'Status Pembayaran':'Belum Lunas','Status SLA':'TERLAMBAT'}),
+  ticket('warranty-marker',100,{...assessed,'No Transaksi':'GARANSI'}),
+  ticket('warranty-link',100,{...assessed,'Garansi Asal':'G-1'}),
+  ticket('original-ticket-link',100,{...assessed,'Referensi Tiket Asal':'TKT-ORIGINAL'}),
+  ticket('other-branch',100,{...assessed,Cabang:'Kendari'}),
+  ticket('new-completion',100,{...assessed,'Waktu Selesai':'2026-10-01T01:00:00+08:00'}),
+  ticket('malformed-snapshot',100,{...assessed,'Penilaian Teknisi':{achievement:{...assessment.achievement,members:{}}}})
+ ];
+ assert.equal(c.poinGradePribadiDashboard_('Wawan','2026-09'),0);assert.equal(c.poinGradePribadiDashboard_('Wawan','2026-10'),2);assert.equal(c.poinGradePribadiDashboard_('Wawan',''),null);
+ assert.match(c.buatHtmlKartuTeknisi_({nama:'Wawan',performa_periode:'2026-10'}),/data-achievement-grade="2"/);
 });
 test('Sales uses personal target, actual revenue and open prospects for the selected period', () => {
   const sales = { ...user('sales'), 'Nama Asli': 'Sales A', 'Target Sales (Rp)': 5000000 };
@@ -257,7 +291,7 @@ test('summary downloads omit binary evidence, preserve history pagination and re
     assert.ok(!url.searchParams.has('tanggal_lunas'), 'unpaid invoices from older months must remain available');
   }
   const ticketColumns = calls[0].searchParams.get('select').split(',');
-  for (const field of ['tanggal_lunas','status_pembayaran','penilaian_teknisi','riwayat_penggantian_teknisi']) assert.ok(ticketColumns.includes(field));
+  for (const field of ['tanggal_lunas','status_pembayaran','penilaian_teknisi','riwayat_penggantian_teknisi','garansi_asal','referensi_tiket_asal']) assert.ok(ticketColumns.includes(field));
   let attempts = 0;c.callSupabase = async () => { attempts++; throw Object.assign(Error('denied'), {status:403}); };
   await assert.rejects(c.ambilTabelRingkasanLobby_('tiket','Raha'), /denied/);assert.equal(attempts,1);
   attempts=0;const controller=new AbortController();c.callSupabase=async()=>{attempts++;controller.abort();throw Object.assign(Error('timeout'),{code:'SUPABASE_TIMEOUT'});};

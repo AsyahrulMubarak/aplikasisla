@@ -1,6 +1,6 @@
 // Shared deterministic scoring. Money/bonus points are deliberately not inputs.
 import {calculateSales} from './sales.mjs';
-export const POLICY = Object.freeze({version:3,start:'2026-11',baseTarget:27,baseDays:26,weights:Object.freeze({P:.50,K:.15,R:.10,T:.10,G:.10,U:.05})});
+export const POLICY = Object.freeze({version:4,start:'2026-11',baseTarget:27,baseDays:26,minimumScore:80,weights:Object.freeze({P:.55,K:.20,R:.10,T:.05,G:.05,U:.05})});
 const norm=v=>String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
 const names=v=>String(v||'').split(/[,;\r\n]/).map(norm).filter(Boolean);
 const time=v=>v?Date.parse(v):NaN;
@@ -22,7 +22,7 @@ export function calculate(source,input={},evaluatedAt=Date.now()) {
   if(!Number.isFinite(effectiveDays)||effectiveDays<0||effectiveDays>days||round(effectiveDays)!==effectiveDays)throw Error('Hari penugasan harus 0–'+days+' dan maksimal empat desimal.');
   const targetReason=String(input.targetReason||'').trim();
   if(effectiveDays!==days&&targetReason.length<10)throw Error('Jelaskan bukti pengurangan hari: izin/sakit penuh yang disetujui, mulai bekerja, atau tugas nonteknis. Alpa/telat tidak mengurangi target.');
-  let workGood=0,workTotal=0,responseGood=0,responseTotal=0;
+  let workGood=0,workTotal=0,responseGood=0,responseTotal=0,workPending=0,responsePending=0;
   const completed=[],assigned=[],workTickets=[],responseTickets=[];
   const addCase=(kind,t,detail)=>cases.push({key:kind+':'+t.id_tiket,kind,ticket:t.id_tiket,detail:String(detail||'').slice(0,4000)});
   const contextDetails=(t,kind)=>{
@@ -46,11 +46,12 @@ export function calculate(source,input={},evaluatedAt=Date.now()) {
     if(current&&inMonth(t.tenggat_waktu)&&(done||!paused&&time(t.tenggat_waktu)<=now||paused&&Number(t.sla_jeda_sisa_detik)<0)){
       const good=Number.isFinite(time(t.waktu_selesai))&&time(t.waktu_selesai)<=time(t.tenggat_waktu)&&norm(t.status)==='selesai';
       workTotal++;if(good)workGood++;workTickets.push({id:t.id_tiket,good,deadline:t.tenggat_waktu});
-    }
+    }else if(current&&inMonth(t.tenggat_waktu))workPending++;
     if(current&&inMonth(t.tenggat_respon)&&(Number.isFinite(time(t.waktu_respon))||time(t.tenggat_respon)<=now)){
       const good=Number.isFinite(time(t.waktu_respon))&&time(t.waktu_respon)<=time(t.tenggat_respon);
       responseTotal++;if(good)responseGood++;responseTickets.push({id:t.id_tiket,good,deadline:t.tenggat_respon});
-    }
+      if(done&&!Number.isFinite(time(t.waktu_respon)))warnings.push(t.id_tiket+': tiket selesai belum memiliki waktu respons; verifikasi bukti sebelum pengesahan.');
+    }else if(current&&inMonth(t.tenggat_respon))responsePending++;
     if((current||(achievement?.members||[]).some(belongs))&&norm(t.status)==='selesai'&&inMonth(t.waktu_selesai)){
       completed.push(t.id_tiket);
       const proof=contextDetails(t,'pending');if(proof||/\bpending\b/i.test(t.keterangan||''))addCase('T',t,proof||t.keterangan);
@@ -108,15 +109,16 @@ export function calculate(source,input={},evaluatedAt=Date.now()) {
   const missing=Object.keys(values).filter(k=>values[k]===null);
   const complete=!missing.length&&!unresolved&&!warnings.length&&unfinished.length===0;
   const contributions=Object.fromEntries(Object.entries(POLICY.weights).map(([k,w])=>[k,values[k]===null?null:round(w*values[k])]));
+  const quality=Object.fromEntries(['T','G','U'].map(kind=>{const items=cases.filter(c=>c.kind===kind);return [kind,{cases:items.length,pending:items.filter(c=>!['fault','exempt'].includes(c.decision)||c.note.length<5).length,fault:fault[kind].size,exempt:items.filter(c=>c.decision==='exempt'&&c.note.length>=5).length}];}));
+  const gradeBreakdown=Object.fromEntries(['S','A','B','C','D'].map(grade=>{const items=points.filter(p=>p.grade===grade);return [grade,{tickets:items.length,points:pointRound(items.reduce((sum,p)=>sum+p.points,0))}];}));
   const score=missing.length?null:Object.entries(POLICY.weights).reduce((s,[k,w])=>s+w*values[k],0);
-  const pass=complete&&score>=80&&values.P>=80&&values.K>=70&&values.R>=80;
+  const pass=complete&&score>=POLICY.minimumScore;
   const reasons=[];
   if(missing.length)reasons.push('Belum ada sampel '+missing.join(', ')+'.');
   if(unresolved)reasons.push(unresolved+' kasus mutu belum ditinjau.');
   if(unfinished.length)reasons.push(unfinished.length+' tiket selesai belum memiliki pencapaian sah.');
   reasons.push(...warnings);
-  if(score!==null&&score<80)reasons.push('Skor gabungan di bawah 80.');
-  for(const [k,min] of [['P',80],['K',70],['R',80]])if(values[k]!==null&&values[k]<min)reasons.push(k+' di bawah '+min+'%.');
-  return {policy:POLICY,period,days,effectiveDays,target:round(target),targetReason,achieved:pointRound(achieved),values:Object.fromEntries(Object.entries(values).map(([k,v])=>[k,v===null?null:round(v)])),contributions,score:score===null?null:round(score),complete,pass,credit:pass?1:0,reasons,cases,points,unfinished,counts:{workGood,workTotal,responseGood,responseTotal,completed:completed.length,warranted:warranted.size,assigned:new Set(assigned).size},workTickets,responseTickets};
+  if(score!==null&&score<POLICY.minimumScore)reasons.push('Skor gabungan di bawah '+POLICY.minimumScore+'.');
+  return {policy:POLICY,period,days,effectiveDays,target:round(target),targetReason,achieved:pointRound(achieved),values:Object.fromEntries(Object.entries(values).map(([k,v])=>[k,v===null?null:round(v)])),contributions,quality,gradeBreakdown,score:score===null?null:round(score),complete,pass,credit:pass?1:0,reasons,cases,points,unfinished,counts:{workGood,workTotal,workPending,responseGood,responseTotal,responsePending,completed:completed.length,warranted:warranted.size,assigned:new Set(assigned).size},workTickets,responseTickets};
 }
 

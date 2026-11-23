@@ -27,7 +27,7 @@
             const kirimSesi = () => {
                 if (!siap || !tokenKpi || terkirim || tabKpi.closed) return;
                 terkirim = true;
-                tabKpi.postMessage({ type: 'sla:kpi-session', nonce: nonce, token: tokenKpi }, KPI_APP_ORIGIN);
+                tabKpi.postMessage({ type: 'sla:kpi-session', nonce: nonce, token: tokenKpi, theme: document.documentElement?.dataset?.theme || 'light', appearance: window.SLATheme?.getPreference() }, KPI_APP_ORIGIN);
             };
             const selesai = new Promise((resolve, reject) => {
                 listener = event => {
