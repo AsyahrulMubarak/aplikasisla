@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{test,before,after}=require('node:test');
-let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite'));}
+const {PGlite}=require('@electric-sql/pglite');
 const db=new PGlite(),read=f=>fs.readFileSync(path.join(__dirname,'..','maintenance',f),'utf8');
 const migration=read('leave-approved-duration.sql');
 const date=value=>new Date(value).toISOString().slice(0,10);

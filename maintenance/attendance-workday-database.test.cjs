@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {test,before,after}=require('node:test');
-let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require(path.resolve(__dirname,fs.existsSync(path.resolve(__dirname,'../tmp/sales-claims-qa'))?'../tmp/sales-claims-qa/node_modules/@electric-sql/pglite':'../../sales-claims-qa/node_modules/@electric-sql/pglite')));}
+const {PGlite}=require('@electric-sql/pglite');
 const db=new PGlite();
 const migration=fs.readFileSync(path.join(__dirname,'attendance-workday.sql'),'utf8');
 const record=(id,at,type='Masuk',branch='Kendari',name='Mubarak')=>({id_absen:id,waktu_absen:at,nama_pegawai:name,role:'teknisi',tipe_absen:type,cabang:branch});

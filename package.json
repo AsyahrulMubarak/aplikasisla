@@ -1,0 +1,15 @@
+{
+  "name": "aplikasisla",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "test": "node scripts/test.cjs",
+    "build": "npm test && node scripts/build-static.cjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8"
+  }
+}

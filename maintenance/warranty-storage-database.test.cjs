@@ -1,5 +1,5 @@
 const {test,before,after}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
-const {PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite');
+const {PGlite}=require('@electric-sql/pglite');
 const db=new PGlite();
 before(async()=>{
  await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;

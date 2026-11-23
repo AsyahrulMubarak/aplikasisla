@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{test,before,after}=require('node:test');
-let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite'));}
+const {PGlite}=require('@electric-sql/pglite');
 const db=new PGlite();const uuid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
 async function role(name='service_role'){await db.exec('reset role; set role '+name);}
 async function save({actor=1,user='worker',number='001111',old='001111',bank='BRI',oldBank=''}={}){

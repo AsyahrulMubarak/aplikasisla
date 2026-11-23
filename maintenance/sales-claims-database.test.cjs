@@ -1,9 +1,8 @@
-// Dependency QA terisolasi: npm install --prefix tmp/sales-claims-qa @electric-sql/pglite
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, before, after } = require('node:test');
-let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require(path.resolve(__dirname,fs.existsSync(path.resolve(__dirname,'../tmp/sales-claims-qa'))?'../tmp/sales-claims-qa/node_modules/@electric-sql/pglite':'../../sales-claims-qa/node_modules/@electric-sql/pglite')));}
+const {PGlite}=require('@electric-sql/pglite');
 const db = new PGlite();
 const migration = fs.readFileSync(path.join(__dirname, 'sales-claims.sql'), 'utf8');
 const photo = 'data:image/jpeg;base64,' + 'A'.repeat(100);

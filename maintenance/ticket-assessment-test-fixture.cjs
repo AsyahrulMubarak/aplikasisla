@@ -1,4 +1,4 @@
-const fs=require('node:fs'),{PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite');
+const fs=require('node:fs'),{PGlite}=require('@electric-sql/pglite');
 const ids={tech:'11111111-1111-4111-8111-111111111111',tech2:'22222222-2222-4222-8222-222222222222',admin:'33333333-3333-4333-8333-333333333333',manager:'44444444-4444-4444-8444-444444444444',admin2:'55555555-5555-4555-8555-555555555555',raha:'66666666-6666-4666-8666-666666666666',logistik:'77777777-7777-4777-8777-777777777777'};
 const initialSql=fs.readFileSync(__dirname+'/../supabase/migrations/20261021032201_ticket_grade_optional_contribution.sql','utf8');
 const directGradeSql=fs.readFileSync(__dirname+'/../supabase/migrations/20261021044837_admin_direct_ticket_grade.sql','utf8');

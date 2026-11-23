@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'), fs=require('node:fs');
 const {test}=require('node:test');
-const {PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite');
+const {PGlite}=require('@electric-sql/pglite');
 const sql=fs.readFileSync(__dirname+'/../maintenance/profile-supabase.sql','utf8');
 test('Reset audit is private, cooldown is durable, notification leases and branch completion are enforced',async()=>{
   const db=new PGlite();try{

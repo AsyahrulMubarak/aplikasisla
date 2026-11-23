@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {test,before,after}=require('node:test');
-let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require(path.resolve(__dirname,fs.existsSync(path.resolve(__dirname,'../tmp/sales-claims-qa'))?'../tmp/sales-claims-qa/node_modules/@electric-sql/pglite':'../../sales-claims-qa/node_modules/@electric-sql/pglite')));}
+const {PGlite}=require('@electric-sql/pglite');
 const db=new PGlite();
 const migration=fs.readFileSync(path.join(__dirname,'../supabase/migrations/20261007093221_sla_pengerjaan_sejak_penugasan.sql'),'utf8');
 async function query(sql,values=[]){return (await db.query(sql,values)).rows;}

@@ -1,5 +1,5 @@
 const fs=require('node:fs');
-const {PGlite}=require('../tmp/sales-claims-qa/node_modules/@electric-sql/pglite');
+const {PGlite}=require('@electric-sql/pglite');
 const admin='11111111-1111-1111-1111-111111111111',raha='22222222-2222-2222-2222-222222222222';
 async function createWarrantyTestDatabase(){
  const db=new PGlite();let legacySnapshot;
