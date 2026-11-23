@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <script src="./theme.js?v=20261027-wita3"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Absensi Alfacom</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -15,94 +16,95 @@
         .attendance-status { min-width: 0; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
         .attendance-status-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
         .attendance-status-head h3 { margin: 0; font-size: 16px; text-align: left; }
-        .attendance-status-refresh { flex: 0 0 auto; width: 44px; height: 44px; border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; font: inherit; cursor: pointer; }
+        .attendance-status-refresh { flex: 0 0 auto; width: 44px; height: 44px; border: 1px solid var(--theme-border, #cbd5e1); background: var(--theme-surface, #fff); border-radius: 8px; font: inherit; cursor: pointer; }
         #kehadiran-cabang-content { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
         .attendance-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 15px; }
         #form-absen button { min-width: 0; min-height: 44px; font-family: inherit; line-height: 1.4; }
         .card { background: var(--surface); padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; border-top: 6px solid var(--primary); }
         .logo-container { text-align: center; margin-bottom: 20px; }
         .logo-container img { max-width: 130px; }
-        h3 { text-align: center; margin: 0 0 5px 0; color: var(--primary); }
+        h3 { text-align: center; margin: 0 0 5px 0; color: var(--theme-blue, var(--primary)); }
         .user-info { text-align: center; font-size: 13px; color: var(--text-muted); margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px dashed var(--border); }
         label { display: block; margin: 15px 0 6px; font-weight: 600; font-size: 13px; }
-        select, input[type="text"] { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background: #f8fafc; }
+        select, input[type="text"] { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; background: var(--theme-soft, #f8fafc); }
         select:focus, input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
         
-        .gps-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 8px; font-size: 12px; margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; overflow-wrap: anywhere; }
-        .gps-box.error { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
-        .gps-box.warning { background: #fffbeb; border-color: #fde68a; color: #b45309; }
+        .gps-box { background: var(--theme-tint-green, #f0fdf4); border: 1px solid var(--theme-border-green, #bbf7d0); padding: 12px; border-radius: 8px; font-size: 12px; margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; overflow-wrap: anywhere; }
+        .gps-box[hidden] { display: none; }
+        .gps-box.error { background: var(--theme-tint-red, #fef2f2); border-color: var(--theme-border-red, #fecaca); color: var(--danger); }
+        .gps-box.warning { background: var(--theme-tint-amber, #fffbeb); border-color: var(--theme-border-amber, #fde68a); color: var(--theme-amber, #b45309); }
         
         .btn-absen { background: var(--primary); color: white; border: none; padding: 14px; width: 100%; font-size: 15px; border-radius: 8px; cursor: pointer; font-weight: 700; margin-top: 20px; transition: 0.2s; }
         .btn-absen:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 4px 6px rgba(16,185,129,0.3); }
-        .btn-absen:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-absen:disabled { background: var(--theme-soft, #cbd5e1); cursor: not-allowed; transform: none; box-shadow: none; }
         .btn-back { background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 10px; width: 100%; font-size: 13px; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 10px; }
         
         #foto-section { display: none; margin-top: 15px; }
         .info-text { font-size: 11px; color: var(--danger); margin-top: 5px; }
         
         /* Loading Overlay */
-        #loading-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        #loading-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.9); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+        .spinner { border: 4px solid var(--theme-border, #f3f3f3); border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         /* Modul Pengajuan Sakit / Izin */
-        .modal-overlay { display:none; position:fixed; inset:0; z-index:9000; padding:20px; box-sizing:border-box; background:rgba(15,23,42,0.72); backdrop-filter:blur(5px); align-items:center; justify-content:center; }
-        .modal-card { width:100%; max-width:560px; max-height:90vh; overflow-y:auto; background:#fff; border-radius:18px; box-shadow:0 24px 70px rgba(15,23,42,0.28); border:1px solid rgba(255,255,255,0.75); }
+        .modal-overlay { display:none; position:fixed; inset:0; z-index:9000; padding:20px; box-sizing:border-box; background: rgba(15,23,42,0.72); backdrop-filter:blur(5px); align-items:center; justify-content:center; }
+        .modal-card { width:100%; max-width:560px; max-height:90vh; overflow-y:auto; background: var(--theme-surface, #fff); border-radius:18px; box-shadow:0 24px 70px rgba(15,23,42,0.28); border: 1px solid rgba(255,255,255,0.75); }
         .modal-card.modal-wide { max-width:760px; }
-        .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; padding:22px 24px 18px; border-bottom:1px solid #e2e8f0; background:linear-gradient(135deg,#eff6ff 0%,#f8fafc 58%,#f0fdf4 100%); border-radius:18px 18px 0 0; }
-        .modal-title { margin:0; color:#1e3a8a; font-size:18px; text-align:left; }
-        .modal-subtitle { margin:6px 0 0; color:#64748b; font-size:12px; line-height:1.6; }
-        .modal-close { flex:0 0 auto; width:34px; height:34px; border:none; border-radius:50%; background:#fff; color:#64748b; font-size:20px; cursor:pointer; box-shadow:0 2px 8px rgba(15,23,42,0.08); }
-        .modal-close:hover { color:#ef4444; background:#fef2f2; }
+        .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; padding:22px 24px 18px; border-bottom: 1px solid var(--theme-border, #e2e8f0); background: linear-gradient(135deg,var(--theme-tint-blue, #eff6ff) 0%,var(--theme-soft, #f8fafc) 58%,var(--theme-tint-green, #f0fdf4) 100%); border-radius:18px 18px 0 0; }
+        .modal-title { margin:0; color: var(--theme-blue, #1e3a8a); font-size:18px; text-align:left; }
+        .modal-subtitle { margin:6px 0 0; color: var(--theme-muted, #64748b); font-size:12px; line-height:1.6; }
+        .modal-close { flex:0 0 auto; width:34px; height:34px; border: none; border-radius:50%; background: var(--theme-surface, #fff); color: var(--theme-muted, #64748b); font-size:20px; cursor:pointer; box-shadow:0 2px 8px rgba(15,23,42,0.08); }
+        .modal-close:hover { color: var(--theme-red, #ef4444); background: var(--theme-tint-red, #fef2f2); }
         .modal-body { padding:22px 24px 24px; }
-        .identity-strip { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; margin-bottom:18px; }
-        .identity-icon { width:38px; height:38px; display:grid; place-items:center; border-radius:10px; background:#dbeafe; color:#1e3a8a; font-size:18px; }
+        .identity-strip { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; background: var(--theme-soft, #f8fafc); border: 1px solid var(--theme-border, #e2e8f0); margin-bottom:18px; }
+        .identity-icon { width:38px; height:38px; display:grid; place-items:center; border-radius:10px; background: var(--theme-tint-blue, #dbeafe); color: var(--theme-blue, #1e3a8a); font-size:18px; }
         .identity-text { min-width:0; }
-        .identity-text strong { display:block; color:#0f172a; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .identity-text span { display:block; color:#64748b; font-size:11px; margin-top:2px; }
+        .identity-text strong { display:block; color: var(--theme-text, #0f172a); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .identity-text span { display:block; color: var(--theme-muted, #64748b); font-size:11px; margin-top:2px; }
         .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
         .form-field { min-width:0; }
         .form-field.full { grid-column:1 / -1; }
-        .form-field label { margin:0 0 7px; color:#334155; }
-        .form-control { width:100%; padding:12px 13px; border:1px solid #cbd5e1; border-radius:10px; box-sizing:border-box; background:#fff; color:#0f172a; font:inherit; font-size:13px; transition:0.2s; }
-        .form-control:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.12); }
+        .form-field label { margin:0 0 7px; color: var(--theme-text, #334155); }
+        .form-control { width:100%; padding:12px 13px; border: 1px solid var(--theme-border, #cbd5e1); border-radius:10px; box-sizing:border-box; background: var(--theme-surface, #fff); color: var(--theme-text, #0f172a); font:inherit; font-size:13px; transition:0.2s; }
+        .form-control:focus { outline: none; border-color: #2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.12); }
         textarea.form-control { min-height:104px; resize:vertical; line-height:1.55; }
-        input[type="file"].form-control { padding:10px; background:#f8fafc; }
-        .field-help { display:block; margin-top:6px; color:#64748b; font-size:10px; line-height:1.45; }
-        .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; padding-top:18px; border-top:1px solid #e2e8f0; }
-        .btn-modal { border:none; border-radius:10px; padding:12px 16px; font:inherit; font-size:13px; font-weight:700; cursor:pointer; transition:0.2s; }
+        input[type="file"].form-control { padding:10px; background: var(--theme-soft, #f8fafc); }
+        .field-help { display:block; margin-top:6px; color: var(--theme-muted, #64748b); font-size:10px; line-height:1.45; }
+        .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; padding-top:18px; border-top: 1px solid var(--theme-border, #e2e8f0); }
+        .btn-modal { border: none; border-radius:10px; padding:12px 16px; font:inherit; font-size:13px; font-weight:700; cursor:pointer; transition:0.2s; }
         .btn-modal:disabled { opacity:0.55; cursor:not-allowed; }
-        .btn-modal.secondary { color:#475569; background:#f1f5f9; border:1px solid #cbd5e1; }
-        .btn-modal.primary { color:#fff; background:linear-gradient(135deg,#1e3a8a,#2563eb); box-shadow:0 6px 14px rgba(30,58,138,0.2); }
-        .btn-modal.danger { color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; }
-        .btn-modal.success { color:#047857; background:#ecfdf5; border:1px solid #a7f3d0; }
+        .btn-modal.secondary { color: var(--theme-muted, #475569); background: var(--theme-soft, #f1f5f9); border: 1px solid var(--theme-border, #cbd5e1); }
+        .btn-modal.primary { color: #fff; background: linear-gradient(135deg,#1e3a8a,#2563eb); box-shadow:0 6px 14px rgba(30,58,138,0.2); }
+        .btn-modal.danger { color: var(--theme-red, #b91c1c); background: var(--theme-tint-red, #fef2f2); border: 1px solid var(--theme-border-red, #fecaca); }
+        .btn-modal.success { color: var(--theme-green, #047857); background: var(--theme-tint-green, #ecfdf5); border: 1px solid var(--theme-border-green, #a7f3d0); }
         .confirm-card { max-width:410px; overflow:hidden; }
         .confirm-content { padding:28px 26px 24px; text-align:center; }
         .confirm-icon { width:58px; height:58px; display:grid; place-items:center; margin:0 auto 16px; border-radius:18px; font-size:26px; font-weight:700; }
-        .confirm-icon.success { color:#047857; background:#ecfdf5; border:1px solid #a7f3d0; }
-        .confirm-icon.danger { color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; }
-        .confirm-title { margin:0; color:#0f172a; font-size:18px; }
-        .confirm-message { margin:10px 0 0; color:#64748b; font-size:13px; line-height:1.65; }
+        .confirm-icon.success { color: var(--theme-green, #047857); background: var(--theme-tint-green, #ecfdf5); border: 1px solid var(--theme-border-green, #a7f3d0); }
+        .confirm-icon.danger { color: var(--theme-red, #b91c1c); background: var(--theme-tint-red, #fef2f2); border: 1px solid var(--theme-border-red, #fecaca); }
+        .confirm-title { margin:0; color: var(--theme-text, #0f172a); font-size:18px; }
+        .confirm-message { margin:10px 0 0; color: var(--theme-muted, #64748b); font-size:13px; line-height:1.65; }
         .confirm-actions { justify-content:center; margin-top:24px; }
         .confirm-actions .btn-modal { flex:1; }
-        .approval-summary { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; padding:12px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; color:#1e3a8a; font-size:12px; }
+        .approval-summary { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; padding:12px 14px; background: var(--theme-tint-blue, #eff6ff); border: 1px solid var(--theme-border-blue, #bfdbfe); border-radius:12px; color: var(--theme-blue, #1e3a8a); font-size:12px; }
         .approval-list { display:grid; gap:12px; }
-        .approval-card { padding:16px; border:1px solid #e2e8f0; border-left:4px solid #f59e0b; border-radius:12px; background:#fff; box-shadow:0 4px 14px rgba(15,23,42,0.05); }
+        .approval-card { padding:16px; border: 1px solid var(--theme-border, #e2e8f0); border-left: 4px solid #f59e0b; border-radius:12px; background: var(--theme-surface, #fff); box-shadow:0 4px 14px rgba(15,23,42,0.05); }
         .approval-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
-        .approval-name { margin:0; color:#0f172a; font-size:14px; }
-        .approval-role { margin-top:3px; color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:0.06em; }
-        .type-badge { flex:0 0 auto; padding:5px 9px; border-radius:999px; background:#fef3c7; color:#92400e; font-size:10px; font-weight:700; }
-        .type-badge.sakit { background:#fee2e2; color:#991b1b; }
+        .approval-name { margin:0; color: var(--theme-text, #0f172a); font-size:14px; }
+        .approval-role { margin-top:3px; color: var(--theme-muted, #64748b); font-size:10px; text-transform:uppercase; letter-spacing:0.06em; }
+        .type-badge { flex:0 0 auto; padding:5px 9px; border-radius:999px; background: var(--theme-tint-amber, #fef3c7); color: var(--theme-amber, #92400e); font-size:10px; font-weight:700; }
+        .type-badge.sakit { background: var(--theme-tint-red, #fee2e2); color: var(--theme-red, #991b1b); }
         .approval-meta { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:11px; }
-        .meta-box { padding:9px 10px; border-radius:9px; background:#f8fafc; color:#475569; font-size:10px; }
-        .meta-box strong { display:block; color:#0f172a; font-size:11px; margin-top:3px; }
-        .approval-reason { margin:0 0 12px; padding:11px 12px; background:#fffbeb; border-radius:9px; color:#713f12; font-size:11px; line-height:1.55; white-space:pre-wrap; }
+        .meta-box { padding:9px 10px; border-radius:9px; background: var(--theme-soft, #f8fafc); color: var(--theme-muted, #475569); font-size:10px; }
+        .meta-box strong { display:block; color: var(--theme-text, #0f172a); font-size:11px; margin-top:3px; }
+        .approval-reason { margin:0 0 12px; padding:11px 12px; background: var(--theme-tint-amber, #fffbeb); border-radius:9px; color: var(--theme-amber, #713f12); font-size:11px; line-height:1.55; white-space:pre-wrap; }
         .approval-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-        .approval-duration { margin:0 0 12px; padding:12px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; }
-        .approval-duration label { margin:0 0 7px; font-size:12px; color:#1e3a8a; }
+        .approval-duration { margin:0 0 12px; padding:12px; border: 1px solid var(--theme-border-blue, #bfdbfe); border-radius:10px; background: var(--theme-tint-blue, #eff6ff); }
+        .approval-duration label { margin:0 0 7px; font-size:12px; color: var(--theme-blue, #1e3a8a); }
         .approval-duration .form-control { max-width:160px; }
-        .evidence-link { margin-right:auto; padding:8px 10px; color:#1d4ed8; background:#eff6ff; border-radius:8px; font-size:10px; font-weight:700; text-decoration:none; }
-        .empty-state { padding:36px 18px; text-align:center; color:#64748b; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; font-size:12px; line-height:1.7; }
+        .evidence-link { margin-right:auto; padding:8px 10px; color: var(--theme-blue, #1d4ed8); background: var(--theme-tint-blue, #eff6ff); border-radius:8px; font-size:10px; font-weight:700; text-decoration:none; }
+        .empty-state { padding:36px 18px; text-align:center; color: var(--theme-muted, #64748b); background: var(--theme-soft, #f8fafc); border: 1px dashed var(--theme-border, #cbd5e1); border-radius:12px; font-size:12px; line-height:1.7; }
         body.modal-open { overflow:hidden; }
 
         /* 1. PERHALUS WARNA DASAR (Lebih Clean & Modern) */
@@ -134,18 +136,18 @@
         input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="tel"], input[type="date"], input[type="time"], input[type="month"], select, textarea {
             width: 100%;
             padding: 12px 16px;
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--theme-border, #cbd5e1);
             border-radius: 10px;
             box-sizing: border-box;
             font-family: 'Inter', sans-serif;
             font-size: 14px;
-            background-color: #f8fafc;
+            background-color: var(--theme-soft, #f8fafc);
             color: var(--text-main);
             transition: all 0.2s ease;
         }
         input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: #3b82f6;
+            border-color: var(--theme-border-blue, #3b82f6);
             background-color: var(--surface);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
         }
@@ -193,12 +195,13 @@
             .evidence-link { width:100%; margin:0; text-align:center; box-sizing:border-box; }
         }
     </style>
+    <link rel="stylesheet" href="./theme.css?v=20261027-wita1">
 </head>
 <body>
 
     <div id="loading-overlay">
         <div class="spinner"></div>
-        <div style="font-weight:600; color:var(--text-main);" id="loading-text">Menyiapkan lokasi...</div>
+        <div style="font-weight:600; color: var(--text-main);" id="loading-text">Menyiapkan lokasi...</div>
     </div>
 
     <main class="attendance-layout">
@@ -219,45 +222,49 @@
                 <option value="Koreksi Absen">⚙️ Koreksi Absen (Lupa)</option>
             </select>
 
-            <div id="koreksi-fields" style="display:none; background:#f8fafc; padding:20px; border-radius:12px; border:1px solid #e2e8f0; margin-top:15px; margin-bottom:15px;">
-                <p style="margin:0 0 15px 0; font-size:13px; font-weight:bold; color:#0f766e; border-bottom:1px solid #ccfbf1; padding-bottom:8px;">⚙️ Masukkan Data Koreksi Manual</p>
+            <div id="koreksi-fields" style="display:none; background: var(--theme-soft, #f8fafc); padding:20px; border-radius:12px; border: 1px solid var(--theme-border, #e2e8f0); margin-top:15px; margin-bottom:15px;">
+                <p style="margin:0 0 15px 0; font-size:13px; font-weight:bold; color: var(--theme-teal, #0f766e); border-bottom: 1px solid var(--theme-border-teal, #ccfbf1); padding-bottom:8px;">⚙️ Masukkan Data Koreksi Manual</p>
                 
-                <label style="color:#475569; font-size:12px; font-weight:600; margin-bottom:5px; display:block;">📌 Status Absen yang Terlewat</label>
-                <select id="koreksi-status" style="width:100%; padding:12px 15px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;" onchange="cekKondisiKeterangan()">
+                <label style="color: var(--theme-muted, #475569); font-size:12px; font-weight:600; margin-bottom:5px; display:block;">📌 Status Absen yang Terlewat</label>
+                <select id="koreksi-status" style="width:100%; padding:12px 15px; margin-bottom:15px; border: 1px solid var(--theme-border, #cbd5e1); border-radius:8px; font-family:'Inter', sans-serif; box-sizing:border-box; background: var(--theme-surface, #fff); color: var(--theme-text, #334155); transition:0.2s;" onchange="cekKondisiKeterangan()">
                     <option value="" disabled selected>-- Pilih Status --</option>
                     <option value="Absen Masuk">Masuk Kerja</option>
                     <option value="Masuk (Setelah Istirahat)">Masuk (Setelah Istirahat)</option>
                     <option value="Absen Keluar">Keluar Kerja / Pulang</option>
                 </select>
 
-                <label style="color:#475569; font-size:12px; font-weight:600; margin-bottom:5px; display:block;">📅 Tanggal Absensi (Yang Terlewat)</label>
-                <input type="date" id="koreksi-tanggal" style="width:100%; padding:12px 15px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;">
+                <label style="color: var(--theme-muted, #475569); font-size:12px; font-weight:600; margin-bottom:5px; display:block;">📅 Tanggal Absensi (Yang Terlewat)</label>
+                <input type="date" id="koreksi-tanggal" style="width:100%; padding:12px 15px; margin-bottom:15px; border: 1px solid var(--theme-border, #cbd5e1); border-radius:8px; font-family:'Inter', sans-serif; box-sizing:border-box; background: var(--theme-surface, #fff); color: var(--theme-text, #334155); transition:0.2s;">
                 
-                <label style="color:#475569; font-size:12px; font-weight:600; margin-bottom:5px; display:block;">⏰ Waktu Jam (Seharusnya)</label>
-                <input type="time" id="koreksi-jam" style="width:100%; padding:12px 15px; margin-bottom:0; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;" onchange="cekKondisiKeterangan()">
+                <label style="color: var(--theme-muted, #475569); font-size:12px; font-weight:600; margin-bottom:5px; display:block;">⏰ Waktu Jam (Seharusnya)</label>
+                <input type="time" id="koreksi-jam" style="width:100%; padding:12px 15px; margin-bottom:0; border: 1px solid var(--theme-border, #cbd5e1); border-radius:8px; font-family:'Inter', sans-serif; box-sizing:border-box; background: var(--theme-surface, #fff); color: var(--theme-text, #334155); transition:0.2s;" onchange="cekKondisiKeterangan()">
             </div>
 
             <div class="gps-box" id="gps-status">
                 <span>📍 Mencari Lokasi GPS...</span>
             </div>
+            <div class="gps-box" id="koreksi-gps-info" hidden>
+                ℹ️ Koreksi absen tidak memerlukan GPS. Isi status, tanggal, jam, dan alasan koreksi.
+            </div>
+            <button type="button" id="btn-gps-retry" class="btn-back" onclick="dapatkanLokasi()" hidden>Coba Lagi GPS</button>
 
             <div id="foto-section">
                 <label id="label-foto">Foto Bukti (Kamera Langsung)</label>
                 <div class="info-text" id="info-foto">Diperlukan foto area/perangkat kerja</div>
-                <input type="file" id="input-foto" accept="image/*" capture="environment" style="border:none; padding:0;">
+                <input type="file" id="input-foto" accept="image/*" capture="environment" style="border: none; padding:0;">
             </div>
 
             <div id="keterangan-section" style="margin-bottom:20px;">
-                <label id="label-keterangan" style="color:#475569; font-size:12px; font-weight:600; margin-bottom:8px; display:block;">📝 Keterangan / Alasan (Opsional)</label>
-                <textarea id="input-keterangan" rows="2" style="width:100%; padding:12px 15px; border:1px solid #cbd5e1; border-radius:8px; font-family:'Inter', sans-serif; box-sizing:border-box; background:#fff; color:#334155; transition:0.2s;" placeholder="Tuliskan keterangan (Contoh: Shift malam, mampir beli material, dll)..."></textarea>
+                <label id="label-keterangan" style="color: var(--theme-muted, #475569); font-size:12px; font-weight:600; margin-bottom:8px; display:block;">📝 Keterangan / Alasan (Opsional)</label>
+                <textarea id="input-keterangan" rows="2" style="width:100%; padding:12px 15px; border: 1px solid var(--theme-border, #cbd5e1); border-radius:8px; font-family:'Inter', sans-serif; box-sizing:border-box; background: var(--theme-surface, #fff); color: var(--theme-text, #334155); transition:0.2s;" placeholder="Tuliskan keterangan (Contoh: Shift malam, mampir beli material, dll)..."></textarea>
             </div>
 
             <button type="submit" id="btn-submit" class="btn-absen" disabled>Kirim Absen</button>
             <div class="attendance-actions">
-                <button type="button" style="flex:1; padding:12px; border-radius:8px; background:#eff6ff; color:#1e3a8a; border:1px solid #bfdbfe; font-weight:bold; cursor:pointer;" onclick="bukaTinjauan()">📋 Tinjauan Absen</button>
-                <button type="button" id="btn-buka-pengajuan" style="flex:1; padding:12px; border-radius:8px; background:#fefce8; color:#a16207; border:1px solid #fde047; font-weight:bold; cursor:pointer;" onclick="bukaModalPengajuan()">📝 Ajukan Cuti/Sakit</button>
+                <button type="button" style="flex:1; padding:12px; border-radius:8px; background: var(--theme-tint-blue, #eff6ff); color: var(--theme-blue, #1e3a8a); border: 1px solid var(--theme-border-blue, #bfdbfe); font-weight:bold; cursor:pointer;" onclick="bukaTinjauan()">📋 Tinjauan Absen</button>
+                <button type="button" id="btn-buka-pengajuan" style="flex:1; padding:12px; border-radius:8px; background: var(--theme-tint-amber, #fefce8); color: var(--theme-amber, #a16207); border: 1px solid var(--theme-border-amber, #fde047); font-weight:bold; cursor:pointer;" onclick="bukaModalPengajuan()">📝 Ajukan Cuti/Sakit</button>
             </div>
-            <button type="button" id="btn-approval-manajemen" style="display:none; width:100%; padding:12px; border-radius:8px; background:#1e3a8a; color:white; border:none; font-weight:bold; cursor:pointer; margin-top:10px;" onclick="bukaModalApproval()">🛡️ Approval Pengajuan</button>
+            <button type="button" id="btn-approval-manajemen" style="display:none; width:100%; padding:12px; border-radius:8px; background: #1e3a8a; color: white; border: none; font-weight:bold; cursor:pointer; margin-top:10px;" onclick="bukaModalApproval()">🛡️ Approval Pengajuan</button>
             <button type="button" class="btn-back" onclick="kembaliKeLobiAman()">Kembali ke Lobi</button>
         </form>
     </div>
@@ -268,12 +275,12 @@
         <div id="kehadiran-cabang-content" role="status" aria-live="polite"></div>
     </section>
     </main>
-    <div id="modal-tinjauan" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
-        <div style="background:#fff; padding:20px; border-radius:12px; width:100%; max-width:500px; max-height:85vh; overflow-y:auto; position:relative;">
-            <h3 style="margin-top:0; color:#1e3a8a; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">📋 Tinjauan Absensi</h3>
-            <div id="tinjauan-loading" style="text-align:center; font-size:12px; color:#64748b; margin:20px 0;">Memuat data absensi...</div>
+    <div id="modal-tinjauan" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+        <div style="background: var(--theme-surface, #fff); padding:20px; border-radius:12px; width:100%; max-width:500px; max-height:85vh; overflow-y:auto; position:relative;">
+            <h3 style="margin-top:0; color: var(--theme-blue, #1e3a8a); border-bottom: 1px solid var(--theme-border, #e2e8f0); padding-bottom:10px;">📋 Tinjauan Absensi</h3>
+            <div id="tinjauan-loading" style="text-align:center; font-size:12px; color: var(--theme-muted, #64748b); margin:20px 0;">Memuat data absensi...</div>
             <div id="tinjauan-data"></div>
-            <button type="button" style="width:100%; padding:10px; margin-top:15px; border-radius:8px; background:#fef2f2; color:#ef4444; border:1px solid #fecaca; font-weight:bold; cursor:pointer;" onclick="document.getElementById('modal-tinjauan').style.display='none'">Tutup Tinjauan</button>
+            <button type="button" style="width:100%; padding:10px; margin-top:15px; border-radius:8px; background: var(--theme-tint-red, #fef2f2); color: var(--theme-red, #ef4444); border: 1px solid var(--theme-border-red, #fecaca); font-weight:bold; cursor:pointer;" onclick="document.getElementById('modal-tinjauan').style.display='none'">Tutup Tinjauan</button>
         </div>
     </div>
 
@@ -353,7 +360,7 @@
                     <button type="button" class="btn-modal secondary" onclick="tutupModal('modal-approval')">Tutup</button>
                     <div style="display:flex; gap:10px;">
                         <button type="button" class="btn-modal secondary" onclick="muatDaftarPengajuan()">🔄 Antrean</button>
-                        <button type="button" class="btn-modal primary" style="background:#475569;" onclick="muatRiwayatPengajuan()">🗄️ Riwayat</button>
+                        <button type="button" class="btn-modal primary" style="background: #475569;" onclick="muatRiwayatPengajuan()">🗄️ Riwayat</button>
                     </div>
                 </div>
             </div>
@@ -751,20 +758,20 @@
             }
 
             if (wajib) {
-                labelKet.innerHTML = `📝 Keterangan / Alasan <span style="color:#ef4444;">*Wajib ${alasanWajib}</span>`;
-                inputKet.required = true; inputKet.style.borderColor = "#ef4444";
+                labelKet.innerHTML = `📝 Keterangan / Alasan <span style="color: var(--theme-red, #ef4444);">*Wajib ${alasanWajib}</span>`;
+                inputKet.required = true; inputKet.style.borderColor = "var(--theme-border-red, #ef4444)";
             } else if (wajibKetSebelumnya) {
-                labelKet.innerHTML = '📝 Keterangan / Alasan <span style="color:#ef4444;">*Wajib</span>';
-                inputKet.required = true; inputKet.style.borderColor = "#ef4444";
+                labelKet.innerHTML = '📝 Keterangan / Alasan <span style="color: var(--theme-red, #ef4444);">*Wajib</span>';
+                inputKet.required = true; inputKet.style.borderColor = "var(--theme-border-red, #ef4444)";
             } else {
                 labelKet.innerHTML = '📝 Keterangan / Alasan (Opsional)';
-                inputKet.required = false; inputKet.style.borderColor = "#cbd5e1";
+                inputKet.required = false; inputKet.style.borderColor = "var(--theme-border, #cbd5e1)";
             }
 
             if (labelFoto && inputFoto) {
                 const fotoWajibAkhir = wajibFoto || wajibFotoSebelumnya;
                 if (wajibFoto) {
-                    labelFoto.innerHTML = `📷 Foto Bukti Pekerjaan <span style="color:#ef4444;">*Wajib (Lembur Dini Hari)</span>`;
+                    labelFoto.innerHTML = `📷 Foto Bukti Pekerjaan <span style="color: var(--theme-red, #ef4444);">*Wajib (Lembur Dini Hari)</span>`;
                 } else {
                     labelFoto.innerHTML = `📷 Foto Bukti Pekerjaan`;
                 }
@@ -787,6 +794,14 @@
 
         function dapatkanLokasi() {
             const gpsBox = document.getElementById('gps-status');
+            gpsBox.className = 'gps-box';
+            gpsBox.innerHTML = '📍 Mencari Lokasi GPS...';
+            document.getElementById('btn-gps-retry').hidden = true;
+            jarakSekarang = 999999;
+            lokasiDitemukan = false;
+            userLat = null;
+            userLon = null;
+            cekKondisiAbsen();
             if (!kebijakanAbsensiAktif || !kebijakanAbsensiAktif.kantor) {
                 gpsBox.className = 'gps-box error';
                 gpsBox.innerHTML = '❌ Konfigurasi lokasi toko belum tersedia.';
@@ -811,7 +826,7 @@
                         const radiusAktif = Number(kebijakanAbsensiAktif.radiusMeter) || RADIUS_MAKSIMAL;
                         if (jarakSekarang <= radiusAktif) {
                             gpsBox.className = "gps-box";
-                            gpsBox.innerHTML = `<span>🏢 Jarak Kantor ${kantorTerdekat.cabang === 'Raha' ? 'Raha' : kantorTerdekat.cabang === 'Kendari' ? 'Kendari' : ''}: <b>${jarakSekarang}m</b></span> <span style="color:var(--success); font-weight:bold;">Aman</span>`;
+                            gpsBox.innerHTML = `<span>🏢 Jarak Kantor ${kantorTerdekat.cabang === 'Raha' ? 'Raha' : kantorTerdekat.cabang === 'Kendari' ? 'Kendari' : ''}: <b>${jarakSekarang}m</b></span> <span style="color: var(--success); font-weight:bold;">Aman</span>`;
                         } else {
                             gpsBox.className = "gps-box warning";
                             gpsBox.innerHTML = `<span>🌍 Luar Kantor: <b>${jarakSekarang}m</b></span> <span>Wajib keterangan & foto</span>`;
@@ -821,12 +836,18 @@
                     },
                     (error) => {
                         gpsBox.className = "gps-box error";
-                        gpsBox.innerHTML = "❌ Izin GPS Ditolak / Gagal.";
+                        const pesanGps = {
+                            1: '❌ Izin lokasi ditolak. Izinkan lokasi untuk situs ini di pengaturan browser dan aktifkan lokasi perangkat, lalu coba lagi.',
+                            2: '⚠️ Lokasi belum tersedia. Pastikan lokasi perangkat aktif dan coba dari tempat terbuka yang aman, lalu coba lagi.',
+                            3: '⏳ Pencarian lokasi melewati batas waktu. Coba lagi dari tempat terbuka yang aman.'
+                        };
+                        gpsBox.innerHTML = pesanGps[error && error.code] || '❌ Lokasi GPS gagal dibaca. Periksa izin lokasi dan coba lagi.';
                         jarakSekarang = 999999;
                         lokasiDitemukan = false;
                         userLat = null;
                         userLon = null;
                         cekKondisiAbsen();
+                        cekKondisiKeterangan();
                     },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
@@ -834,6 +855,7 @@
                 gpsBox.className = "gps-box error"; gpsBox.innerHTML = "❌ Browser tidak support GPS.";
                 userLat = null;
                 userLon = null;
+                cekKondisiAbsen();
             }
         }
 
@@ -851,16 +873,21 @@
             let butuhKet = false; let butuhFoto = false;
             let placeholderKet = "Ketik alasan di sini...";
 
-            if (!tipe || !lokasiDitemukan) { btnSubmit.disabled = true; return; }
+            const adalahKoreksi = tipe === 'Koreksi Absen';
+            const gpsBox = document.getElementById('gps-status');
+            gpsBox.hidden = adalahKoreksi;
+            document.getElementById('koreksi-gps-info').hidden = !adalahKoreksi;
+            document.getElementById('btn-gps-retry').hidden = adalahKoreksi || gpsBox.className !== 'gps-box error' ||
+                !navigator.geolocation || !kebijakanAbsensiAktif || !kebijakanAbsensiAktif.kantor;
 
             // Logika Tipe Absen
-            if (tipe === 'Koreksi Absen') {
+            if (adalahKoreksi) {
                 butuhKet = true;
                 placeholderKet = "Alasan lupa absen (Sisa Max 7x)...";
             } else {
                 // Jika Hadir/Masuk/Keluar tapi di Luar Radius
                 const radiusAktif = Number(kebijakanAbsensiAktif && kebijakanAbsensiAktif.radiusMeter) || RADIUS_MAKSIMAL;
-                if (jarakSekarang > radiusAktif) {
+                if (lokasiDitemukan && jarakSekarang > radiusAktif) {
                     butuhKet = true; butuhFoto = true;
                     placeholderKet = "Mengerjakan apa di luar kantor?";
                     document.getElementById('info-foto').innerText = "Wajib foto bukti lokasi / pekerjaan di luar radius";
@@ -882,7 +909,7 @@
             fotoSection.style.display = butuhFoto ? "block" : "none";
             inputFoto.required = butuhFoto;
 
-            btnSubmit.disabled = false;
+            btnSubmit.disabled = !tipe || (!adalahKoreksi && !lokasiDitemukan);
         }
 
         function tentukanStatusDisiplin(tipe) {
@@ -1062,7 +1089,7 @@
 
         function tombolFotoLampiranPengajuan(bukti) {
             const url = String(bukti || '').trim();
-            if (!/^https?:\/\//i.test(url)) return '<span class="evidence-link" style="color:#94a3b8;">Foto lampiran tidak tersedia</span>';
+            if (!/^https?:\/\//i.test(url)) return '<span class="evidence-link" style="color: var(--theme-muted, #94a3b8);">Foto lampiran tidak tersedia</span>';
             return '<a class="btn-modal secondary evidence-link" href="' + escapeHTML(url) + '" target="_blank" rel="noopener noreferrer">📷 Lihat Foto Lampiran</a>';
         }
 
@@ -1220,9 +1247,9 @@
                             ${jenis === 'Izin' ? `<div class="meta-box">Durasi Diajukan<strong>${hariDiajukan} hari</strong></div>` : ''}
                             ${selesaiDisetujui ? `<div class="meta-box">Durasi Disetujui<strong>${hariDisetujui} hari · sampai ${formatTanggalTampil(selesaiDisetujui)}</strong></div>` : ''}
                         </div>
-                        <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-top:12px; font-size:11px; color:#475569; border:1px solid #e2e8f0;">
+                        <div style="background: var(--theme-soft, #f8fafc); padding:10px; border-radius:8px; margin-top:12px; font-size:11px; color: var(--theme-muted, #475569); border: 1px solid var(--theme-border, #e2e8f0);">
                             <div style="margin-bottom:6px;"><strong>Alasan Pegawai:</strong> <i>"${escapeHTML(item.Alasan || '-')}"</i></div>
-                            <div style="margin-bottom:4px; padding-top:6px; border-top:1px dashed #cbd5e1;"><strong>Dieksekusi Oleh:</strong> <span style="color:#1e3a8a; font-weight:bold;">${disetujuiOleh}</span></div>
+                            <div style="margin-bottom:4px; padding-top:6px; border-top: 1px dashed var(--theme-border, #cbd5e1);"><strong>Dieksekusi Oleh:</strong> <span style="color: var(--theme-blue, #1e3a8a); font-weight:bold;">${disetujuiOleh}</span></div>
                             <div><strong>Waktu Eksekusi:</strong> ${waktuAcc}</div>
                             ${item['Kembali Bekerja'] ? '<div style="margin-top:6px;"><strong>Berakhir otomatis:</strong> Kembali masuk pada ' + formatTanggalTampil(item['Kembali Bekerja'], true) + '</div>' : (jenis === 'Sakit' && !item.Selesai && status === 'Disetujui' ? '<div style="margin-top:6px;">Sedang sakit — sampai kembali bekerja.</div>' : '')}
                         </div>
@@ -1310,6 +1337,11 @@
 
         async function prosesAbsen(e) {
             e.preventDefault();
+            const tipeDipilih = document.getElementById('tipe-absen').value;
+            if (!tipeDipilih || (tipeDipilih !== 'Koreksi Absen' && !lokasiDitemukan)) {
+                showToast('❌ Pilih tipe kehadiran dan pastikan lokasi GPS terbaca untuk absen biasa.', true);
+                return;
+            }
             const btn = document.getElementById('btn-submit');
             const overlay = document.getElementById('loading-overlay');
             const textLoading = document.getElementById('loading-text');
@@ -1391,7 +1423,7 @@
                 const waktu = new Date(item.waktu || '');
                 const jam = isNaN(waktu.getTime()) ? '' : ' · ' + String(waktu.getHours()).padStart(2, '0') + ':' + String(waktu.getMinutes()).padStart(2, '0');
                 const label = 'Lihat Foto ' + String(item.tipe || 'Absen') + jam;
-                return '<a href="' + aman(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin:6px 6px 0 0; padding:6px 9px; border:1px solid #bfdbfe; border-radius:6px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:600; text-decoration:none;">📷 ' + aman(label) + '</a>';
+                return '<a href="' + aman(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin:6px 6px 0 0; padding:6px 9px; border: 1px solid var(--theme-border-blue, #bfdbfe); border-radius:6px; background: var(--theme-tint-blue, #eff6ff); color: var(--theme-blue, #1d4ed8); font-size:11px; font-weight:600; text-decoration:none;">📷 ' + aman(label) + '</a>';
             }).join('');
         }
 
@@ -1414,17 +1446,17 @@
                     dataTinjauan.forEach(d => {
                         let btnGPS = '';
                         if(['admin', 'manager', 'direktur'].includes(String(penggunaAktif.Role || '').toLowerCase()) && d.gps && d.gps !== '-') {
-                            btnGPS = `<a href="${d.gps}" target="_blank" style="display:inline-block; margin-top:10px; padding:6px 12px; background:#fefce8; color:#a16207; border:1px solid #fde047; border-radius:6px; font-size:11px; text-decoration:none; font-weight:bold;">📍 Cek Lokasi GPS</a>`;
+                            btnGPS = `<a href="${d.gps}" target="_blank" style="display:inline-block; margin-top:10px; padding:6px 12px; background: var(--theme-tint-amber, #fefce8); color: var(--theme-amber, #a16207); border: 1px solid var(--theme-border-amber, #fde047); border-radius:6px; font-size:11px; text-decoration:none; font-weight:bold;">📍 Cek Lokasi GPS</a>`;
                         }
-                        html += `<div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:8px; margin-bottom:10px; font-size:12px;">
-                            <div style="font-weight:bold; color:#1e3a8a; margin-bottom:8px;">📅 ${d.tanggal}</div>
+                        html += `<div style="background: var(--theme-soft, #f8fafc); border: 1px solid var(--theme-border, #e2e8f0); padding:12px; border-radius:8px; margin-bottom:10px; font-size:12px;">
+                            <div style="font-weight:bold; color: var(--theme-blue, #1e3a8a); margin-bottom:8px;">📅 ${d.tanggal}</div>
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                                <div style="grid-column: span 2;"><span style="color:#64748b;">Nama:</span> <b style="font-size:14px;">${d.nama}</b></div>
-                                <div><span style="color:#64748b;">Msk 1 (Pagi):</span> <b>${d.masuk1}</b></div>
-                                <div><span style="color:#64748b;">Klr 1 (Jeda):</span> <b>${d.keluar1}</b></div>
-                                <div><span style="color:#64748b;">Msk 2 (Siang):</span> <b>${d.masuk2}</b></div>
-                                <div><span style="color:#64748b;">Klr 2 (Sore):</span> <b>${d.keluar2}</b></div>
-                                <div style="grid-column: span 2;"><span style="color:#64748b;">Keterangan:</span> <i>${d.keterangan}</i></div>
+                                <div style="grid-column: span 2;"><span style="color: var(--theme-muted, #64748b);">Nama:</span> <b style="font-size:14px;">${d.nama}</b></div>
+                                <div><span style="color: var(--theme-muted, #64748b);">Msk 1 (Pagi):</span> <b>${d.masuk1}</b></div>
+                                <div><span style="color: var(--theme-muted, #64748b);">Klr 1 (Jeda):</span> <b>${d.keluar1}</b></div>
+                                <div><span style="color: var(--theme-muted, #64748b);">Msk 2 (Siang):</span> <b>${d.masuk2}</b></div>
+                                <div><span style="color: var(--theme-muted, #64748b);">Klr 2 (Sore):</span> <b>${d.keluar2}</b></div>
+                                <div style="grid-column: span 2;"><span style="color: var(--theme-muted, #64748b);">Keterangan:</span> <i>${d.keterangan}</i></div>
                             </div>
                             ${btnGPS}
                             <div>${renderFotoAbsensi_(d.foto)}</div>

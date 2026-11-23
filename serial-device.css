@@ -1,0 +1,28 @@
+.serial-field { clear:both; flex-basis:100%; min-width:0; margin:10px 0 15px; }
+.serial-field label { display:block; }
+.serial-field input { box-sizing:border-box; width:100%; }
+.serial-identity { display:grid; grid-template-columns:minmax(0, 3fr) minmax(0, 2fr); gap:12px; }
+.serial-input-actions { display:flex; gap:8px; align-items:stretch; }
+.serial-input-actions input { min-width:0; }
+.serial-input-actions button { flex:none; width:auto; margin:0; white-space:nowrap; }
+.serial-autofill { margin-top:8px; font-size:12px; color:var(--text-muted); }
+.serial-scanner { width:min(440px, calc(100% - 32px)); max-height:calc(100% - 32px); box-sizing:border-box; padding:18px; border:1px solid var(--border); border-radius:12px; background:var(--theme-surface,#fff); color:var(--theme-text,#0f172a); }
+.serial-scanner::backdrop { background:rgba(15,23,42,.72); }
+.serial-scanner h3 { margin:0; }
+.serial-scanner video { display:block; width:100%; max-height:46vh; background:#0f172a; border-radius:8px; object-fit:contain; }
+@media (max-width:580px) { .serial-identity { grid-template-columns:1fr; gap:6px; } }
+.serial-help, .serial-result small { display:block; color:var(--text-muted); font-size:12px; line-height:1.6; }
+.serial-result { margin-top:8px; padding:12px; border:1px solid var(--border); border-radius:8px; background:var(--theme-soft, #f8fafc); overflow-wrap:anywhere; line-height:1.6; }
+.serial-result[data-state="history"] { border-color:var(--theme-border-blue, #bfdbfe); }
+.serial-result[data-state="warranty"] { border-color:var(--theme-border-green, #86efac); }
+.serial-result[data-state="open"], .serial-result[data-state="error"] { border-color:var(--theme-border-amber, #fcd34d); }
+.serial-result p { margin:6px 0; }
+.serial-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.serial-actions button { width:auto; margin:0; }
+.serial-result details { margin-top:8px; }
+.serial-result summary { cursor:pointer; }
+.serial-result ul { padding-left:20px; }
+.serial-result li { margin:8px 0; }
+.serial-result textarea { box-sizing:border-box; width:100%; }
+.pekerjaan-item:has(.serial-field) { flex-wrap:wrap; }
+.pekerjaan-item:has(.serial-field) > .input-pekerjaan-multi { min-width:0; }

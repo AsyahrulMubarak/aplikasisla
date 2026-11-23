@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <script src="./theme.js?v=20261027-wita3"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Payroll & Slip Gaji - Alfacom</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -11,72 +12,72 @@
         .container { width: 100%; max-width: 100%; margin: 0; padding: 20px 40px; box-sizing: border-box; }
         .card { background: var(--surface); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 15px; margin-bottom: 20px; }
-        .logo-text { font-size: 20px; font-weight: 800; color: var(--primary); margin: 0; }
+        .logo-text { font-size: 20px; font-weight: 800; color: var(--theme-blue, var(--primary)); margin: 0; }
 
-        .segment-control { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 20px; }
+        .segment-control { display: flex; background: var(--theme-soft, #e2e8f0); border-radius: 8px; padding: 4px; margin-bottom: 20px; }
         .segment-btn { flex: 1; padding: 10px 0; border: none; background: transparent; border-radius: 6px; font-size: 14px; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
-        .segment-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .segment-btn.active { background: var(--surface); color: var(--theme-blue, var(--primary)); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 
-        .control-panel { display: flex; flex-direction: column; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 20px;}
+        .control-panel { display: flex; flex-direction: column; background: var(--theme-tint-blue, #eff6ff); padding: 15px; border-radius: 8px; border: 1px solid var(--theme-border-blue, #bfdbfe); margin-bottom: 20px;}
         .form-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; width: 100%;}
         .form-group { flex: 1; min-width: 150px; }
-        label { display: block; font-weight: 600; margin-bottom: 5px; color: var(--primary); font-size: 12px;}
-        select, input { width: 100%; padding: 10px; border: 1px solid #93c5fd; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; color: var(--theme-blue, var(--primary)); font-size: 12px;}
+        select, input { width: 100%; padding: 10px; border: 1px solid var(--theme-border-blue, #93c5fd); border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; }
         .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; height: 38px;}
         .btn-primary:hover { background: #1e40af; }
 
         /* CSS UNTUK TUNJANGAN DINAMIS */
-        #dynamic-bonus-section { border-top: 1px dashed #93c5fd; margin-top: 15px; padding-top: 15px; display: none; }
+        #dynamic-bonus-section { border-top: 1px dashed var(--theme-border-blue, #93c5fd); margin-top: 15px; padding-top: 15px; display: none; }
         .bonus-item { display: flex; gap: 10px; margin-bottom: 10px; }
-        .btn-del { padding: 10px; border-radius: 6px; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; cursor: pointer; font-weight: bold; }
+        .btn-del { padding: 10px; border-radius: 6px; background: var(--theme-tint-red, #fef2f2); color: var(--theme-red, #991b1b); border: 1px solid var(--theme-border-red, #fecaca); cursor: pointer; font-weight: bold; }
         .btn-del:hover { background: #ef4444; color: white; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
         th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: center; }
         th { background: var(--primary); color: white; font-weight: 600; }
-        tr:nth-child(even) { background: #f1f5f9; }
-        .kuning { background-color: #fef08a !important; color: #854d0e; font-weight: bold; }
-        .merah { background-color: #fecaca !important; color: #991b1b; font-weight: bold; }
+        tr:nth-child(even) { background: var(--theme-soft, #f1f5f9); }
+        .kuning { background-color: #fef08a !important; color: var(--theme-amber, #854d0e); font-weight: bold; }
+        .merah { background-color: var(--theme-tint-red, #fecaca) !important; color: var(--theme-red, #991b1b); font-weight: bold; }
 
         .summary-box { display: flex; justify-content: space-between; margin-top: 25px; gap: 15px; flex-wrap: wrap;}
-        .sum-card { flex: 1; min-width: 150px; padding: 15px; border-radius: 8px; border: 1px solid var(--border); background: #f8fafc; }
+        .sum-card { flex: 1; min-width: 150px; padding: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--theme-soft, #f8fafc); }
         .sum-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
         .sum-val { font-size: 18px; font-weight: 800; color: var(--text-main); }
         .sum-val.plus { color: var(--success); }
         .sum-val.minus { color: var(--danger); }
 
-        .total-bersih { background: #ecfdf5; border: 2px solid var(--success); text-align: center; padding: 20px; border-radius: 12px; margin-top: 20px; }
-        .total-bersih .sum-title { color: #065f46; font-size: 14px; }
-        .total-bersih .sum-val { color: #065f46; font-size: 32px; }
+        .total-bersih { background: var(--theme-tint-green, #ecfdf5); border: 2px solid var(--success); text-align: center; padding: 20px; border-radius: 12px; margin-top: 20px; }
+        .total-bersih .sum-title { color: var(--theme-green, #065f46); font-size: 14px; }
+        .total-bersih .sum-val { color: var(--theme-green, #065f46); font-size: 32px; }
 
-        #loading { display: none; text-align: center; padding: 40px; font-weight: 600; color: var(--primary); }
+        #loading { display: none; text-align: center; padding: 40px; font-weight: 600; color: var(--theme-blue, var(--primary)); }
         .btn-print { background: #475569; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
         .dashboard-table th { background: #0f766e; }
-        .payroll-branch { margin:22px 0; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-        .payroll-branch-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; background:#f0fdfa; }
-        .payroll-branch-heading h4 { margin:0; font-size:15px; color:#0f766e; }
-        .payroll-branch-heading span { font-size:12px; color:var(--text-muted); }
+        .payroll-branch { margin:22px 0; border: 1px solid var(--border); border-radius:12px; overflow:hidden; }
+        .payroll-branch-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; background: var(--theme-tint-teal, #f0fdfa); }
+        .payroll-branch-heading h4 { margin:0; font-size:15px; color: var(--theme-teal, #0f766e); }
+        .payroll-branch-heading span { font-size:12px; color: var(--text-muted); }
         .payroll-branch-scroll { overflow-x:auto; }
         .payroll-branch .dashboard-table { margin:0; min-width:960px; }
-        .payroll-branch-raha .payroll-branch-heading { background:#eff6ff; }
-        .payroll-branch-raha .payroll-branch-heading h4 { color:#1d4ed8; }
-        .payroll-branch-raha .dashboard-table th { background:#1d4ed8; }
-        .payroll-transfer-toggle { display:flex; align-items:center; gap:6px; margin:6px 0 0; font-size:11px; font-weight:500; color:var(--text-muted); cursor:pointer; }
+        .payroll-branch-raha .payroll-branch-heading { background: var(--theme-tint-blue, #eff6ff); }
+        .payroll-branch-raha .payroll-branch-heading h4 { color: var(--theme-blue, #1d4ed8); }
+        .payroll-branch-raha .dashboard-table th { background: #1d4ed8; }
+        .payroll-transfer-toggle { display:flex; align-items:center; gap:6px; margin:6px 0 0; font-size:11px; font-weight:500; color: var(--text-muted); cursor:pointer; }
         .payroll-transfer-toggle input { width:16px; height:16px; margin:0; padding:0; accent-color:#059669; }
-        .payroll-name-paid { color:#047857; }
-        .payroll-transfer-paid td:first-child { background:#ecfdf5; }
-        .payroll-evidence { order:34; margin:20px 0; padding:16px; border:1px solid var(--border); border-radius:12px; background:#f8fafc; }
+        .payroll-name-paid { color: var(--theme-green, #047857); }
+        .payroll-transfer-paid td:first-child { background: var(--theme-tint-green, #ecfdf5); }
+        .payroll-evidence { order:34; margin:20px 0; padding:16px; border: 1px solid var(--border); border-radius:12px; background: var(--theme-soft, #f8fafc); }
         .payroll-evidence-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
-        .payroll-evidence h4 { margin:0; color:#1e40af; }
+        .payroll-evidence h4 { margin:0; color: var(--theme-blue, #1e40af); }
         .payroll-evidence-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:12px; margin-top:12px; }
-        .payroll-evidence-card { min-width:0; padding:14px; background:white; border:1px solid var(--border); border-radius:8px; }
-        .payroll-evidence-card p { font-size:12px; line-height:1.6; margin:8px 0; overflow-wrap:anywhere; color:var(--text-muted); }
+        .payroll-evidence-card { min-width:0; padding:14px; background: var(--theme-surface, white); border: 1px solid var(--border); border-radius:8px; }
+        .payroll-evidence-card p { font-size:12px; line-height:1.6; margin:8px 0; overflow-wrap:anywhere; color: var(--text-muted); }
         .payroll-evidence-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-        .payroll-evidence button { border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; background:white; color:#1e40af; cursor:pointer; font:600 12px Inter,sans-serif; }
+        .payroll-evidence button { border: 1px solid var(--theme-border, #cbd5e1); border-radius:6px; padding:8px 12px; background: var(--theme-surface, white); color: var(--theme-blue, #1e40af); cursor:pointer; font:600 12px Inter,sans-serif; }
         .payroll-evidence button:disabled { opacity:.55; cursor:default; }
         .payroll-evidence input[type=file] { width:100%; min-width:0; box-sizing:border-box; margin-top:6px; padding:8px; font-size:12px; }
-        .payroll-evidence .evidence-upload { background:#1e40af; border-color:#1e40af; color:white; }
-        .payroll-evidence .evidence-delete { color:#be123c; }
+        .payroll-evidence .evidence-upload { background: #1e40af; border-color: #1e40af; color: white; }
+        .payroll-evidence .evidence-delete { color: var(--theme-red, #be123c); }
         @media print { .payroll-evidence .evidence-controls { display:none !important; } .payroll-evidence-card { break-inside:avoid; } }
         @media print { .payroll-transfer-toggle input { display:none; } }
         .payroll-bank-cell { min-width:225px; text-align:left; }
@@ -85,10 +86,10 @@
         .payroll-bank-editor input { min-width:140px; padding:8px; font-variant-numeric:tabular-nums; }
         .payroll-bank-editor button { padding:8px 10px; height:auto; white-space:nowrap; }
         .payroll-bank-editor button:disabled { opacity:.55; cursor:default; }
-        .payroll-bank-status { display:block; margin-top:4px; font-size:11px; color:var(--text-muted); }
+        .payroll-bank-status { display:block; margin-top:4px; font-size:11px; color: var(--text-muted); }
         .payroll-bank-print { display:none; overflow-wrap:anywhere; }
         @media print { .payroll-bank-editor,.payroll-bank-status { display:none; } .payroll-bank-print { display:inline; } .payroll-bank-cell { min-width:0; } }
-        .payroll-grand-total { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; padding:16px; border:1px solid #a7f3d0; border-radius:10px; background:#ecfdf5; font-weight:700; color:#065f46; }
+        .payroll-grand-total { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; padding:16px; border: 1px solid var(--theme-border-green, #a7f3d0); border-radius:10px; background: var(--theme-tint-green, #ecfdf5); font-weight:700; color: var(--theme-green, #065f46); }
         .payroll-grand-total strong { font-size:20px; }
         @media print { .payroll-branch { break-inside:avoid; } .payroll-branch-scroll { overflow:visible; } .payroll-branch .dashboard-table { min-width:0; } }
 
@@ -122,18 +123,18 @@
         input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="tel"], input[type="date"], input[type="month"], select, textarea {
             width: 100%;
             padding: 12px 16px;
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--theme-border, #cbd5e1);
             border-radius: 10px;
             box-sizing: border-box;
             font-family: 'Inter', sans-serif;
             font-size: 14px;
-            background-color: #f8fafc;
+            background-color: var(--theme-soft, #f8fafc);
             color: var(--text-main);
             transition: all 0.2s ease;
         }
         input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: #3b82f6;
+            border-color: var(--theme-border-blue, #3b82f6);
             background-color: var(--surface);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
         }
@@ -167,7 +168,7 @@
             height: 20px;
             overflow-x: scroll;
             overflow-y: hidden;
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--theme-border, #cbd5e1);
             border-radius: 8px;
             background: rgba(248, 250, 252, 0.97);
             box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
@@ -178,7 +179,7 @@
 
         @media print {
             .control-panel, .btn-print, .segment-control, .mobile-payroll-bar, .mobile-swipe-hint, .mobile-card-hint, .mobile-attendance-list, .slip-floating-scroll { display: none !important; }
-            body { background: white; padding: 0; }
+            body { background: var(--theme-surface, white); padding: 0; }
             .card { box-shadow: none; border: none; padding: 0; }
             .attendance-scroll { overflow: visible !important; white-space: normal !important; }
             .attendance-table th:first-child, .attendance-table td:first-child { position: static !important; box-shadow: none !important; }
@@ -199,8 +200,8 @@
             #payroll-workspace > .control-panel { display: contents; }
             .payroll-filter-row {
                 order: 10;
-                background: #eff6ff;
-                border: 1px solid #bfdbfe;
+                background: var(--theme-tint-blue, #eff6ff);
+                border: 1px solid var(--theme-border-blue, #bfdbfe);
                 border-radius: 12px;
                 padding: 14px;
                 margin-bottom: 12px;
@@ -218,8 +219,8 @@
             #area-dashboard { order: 20; }
 
             #div-komponen-variabel, #dynamic-bonus-section {
-                background: #eff6ff;
-                border: 1px solid #bfdbfe !important;
+                background: var(--theme-tint-blue, #eff6ff);
+                border: 1px solid var(--theme-border-blue, #bfdbfe) !important;
                 border-radius: 12px;
                 padding: 14px !important;
                 margin: 0 0 12px !important;
@@ -229,7 +230,7 @@
                 gap: 12px;
                 padding: 12px;
                 margin-bottom: 0 !important;
-                background: #f8fafc;
+                background: var(--theme-soft, #f8fafc);
                 border: 1px solid var(--border) !important;
                 border-radius: 10px;
             }
@@ -249,7 +250,7 @@
                 margin: 0 0 12px;
                 padding: 24px 14px;
                 border-radius: 16px;
-                background: linear-gradient(145deg, #ecfdf5 0%, #d1fae5 100%);
+                background: linear-gradient(145deg, var(--theme-tint-green, #ecfdf5) 0%, var(--theme-tint-green, #d1fae5) 100%);
                 box-shadow: 0 10px 24px rgba(5, 150, 105, 0.14);
             }
             .total-bersih.slip-total .sum-title { font-size: 13px; letter-spacing: .04em; }
@@ -269,10 +270,10 @@
                 left: 0;
                 z-index: 2;
                 min-width: 118px;
-                background-color: #fff;
+                background-color: var(--theme-surface, #fff);
                 box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             }
-            .attendance-table th:first-child { color: var(--primary); }
+            .attendance-table th:first-child { color: var(--theme-blue, var(--primary)); }
             .mobile-swipe-hint {
                 display: flex;
                 align-items: center;
@@ -300,7 +301,7 @@
                 overflow: hidden;
                 border: 1px solid var(--border);
                 border-radius: 12px;
-                background: #fff;
+                background: var(--theme-surface, #fff);
                 box-shadow: 0 2px 5px rgba(15, 23, 42, .04);
             }
             .attendance-day-card > summary {
@@ -318,7 +319,7 @@
                 position: absolute;
                 top: 10px;
                 right: 13px;
-                color: #475569;
+                color: var(--theme-muted, #475569);
                 font-size: 23px;
                 line-height: 1;
                 transition: transform .15s ease;
@@ -334,8 +335,8 @@
                 align-items: baseline;
                 margin-top: 6px;
             }
-            .mobile-card-times { color: #475569; font-size: 12px; font-variant-numeric: tabular-nums; }
-            .mobile-card-wage { color: #0f766e; font-size: 13px; font-weight: 800; white-space: nowrap; }
+            .mobile-card-times { color: var(--theme-muted, #475569); font-size: 12px; font-variant-numeric: tabular-nums; }
+            .mobile-card-wage { color: var(--theme-teal, #0f766e); font-size: 13px; font-weight: 800; white-space: nowrap; }
             .mobile-card-detail {
                 display: grid;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -345,7 +346,7 @@
             }
             .mobile-card-field { min-width: 0; }
             .mobile-card-field.is-wide { grid-column: 1 / -1; }
-            .mobile-card-label { display: block; margin-bottom: 4px; color: #475569; font-size: 11px; font-weight: 700; }
+            .mobile-card-label { display: block; margin-bottom: 4px; color: var(--theme-muted, #475569); font-size: 11px; font-weight: 700; }
             .mobile-card-value {
                 min-height: 36px;
                 padding: 9px;
@@ -358,7 +359,7 @@
                 font-variant-numeric: tabular-nums;
             }
             .mobile-card-field.is-time .mobile-card-value { font-weight: 700; text-align: center; }
-            .mobile-card-field.is-status .mobile-card-value { background: #f8fafc; }
+            .mobile-card-field.is-status .mobile-card-value { background: var(--theme-soft, #f8fafc); }
             .mobile-card-field.is-status a { max-width: 100%; box-sizing: border-box; }
             .slip-rules { margin-top: 18px !important; }
 
@@ -374,13 +375,13 @@
                 gap: 12px;
                 padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
                 background: rgba(255,255,255,0.97);
-                border-top: 1px solid #cbd5e1;
+                border-top: 1px solid var(--theme-border, #cbd5e1);
                 box-shadow: 0 -8px 24px rgba(15,23,42,0.14);
                 backdrop-filter: blur(12px);
             }
             .mobile-payroll-total { min-width: 0; }
             .mobile-payroll-total span { display: block; color: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
-            .mobile-payroll-total strong { display: block; color: #047857; font-size: clamp(16px, 5vw, 21px); line-height: 1.25; white-space: nowrap; }
+            .mobile-payroll-total strong { display: block; color: var(--theme-green, #047857); font-size: clamp(16px, 5vw, 21px); line-height: 1.25; white-space: nowrap; }
             .mobile-print-btn {
                 min-height: 46px;
                 flex: 0 0 auto;
@@ -397,14 +398,15 @@
         }
 
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-        .toast { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-radius: 8px; background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-left: 5px solid; font-size: 14px; font-weight: 600; animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; max-width: 300px;}
-        .toast-success { border-left-color: var(--success); color: #064e3b; }
-        .toast-error { border-left-color: var(--danger); color: #7f1d1d; }
-        .toast-warning { border-left-color: var(--warning); color: #78350f; }
+        .toast { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-radius: 8px; background: var(--theme-surface, #fff); box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-left: 5px solid; font-size: 14px; font-weight: 600; animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; max-width: 300px;}
+        .toast-success { border-left-color: var(--success); color: var(--theme-green, #064e3b); }
+        .toast-error { border-left-color: var(--danger); color: var(--theme-red, #7f1d1d); }
+        .toast-warning { border-left-color: var(--warning); color: var(--theme-amber, #78350f); }
         @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
         @media print { #salary-progress { display:none !important; } }
     </style>
+    <link rel="stylesheet" href="./theme.css?v=20261027-wita1">
 </head>
 <body>
 
@@ -416,8 +418,8 @@
                     <p style="margin: 3px 0 0 0; color: var(--text-muted); font-size: 13px; font-weight: 600;">Sistem Payroll & Slip Gaji Digital</p>
                 </div>
                 <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
-                    <button type="button" class="btn-print" onclick="kembaliKeLobiAman()" style="background:#fefce8; color:#a16207; border:1px solid #fde047; font-weight:bold;">🔙 Kembali ke Lobi</button>
-                    <button type="button" class="btn-print desktop-print-btn" onclick="window.print()" style="background:#475569; font-weight:bold;">🖨️ Cetak PDF</button>
+                    <button type="button" class="btn-print" onclick="kembaliKeLobiAman()" style="background: var(--theme-tint-amber, #fefce8); color: var(--theme-amber, #a16207); border: 1px solid var(--theme-border-amber, #fde047); font-weight:bold;">🔙 Kembali ke Lobi</button>
+                    <button type="button" class="btn-print desktop-print-btn" onclick="window.print()" style="background: #475569; font-weight:bold;">🖨️ Cetak PDF</button>
                 </div>
             </div>
 
@@ -443,56 +445,56 @@
                 </div>
 
                 <!-- INPUT VARIABEL BULANAN (FEE & KASBON) -->
-                <div class="form-row" id="div-komponen-variabel" style="margin-top: 15px; border-top: 1px dashed #bfdbfe; padding-top: 15px; width:100%;">
+                <div class="form-row" id="div-komponen-variabel" style="margin-top: 15px; border-top: 1px dashed var(--theme-border-blue, #bfdbfe); padding-top: 15px; width:100%;">
                     <div class="form-group">
-                        <label style="color:#047857;">📈 Fee Marketing Bulan Ini (Rp)</label>
+                        <label style="color: var(--theme-green, #047857);">📈 Fee Marketing Bulan Ini (Rp)</label>
                         <input type="number" id="input-fee" placeholder="Contoh: 150000" value="0">
                     </div>
                     <div class="form-group">
-                        <label style="color:#be185d;">📉 Potongan Kasbon Bulan Ini (Rp)</label>
+                        <label style="color: var(--theme-purple, #be185d);">📉 Potongan Kasbon Bulan Ini (Rp)</label>
                         <input type="number" id="input-kasbon" placeholder="Contoh: 50000" value="0">
                     </div>
                     <div class="form-group">
-                        <label style="color:#0284c7;">✈️ Tgl Luar Kota (Pokok Harian x2, Koreksi Gratis)</label>
+                        <label style="color: var(--theme-blue, #0284c7);">✈️ Tgl Luar Kota (Pokok Harian x2, Koreksi Gratis)</label>
                         <input type="text" id="input-luar-kota" placeholder="Contoh: 12, 13, 15" value="">
-                        <small style="display:block; margin-top:6px; color:#64748b; line-height:1.4;">Koreksi absen pada tanggal ini tidak memakai kuota 7x bulanan.</small>
+                        <small style="display:block; margin-top:6px; color: var(--theme-muted, #64748b); line-height:1.4;">Koreksi absen pada tanggal ini tidak memakai kuota 7x bulanan.</small>
                     </div>
                     <div class="form-group">
-                        <label style="color:#be123c;">📅 Tgl Libur Tambahan (selain Ahad)</label>
+                        <label style="color: var(--theme-red, #be123c);">📅 Tgl Libur Tambahan (selain Ahad)</label>
                         <input type="text" id="input-libur-tambahan" placeholder="Contoh: 5, 12, 24" value="">
-                        <small style="display:block; margin-top:6px; color:#64748b; line-height:1.4;">Diisi Manajemen per pegawai dan bulan. Hari Ahad otomatis libur; libur nasional tidak diikuti otomatis. Jika hadir pada tanggal libur, upah pokok harian x2.</small>
+                        <small style="display:block; margin-top:6px; color: var(--theme-muted, #64748b); line-height:1.4;">Diisi Manajemen per pegawai dan bulan. Hari Ahad otomatis libur; libur nasional tidak diikuti otomatis. Jika hadir pada tanggal libur, upah pokok harian x2.</small>
                     </div>
                     <div class="form-group" style="justify-content:flex-end;">
                         <button type="button" id="btn-simpan-variabel" class="btn-primary" onclick="simpanVariabelPayroll()" style="width:100%;">💾 Simpan Komponen Bulanan</button>
-                        <small id="info-kunci-bulan" style="display:block; margin-top:6px; color:#64748b; line-height:1.4;"></small>
+                        <small id="info-kunci-bulan" style="display:block; margin-top:6px; color: var(--theme-muted, #64748b); line-height:1.4;"></small>
                     </div>
                 </div>
 
                 <!-- WADAH MANAJEMEN TUNJANGAN PERMANEN -->
                 <div id="dynamic-bonus-section">
-                    <label style="color:#065f46; font-size:14px;">⚙️ Manajemen Tunjangan Tetap / Honor Pegawai (Permanen)</label>
-                    <p style="font-size:11px; color:var(--text-muted); margin:0 0 10px 0;">Data tunjangan di bawah ini melekat pada profil pegawai yang dipilih dan otomatis dihitung di Dashboard.</p>
+                    <label style="color: var(--theme-green, #065f46); font-size:14px;">⚙️ Manajemen Tunjangan Tetap / Honor Pegawai (Permanen)</label>
+                    <p style="font-size:11px; color: var(--text-muted); margin:0 0 10px 0;">Data tunjangan di bawah ini melekat pada profil pegawai yang dipilih dan otomatis dihitung di Dashboard.</p>
                     
                     <div id="wadah-bonus">
                         <!-- Otomatis dari JS -->
                     </div>
                     
                     <div style="display:flex; gap:10px; margin-top:5px;">
-                        <button type="button" onclick="tambahKolomBonus()" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600; font-size:12px;">+ Tambah Item Tunjangan</button>
-                        <button type="button" onclick="simpanTunjanganDatabase()" id="btn-simpan-tunjangan" style="background:#1e40af; color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600; font-size:12px;">💾 Simpan Permanen ke Database</button>
+                        <button type="button" onclick="tambahKolomBonus()" style="background: var(--theme-tint-green, #ecfdf5); color: var(--theme-green, #065f46); border: 1px solid var(--theme-border-green, #a7f3d0); padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600; font-size:12px;">+ Tambah Item Tunjangan</button>
+                        <button type="button" onclick="simpanTunjanganDatabase()" id="btn-simpan-tunjangan" style="background: #1e40af; color: white; border: none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600; font-size:12px;">💾 Simpan Permanen ke Database</button>
                     </div>
                 </div>
             </div>
 
-            <section id="salary-progress" hidden style="margin:18px 0;padding:20px;border:1px solid #bfdbfe;border-radius:14px;background:#f8fbff;">
+            <section id="salary-progress" hidden style="margin:18px 0;padding:20px;border: 1px solid var(--theme-border-blue, #bfdbfe);border-radius:14px;background: var(--theme-tint-blue, #f8fbff);">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
-                    <div><strong style="color:#1e40af;">Kenaikan Gaji Otomatis</strong> <a href="performa.html" style="font-size:12px;">Rekap pencapaian &amp; kredit</a><p style="margin:6px 0;color:#64748b;font-size:12px;">Status program saat ini · Rp250.000 setiap 6 kredit · minimal 3 bulan berbeda</p></div>
-                    <strong id="salary-progress-count" style="font-size:20px;color:#1d4ed8;"></strong>
+                    <div><strong style="color: var(--theme-blue, #1e40af);">Kenaikan Gaji Otomatis</strong> <a href="performa.html" style="font-size:12px;">Rekap pencapaian &amp; kredit</a><p style="margin:6px 0;color: var(--theme-muted, #64748b);font-size:12px;">Status program saat ini · Rp250.000 setiap 6 kredit · minimal 3 bulan berbeda</p></div>
+                    <strong id="salary-progress-count" style="font-size:20px;color: var(--theme-blue, #1d4ed8);"></strong>
                 </div>
-                <div style="height:7px;background:#dbeafe;border-radius:8px;margin:12px 0;overflow:hidden;"><div id="salary-progress-bar" style="height:100%;background:#2563eb;border-radius:8px;"></div></div>
+                <div style="height:7px;background: var(--theme-tint-blue, #dbeafe);border-radius:8px;margin:12px 0;overflow:hidden;"><div id="salary-progress-bar" style="height:100%;background: #2563eb;border-radius:8px;"></div></div>
                 <p style="font-size:13px;margin:10px 0;">Gaji pokok saat ini: <strong id="salary-progress-current"></strong></p>
-                <p id="salary-progress-note" style="font-size:12px;line-height:1.6;color:#64748b;"></p>
-                <details><summary style="cursor:pointer;font-size:12px;font-weight:600;color:#1e40af;">Evaluasi bulanan &amp; riwayat gaji</summary><div id="salary-progress-months" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;margin-top:12px;"></div><div id="salary-progress-history"></div></details>
+                <p id="salary-progress-note" style="font-size:12px;line-height:1.6;color: var(--theme-muted, #64748b);"></p>
+                <details><summary style="cursor:pointer;font-size:12px;font-weight:600;color: var(--theme-blue, #1e40af);">Evaluasi bulanan &amp; riwayat gaji</summary><div id="salary-progress-months" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;margin-top:12px;"></div><div id="salary-progress-history"></div></details>
             </section>
             <div id="loading">Menghubungkan ke Database, mohon tunggu...</div>
 
@@ -501,20 +503,22 @@
                 <div class="slip-profile" style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 15px; margin-bottom: 15px;">
                     <div>
                         <strong style="font-size:16px;" id="res-nama">Nama Pegawai</strong><br>
-                        <span style="color:var(--text-muted);" id="res-role">Role</span>
+                        <span style="color: var(--text-muted);" id="res-role">Role</span>
                     </div>
                     <div style="text-align: right;">
-                        <strong>Gaji Pokok Dasar:</strong> <span id="res-gapok" style="color:var(--primary); font-weight:bold;">Rp 0</span><br>
+                        <strong>Gaji Pokok Dasar:</strong> <span id="res-gapok" style="color: var(--theme-blue, var(--primary)); font-weight:bold;">Rp 0</span><br>
                         <strong>Upah per Jam:</strong> <span id="res-upah-jam">Rp 0</span>
                     </div>
                 </div>
+
+                <div id="info-pegawai-baru" hidden role="note" style="margin:12px 0;padding:12px;border:1px solid var(--theme-border-blue, #bfdbfe);border-radius:8px;background:var(--theme-tint-blue, #eff6ff);font-size:12px;line-height:1.6;"></div>
 
                 <div class="slip-attendance">
                     <div class="mobile-swipe-hint" aria-hidden="true">↔ Geser tabel untuk melihat rincian jam dan potongan</div>
                     <div class="mobile-card-hint">Ketuk tanggal untuk rincian. Angka hijau adalah upah harian setelah potongan, sebelum lembur.</div>
                     <div id="mobile-attendance-list" class="mobile-attendance-list" aria-label="Rincian kehadiran per tanggal"></div>
                     <div class="attendance-scroll" style="overflow-x: auto; white-space: nowrap; width: 100%; border: 1px solid var(--border); border-radius: 8px;">
-                    <table class="attendance-table" style="margin-top:0; border:none;">
+                    <table class="attendance-table" style="margin-top:0; border: none;">
                         <thead>
                             <tr>
                                 <th>Hari, Tanggal</th>
@@ -537,9 +541,9 @@
                 </div>
 
                 <!-- KOTAK RINCIAN TUNJANGAN -->
-                <div id="rincian-bonus-manual" class="slip-bonus-details" style="margin-top:20px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid var(--border); display:none;">
-                    <h4 style="margin:0 0 10px 0; color:#065f46; font-size:13px; border-bottom:1px solid #cbd5e1; padding-bottom:5px;">Rincian Tunjangan & Bonus</h4>
-                    <p id="bonus-kehadiran-info" hidden style="margin:0 0 12px; color:#475569; font-size:12px; line-height:1.5;"></p>
+                <div id="rincian-bonus-manual" class="slip-bonus-details" style="margin-top:20px; background: var(--theme-soft, #f8fafc); padding:15px; border-radius:8px; border: 1px solid var(--border); display:none;">
+                    <h4 style="margin:0 0 10px 0; color: var(--theme-green, #065f46); font-size:13px; border-bottom: 1px solid var(--theme-border, #cbd5e1); padding-bottom:5px;">Rincian Tunjangan & Bonus</h4>
+                    <p id="bonus-kehadiran-info" hidden style="margin:0 0 12px; color: var(--theme-muted, #475569); font-size:12px; line-height:1.5;"></p>
                     <div id="isi-rincian-bonus"></div>
                 </div>
 
@@ -547,7 +551,7 @@
                     <div class="sum-card">
                         <div class="sum-title">Upah Kehadiran (Sebelum Potongan)</div>
                         <div class="sum-val" id="sum-hadir">Rp 0</div>
-                        <div style="font-size:10px; color:#64748b; margin-top:5px;">Hadir: <span id="count-hadir">0</span> / <span id="count-wajib">0</span> Hari</div>
+                        <div style="font-size:10px; color: var(--theme-muted, #64748b); margin-top:5px;">Hadir: <span id="count-hadir">0</span> / <span id="count-wajib">0</span> Hari</div>
                     </div>
                     <div class="sum-card">
                         <div class="sum-title">Total Potongan</div>
@@ -564,25 +568,30 @@
                     <div class="sum-card">
                         <div class="sum-title" id="sum-poin-title">Bonus Poin SLA</div>
                         <div class="sum-val plus" id="sum-poin">Rp 0</div>
-                        <small id="sum-poin-detail" style="display:block; margin-top:4px; color:#64748b;"></small>
+                        <small id="sum-poin-detail" style="display:block; margin-top:4px; color: var(--theme-muted, #64748b);"></small>
+                    </div>
+                    <div class="sum-card" id="box-postingan-kpi" style="display:none;">
+                        <div class="sum-title">Insentif Postingan KPI</div>
+                        <div class="sum-val plus" id="sum-postingan-kpi">Rp 0</div>
+                        <small id="sum-postingan-kpi-detail" style="display:block; margin-top:4px; color: var(--theme-muted, #64748b);"></small>
                     </div>
                     <div class="sum-card" id="box-poin-teknisi-raha" style="display:none;">
                         <div class="sum-title">Total Poin Teknisi Raha</div>
                         <div class="sum-val plus" id="sum-poin-teknisi-raha">Rp 0</div>
-                        <small id="sum-poin-teknisi-raha-detail" style="display:block; margin-top:4px; color:#64748b;"></small>
+                        <small id="sum-poin-teknisi-raha-detail" style="display:block; margin-top:4px; color: var(--theme-muted, #64748b);"></small>
                     </div>
-                    <div class="sum-card" id="box-fee" style="display:none; background:#ecfccb; border-color:#bef264;">
-                        <div class="sum-title" style="color:#4d7c0f;">Fee Marketing</div>
+                    <div class="sum-card" id="box-fee" style="display:none; background: var(--theme-tint-green, #ecfccb); border-color: var(--theme-border-green, #bef264);">
+                        <div class="sum-title" style="color: var(--theme-green, #4d7c0f);">Fee Marketing</div>
                         <div class="sum-val plus" id="sum-fee">Rp 0</div>
                     </div>
-                    <div class="sum-card" id="box-kasbon" style="display:none; background:#fee2e2; border-color:#fca5a5;">
-                        <div class="sum-title" style="color:#be185d;">Potongan Kasbon</div>
+                    <div class="sum-card" id="box-kasbon" style="display:none; background: var(--theme-tint-red, #fee2e2); border-color: var(--theme-border-red, #fca5a5);">
+                        <div class="sum-title" style="color: var(--theme-purple, #be185d);">Potongan Kasbon</div>
                         <div class="sum-val minus" id="sum-kasbon">Rp 0</div>
                     </div>
-                    <div class="sum-card" id="row-denda-disiplin" style="display:none; background:#fef2f2; border-color:#fecaca;">
-                        <div class="sum-title" style="color:#b91c1c;">⚠️ Pelanggaran Kedisiplinan</div>
+                    <div class="sum-card" id="row-denda-disiplin" style="display:none; background: var(--theme-tint-red, #fef2f2); border-color: var(--theme-border-red, #fecaca);">
+                        <div class="sum-title" style="color: var(--theme-red, #b91c1c);">⚠️ Pelanggaran Kedisiplinan</div>
                         <div class="sum-val minus" id="sum-denda-disiplin">- Rp 300.000</div>
-                        <div style="font-size:10px; color:#991b1b; margin-top:5px; line-height:1.4;">Telat + Izin &gt; 3 kali atau Alpa &gt; 2 kali.</div>
+                        <div style="font-size:10px; color: var(--theme-red, #991b1b); margin-top:5px; line-height:1.4;">Telat + Izin &gt; 3 kali atau Alpa &gt; 2 kali.</div>
                     </div>
                 </div>
 
@@ -596,30 +605,30 @@
                         <h4 id="bukti-payroll-title">Bukti Fee Marketing &amp; Kasbon</h4>
                         <button type="button" class="evidence-controls" onclick="muatBuktiPayroll_()">Muat Ulang Bukti</button>
                     </div>
-                    <p id="bukti-payroll-status" role="status" aria-live="polite" style="font-size:12px;color:#64748b;line-height:1.6;"></p>
+                    <p id="bukti-payroll-status" role="status" aria-live="polite" style="font-size:12px;color: var(--theme-muted, #64748b);line-height:1.6;"></p>
                     <div id="bukti-payroll-list" class="payroll-evidence-grid"></div>
                 </section>
 
                 <!-- PAPAN INFORMASI & LEGENDA -->
-                <div class="slip-rules" style="margin-top:25px; display:flex; gap:20px; flex-wrap:wrap; border-top:2px solid var(--border); padding-top:20px;">
+                <div class="slip-rules" style="margin-top:25px; display:flex; gap:20px; flex-wrap:wrap; border-top: 2px solid var(--border); padding-top:20px;">
                     <!-- Card 1: Arti Warna -->
-                    <div style="flex:1; min-width:250px; background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                        <h4 style="margin:0 0 10px 0; color:var(--primary); border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">🎨 Legenda Warna</h4>
+                    <div style="flex:1; min-width:250px; background: var(--theme-surface, #ffffff); border: 1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <h4 style="margin:0 0 10px 0; color: var(--theme-blue, var(--primary)); border-bottom: 1px solid var(--theme-border, #e2e8f0); padding-bottom:5px; font-size:13px;">🎨 Legenda Warna</h4>
                         <ul style="list-style:none; padding:0; margin:0; font-size:11px; line-height:1.7;">
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#fecdd3; margin-right:5px; border-radius:2px;"></span> <strong>Merah / Pink:</strong> Baris Hari Libur (Ahad)</li>
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#1e293b; margin-right:5px; border-radius:2px;"></span> <strong>Hitam:</strong> Alpa (Tanpa Keterangan)</li>
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#bbf7d0; margin-right:5px; border-radius:2px;"></span> <strong>Hijau:</strong> Izin</li>
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#bfdbfe; margin-right:5px; border-radius:2px;"></span> <strong>Biru:</strong> Sakit</li>
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#fbcfe8; margin-right:5px; border-radius:2px;"></span> <strong>Pink:</strong> Koreksi Absen</li>
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#fef08a; margin-right:5px; border-radius:2px;"></span> <strong>Kuning:</strong> Terlambat Masuk Pagi</li>
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#e0f2fe; margin-right:5px; border-radius:2px;"></span> <strong>Biru Muda:</strong> Lupa absen keluar</li>
-                            <li><span style="display:inline-block; width:12px; height:12px; background:#e2e8f0; margin-right:5px; border-radius:2px;"></span> <strong>Abu-abu:</strong> Kuota Lupa Pulang Habis</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background: var(--theme-tint-red, #fecdd3); margin-right:5px; border-radius:2px;"></span> <strong>Merah / Pink:</strong> Baris Hari Libur (Ahad)</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background: #1e293b; margin-right:5px; border-radius:2px;"></span> <strong>Hitam:</strong> Alpa (Tanpa Keterangan)</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background: var(--theme-tint-green, #bbf7d0); margin-right:5px; border-radius:2px;"></span> <strong>Hijau:</strong> Izin</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background: var(--theme-tint-blue, #bfdbfe); margin-right:5px; border-radius:2px;"></span> <strong>Biru:</strong> Sakit</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background: var(--theme-tint-purple, #fbcfe8); margin-right:5px; border-radius:2px;"></span> <strong>Pink:</strong> Koreksi Absen</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background: #fef08a; margin-right:5px; border-radius:2px;"></span> <strong>Kuning:</strong> Terlambat Masuk Pagi</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background: var(--theme-tint-blue, #e0f2fe); margin-right:5px; border-radius:2px;"></span> <strong>Biru Muda:</strong> Lupa absen keluar</li>
+                            <li><span style="display:inline-block; width:12px; height:12px; background: var(--theme-soft, #e2e8f0); margin-right:5px; border-radius:2px;"></span> <strong>Abu-abu:</strong> Kuota Lupa Pulang Habis</li>
                         </ul>
                     </div>
             
                     <!-- Card 2: Toleransi -->
-                    <div style="flex:1; min-width:250px; background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                        <h4 style="margin:0 0 10px 0; color:#059669; border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">⚖️ Aturan Hak & Toleransi</h4>
+                    <div style="flex:1; min-width:250px; background: var(--theme-surface, #ffffff); border: 1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <h4 style="margin:0 0 10px 0; color: var(--theme-green, #059669); border-bottom: 1px solid var(--theme-border, #e2e8f0); padding-bottom:5px; font-size:13px;">⚖️ Aturan Hak & Toleransi</h4>
                         <ul style="padding-left:15px; margin:0; font-size:11px; line-height:1.7;">
                             <li><strong>Keterlambatan Masuk:</strong> Kendari dan Admin Raha ditandai telat setelah 08:45; pegawai Raha setelah 09:45.</li>
                             <li><strong>Toleransi Sakit:</strong> Maksimal 3 hari disetujui per bulan dibayar penuh. Setelah kuota habis, kolom jam tetap kosong dengan latar biru sampai pegawai absen masuk. Upah kemudian mengikuti waktu kehadiran yang tercatat.</li>
@@ -629,8 +638,8 @@
                     </div>
             
                     <!-- Card 3: Pelanggaran -->
-                    <div style="flex:1; min-width:250px; background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                        <h4 style="margin:0 0 10px 0; color:#e11d48; border-bottom:1px solid #e2e8f0; padding-bottom:5px; font-size:13px;">⚠️ Pelanggaran & Hukuman</h4>
+                    <div style="flex:1; min-width:250px; background: var(--theme-surface, #ffffff); border: 1px solid var(--border); border-radius:8px; padding:15px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <h4 style="margin:0 0 10px 0; color: var(--theme-red, #e11d48); border-bottom: 1px solid var(--theme-border, #e2e8f0); padding-bottom:5px; font-size:13px;">⚠️ Pelanggaran & Hukuman</h4>
                         <ul style="padding-left:15px; margin:0; font-size:11px; line-height:1.7;">
                             <li><strong>Lupa Absen Pagi:</strong> Sistem otomatis mengisi masuk jam 13:30:00 dengan penanda kuning.</li>
                             <li><strong>Telat Masuk Setelah Istirahat (&gt;13:30:00):</strong> Potongan berjalan per detik sampai pegawai absen masuk kembali, maksimal 1 jam 30 menit.</li>
@@ -644,16 +653,16 @@
 
             <!-- AREA 2: DASHBOARD REKAPITULASI MASTER -->
             <div id="area-dashboard" style="display: none;">
-                <h3 style="color:#0f766e; border-bottom: 2px solid #0f766e; padding-bottom:10px;">Master Rekapitulasi Gaji Karyawan</h3>
-                <p style="color:var(--text-muted);">Nama bank dan nomor rekening disimpan untuk semua bulan. Pengisian bank, rekening, dan tanda transfer hanya oleh Admin Kendari, Manager, dan Direktur.</p>
-                <p style="color:var(--text-muted);">Centang nama pegawai setelah gajinya ditransfer. Tanda berlaku untuk bulan gaji yang dipilih dan direset setiap tanggal 29 pukul 00.00 WITA (Februari tanpa tanggal 29: hari terakhir bulan). <span id="transfer-reset-info"></span></p>
+                <h3 style="color: var(--theme-teal, #0f766e); border-bottom: 2px solid #0f766e; padding-bottom:10px;">Master Rekapitulasi Gaji Karyawan</h3>
+                <p style="color: var(--text-muted);">Nama bank dan nomor rekening disimpan untuk semua bulan. Pengisian bank, rekening, dan tanda transfer hanya oleh Admin Kendari, Manager, dan Direktur.</p>
+                <p style="color: var(--text-muted);">Centang nama pegawai setelah gajinya ditransfer. Slip pegawai langsung terkunci saat ditandai sudah ditransfer. Tanda berlaku untuk bulan gaji yang dipilih dan direset setiap tanggal 29 pukul 00.00 WITA (Februari tanpa tanggal 29: hari terakhir bulan). <span id="transfer-reset-info"></span></p>
                 <section class="payroll-branch payroll-branch-kendari" aria-labelledby="rekap-kendari-title">
                     <div class="payroll-branch-heading"><h4 id="rekap-kendari-title">Cabang Kendari</h4><span id="rekap-kendari-count">0 pegawai</span></div>
                     <div class="payroll-branch-scroll">
                         <table class="dashboard-table" aria-label="Rekap gaji cabang Kendari">
                             <thead><tr><th>Nama Pegawai</th><th>Bank &amp; Nomor Rekening</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
                             <tbody id="tabel-dashboard-kendari"></tbody>
-                            <tfoot><tr style="background:#f1f5f9;font-weight:bold;"><td colspan="8" style="text-align:right;">TOTAL PAYROLL KENDARI:</td><td id="dash-total-kendari" style="color:var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
+                            <tfoot><tr style="background: var(--theme-soft, #f1f5f9);font-weight:bold;"><td colspan="8" style="text-align:right;">TOTAL PAYROLL KENDARI:</td><td id="dash-total-kendari" style="color: var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
                         </table>
                     </div>
                 </section>
@@ -663,7 +672,7 @@
                         <table class="dashboard-table" aria-label="Rekap gaji cabang Raha">
                             <thead><tr><th>Nama Pegawai</th><th>Bank &amp; Nomor Rekening</th><th>Role</th><th>Hadir</th><th>Gaji Pokok</th><th>Potongan + Kasbon</th><th>Lembur</th><th>Tunjangan + Poin + Fee</th><th>TOTAL DIBAYARKAN</th></tr></thead>
                             <tbody id="tabel-dashboard-raha"></tbody>
-                            <tfoot><tr style="background:#f1f5f9;font-weight:bold;"><td colspan="8" style="text-align:right;">TOTAL PAYROLL RAHA:</td><td id="dash-total-raha" style="color:var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
+                            <tfoot><tr style="background: var(--theme-soft, #f1f5f9);font-weight:bold;"><td colspan="8" style="text-align:right;">TOTAL PAYROLL RAHA:</td><td id="dash-total-raha" style="color: var(--success);font-size:16px;">Rp 0</td></tr></tfoot>
                         </table>
                     </div>
                 </section>
@@ -717,8 +726,11 @@
         // ---------------------------------------------
 
         let penggunaAktif = null;
-        let globalUsers = []; let globalTickets = []; let globalAbsen = [];        let poinRahaPribadi_ = null;
+        let globalUsers = []; let globalTickets = []; let globalAbsen = []; let riwayatAbsensiBulanSebelumnya_ = null;        let poinRahaPribadi_ = null;
         let poinAlifAdminRaha_ = null;
+        let poinSyarifManager_ = null;
+        let postinganJuna_ = null;
+        let kunciTransferPayroll_ = null;
         let tiketPayrollPerCabang_ = Object.create(null);
         let periodeTiketPayroll_ = '';
         let janjiTiketPayrollCabang_ = Object.create(null);
@@ -1157,9 +1169,37 @@
             return tanggalPayrollWita_(sekarang) >= bulanBerikutnya + '-08';
         }
 
+        function statusKunciTransferPayroll_(periode, namaPegawai) {
+            const profil = cariProfilPayroll(namaPegawai, periode);
+            if (!profil || !profil.Username || !kunciTransferPayroll_ || kunciTransferPayroll_.periode !== periode) return null;
+            return kunciTransferPayroll_.usernameTerkunci.includes(profil.Username);
+        }
+
+        function slipPayrollTerkunci_(periode, namaPegawai) {
+            if (periodePayrollTerkunci_(periode)) return true;
+            return statusKunciTransferPayroll_(periode, namaPegawai) !== false;
+        }
+
+        function perbaruiKunciTransferAktif_() {
+            const periode = document.getElementById('pilih-bulan').value;
+            if (statusTransferSiap_ && periodeTransferGaji_ === periode && kunciTransferPayroll_ && kunciTransferPayroll_.periode === periode) {
+                kunciTransferPayroll_.siklus = siklusTransferGaji_;
+                kunciTransferPayroll_.usernameTerkunci = Object.values(statusTransferGaji_).filter(row => row.sudahTransfer).map(row => row.username);
+            }
+            const nama = document.getElementById('pilih-pegawai').value;
+            if (nama && slipPayrollTerkunci_(periode, nama)) {
+                clearTimeout(timerSimpanLuarKota_); timerSimpanLuarKota_ = null;
+                terapkanVariabelPayrollKeForm(nama); komponenPayrollKotor_ = false;
+            }
+            cekKunciBulan();
+            if (typeof konteksBuktiPayroll_ !== 'undefined' && konteksBuktiPayroll_) { renderBuktiPayroll_(); perbaruiStatusBuktiPayroll_(); }
+        }
+
         function cekKunciBulan() {
             let bulanDipilihStr = document.getElementById('pilih-bulan').value;
-            const isLocked = periodePayrollTerkunci_(bulanDipilihStr);
+            const nama = document.getElementById('pilih-pegawai').value;
+            const statusTransfer = nama ? statusKunciTransferPayroll_(bulanDipilihStr, nama) : false;
+            const isLocked = periodePayrollTerkunci_(bulanDipilihStr) || statusTransfer !== false;
             const masaTenggang = !isLocked && bulanDipilihStr < periodePayrollSaatIni_();
             const batasTenggang = masaTenggang ? new Date(periodePayrollSaatIni_() + '-07T23:59:59+08:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' }) : '';
             let inputBulanan = [
@@ -1169,7 +1209,7 @@
                 document.getElementById('input-libur-tambahan')
             ];
             const bolehKelola = penggunaBolehKelolaPayroll_();
-            let bgWarna = (isLocked || !bolehKelola) ? '#f1f5f9' : '#ffffff';
+            let bgWarna = (isLocked || !bolehKelola) ? 'var(--theme-soft, #f1f5f9)' : 'var(--theme-surface, #ffffff)';
 
             inputBulanan.forEach(input => {
                 if (!input) return;
@@ -1177,20 +1217,21 @@
                 input.style.background = bgWarna;
                 input.title = !bolehKelola
                     ? 'Komponen payroll hanya dapat dilihat. Perubahan khusus Manajemen.'
-                    : (isLocked ? 'Periode lampau telah dikunci untuk menjaga audit payroll.' : '');
+                    : (statusTransfer === true ? 'Slip gaji terkunci karena sudah ditransfer.' : isLocked ? 'Slip terkunci atau status transfer belum termuat.' : '');
             });
 
             let btnSimpan = document.getElementById('btn-simpan-variabel');
             if (btnSimpan) btnSimpan.disabled = isLocked || !bolehKelola;
+            document.querySelectorAll('#dynamic-bonus-section input, #dynamic-bonus-section button').forEach(input => { input.disabled = isLocked || !bolehKelola; });
 
             let infoKunci = document.getElementById('info-kunci-bulan');
             if (infoKunci) {
-                infoKunci.innerText = !bolehKelola
+                infoKunci.innerText = statusTransfer === true ? '🔒 Slip gaji terkunci karena sudah ditransfer.' : statusTransfer === null ? '🔒 Status transfer belum termuat. Muat ulang data payroll.' : !bolehKelola
                     ? '👁️ Mode baca saja—komponen payroll ditetapkan oleh Manajemen.'
                     : (isLocked
                         ? '🔒 Periode lampau terkunci dan hanya dapat dilihat.'
                         : (masaTenggang ? '🔓 Masa tenggang—perubahan dapat disimpan sampai ' + batasTenggang + ', 23.59 WITA.' : '🔓 Periode aktif—perubahan masih dapat disimpan.'));
-                infoKunci.style.color = (isLocked || !bolehKelola) ? '#b45309' : '#047857';
+                infoKunci.style.color = (isLocked || !bolehKelola) ? 'var(--theme-amber, #b45309)' : 'var(--theme-green, #047857)';
             }
             return isLocked;
         }
@@ -1198,7 +1239,7 @@
         function terapkanVariabelPayrollKeForm(namaPegawai) {
             let dataPayroll = globalPayrollBulanan[normalisasiNamaPayroll(namaPegawai)] || {};
             const periode = document.getElementById('pilih-bulan').value;
-            const bolehPulihkanDraf = penggunaBolehKelolaPayroll_() && periode <= periodePayrollSaatIni_() && !periodePayrollTerkunci_(periode);
+            const bolehPulihkanDraf = penggunaBolehKelolaPayroll_() && periode <= periodePayrollSaatIni_() && !slipPayrollTerkunci_(periode, namaPegawai);
             const kolom = [
                 ['input-fee', 'fee', '0'],
                 ['input-kasbon', 'kasbon', '0'],
@@ -1308,7 +1349,7 @@
                 let infoKunci = document.getElementById('info-kunci-bulan');
                 if (infoKunci) {
                     infoKunci.innerText = '⚠️ Data komponen bulanan gagal dimuat.';
-                    infoKunci.style.color = '#b91c1c';
+                    infoKunci.style.color = 'var(--theme-red, #b91c1c)';
                 }
                 if (btnSimpan) btnSimpan.disabled = true;
                 return false;
@@ -1338,7 +1379,7 @@
 
             let namaTerpilih = document.getElementById('pilih-pegawai').value;
             let periodeTerpilih = document.getElementById('pilih-bulan').value;
-            if (gunakanInputAktif && normalisasiNamaPayroll(namaTerpilih) === normalisasiNamaPayroll(namaPegawai) && periodeTerpilih === periode) {
+            if (gunakanInputAktif && !slipPayrollTerkunci_(periode, namaPegawai) && normalisasiNamaPayroll(namaTerpilih) === normalisasiNamaPayroll(namaPegawai) && periodeTerpilih === periode) {
                 hasil.fee = parseFloat(document.getElementById('input-fee').value) || 0;
                 hasil.kasbon = parseFloat(document.getElementById('input-kasbon').value) || 0;
                 hasil.luarKota = document.getElementById('input-luar-kota').value || '';
@@ -1372,7 +1413,7 @@
             let namaPegawai = document.getElementById('pilih-pegawai').value;
             let periode = document.getElementById('pilih-bulan').value;
             if (!namaPegawai || !periode) { if (!otomatis) showToast('Pilih pegawai dan periode terlebih dahulu.', 'warning'); return false; }
-            if (cekKunciBulan()) { if (!otomatis) showToast('Periode lampau telah dikunci dan tidak dapat diubah.', 'warning'); return false; }
+            if (cekKunciBulan()) { if (!otomatis) showToast('Slip gaji terkunci dan tidak dapat diubah.', 'warning'); return false; }
             if (periodePayrollTermuat !== periode) { if (!otomatis) showToast('Data periode belum selesai dimuat. Silakan coba lagi.', 'warning'); return false; }
 
             const nilaiForm = {
@@ -1489,14 +1530,15 @@
             const div = document.createElement('div');
             div.className = 'bonus-item';
             div.innerHTML = `
-                <input type="text" class="input-bonus-nama" placeholder="Nama Tunjangan (Misal: Honor SLA)" value="${nama}" style="flex:2; border-color:#a7f3d0;">
-                <input type="number" class="input-bonus-nominal" placeholder="Nominal (Rp)" value="${nominal}" style="flex:1; border-color:#a7f3d0;">
+                <input type="text" class="input-bonus-nama" placeholder="Nama Tunjangan (Misal: Honor SLA)" value="${nama}" style="flex:2; border-color: var(--theme-border-green, #a7f3d0);">
+                <input type="number" class="input-bonus-nominal" placeholder="Nominal (Rp)" value="${nominal}" style="flex:1; border-color: var(--theme-border-green, #a7f3d0);">
                 <button type="button" class="btn-del" onclick="this.parentElement.remove()">X</button>
             `;
             wadah.appendChild(div);
         }
 
         async function simpanTunjanganDatabase() {
+            if (cekKunciBulan()) { showToast('Slip gaji terkunci dan tidak dapat diubah.', 'warning'); return; }
             let namaTarget = document.getElementById('pilih-pegawai').value;
             if(!namaTarget) { showToast("Pilih pegawai dulu!", "warning"); return; }
             
@@ -1523,6 +1565,7 @@
                     payloadSesiSlip('updateTunjangan', {
                         namaAsli: profilTarget['Nama Asli'],
                         usernameTarget: profilTarget.Username,
+                        periode: document.getElementById('pilih-bulan').value,
                         tunjanganData: finalStr
                     }), 'Simpan tunjangan');
                 if(json.status === 'sukses') {
@@ -1537,9 +1580,9 @@
                 } else {
                     showToast("Afwan, gagal: " + json.pesan, "error");
                 }
-            } catch(e) { showToast("Afwan, Terjadi kesalahan jaringan.", "error"); }
+            } catch(e) { showToast(e.message || 'Tunjangan gagal disimpan.', 'error'); }
             
-            btn.innerText = '💾 Simpan Permanen ke Database'; btn.disabled = false;
+            btn.innerText = '💾 Simpan Permanen ke Database'; cekKunciBulan();
         }
 
         function switchTab(tabId) {
@@ -1651,8 +1694,19 @@
                 }
                 if (!Array.isArray(dataSLA.tickets)) throw new Error('Format data tiket payroll tidak valid.');
                 if (!Array.isArray(dataSLA.payroll)) throw new Error('Format komponen payroll tidak valid.');
+                const kunciBaru = dataSLA.kunciTransferPayroll;
+                if (!kunciBaru || kunciBaru.periode !== periode || !/^\d{4}-\d{2}-\d{2}$/.test(kunciBaru.siklus) ||
+                    !Array.isArray(kunciBaru.usernameTerkunci) || kunciBaru.usernameTerkunci.some(username => typeof username !== 'string')) {
+                    throw new Error('Status kunci transfer belum lengkap. Muat ulang data payroll.');
+                }
                 if (!Array.isArray(dataAbsen.data) || dataAbsen.data.length === 0) {
                     throw new Error('Format data absensi tidak valid.');
+                }
+
+                const riwayatBaru = dataAbsen.riwayatBulanSebelumnya;
+                if (!riwayatBaru || riwayatBaru.periode !== periode ||
+                    !Array.isArray(riwayatBaru.namaPegawai) || riwayatBaru.namaPegawai.some(nama => typeof nama !== 'string')) {
+                    throw new Error('Riwayat absensi bulan sebelumnya belum lengkap. Muat ulang data payroll.');
                 }
 
                 const usersBaru = dataSLA.users.map(u => ({
@@ -1679,8 +1733,12 @@
                 // Commit data sekaligus agar kalkulasi tidak pernah memakai campuran dua periode.
                 globalUsers = usersBaru;
                 globalTickets = dataSLA.tickets;
-                globalAbsen = absenBaru;                poinRahaPribadi_ = dataSLA.poinRahaPribadi || null;
+                globalAbsen = absenBaru;
+                riwayatAbsensiBulanSebelumnya_ = riwayatBaru;                poinRahaPribadi_ = dataSLA.poinRahaPribadi || null;
                 poinAlifAdminRaha_ = dataSLA.poinAlifAdminRaha || null;
+                poinSyarifManager_ = dataSLA.poinSyarifManager || null;
+                postinganJuna_ = dataSLA.postinganJuna || null;
+                kunciTransferPayroll_ = kunciBaru;
                 tiketPayrollPerCabang_ = Object.create(null);
                 tiketPayrollPerCabang_[cabangAktif] = dataSLA.tickets;
                 periodeTiketPayroll_ = periode;
@@ -1722,7 +1780,7 @@
                 } else if (infoKunci) {
                     infoKunci.innerText = '⚠️ Pembaruan gagal; data lengkap terakhir tetap ditampilkan.';
                 }
-                if (infoKunci) infoKunci.style.color = '#b91c1c';
+                if (infoKunci) infoKunci.style.color = 'var(--theme-red, #b91c1c)';
                 showToast('Gagal menarik data. Detail: ' + e.message, 'error');
                 return false;
             } finally {
@@ -2112,7 +2170,7 @@
                 const waktu = new Date(item.waktu || '');
                 const jam = isNaN(waktu.getTime()) ? '' : ' · ' + String(waktu.getHours()).padStart(2, '0') + ':' + String(waktu.getMinutes()).padStart(2, '0');
                 const label = 'Lihat Foto ' + String(item.tipe || 'Absen') + jam;
-                return '<a href="' + aman(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin:6px 6px 0 0; padding:6px 9px; border:1px solid #bfdbfe; border-radius:6px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:600; text-decoration:none;">📷 ' + aman(label) + '</a>';
+                return '<a href="' + aman(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin:6px 6px 0 0; padding:6px 9px; border: 1px solid var(--theme-border-blue, #bfdbfe); border-radius:6px; background: var(--theme-tint-blue, #eff6ff); color: var(--theme-blue, #1d4ed8); font-size:11px; font-weight:600; text-decoration:none;">📷 ' + aman(label) + '</a>';
             }).join('');
         }
 
@@ -2135,8 +2193,22 @@
                 const waktu = new Date(item.waktu || '');
                 const jam = isNaN(waktu.getTime()) ? '' : ' · ' + String(waktu.getHours()).padStart(2, '0') + ':' + String(waktu.getMinutes()).padStart(2, '0');
                 const label = 'Lihat Lokasi ' + String(item.tipe || 'Absen') + jam;
-                return '<a href="' + aman(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin:6px 6px 0 0; padding:6px 9px; border:1px solid #99f6e4; border-radius:6px; background:#f0fdfa; color:#0f766e; font-size:11px; font-weight:600; text-decoration:none;">📍 ' + aman(label) + '</a>';
+                return '<a href="' + aman(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin:6px 6px 0 0; padding:6px 9px; border: 1px solid var(--theme-border-teal, #99f6e4); border-radius:6px; background: var(--theme-tint-teal, #f0fdfa); color: var(--theme-teal, #0f766e); font-size:11px; font-weight:600; text-decoration:none;">📍 ' + aman(label) + '</a>';
             }).join('');
+        }
+
+        function statusPegawaiBaruPayroll_(nama, periode, rekapan) {
+            const riwayat = typeof riwayatAbsensiBulanSebelumnya_ === 'undefined' ? null : riwayatAbsensiBulanSebelumnya_;
+            // A missing history response never means an empty previous month.
+            if (!riwayat || riwayat.periode !== periode || !Array.isArray(riwayat.namaPegawai)) {
+                return { isBaru: false, tanggalMulai: '' };
+            }
+            const tanggalPertama = Object.keys(rekapan).sort().find(tanggal =>
+                rekapan[tanggal].some(e => /Masuk|Keluar|Pulang/.test(String(e['Tipe Absen'] || ''))));
+            const izinSakitTanggalSatu = (rekapan[periode + '-01'] || []).some(e => /Izin|Sakit/i.test(String(e['Tipe Absen'] || '')));
+            const adaRiwayat = riwayat.namaPegawai.some(pegawai => normalisasiNamaProfilPayroll_(pegawai) === normalisasiNamaProfilPayroll_(nama));
+            return { isBaru: !!tanggalPertama && tanggalPertama > periode + '-01' && !izinSakitTanggalSatu && !adaRiwayat,
+                tanggalMulai: tanggalPertama || '' };
         }
 
         function kalkulasiGajiPegawai(namaTarget, bulanTahun, hariKerjaEfektif, gunakanInputAktif = false) {
@@ -2198,6 +2270,10 @@
                 }
             });
 
+            const statusPegawaiBaru = statusPegawaiBaruPayroll_(namaTarget, bulanTahun, rekapanMentah);
+            const pegawaiBaru = statusPegawaiBaru.isBaru;
+            let countSebelumMulai = 0;
+            let hariWajibHadir = 0;
             let totalPotongan = 0; let totalLembur = 0; let totalUpahHadir = 0; let countKehadiran = 0;
             let barisHTML = ""; let countLupaPulang = 0;
             let kuotaSakitTerpakai = 0;
@@ -2222,6 +2298,23 @@
                 let isLiburTambahan = arrLiburTambahan.includes(i);
                 let isHariLibur = isAhad || isLiburTambahan;
                 let isFutureDate = (isCurrentMonth && i > todayDate); // Mencegah tanggal masa depan dihitung
+
+                // Employment starts on the first attendance date for a verified new hire.
+                // Earlier dates must not consume leave quotas or add attendance penalties.
+                if (pegawaiBaru && dateKey < statusPegawaiBaru.tanggalMulai) {
+                    countSebelumMulai++;
+                    const latarSebelumMulai = isHariLibur
+                        ? 'background-color: var(--attendance-holiday-bg, #fecdd3); color: var(--attendance-holiday-text, #881337);'
+                        : (i % 2 === 0 ? 'background: var(--theme-soft, #f1f5f9);' : 'background: var(--theme-surface, #ffffff);');
+                    barisHTML += `<tr data-sebelum-mulai="true" style="${latarSebelumMulai}">
+                        <td><strong>${namaHari}, ${String(i).padStart(2,'0')}/${blnPilih}/${thnPilih}</strong></td>
+                        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                        <td style="font-size:11px; text-align:left;">Belum mulai bekerja</td>
+                        <td>+ ${formatRp(0)}</td><td>- ${formatRp(0)}</td>
+                    </tr>`;
+                    continue;
+                }
+                if (!isHariLibur) hariWajibHadir++;
 
                 let events = [...(rekapanMentah[dateKey] || [])];
                 const waktuMulaiIzinSakit = events.filter(e => /Sakit|Izin/.test(String(e['Tipe Absen'] || '')))
@@ -2306,8 +2399,8 @@
                 let msk1 = "-", klr1 = "-", msk2 = "-", klr2 = "-";
                 let bgM1 = "", bgK1 = "", bgM2 = "", bgK2 = ""; // Penyimpan warna per sel
                 const warnaKoreksiHariIni = arrLuarKota.includes(i)
-                    ? "background-color:#ffffff; color:#0f172a;"
-                    : "background:#fbcfe8; color:#be185d;";
+                    ? "background-color: var(--theme-surface, #ffffff); color: var(--theme-text, #0f172a);"
+                    : "background: var(--theme-tint-purple, #fbcfe8); color: var(--theme-purple, #be185d);";
                 let msk2DariAbsenFisik = false;
 
                 let ketList = []; let potHariIni = 0; let lemHariIni = 0; let upahRegulerHariIni = 0; let isHadir = false;
@@ -2326,7 +2419,7 @@
                     } else if (!statusMenutupSesiFisik) {
                         if (kuotaSakitTersedia) applySakitFull = true;
                         else applySakitKosong = true;
-                    } else if (kuotaSakitTersedia && !waktuKembaliEfektif) {
+                    } else if (kuotaSakitTersedia && !waktuKembaliEfektif && String(eventPenutupIzinSakit['Tipe Absen']).includes('Sakit')) {
                         // Pegawai sudah bekerja lalu sakit: sesi nyata berakhir pada
                         // waktu pengajuan, sisa jadwal dibayar dari kuota sakit.
                         applySakitSisaHari = true;
@@ -2397,10 +2490,10 @@
                             potHariIni += 90 * 60 * upahPerDetik;
                             totalDetikKerjaHariIni = Math.max(0, totalDetikKerjaHariIni - 90 * 60);
                             totalDetikRegulerHariIni = Math.max(0, totalDetikRegulerHariIni - 90 * 60);
-                            bgK2 = 'background:#e2e8f0; color:#334155;';
+                            bgK2 = 'background: var(--theme-soft, #e2e8f0); color: var(--theme-text, #334155);';
                             ketList.push('Lupa Keluar (Kuota Habis, Potongan 1 Jam 30 Menit)');
                         } else {
-                            bgK2 = 'background:#e0f2fe; color:#0369a1;';
+                            bgK2 = 'background: var(--theme-tint-blue, #e0f2fe); color: var(--theme-blue, #0369a1);';
                         }
                     } else if (!keluarNyata) {
                         ketList.push('Keluar terisi sesuai jadwal; absen keluar nyata tetap dapat dicatat.');
@@ -2450,6 +2543,7 @@
                     let sesiDitutupStatus = false;
                     let potonganCheckpointIstirahatDetik = 0;
                     let potonganIstirahatTerekamDetik = 0;
+                    const catatanHukumanIstirahat = [];
                     const batasMasukSetelahIstirahatDetik = (13 * 60 + 30) * 60;
                     const maksimumPotonganIstirahatDetik = 90 * 60;
                     const sesiKerjaHariIni = [];
@@ -2461,6 +2555,12 @@
                     const detikKembaliFisik = waktuKembaliFisik
                         ? waktuKembaliFisik.getHours() * 3600 + waktuKembaliFisik.getMinutes() * 60 + waktuKembaliFisik.getSeconds()
                         : 0;
+                    const waktuSakitSisaHari = applySakitSisaHari ? new Date(eventPenutupIzinSakit['Waktu Absen']) : null;
+                    const detikSakitSisaHari = waktuSakitSisaHari
+                        ? waktuSakitSisaHari.getHours() * 3600 + waktuSakitSisaHari.getMinutes() * 60 + waktuSakitSisaHari.getSeconds()
+                        : null;
+                    const detikAkhirJadwal = kebijakanKerja.selesaiMenit * 60;
+                    const isiSisaHariSakit = detikSakitSisaHari !== null && detikSakitSisaHari < detikAkhirJadwal;
                     const detikSakitSebelumMasuk = applySakitSebelumMasuk
                         ? Math.min(kebijakanKerja.durasiMenit * 60, Math.max(0,
                             Math.min(detikKembaliFisik, kebijakanKerja.selesaiMenit * 60) -
@@ -2478,15 +2578,16 @@
                         let isKoreksi = tipe.includes("Koreksi") || status === 'Koreksi Manual';
                         let isAutoMasuk = status.includes('Lupa Absen Masuk');
                         let isAutoKeluar = status.includes('Auto Keluar');
+                        const detikHukumanIstirahat = tipe === 'Hukuman Sistem' ? detikPotonganIstirahatTerekam_(status, ket) : 0;
 
                         if (ket && ket !== "-") {
                             if (ket.toLowerCase().includes("pokok x2")) isPokok2x = true;
-                            ketList.push(ket);
+                            if (detikHukumanIstirahat > 0) catatanHukumanIstirahat.push(ket);
+                            else ketList.push(ket);
                         }
 
-                        if (tipe === "Hukuman Sistem") {
-                            potonganIstirahatTerekamDetik = Math.max(potonganIstirahatTerekamDetik,
-                                detikPotonganIstirahatTerekam_(status, ket));
+                        if (tipe === 'Hukuman Sistem') {
+                            potonganIstirahatTerekamDetik = Math.max(potonganIstirahatTerekamDetik, detikHukumanIstirahat);
                             return;
                         }
 
@@ -2509,7 +2610,7 @@
                             if (adalahMasukPagi && msk1 === "-") {
                                 msk1 = jamStr;
                                 if (isKoreksi) bgM1 = warnaKoreksiHariIni; // Putih bila koreksi tidak memakai kuota.
-                                else if (isAutoMasuk || Math.floor(detikEvent / 60) > kebijakanKerja.batasTelatMenit) bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Telat / Lupa Masuk
+                                else if (isAutoMasuk || Math.floor(detikEvent / 60) > kebijakanKerja.batasTelatMenit) bgM1 = "background: #fef08a; color: var(--theme-amber, #854d0e);"; // Kuning Telat / Lupa Masuk
                             } else if (adalahMasukSiang && msk2 === "-") {
                                 msk2 = jamStr;
                                 msk2DariAbsenFisik = !isAutoMasuk && !isKoreksi && jamFloat >= 12;
@@ -2536,10 +2637,10 @@
                             if (!sesiSudahTerbuka) detikSesiTerbuka = detikEvent;
                         } else if (/Sakit|Izin/.test(tipe) && detikSesiTerbuka !== null && detikEvent > detikSesiTerbuka) {
                             const labelStatus = tipe.includes('Sakit') ? 'Sakit' : 'Izin';
-                            const sakitBerkuota = labelStatus === 'Sakit' && applySakitSisaHari;
+                            const sakitBerkuota = labelStatus === 'Sakit' && isiSisaHariSakit;
                             const warnaStatus = labelStatus === 'Sakit'
-                                ? 'background-color:#bfdbfe; color:#1e3a8a;'
-                                : 'background-color:#bbf7d0; color:#166534;';
+                                ? 'background-color: var(--theme-tint-blue, #bfdbfe); color: var(--theme-blue, #1e3a8a);'
+                                : 'background-color: var(--theme-tint-green, #bbf7d0); color: var(--theme-green, #166534);';
                             if (!sakitBerkuota) {
                                 if (jamFloat <= 14.0) {
                                     klr1 = jamStr;
@@ -2568,8 +2669,8 @@
                             } else {
                                 klr2 = jamStr;
                                 if (isKoreksi) bgK2 = warnaKoreksiHariIni;
-                                else if (isAutoKeluar && status.includes('Penalti')) bgK2 = "background:#e2e8f0; color:#334155;";
-                                else if (isAutoKeluar) bgK2 = "background:#e0f2fe; color:#0369a1;";
+                                else if (isAutoKeluar && status.includes('Penalti')) bgK2 = "background: var(--theme-soft, #e2e8f0); color: var(--theme-text, #334155);";
+                                else if (isAutoKeluar) bgK2 = "background: var(--theme-tint-blue, #e0f2fe); color: var(--theme-blue, #0369a1);";
                             }
                             adaKeluar = true;
                             if (detikSesiTerbuka !== null && detikEvent > detikSesiTerbuka) {
@@ -2586,7 +2687,7 @@
                     });
 
                     if (msk1 === "-" && msk2 === "-" && (klr1 !== "-" || klr2 !== "-")) {
-                        msk1 = "13:30:00"; bgM1 = "background:#fef08a; color:#854d0e;"; // Kuning Lupa Masuk
+                        msk1 = "13:30:00"; bgM1 = "background: #fef08a; color: var(--theme-amber, #854d0e);"; // Kuning Lupa Masuk
                         detikMasukPertama = (13 * 60 + 30) * 60;
                         detikMasukPagiPertama = detikMasukPertama;
                         ketList.push("Lupa Masuk (Auto 13:30:00)");
@@ -2605,6 +2706,13 @@
                         }
                     }
 
+                    // Kuota sakit mengisi checkpoint siang sebelum potongan dihitung.
+                    if (isiSisaHariSakit && msk2 === '-' && detikMasukPagiPertama !== null && detikMasukPagiPertama <= batasMasukSetelahIstirahatDetik) {
+                        detikMasukSetelahIstirahat = batasMasukSetelahIstirahatDetik;
+                        msk2 = formatJamMenitPayroll(batasMasukSetelahIstirahatDetik / 60);
+                        bgM2 = 'background-color: var(--theme-tint-blue, #bfdbfe); color: var(--theme-blue, #1e3a8a);';
+                    }
+
                     // Tanpa checkpoint siang, potongan berjalan dari 13:30:00 sampai
                     // waktu berjalan/keluar, lalu berhenti otomatis pada 1 jam 30 menit.
                     if (detikMasukPertama !== null && detikMasukPertama < 12 * 3600 && detikMasukSetelahIstirahat === null) {
@@ -2615,7 +2723,12 @@
                             Math.min(maksimumPotonganIstirahatDetik, Math.max(0, acuanPotongan - batasMasukSetelahIstirahatDetik)));
                     }
 
-                    potonganIstirahatHariIniDetik = Math.max(potonganCheckpointIstirahatDetik, potonganIstirahatTerekamDetik);
+                    // Hukuman otomatis menjadi cadangan selama absen masuk siang belum tercatat.
+                    potonganIstirahatHariIniDetik = potonganCheckpointIstirahatDetik;
+                    if (detikMasukSetelahIstirahat === null) {
+                        potonganIstirahatHariIniDetik = Math.max(potonganIstirahatHariIniDetik, potonganIstirahatTerekamDetik);
+                        ketList.push(...catatanHukumanIstirahat);
+                    }
 
                     if (sesiKerjaHariIni.length > 0 || detikSakitSebelumMasuk > 0) {
                         let totalDetikReguler = detikSakitSebelumMasuk;
@@ -2664,32 +2777,19 @@
                         potHariIni += potonganIstirahatHariIniDetik * upahPerDetik;
                         ketList.push('Potongan Setelah Istirahat (' + formatDurasiDetikPayroll(potonganIstirahatHariIniDetik) + ')');
                     }
-                    if (applySakitSisaHari && eventPenutupIzinSakit) {
-                        const waktuSakit = new Date(eventPenutupIzinSakit['Waktu Absen']);
-                        const menitSakit = waktuSakit.getHours() * 60 + waktuSakit.getMinutes();
-                        if (menitSakit < kebijakanKerja.selesaiMenit) {
-                            // Kuota sakit hanya mengisi waktu setelah pengajuan.
-                            // Sesi sebelum sakit tetap dimulai pada jam masuk fisik,
-                            // sehingga masuk terlambat tidak berubah menjadi upah penuh.
-                            const detikSakit = menitSakit * 60 + waktuSakit.getSeconds();
-                            const sisaDetikJadwal = Math.max(0,
-                                kebijakanKerja.selesaiMenit * 60 - detikSakit);
-                            const sisaKuotaReguler = Math.max(0,
-                                kebijakanKerja.durasiMenit * 60 - totalDetikRegulerHariIni);
-                            const detikSakitDibayar = Math.min(sisaDetikJadwal, sisaKuotaReguler);
-                            upahRegulerHariIni += detikSakitDibayar * upahPerDetik;
-                            totalDetikRegulerHariIni += detikSakitDibayar;
-                            totalDetikKerjaHariIni = totalDetikRegulerHariIni + totalDetikLemburHariIni;
-                            if (msk2 === '-' && menitSakit <= 13 * 60 + 30) {
-                                msk2 = '13:30';
-                                bgM2 = 'background-color:#bfdbfe; color:#1e3a8a;';
-                            }
-                            if (klr2 === '-') {
-                                klr2 = formatJamMenitPayroll(kebijakanKerja.selesaiMenit);
-                                bgK2 = 'background-color:#bfdbfe; color:#1e3a8a;';
-                            }
-                            ketList.push('Sakit (Kuota Tersedia, Sisa Hari Terisi Otomatis)');
+                    if (isiSisaHariSakit) {
+                        // Kuota sakit hanya membayar sisa jadwal setelah pengajuan.
+                        const sisaDetikJadwal = detikAkhirJadwal - detikSakitSisaHari;
+                        const sisaKuotaReguler = Math.max(0, kebijakanKerja.durasiMenit * 60 - totalDetikRegulerHariIni);
+                        const detikSakitDibayar = Math.min(sisaDetikJadwal, sisaKuotaReguler);
+                        upahRegulerHariIni += detikSakitDibayar * upahPerDetik;
+                        totalDetikRegulerHariIni += detikSakitDibayar;
+                        totalDetikKerjaHariIni = totalDetikRegulerHariIni + totalDetikLemburHariIni;
+                        if (klr2 === '-') {
+                            klr2 = formatJamMenitPayroll(kebijakanKerja.selesaiMenit);
+                            bgK2 = 'background-color: var(--theme-tint-blue, #bfdbfe); color: var(--theme-blue, #1e3a8a);';
                         }
+                        ketList.push('Sakit (Kuota Tersedia, Sisa Hari Terisi Otomatis)');
                     }
                 } else if (!isHariLibur && !isFutureDate) {
                     // LOGIKA ALPA
@@ -2724,7 +2824,7 @@
                 let infoStr = uniqueKet.join('<br>') || "-";
                 if (!isHariLibur && !isFutureDate) {
                     const rawWaktu = [msk1, klr1, msk2, klr2].join(' | ');
-                    const rekonsiliasi = '<span style="display:block; margin-top:5px; color:#475569; font-size:10px;">' +
+                    const rekonsiliasi = '<span style="display:block; margin-top:5px; color: var(--theme-muted, #475569); font-size:10px;">' +
                         '<strong>Rekonsiliasi:</strong> Raw ' + rawWaktu +
                         ' · Reguler ' + formatDurasiDetikPayroll(totalDetikRegulerHariIni) +
                         ' · Lembur ' + formatDurasiDetikPayroll(totalDetikLemburHariIni) +
@@ -2735,10 +2835,10 @@
                 // ==========================================
                 // PEWARNAAN BARIS AHAD DAN KOLOM WAKTU
                 // ==========================================
-                let rowBg = i%2===0 ? "background:#f1f5f9;" : "background:#ffffff;"; // Default Belang
+                let rowBg = i%2===0 ? "background: var(--theme-soft, #f1f5f9);" : "background: var(--theme-surface, #ffffff);"; // Default Belang
                 let globalCellBg = "";
                 if (isHariLibur) {
-                    rowBg = "background-color:#fecdd3; color:#9f1239;"; // Pink untuk Ahad dan libur tambahan.
+                    rowBg = "background-color: var(--theme-tint-red, #fecdd3); color: var(--theme-purple, #9f1239);"; // Pink untuk Ahad dan libur tambahan.
                 }
 
                 // 1. Standarkan teks kolom status agar normal (tanpa warna-warni teks).
@@ -2748,11 +2848,11 @@
                 let bgWaktuKhusus = "";
                 if (!isHariLibur) {
                     if (isAlpa) {
-                        bgWaktuKhusus = "background-color:#1e293b; color:#ffffff;"; // Hitam, teks putih.
+                        bgWaktuKhusus = "background-color: #1e293b; color: #ffffff;"; // Hitam, teks putih.
                     } else if (isSakitExplicit && !statusMenutupSesiFisik) {
-                        bgWaktuKhusus = "background-color:#bfdbfe; color:#1e3a8a;"; // Biru.
+                        bgWaktuKhusus = "background-color: var(--theme-tint-blue, #bfdbfe); color: var(--theme-blue, #1e3a8a);"; // Biru.
                     } else if (isIzinExplicit && !statusMenutupSesiFisik) {
-                        bgWaktuKhusus = "background-color:#bbf7d0; color:#166534;"; // Hijau.
+                        bgWaktuKhusus = "background-color: var(--theme-tint-green, #bbf7d0); color: var(--theme-green, #166534);"; // Hijau.
                     }
                 }
 
@@ -2764,7 +2864,7 @@
                 // Kehadiran siang nyata kembali putih; kolom pagi tetap mencatat izin/sakit.
                 // Autofill, koreksi, dan penanda khusus keluar mengikuti warna sebelumnya.
                 if (!isHariLibur && (isSakitExplicit || isIzinExplicit) && msk2DariAbsenFisik) {
-                    finalBgM2 = 'background-color:#ffffff;';
+                    finalBgM2 = 'background-color: var(--theme-surface, #ffffff);';
                 }
 
                 if (!isHariLibur && waktuKembaliEfektif && (isSakitExplicit || isIzinExplicit)) {
@@ -2772,16 +2872,16 @@
                     // Warna izin/sakit hanya sebelum masuk kembali. Penanda koreksi,
                     // keterlambatan, dan auto keluar tetap mengikuti aturan sebelumnya.
                     if (menitKembali < 12 * 60) {
-                        finalBgM1 = bgM1 || 'background-color:#ffffff;';
-                        finalBgK1 = bgK1 || 'background-color:#ffffff;';
+                        finalBgM1 = bgM1 || 'background-color: var(--theme-surface, #ffffff);';
+                        finalBgK1 = bgK1 || 'background-color: var(--theme-surface, #ffffff);';
                     } else if (klr1 !== '-' && /^\d{2}:\d{2}/.test(klr1)) {
                         const bagianKeluar = klr1.split(':');
-                        if (Number(bagianKeluar[0]) * 60 + Number(bagianKeluar[1]) >= menitKembali) finalBgK1 = bgK1 || 'background-color:#ffffff;';
+                        if (Number(bagianKeluar[0]) * 60 + Number(bagianKeluar[1]) >= menitKembali) finalBgK1 = bgK1 || 'background-color: var(--theme-surface, #ffffff);';
                     }
-                    finalBgM2 = bgM2 || 'background-color:#ffffff;';
+                    finalBgM2 = bgM2 || 'background-color: var(--theme-surface, #ffffff);';
                     // Jadwal keluar yang diisi oleh hak sakit tetap biru. Keluar fisik
                     // setelah kembali bekerja menjadi putih; auto keluar menjaga warnanya.
-                    if (!applySakitFull || adaKeluarFisik || bgK2) finalBgK2 = bgK2 || 'background-color:#ffffff;';
+                    if (!applySakitFull || adaKeluarFisik || bgK2) finalBgK2 = bgK2 || 'background-color: var(--theme-surface, #ffffff);';
                 }
 
                 barisHTML += `<tr style="${rowBg}">
@@ -2791,10 +2891,10 @@
                     <td style="${finalBgM2}">${msk2}</td>
                     <td style="${finalBgK2}">${klr2}</td>
                     <td><strong>${txtJam}</strong></td>
-                    <td style="color:#0f766e; font-weight:600;">${upahHariIniStr}</td>
+                    <td style="color: var(--theme-teal, #0f766e); font-weight:600;">${upahHariIniStr}</td>
                     <td style="${statusTextStyle}">${infoStr}${renderFotoAbsensi_(events.map(e => ({ url: e['Bukti Foto'], tipe: e['Tipe Absen'], waktu: e['Waktu Absen'] })))}${renderLokasiAbsensi_(events.map(e => ({ url: e['Lokasi Maps'], tipe: e['Tipe Absen'], waktu: e['Waktu Absen'] })))}</td>
-                    <td style="color:var(--success); line-height:1.4;">${txtLemburJam ? `<span style="font-size:10px; color:#64748b;">${txtLemburJam}</span><br>` : ''}+ ${formatRp(lemHariIni)}</td>
-                    <td style="color:var(--danger);">- ${formatRp(potHariIni)}</td>
+                    <td style="color: var(--success); line-height:1.4;">${txtLemburJam ? `<span style="font-size:10px; color: var(--theme-muted, #64748b);">${txtLemburJam}</span><br>` : ''}+ ${formatRp(lemHariIni)}</td>
+                    <td style="color: var(--danger);">- ${formatRp(potHariIni)}</td>
                 </tr>`;
             }
 
@@ -2816,6 +2916,7 @@
                 roleProfilPoin === 'admin_raha' && cabangProfilPoin === 'Raha' &&
                 normalisasiNamaProfilPayroll_(profil.Username) === 'admin raha';
             let totalPoinSla = 0;
+            let poinBonusSyarif = 0;
             let nilaiPerPoin = 10000;
             let labelBonusPoin = 'Bonus Poin SLA';
             let totalPoinTeknisiRaha = 0;
@@ -2863,7 +2964,41 @@
                 // Nilai poin teknisi yang dibayar mengikuti presisi satu desimal yang ditampilkan.
                 totalPoinSla = Math.round((totalPoinSla + Number.EPSILON) * 10) / 10;
             }
+            if (bulanTahun >= '2026-10' && namaProfilPoin === 'abu abdillah' && roleProfilPoin === 'manager' &&
+                normalisasiNamaProfilPayroll_(profil.Username) === 'manager') {
+                const sumber = typeof poinSyarifManager_ !== 'undefined' ? poinSyarifManager_ : null;
+                if (!sumber || sumber.periode !== bulanTahun || normalisasiNamaProfilPayroll_(sumber.username) !== 'manager' ||
+                    normalisasiNamaProfilPayroll_(sumber.pemilik) !== 'abu abdillah' || sumber.sumberUsername !== 'Syarif' ||
+                    normalisasiNamaProfilPayroll_(sumber.sumberNama) !== 'syarifullah' ||
+                    !Number.isFinite(sumber.poinSla) || sumber.poinSla < 0) {
+                    throw new Error('Data poin bonus Syarif belum siap untuk periode ini. Muat ulang data payroll.');
+                }
+                poinBonusSyarif = sumber.poinSla;
+                totalPoinSla = Math.round((totalPoinSla + poinBonusSyarif + Number.EPSILON) * 10) / 10;
+                labelBonusPoin = 'Bonus Poin SLA (termasuk Syarif)';
+            }
+            if (bulanTahun >= '2026-10' && namaProfilPoin === 'syarifullah' && roleProfilPoin === 'teknisi' && profil.Username === 'Syarif') {
+                totalPoinSla = 0;
+                labelBonusPoin = 'Bonus Poin SLA (masuk slip Abu Abdillah)';
+            }
             const totalBonusPoin = totalPoinSla * nilaiPerPoin;
+            const tampilkanInsentifPostingan = bulanTahun >= '2026-10' && profil.Username === 'juna' &&
+                namaProfilPoin === 'juna' && roleProfilPoin === 'sales';
+            let jumlahPostinganKpi = 0;
+            let totalInsentifPostingan = 0;
+            if (tampilkanInsentifPostingan) {
+                const sumber = typeof postinganJuna_ !== 'undefined' ? postinganJuna_ : null;
+                if (!sumber || sumber.periode !== bulanTahun || sumber.username !== profil.Username ||
+                    normalisasiNamaProfilPayroll_(sumber.pemilik) !== namaProfilPoin ||
+                    sumber.sumberRole !== 'sales_director' || sumber.taskType !== 'sales_upload_harian_1_10' ||
+                    sumber.statusKpi !== 'tepat_waktu' || sumber.nilaiPerPostingan !== 5000 ||
+                    !Number.isSafeInteger(sumber.jumlahPostingan) || sumber.jumlahPostingan < 0 ||
+                    !Number.isSafeInteger(sumber.totalInsentif) || sumber.totalInsentif !== sumber.jumlahPostingan * 5000) {
+                    throw new Error('Data insentif postingan KPI Juna belum siap untuk periode ini. Muat ulang data payroll.');
+                }
+                jumlahPostinganKpi = sumber.jumlahPostingan;
+                totalInsentifPostingan = sumber.totalInsentif;
+            }
 
             // === SISTEM PENALTI KEDISIPLINAN ALFACOM (REVISI SKENARIO A, B, C) ===
             let totalTelatIzin = countTelatPagi + countIzin;
@@ -2910,7 +3045,7 @@
                     });
                 } else {
                     // SKENARIO B: Tidak memiliki bonus disiplin, kenakan denda Rp300.000.
-                    dendaDisiplin = 300000;
+                    dendaDisiplin = pegawaiBaru ? 0 : 300000;
                 }
             }
 
@@ -2922,10 +3057,10 @@
                 const periodeWita = new Date(now.getTime() + 8 * 3600000).toISOString().slice(0, 7);
                 const menungguPeriode = bulanTahun > periodeWita;
                 const memenuhiSyarat = countIzinFull === 0 && countAlpa === 0;
-                bonusKehadiranPenuh = !menungguPeriode && memenuhiSyarat ? 200000 : 0;
+                bonusKehadiranPenuh = !pegawaiBaru && !menungguPeriode && memenuhiSyarat ? 200000 : 0;
                 arrayTunjangan.push({
                     kode: 'bonus_kehadiran_kendari_202610',
-                    nama: menungguPeriode ? 'Bonus Kehadiran Penuh (Menunggu Periode)' : memenuhiSyarat
+                    nama: pegawaiBaru ? 'Bonus Kehadiran Penuh (Tidak Berlaku: Pegawai Baru)' : menungguPeriode ? 'Bonus Kehadiran Penuh (Menunggu Periode)' : memenuhiSyarat
                         ? 'Bonus Kehadiran Penuh (Tanpa Izin Sehari Penuh dan Alpa)'
                         : `Bonus Kehadiran Penuh (Hangus: ${countIzinFull} hari Izin Penuh, ${countAlpa} hari Alpa)`,
                     nominal: bonusKehadiranPenuh
@@ -2939,13 +3074,14 @@
             let feeMarketing = variabelPayroll.fee;
             let kasbon = variabelPayroll.kasbon;
             let totalBersih = totalUpahHadir - totalPotongan + totalLembur + totalBonusPoin +
-                totalBonusPoinTeknisiRaha + totalTunjanganTetap + feeMarketing - kasbon;
+                totalBonusPoinTeknisiRaha + totalInsentifPostingan + totalTunjanganTetap + feeMarketing - kasbon;
 
             return { profil, gajiPokok, upahPerHari, upahPerJam, countKehadiran, totalUpahHadir, totalPotongan, totalLembur,
-                totalBonusPoin, totalPoinSla, nilaiPerPoin, labelBonusPoin, totalPoinTeknisiRaha,
+                totalBonusPoin, totalPoinSla, nilaiPerPoin, labelBonusPoin, poinBonusSyarif, totalPoinTeknisiRaha,
+                jumlahPostinganKpi, totalInsentifPostingan, tampilkanInsentifPostingan,
                 totalBonusPoinTeknisiRaha, tampilkanPoinTeknisiRaha: salesArdanRaha, totalTunjanganTetap,
                 feeMarketing, kasbon, luarKota: variabelPayroll.luarKota, arrayTunjangan, dendaDisiplin,
-                countTelatPagi, countIzin, countIzinFull, countAlpa, bonusKehadiranPenuh, totalBersih, barisHTML };
+                countTelatPagi, countIzin, countIzinFull, countAlpa, bonusKehadiranPenuh, pegawaiBaru, countSebelumMulai, hariWajibHadir: pegawaiBaru ? hariWajibHadir : hariKerjaEfektif, tanggalMulaiAbsensi: statusPegawaiBaru.tanggalMulai, totalBersih, barisHTML };
         }
 
         function buatKartuAbsensiMobile_() {
@@ -3032,7 +3168,7 @@
             document.getElementById('salary-progress-current').textContent=formatRp(Number(p.gajiSekarang)||0);
             document.getElementById('salary-progress-bar').style.width=(done?100:count/6*100)+'%';
             document.getElementById('salary-progress-note').textContent=done?'Gaji telah mencapai batas otomatis Rp3.000.000. Penyesuaian berikutnya oleh Manajemen.':
-                'Mulai '+(p.mulaiPeriode||(cabang==='Raha'?'2026-11':'2026-10'))+' · Kehadiran: telat pagi ≤3 dan alpa ≤2. Pencapaian teknisi/sales mulai November 2026. Maksimal 2 kredit per bulan; 6 kredit dari minimal 3 bulan berbeda. Evaluasi sejak tanggal 8 bulan berikutnya.';
+                'Mulai '+(p.mulaiPeriode||'2026-11')+' · Kehadiran: telat pagi ≤3 dan alpa ≤2. Kredit kehadiran dan pencapaian teknisi/sales mulai November 2026. Maksimal 2 kredit per bulan; 6 kredit dari minimal 3 bulan berbeda. Evaluasi sejak tanggal 8 bulan berikutnya.';
             const list=document.getElementById('salary-progress-months');list.replaceChildren();
             (p.evaluasi||[]).slice(0,6).forEach(m=>{const item=document.createElement('div');item.style.cssText='padding:9px 12px;border-radius:8px;background:'+(m.memenuhi_syarat?'#ecfdf5':'#fff1f2')+';font-size:12px;';
                 item.textContent=m.periode+' · '+(m.memenuhi_syarat?(m.dipakai?'Sudah dihitung':'Memenuhi syarat'):'Dilewati')+' · Telat '+m.telat_pagi+', alpa '+m.alpa;list.appendChild(item);});
@@ -3061,6 +3197,11 @@
 
             document.getElementById('res-nama').innerText = data.profil['Nama Asli'] || namaTarget;
             document.getElementById('res-role').innerText = String(data.profil.Role || 'Staff').toUpperCase();
+            const infoPegawaiBaru = document.getElementById('info-pegawai-baru');
+            infoPegawaiBaru.hidden = !data.pegawaiBaru;
+            infoPegawaiBaru.textContent = data.pegawaiBaru
+                ? 'Pegawai baru (mulai absensi ' + data.tanggalMulaiAbsensi.split('-').reverse().join('/') + '). Tanggal sebelum mulai tidak dihitung alpa atau dikenai potongan gaji. Denda kedisiplinan Rp300.000 dan bonus kehadiran penuh Rp200.000 tidak diterapkan pada bulan ini.'
+                : '';
             renderProgramGaji_(data.profil);
             document.getElementById('res-gapok').innerText = formatRp(data.gajiPokok);
             document.getElementById('res-upah-jam').innerText = formatRp(data.upahPerJam) + " / Jam";
@@ -3072,7 +3213,7 @@
             buatKartuAbsensiMobile_();
             document.getElementById('sum-hadir').innerText = formatRp(data.totalUpahHadir);
             document.getElementById('count-hadir').innerText = data.countKehadiran;
-            document.getElementById('count-wajib').innerText = hk;
+            document.getElementById('count-wajib').innerText = data.hariWajibHadir;
 
             document.getElementById('sum-potongan').innerText = "- " + formatRp(data.totalPotongan);
             document.getElementById('sum-lembur').innerText = "+ " + formatRp(data.totalLembur);
@@ -3081,7 +3222,7 @@
             let manualBonusHtml = '';
             if (data.arrayTunjangan.length > 0) {
                 data.arrayTunjangan.forEach(t => {
-                    manualBonusHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; border-bottom:1px dotted #cbd5e1; padding-bottom:5px;"><span style="color:#475569;">${t.nama}</span><strong style="color:var(--success);">+ ${formatRp(t.nominal)}</strong></div>`;
+                    manualBonusHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; border-bottom: 1px dotted var(--theme-border, #cbd5e1); padding-bottom:5px;"><span style="color: var(--theme-muted, #475569);">${t.nama}</span><strong style="color: var(--success);">+ ${formatRp(t.nominal)}</strong></div>`;
                 });
             }
 
@@ -3096,6 +3237,11 @@
             document.getElementById('sum-poin-title').innerText = data.labelBonusPoin;
             document.getElementById('sum-poin').innerText = "+ " + formatRp(data.totalBonusPoin);
             document.getElementById('sum-poin-detail').innerText = data.totalPoinSla.toLocaleString('id-ID', { minimumFractionDigits: data.nilaiPerPoin === 2500 ? 0 : 1, maximumFractionDigits: 1 }) + ' poin × ' + formatRp(data.nilaiPerPoin);
+            if (data.poinBonusSyarif > 0) document.getElementById('sum-poin-detail').innerText += ' · Syarif: ' + data.poinBonusSyarif.toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' poin';
+            document.getElementById('box-postingan-kpi').style.display = data.tampilkanInsentifPostingan ? 'block' : 'none';
+            document.getElementById('sum-postingan-kpi').innerText = '+ ' + formatRp(data.totalInsentifPostingan);
+            document.getElementById('sum-postingan-kpi-detail').innerText =
+                data.jumlahPostinganKpi.toLocaleString('id-ID') + ' postingan tepat waktu × ' + formatRp(5000);
             document.getElementById('box-poin-teknisi-raha').style.display = data.tampilkanPoinTeknisiRaha ? 'block' : 'none';
             if (data.tampilkanPoinTeknisiRaha) {
                 document.getElementById('sum-poin-teknisi-raha').innerText = '+ ' + formatRp(data.totalBonusPoinTeknisiRaha);
@@ -3253,7 +3399,7 @@
                 return;
             }
             const mode = !penggunaBolehKelolaBuktiPayroll_() ? 'Anda dapat melihat dan mengunduh bukti milik Anda.' :
-                periodePayrollTerkunci_(context.periode) ? 'Bulan terkunci; bukti dapat dilihat dan diunduh.' :
+                slipPayrollTerkunci_(context.periode, context.namaPegawai) ? 'Bulan terkunci; bukti dapat dilihat dan diunduh.' :
                 'PDF maksimal 5 MB per bukti. Pilih berkas lalu tekan Unggah PDF. Bukti tersimpan terpisah dari nominal gaji.';
             document.getElementById('bukti-payroll-status').textContent = context.namaPegawai + ' · ' + context.periode + '. ' + mode;
         }
@@ -3263,7 +3409,7 @@
             const context = konteksBuktiPayroll_;
             if (!context) return;
             const management = penggunaBolehKelolaBuktiPayroll_();
-            const writable = management && buktiPayrollSiap_ && !periodePayrollTerkunci_(context.periode) && !operasiBuktiPayroll_;
+            const writable = management && buktiPayrollSiap_ && !slipPayrollTerkunci_(context.periode, context.namaPegawai) && !operasiBuktiPayroll_;
             for (const [jenis, label] of [['fee_marketing', 'Bukti Fee Marketing'], ['kasbon', 'Bukti Kasbon']]) {
                 const row = dataBuktiPayroll_[jenis];
                 const card = document.createElement('div'); card.className = 'payroll-evidence-card';
@@ -3316,7 +3462,7 @@
         }
         async function unggahBuktiPayroll_(context, jenis, file) {
             if (!konteksBuktiMasihAktif_(context) || !penggunaBolehKelolaBuktiPayroll_() || !buktiPayrollSiap_ ||
-                periodePayrollTerkunci_(context.periode) || operasiBuktiPayroll_) return;
+                slipPayrollTerkunci_(context.periode, context.namaPegawai) || operasiBuktiPayroll_) return;
             const old = dataBuktiPayroll_[jenis];
             let submitted = false;
             operasiBuktiPayroll_ = true;
@@ -3343,7 +3489,7 @@
         }
         async function hapusBuktiPayroll_(context, row) {
             if (!konteksBuktiMasihAktif_(context) || !penggunaBolehKelolaBuktiPayroll_() || !buktiPayrollSiap_ ||
-                periodePayrollTerkunci_(context.periode) || operasiBuktiPayroll_) return;
+                slipPayrollTerkunci_(context.periode, context.namaPegawai) || operasiBuktiPayroll_) return;
             if (!window.confirm('Hapus bukti ' + (row.jenis === 'kasbon' ? 'kasbon' : 'fee marketing') + ' ' + context.namaPegawai +
                 ' untuk ' + context.periode + '? (' + row.namaFile + ')')) return;
             operasiBuktiPayroll_ = true; renderBuktiPayroll_();
@@ -3506,6 +3652,7 @@
             const hint = document.getElementById('transfer-reset-info');
             if (hint) hint.textContent = 'Reset berikutnya: ' + new Date(json.resetPada).toLocaleString('id-ID', {timeZone:'Asia/Makassar',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}) + ' WITA.';
             perbaruiTandaTransferGaji_(); jadwalkanResetTransferGaji_();
+            perbaruiKunciTransferAktif_();
             return true;
         }
 
@@ -3534,6 +3681,10 @@
                     perbaruiTandaTransferGaji_(); return;
                 }
                 if (Date.now() >= batasResetTransferGaji_) { await pulihkanStatusTransferGaji_(); return; }
+                if (selected && (janjiSimpanVariabelPayroll_ || komponenPayrollKotor_ || tunjanganPayrollKotor_ || operasiBuktiPayroll_)) {
+                    perbaruiTandaTransferGaji_();
+                    showToast('Selesaikan dan simpan perubahan slip sebelum menandai gaji sudah ditransfer.', 'warning'); return;
+                }
                 const previous = !!statusTransferGaji_[username]?.sudahTransfer;
                 penyimpananTransferGaji_.add(username); perbaruiTandaTransferGaji_();
                 try {
@@ -3542,7 +3693,10 @@
                     if (!json || json.status !== 'sukses' || json.periode !== period || json.siklus !== cycle ||
                         !json.data || json.data.username !== username || json.data.sudahTransfer !== selected)
                         throw new Error('Konfirmasi status transfer tidak valid. Muat ulang status transfer.');
-                    if (periodeTransferGaji_ === period && siklusTransferGaji_ === cycle) statusTransferGaji_[username] = json.data;
+                    if (periodeTransferGaji_ === period && siklusTransferGaji_ === cycle) {
+                        statusTransferGaji_[username] = json.data;
+                        perbaruiKunciTransferAktif_();
+                    }
                     showToast('Gaji ' + profil['Nama Asli'] + (selected ? ' ditandai sudah ditransfer.' : ' ditandai belum ditransfer.'), 'success');
                 } catch (error) {
                     showToast(error.message || 'Status transfer gagal disimpan.', 'error');
@@ -3592,13 +3746,13 @@
                     const row = document.createElement('tr');
                     const values = [data.profil['Nama Asli'],String(data.profil.Role).toUpperCase(),data.countKehadiran + ' Hari',
                         formatRp(data.gajiPokok),formatRp(data.totalPotongan + data.kasbon),formatRp(data.totalLembur),
-                        formatRp(data.totalBonusPoin + data.totalBonusPoinTeknisiRaha + data.totalTunjanganTetap + data.feeMarketing),formatRp(data.totalBersih)];
+                        formatRp(data.totalBonusPoin + data.totalBonusPoinTeknisiRaha + data.totalInsentifPostingan + data.totalTunjanganTetap + data.feeMarketing),formatRp(data.totalBersih)];
                     values.forEach((value,index) => {
                         const cell = document.createElement('td');cell.textContent = value;
                         if(index === 0) {cell.style.textAlign='left';cell.style.fontWeight='bold';buatTandaTransferGaji_(data.profil,row,cell);}
                         if(index === 4) cell.style.color='var(--danger)';
                         if(index === 5 || index === 7) cell.style.color='var(--success)';
-                        if(index === 6) cell.style.color='var(--primary)';
+                        if(index === 6) cell.style.color='var(--theme-blue, var(--primary))';
                         if(index === 7) {cell.style.fontWeight='bold';cell.style.fontSize='14px';}
                         row.appendChild(cell);
                         if(index === 0) row.appendChild(buatSelRekeningPegawai_(data.profil));

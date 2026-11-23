@@ -1,4 +1,4 @@
-// Opens a manual chat; it never calls the notification relay or sends a message.
+// Manual WhatsApp shortcuts for admins.
 function bolehChatAdminTiket_(ticket){
  if(!penggunaAktif||!['admin','admin_raha'].includes(rolePengguna())||!dataSesuaiCabangAktif_(ticket))return false;
  const access=String(penggunaAktif.Hak_Akses_Cabang||'').trim().toLowerCase(),branch=String(ticket.Cabang||cabangAktif||'Kendari').trim().toLowerCase();
@@ -28,3 +28,54 @@ function htmlTombolChatSalesAdmin_(ticket){
  }).join('');
 }
 
+function barisRincianNotifTiket_(tiket, labelPekerjaan) {
+    const kelengkapan = [];
+    const pekerjaan = String(tiket.jenis_pekerjaan ?? '').replace(
+        /#[ \t]*kelengkapan[ \t]*[:=][ \t]*([^#\r\n]*)/gi,
+        (_, nilai) => {
+            if (nilai.trim()) kelengkapan.push(nilai.trim());
+            return '';
+        }
+    ).split(/\r?\n/).map(baris => baris.trim()).filter(Boolean).join('\n');
+    const rincian = [
+        ['📍 *Cabang:*', tiket.cabang],
+        ['🖨️ *Merek Mesin:*', tiket.merk_mesin],
+        ['🔢 *Serial Number:*', tiket.serial_number]
+    ].flatMap(([label, nilai]) => {
+        const isi = String(nilai ?? '').replace(/\s+/g, ' ').trim();
+        return isi && isi !== '-' ? [`${label} ${isi}`] : [];
+    });
+    if (pekerjaan) rincian.push(`🛠️ *${labelPekerjaan}:* ${pekerjaan}`);
+    if (kelengkapan.length) rincian.push(`📦 *Kelengkapan:* ${kelengkapan.join(', ')}`);
+    return rincian;
+}
+
+function pesanWAPendaftaranTiket_(tiket) {
+    return [
+        "Assalamu'alaikum, Sahabat Alfacom.",
+        '',
+        'Tiket perbaikan Anda telah terdaftar:',
+        `🎫 *ID Tiket:* ${tiket.id_tiket}`,
+        ...barisRincianNotifTiket_(tiket, 'Keluhan'),
+        '',
+        'Pantau progres perbaikan di tautan berikut.',
+        `https://aplikasisla.vercel.app/?track=${encodeURIComponent(tiket.id_tiket)}`
+    ].join('\n');
+}
+
+function pesanWAPenugasanTiket_(tiket, tugasPengganti = false) {
+    return [
+        tugasPengganti ? '🔄 *TUGAS PENGGANTI*' : '🆕 *TUGAS BARU*',
+        '',
+        `Bismillah, antum mendapat penugasan untuk tiket *${tiket.id_tiket}*.`,
+        '',
+        `🏢 *Klien:* ${tiket.klien_lokasi}`,
+        ...barisRincianNotifTiket_(tiket, 'Pekerjaan'),
+        `💼 *Sales:* ${tiket.sales || 'Tidak ada'}`,
+        `⏳ *Target respons:* ${tiket.target_sla_respon_jam} jam kerja`,
+        `⏳ *Target pengerjaan:* ${tiket.target_sla_jam} jam kerja`,
+        '',
+        'Silakan masuk ke aplikasi untuk merespons tiket ini.',
+        'https://aplikasisla.vercel.app/'
+    ].join('\n');
+}
